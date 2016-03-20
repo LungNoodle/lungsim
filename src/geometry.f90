@@ -31,13 +31,13 @@ contains
 !###################################################################################
 !
   subroutine define_node_geometry(NODEFILE)
-!*define_node_geometry:* Reads in an ipnode file to define a geometry 
+!*define_node_geometry:* Reads in an ipnode file to define a tree geometry 
     use arrays,only: dp,nodes,node_field,node_xyz,num_nodes
     use diagnostics, only: enter_exit
     use indices
     implicit none
 
-    character(LEN=*),intent(in) :: NODEFILE
+    character(LEN=*),intent(in) :: NODEFILE !Input nodefile
     !     Local Variables
     integer :: i,ierror,np,np_global,&
          num_versions,nv,NJT=0
@@ -137,8 +137,8 @@ contains
 !
 !###################################################################################
 !
-!>define_1d_elements reads in an element ipelem file to define a geometry
   subroutine define_1d_elements(ELEMFILE)
+!*define_1d_elements:* reads in an element ipelem file to define a geometry
     use arrays,only: elem_direction,elem_field,elems,elem_cnct,elem_nodes,&
          elem_ordrs,elem_symmetry,elems_at_node,elem_units_below,&
          expansile,node_xyz,num_elems,num_nodes
@@ -245,10 +245,9 @@ contains
 !
 !###################################################################################
 !
-!> define_rad_from_file reads in a radius field associated with an aiway tree and assigns radius information
-!> to each element, also calculates volume of each element
-
   subroutine define_rad_from_file(FIELDFILE,TYPE)
+!* define_rad_from_file:* reads in a radius field associated with an aiway tree and assigns radius information
+! to each element, also calculates volume of each element
     use arrays,only: dp,elem_field,elem_cnct,elem_nodes,&
          elems_at_node,num_elems,num_nodes,node_field
     use indices,only: ne_a_A,ne_length,ne_radius,ne_vol,&
@@ -382,9 +381,10 @@ contains
    !Input options ORDR_SYSTEM=STRAHLER (CONTROL_PARAM=RDS), HORSFIELD (CONTROL_PARAM=RDH)
   
    !Local variables
-   integer :: ne_min,ne_max,nindex,ne,n_max_ord,n_tally(maxgen),n,X(maxgen),ne_start,&
+   integer :: ne_min,ne_max,nindex,ne,n_max_ord,n,ne_start,&
       inlet_count
-   real(dp) :: Y_regress(maxgen) 
+   real(dp) :: radius
+
  
    character(len=60) :: sub_name
 
@@ -423,29 +423,18 @@ contains
     else if(ORDR_SYSTEM(1:5).eq.'horsf')then
       nindex = no_hord !for Horsfield ordering
     endif
-    !do n=1,maxgen
-    !  n_tally(n)=0
-    !enddo
-  
-    !n_max_ord=0
-    do ne=ne_min,ne_max
-      if(elem_ordrs(nindex,ne).GT.n_max_ord) n_max_ord=elem_ordrs(nindex,ne) 
-    !  if(elem_cnct(1,0,ne).ne.1)then
-    !    n_tally(elem_ordrs(nindex,ne))=n_tally(elem_ordrs(nindex,ne))+1
-    !  endif
-    enddo  
-    !do n=1,n_max_ord
-    !   X(n)=n
-    !   Y_regress(n)=LOG10(DBLE(n_tally(n)))
-    !enddo  
-    !write(*,*) Y_regress
-    !call lin_lsq_reg(n_max_ord,R_Sq,slope,X,Y_regress)
+    
     ne=ne_start
+    n_max_ord=elem_ordrs(nindex,ne)
     elem_field(ne_radius,ne)=START_RAD
 
     do ne=1,num_elems
-     !elem_
-     if(ne.lt.10) write(*,*) 'ne rad', ne, elem_field(ne_radius,ne)
+     radius=10.0_dp**(log10(CONTROL_PARAM)*dble(elem_ordrs(nindex,ne)-n_max_ord)&
+        +log10(START_RAD))
+     elem_field(ne_radius,ne)=radius
+     elem_field(ne_radius_in,ne)=radius
+     elem_field(ne_radius_out,ne)=radius
+     if(ne.lt.30) write(*,*) 'ne rad', ne, elem_field(ne_radius,ne)
     enddo
 
     call enter_exit(sub_name,2)

@@ -1,21 +1,20 @@
-!> \file
-!> \author Merryn Tawhai
-!> \brief This module defines arrays.
-!>
-!> \section LICENSE
-!>
-!>
-!> Contributor(s):
-!>
-!>\Description
-!> This module defines arrays.
-
 module arrays
+!*Brief Description:* This module defines arrays. 
+!
+!*LICENSE:*
+!
+!
+!*Contributor(s):* Merryn Tawhai, Alys Clark 
+!
+!*Full Description:*
+!
+!This module defines arrays 
+
   implicit none
 
   integer :: num_elems,num_nodes,num_units,maxgen
 
-  integer, parameter :: dp=kind(0.d0) ! for double precision  
+  integer, parameter :: dp=kind(0.d0) !  for double precision  
 
   integer,allocatable :: nodes(:) !allocated in define_node_geometry
   integer,allocatable :: elems(:) !allocated in define_1d_elements
