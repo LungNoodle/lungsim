@@ -292,5 +292,5 @@ texinfo_documents = [
 
 #----- fortran source files
 fortran_ext =['f90', 'f95']
-fortran_src = ['/people/acla148/lung/NEONcode/Library/src/geometry.f90']
+fortran_src = ['/people/acla148/lung/NEONlung/Library/src/arrays.f90','/people/acla148/lung/NEONlung/Library/src/geometry.f90']
 

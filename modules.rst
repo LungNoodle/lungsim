@@ -1,6 +1,8 @@
 Modules
 ========
 
-List of modules and link to their contents
+List of modules and link to their contents:
+
+:doc:`/Modules/arrays`
 
 :doc:`/Modules/geometry`
