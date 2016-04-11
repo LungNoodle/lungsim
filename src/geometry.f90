@@ -3,8 +3,7 @@ module geometry
 !
 !*LICENSE:*
 !
-!
-!*Contributor(s):* Merryn Tawhai, Alys Clark 
+! 
 !
 !*Full Description:*
 !
@@ -788,7 +787,6 @@ contains
      elem_field(ne_radius,ne)=radius
      elem_field(ne_radius_in,ne)=radius
      elem_field(ne_radius_out,ne)=radius
-     if(ne.lt.30) write(*,*) 'ne rad', ne, elem_field(ne_radius,ne)
     enddo
 
     call enter_exit(sub_name,2)
