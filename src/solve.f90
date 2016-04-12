@@ -1,21 +1,189 @@
-!> \file
-!> \author Merryn Tawhai, Alys Clark
-!> \brief This module contains solvers required in lung models
-!>
-!> \section LICENSE
-!>
-!>
-!> Contributor(s):
-!>
-!>\Description
-!> This module contains solvers required in lung modules
 module solve
+!*Brief Description:* This module contains solvers required for lung problems
+!
+!*LICENSE:*
+!
+!
+!
+!*Full Description:*
+!
+!Solvers included in this module are:
+! BICGSTAB == The STABalized BIConjugate Gradient method
+! GMRES == Generalised Minimal RESidual method
   implicit none
   private
+  public BICGSTAB_LinSolv
   public pmgmres_ilu_cr
-
 contains
-  
+!
+!####################################################################### 
+!
+!*BICGSTAB_LinSolv:*
+!   This function uses a preconditioned biconjugate gradient method to solve a 
+!   linear system Ax=b. Currently this solver is hard-coded to use the diaganol 
+!   entries of A as a preconditioner (the Jacobi preconditioner). However, this
+!   could easily be added as an input variable. Sparsity is defined by compressed
+!   row storage.
+! Created by ARC: 15-12-2015
+
+!   Input:
+!   MatrixSize -> the size of the matrix.
+!   NonZeros -> The number of non-zero entries.
+!   SparseCol -> Define the column indices that have non-zero entries.
+!   SparseRow ->Define the indices of SparseCol that represent each row.
+!   SparseVal -> The values of non-zero entries.
+!   RHS -> The vector on the RHS of the linear system
+
+!   FLAGS - 0=Solution found to tolerance
+!           1=No convergence max iterations reached
+!           -1=breakdown rho=0
+!           -2=breakdown omega=0
+
+subroutine BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,Solution,SparseCol,SparseRow,SparseVal,TOLER,MaxIter)
+    use arrays
+
+    !Input/Output Variables
+    integer, intent(in) :: MatrixSize,NonZeros
+    integer, intent(in) :: SparseCol(NonZeros),SparseRow(MatrixSize+1),MaxIter
+    double precision :: Solution(MatrixSize),SparseVal(NonZeros),RHS(MatrixSize),TOLER
+
+    !Local Variables
+    integer :: i,k,j,kstart,kend,Iter,FLAG
+    double precision :: Ax(MatrixSize),bnrm2,error_r,PreCon(MatrixSize),PreConInv(MatrixSize)
+    double precision :: r(MatrixSize),rtilde(MatrixSize),alpha,beta,omega,rho,rho_1
+    double precision :: p(MatrixSize),v(MatrixSize),phat(MatrixSize),s(MatrixSize),snorm,resid,shat(MatrixSize),t(MatrixSize)
+    real :: start,finish
+    call CPU_TIME(start)
+    print *, 'In Solver, Tolerance=', TOLER, 'Max iterations=', MaxIter
+
+!!! PRECONDITIONER MATRIX - THE DIAGONALS OF THE MATRIX A P=diag(A), Jacobi preconditioner Inverse is deltaij/Aij
+    DO i=1,MatrixSize
+        kstart=SparseRow(i)
+        kend=SparseRow(i+1)-1
+        DO k=kstart,kend
+            IF(SparseCol(k).eq.i)THEN
+                PreCon(i)=SparseVal(k)
+                PreConInv(i)=1/PreCon(i)
+            ENDIF
+        ENDDO
+    ENDDO
+
+
+    !bnrm2=norm(RHS)
+    bnrm2=sqrt(DOT_PRODUCT(RHS,RHS))!Checked against matlab
+    IF(bnrm2.eq.0.d0) bnrm2=1.d0
+
+
+    error_r=0.d0
+    DO i=1,MatrixSize !This loop depends on sparsity structure
+        Ax(i)=0.d0 !Initialise Ax for this entry
+        kstart=SparseRow(i)
+        kend=SparseRow(i+1)-1
+        DO k=kstart,kend
+            Ax(i)=Ax(i)+SparseVal(k)*solution(SparseCol(k)) !A*X
+        ENDDO
+    ENDDO
+    r=RHS-Ax
+    rtilde=r
+
+    error_r=sqrt(DOT_PRODUCT(r,r))/bnrm2 !Checked against matlab
+
+
+    IF(error_r.lt.TOLER)THEN
+        write(*,*) 'Initial guess is perfect, Exiting solver',TOLER
+        FLAG=0
+    RETURN
+    ENDIF
+    alpha=0.d0
+    beta=0.d0
+    omega=1.d0
+
+!!START OF ITERATIVE LOOP
+     iterative_loop: DO Iter=1,MaxIter
+        !rho is dot product of r and t tilde
+        rho=DOT_PRODUCT(r,rtilde) !checked against matlab
+        IF(rho.EQ.0.d0) EXIT iterative_loop
+        IF(ITER.GT.1.d0)THEN
+            beta=(rho/rho_1)*(alpha/omega)
+            p=r+beta*(p-omega*v)
+            phat=PreConInv*p
+            v=0.d0*v
+        ELSE
+            p=r
+            phat=PreConInv*p
+            v=0.d0*p
+        ENDIF
+
+
+        !v=ApHat
+        DO i=1,MatrixSize !This loop depends on sparsity structure
+            kstart=SparseRow(i)
+            kend=SparseRow(i+1)-1
+            DO k=kstart,kend
+                v(i)=v(i)+SparseVal(k)*phat(SparseCol(k))
+            ENDDO
+        ENDDO
+        !v is correct against matlab
+
+        alpha=rho/DOT_PRODUCT(rtilde,v) !alpha is correct first iter
+        s=r-alpha*v
+
+        snorm=sqrt(DOT_PRODUCT(s,s))!snorm correct against matlab
+
+        !!EARLY CONVERGENCE TEST
+        IF(snorm.LE.TOLER)THEN
+            solution=solution+alpha*phat
+            resid=snorm/bnrm2
+            EXIT iterative_loop
+        ENDIF
+
+
+        !!Stabiliser shat=precon-1*s
+        shat=PreConInv*s
+        t=0.d0*s
+        DO i=1,MatrixSize
+            kstart=SparseRow(i)
+            kend=SparseRow(i+1)-1
+            DO k=kstart,kend
+                t(i)=t(i)+SparseVal(k)*shat(SparseCol(k)) !A*X !correct first iter
+            ENDDO
+        ENDDO
+        omega=DOT_PRODUCT(t,s)/DOT_PRODUCT(t,t)!omega corect first iter
+
+
+        solution=solution+alpha*phat+omega*shat
+        r=s-omega*t
+        error_r=SQRT(DOT_PRODUCT(r,r))/bnrm2
+
+        IF(error_r.LE.TOLER) EXIT iterative_loop
+        IF(omega.EQ.0.d0) EXIT iterative_loop
+        rho_1=rho!
+
+    ENDDO iterative_loop
+    IF(error_r.LE.TOLER.OR.snorm.LE.TOLER)THEN
+        IF(snorm.LE.TOLER)THEN
+            error_r=SQRT(DOT_PRODUCT(s,s))/bnrm2
+        ENDIF
+!        FLAG=0
+        print *, 'Converged with error=',error_r
+    ELSEIF(omega.EQ.0)THEN
+!        FLAG=-2
+        print *, 'Not converged omega =0'
+    ELSEIF(rho.EQ.0)THEN
+!        FLAG=-1
+        print *, 'Not converged rho =0'
+    ELSE
+!        FLAG=1
+        print *, 'Not converged max no of iterations reached'
+        print *, 'Error=',error_r
+    ENDIF
+    CALL CPU_TIME(finish)
+    print '("Time= ",f12.9,"seconds")',finish-start
+
+
+
+end subroutine BICGSTAB_LinSolv
+
 !#############################################################################
 
 !!! The following is the code from mgmres.f90, downloaded from 
@@ -543,7 +711,5 @@ contains
     
     return
   end subroutine rearrange_cr
-
-
   
 end module solve
