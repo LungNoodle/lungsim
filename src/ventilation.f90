@@ -148,13 +148,13 @@ contains
          (-Pcw)/98.0665_dp !Pmuscle - Pchest_wall (cmH2O)
 
 !!! Initialise variables:
-    pmus_factor_in=1.0 _dp
-    pmus_factor_ex=1.0_dp
+    pmus_factor_in = 1.0_dp
+    pmus_factor_ex = 1.0_dp
     time = 0.0_dp !initialise the simulation time.
-    n=0 !initialise the 'breath number'. This is incremented at the start of each breath.
-    sum_tidal=0.0_dp ! initialise the inspired and expired volumes
-    sum_expid=0.0_dp
-    last_vol=init_vol
+    n = 0 !initialise the 'breath number'. This is incremented at the start of each breath.
+    sum_tidal = 0.0_dp ! initialise the inspired and expired volumes
+    sum_expid = 0.0_dp
+    last_vol = init_vol
 
     CONTINUE=.TRUE.
     do while(CONTINUE)
