@@ -23,6 +23,7 @@ contains
 !!!######################################################################
 
   subroutine enter_exit(sub_name,type)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_ENTER_EXIT" :: ENTER_EXIT
     implicit none
 
     integer,intent(in) :: type
