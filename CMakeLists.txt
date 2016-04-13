@@ -39,4 +39,7 @@ set(LIB_SRCS
 
 add_library(aether ${LIB_SRCS})#Aether to be replaced with whatever the final name of the code is
 
-set_target_properties(aether PROPERTIES Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules")
+set_target_properties(aether PROPERTIES 
+  Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules"
+  Fortran_VISIBILITY_PRESET hidden
+  VISIBILITY_INLINES_HIDDEN 1)
