@@ -20,6 +20,7 @@ contains
 !!!################################################################
   
   subroutine export_1d_elem_field(ne_field, EXELEMFILE, group_name, field_name )
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_1D_ELEM_FIELD" :: EXPORT_1D_ELEM_FIELD
     
     use arrays,only: elem_field,num_elems
     implicit none
@@ -69,6 +70,7 @@ contains
 !!!############################################################################
   
   subroutine export_1d_elem_geometry(EXELEMFILE, name)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_1D_ELEM_GEOMETRY" :: EXPORT_1D_ELEM_GEOMETRY
     
     use arrays,only: elem_nodes,num_elems
     implicit none
@@ -126,7 +128,9 @@ contains
 !!!##########################################################################
   
   subroutine export_node_geometry(EXNODEFILE, name)
-    use arrays,only: node_xyz,num_nodes
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_NODE_GEOMETRY" :: EXPORT_NODE_GEOMETRY
+
+  use arrays,only: node_xyz,num_nodes
     implicit none
     
 !!! Parameters
@@ -177,7 +181,9 @@ contains
 !!!########################################################################
 
   subroutine export_terminal_solution(EXNODEFILE, name)
-    use arrays,only: elem_nodes,&
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_TERMINAL_SOLUTION" :: EXPORT_TERMINAL_SOLUTION
+
+  use arrays,only: elem_nodes,&
          node_xyz,num_units,units,unit_field
     use indices,only: nu_comp,nu_pe,nu_vt,nu_vent
     implicit none
@@ -267,7 +273,9 @@ contains
 !!! #################################################################
 
   subroutine export_node_field(nj_field, EXNODEFIELD, name, field_name)
-    use arrays,only: node_field,num_nodes
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_NODE_FIELD" :: EXPORT_NODE_FIELD
+
+  use arrays,only: node_field,num_nodes
     
     implicit none
 
@@ -310,6 +318,7 @@ contains
 !!! ###########################################################
 
   subroutine export_elem_field(EXELEMFIELD, name, field_name)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_ELEM_FIELD" :: EXPORT_ELEM_FIELD
     
     use arrays,only: elem_nodes,num_elems
     implicit none

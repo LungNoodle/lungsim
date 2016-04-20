@@ -31,6 +31,7 @@ module arrays
   real(dp),allocatable :: node_xyz(:,:)
   real(dp),allocatable :: unit_field(:,:) !properties of elastic units
   real(dp),allocatable :: node_field(:,:)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_NODE_FIELD" :: NODE_FIELD
 
   logical,allocatable :: expansile(:)
 
