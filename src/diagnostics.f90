@@ -15,7 +15,7 @@ module diagnostics
   logical :: diagnostics_on
 
   private
-  public enter_exit, set_diagnostics_on, set_test_cpu_time
+  public enter_exit, set_diagnostics_on
 
 contains
 
@@ -52,17 +52,5 @@ contains
     diagnostics_on = state
     
   end subroutine set_diagnostics_on
-
-  subroutine set_test_cpu_time(state)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_SET_TEST_CPU_TIME" :: SET_TEST_CPU_TIME
-    use other_consts, only: test_cpu_time
-    implicit none
-    
-    logical, intent(in) :: state
-    
-    test_cpu_time = state
-    
-  end subroutine set_test_cpu_time
-
 
 end module diagnostics

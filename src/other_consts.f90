@@ -24,6 +24,4 @@ module other_consts
   real(dp) :: INITIAL_LPM,mu_app(13)
   real(dp) :: L_a(13),L_v(13),rad_a(13),rad_v(13),alpha_a,alpha_v
 
-  logical :: test_cpu_time
-
 end module other_consts
