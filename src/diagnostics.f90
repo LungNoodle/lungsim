@@ -11,9 +11,8 @@
 !> This module handles diagnostics
 module diagnostics
 
-  use other_consts
-
   implicit none
+  logical :: diagnostics_on
 
   private
   public enter_exit, set_diagnostics_on, set_test_cpu_time
@@ -24,7 +23,6 @@ contains
 
   subroutine enter_exit(sub_name,type)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_ENTER_EXIT" :: ENTER_EXIT
-    use other_consts, only: diagnostics_on
     implicit none
 
     !COMMON /DLL_OTHER_CONSTS/ diagnostics_on
@@ -47,7 +45,6 @@ contains
 
   subroutine set_diagnostics_on(state)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_SET_DIAGNOSTICS_ON" :: SET_DIAGNOSTICS_ON
-    use other_consts, only: diagnostics_on
     implicit none
     
     logical, intent(in) :: state
