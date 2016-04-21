@@ -10,6 +10,7 @@ module solve
 !Solvers included in this module are:
 ! BICGSTAB == The STABalized BIConjugate Gradient method
 ! GMRES == Generalised Minimal RESidual method
+  use MathUtilities, only: ax_cr,ilu_cr,diagonal_pointer_cr
   implicit none
   private
   public BICGSTAB_LinSolv
@@ -75,7 +76,8 @@ subroutine BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,Solution,SparseCol,SparseRow
 
 
     error_r=0.d0
-    DO i=1,MatrixSize !This loop depends on sparsity structure
+    !CALL ax_cr(MatrixSize,SparseRow,SparseCol,SparseVal,solution,Ax)
+    DO i=1,MatrixSize !This loop depends on sparsity structure 
         Ax(i)=0.d0 !Initialise Ax for this entry
         kstart=SparseRow(i)
         kend=SparseRow(i+1)-1
@@ -183,9 +185,10 @@ subroutine BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,Solution,SparseCol,SparseRow
 
 
 end subroutine BICGSTAB_LinSolv
-
+!
 !#############################################################################
-
+!
+!*GMRES solver:*
 !!! The following is the code from mgmres.f90, downloaded from 
 !!! www.people.sc.fsu.edu/~jbukhardt/f_src/mgmres/mgmres.html on 13/01/2016
 
@@ -244,138 +247,10 @@ end subroutine BICGSTAB_LinSolv
     !    IA[I] through IA[I+1]-1.
 
 
-  !*****************************************************************************80
+  !*****************************************************************************
+    
 
-  subroutine ax_cr ( n, ia, ja, a, x, w )
-    !! AX_CR computes A*x for a matrix stored in sparse compressed row form.
-    implicit none
-    
-    integer ( kind = 4 ) n
-    integer ( kind = 4 ) ia(*) !ia(n+1)
-    integer ( kind = 4 ) ja(*) !ja(nz_num)
-    real ( kind = 8 ) a(*) !a(nz_num)
-    real ( kind = 8 ) x(*) !x(n)
-    real ( kind = 8 ) w(*) !w(n)
-    
-    integer ( kind = 4 ) i
-    integer ( kind = 4 ) k1
-    integer ( kind = 4 ) k2
-    
-    w(1:n) = 0.0D+00
-    
-    do i = 1, n
-       k1 = ia(i)
-       k2 = ia(i+1) - 1
-       w(i) = w(i) + dot_product ( a(k1:k2), x(ja(k1:k2)) )
-    end do
-    
-    return
-  end subroutine ax_cr
-  
-  
-  !*****************************************************************************80
-
-  subroutine diagonal_pointer_cr ( n, ia, ja, ua )
-    !! DIAGONAL_POINTER_CR finds diagonal entries in a sparse compressed row matrix.
-    !    The array UA can be used to locate the diagonal elements of the matrix.
-    !    It is assumed that every row of the matrix includes a diagonal element,
-    !    and that the elements of each row have been ascending sorted.
-    implicit none
-    
-    integer ( kind = 4 ) n
-    integer ( kind = 4 ) ia(*) !ia(n+1)
-    integer ( kind = 4 ) ja(*) !ja(nz_num)
-    integer ( kind = 4 ) ua(*) !ua(n)
-    
-    integer ( kind = 4 ) i
-    integer ( kind = 4 ) k
-    
-    ua(1:n) = -1
-    
-    do i = 1, n
-       do k = ia(i), ia(i+1) - 1
-          if ( ja(k) == i ) then
-             ua(i) = k
-          end if
-       end do
-    end do
-    return
-  end subroutine diagonal_pointer_cr
-
-
-  !*****************************************************************************80
-  subroutine ilu_cr ( n, nz_num, ia, ja, a, ua, l )
-!!! ILU_CR computes the incomplete LU factorization of a matrix.
-    !    Input, integer ( kind = 4 ) UA(N), the index of the diagonal element
-    !    of each row.
-    !    Output, real ( kind = 8 ) L(NZ_NUM), the ILU factorization of A.
-    implicit none
-    
-    integer ( kind = 4 ) n
-    integer ( kind = 4 ) nz_num
-    integer ( kind = 4 ) ia(*) !ia(n+1)
-    integer ( kind = 4 ) ja(*) !ja(nz_num)
-    real ( kind = 8 ) a(*) !a(nz_num)
-    integer ( kind = 4 ) ua(*) !ua(n)
-    real ( kind = 8 ) l(*) !l(nz_num)
-    
-    integer ( kind = 4 ) i
-    integer ( kind = 4 ) iw(n)
-    integer ( kind = 4 ) j
-    integer ( kind = 4 ) jj
-    integer ( kind = 4 ) jrow
-    integer ( kind = 4 ) jw
-    integer ( kind = 4 ) k
-    real ( kind = 8 ) tl
-
-
-    !  Copy A.
-    l(1:nz_num) = a(1:nz_num)
-   
-    do i = 1, n ! for each row, up to max number of rows
-       !  IW points to the nonzero entries in row I.
-       iw(1:n) = -1
-       do k = ia(i), ia(i+1) - 1 !for each 
-          iw(ja(k)) = k
-       end do
-       do j = ia(i), ia(i+1) - 1
-          jrow = ja(j)
-          if ( i <= jrow ) then
-             exit
-          end if
-          tl = l(j) * l(ua(jrow))
-          l(j) = tl
-          do jj = ua(jrow) + 1, ia(jrow+1) - 1
-             jw = iw(ja(jj))
-             if ( jw /= -1 ) then
-                l(jw) = l(jw) - tl * l(jj)
-             end if
-          end do
-       end do
-       ua(i) = j
-       if ( jrow /= i ) then
-          write ( *, '(a)' ) ' '
-          write ( *, '(a)' ) 'ILU_CR - Fatal error!'
-          write ( *, '(a)' ) '  JROW ~= I'
-          write ( *, '(a,i8)' ) '  JROW = ', jrow
-          write ( *, '(a,i8)' ) '  I    = ', i
-          stop
-       end if
-       if ( l(j) == 0.0D+00 ) then
-          write ( *, '(a)' ) ' '
-          write ( *, '(a)' ) 'ILU_CR - Fatal error!'
-          write ( *, '(a,i8)' ) '  Zero pivot on step I = ', i
-          write ( *, '(a,i8,a)' ) '  L(', j, ') = 0.0'
-          stop
-       end if
-       l(j) = 1.0D+00 / l(j)
-    end do
-
-    l(ua(1:n)) = 1.0D+00 / l(ua(1:n))
-    
-    return
-  end subroutine ilu_cr
-
+ 
 
   !*****************************************************************************80
 
@@ -460,7 +335,7 @@ end subroutine BICGSTAB_LinSolv
   end subroutine mult_givens
 
 
-  !*****************************************************************************80
+  !*****************************************************************************
   subroutine pmgmres_ilu_cr ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, &
        tol_abs, tol_rel )
 !!! PMGMRES_ILU_CR applies the preconditioned restarted GMRES algorithm.
