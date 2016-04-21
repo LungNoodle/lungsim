@@ -1,6 +1,6 @@
 !> \file
 !> \author Merryn Tawhai
-!> \brief This module handles diagnostics. 
+!> \brief This module handles diagnostics.
 !>
 !> \section LICENSE
 !>
