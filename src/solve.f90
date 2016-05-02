@@ -10,18 +10,18 @@ module solve
 !Solvers included in this module are:
 ! BICGSTAB == The STABalized BIConjugate Gradient method
 ! GMRES == Generalised Minimal RESidual method
-  use MathUtilities, only: ax_cr,ilu_cr,diagonal_pointer_cr
+  use math_utilities, only: ax_cr,ilu_cr,diagonal_pointer_cr
   implicit none
   private
   public BICGSTAB_LinSolv
   public pmgmres_ilu_cr
 contains
 !
-!####################################################################### 
+!#######################################################################
 !
 !*BICGSTAB_LinSolv:*
-!   This function uses a preconditioned biconjugate gradient method to solve a 
-!   linear system Ax=b. Currently this solver is hard-coded to use the diaganol 
+!   This function uses a preconditioned biconjugate gradient method to solve a
+!   linear system Ax=b. Currently this solver is hard-coded to use the diaganol
 !   entries of A as a preconditioner (the Jacobi preconditioner). However, this
 !   could easily be added as an input variable. Sparsity is defined by compressed
 !   row storage.
@@ -77,7 +77,7 @@ subroutine BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,Solution,SparseCol,SparseRow
 
     error_r=0.d0
     !CALL ax_cr(MatrixSize,SparseRow,SparseCol,SparseVal,solution,Ax)
-    DO i=1,MatrixSize !This loop depends on sparsity structure 
+    DO i=1,MatrixSize !This loop depends on sparsity structure
         Ax(i)=0.d0 !Initialise Ax for this entry
         kstart=SparseRow(i)
         kend=SparseRow(i+1)-1
@@ -189,7 +189,7 @@ end subroutine BICGSTAB_LinSolv
 !#############################################################################
 !
 !*GMRES solver:*
-!!! The following is the code from mgmres.f90, downloaded from 
+!!! The following is the code from mgmres.f90, downloaded from
 !!! www.people.sc.fsu.edu/~jbukhardt/f_src/mgmres/mgmres.html on 13/01/2016
 
 !!!  Licensing:
@@ -221,7 +221,7 @@ end subroutine BICGSTAB_LinSolv
     !    SIAM, 2003,
     !    ISBN: 0898715342,
     !    LC: QA188.S17.
-    
+
 !!!  Parameters:
     !    Input, integer ( kind = 4 ) N, the order of the system.
     !
@@ -235,7 +235,7 @@ end subroutine BICGSTAB_LinSolv
     !    Input, real ( kind = 8 ) X(N), the vector to be multiplied by A'.
     !
     !    Output, real ( kind = 8 ) W(N), the value of A'*X.
-    
+
 !!! Information:
     !    The Sparse Compressed Row storage format is used.
     !
@@ -248,9 +248,9 @@ end subroutine BICGSTAB_LinSolv
 
 
   !*****************************************************************************
-    
 
- 
+
+
 
   !*****************************************************************************80
 
@@ -264,14 +264,14 @@ end subroutine BICGSTAB_LinSolv
     !    Input, real ( kind = 8 ) R(N), the right hand side.
     !    Output, real ( kind = 8 ) Z(N), the solution of the system M * Z = R.
     implicit none
-    
+
     integer ( kind = 4 ) n
     integer ( kind = 4 ) ia(*) !ia(n+1)
     integer ( kind = 4 ) ja(*) !ja(nz_num)
     real ( kind = 8 ) l(*) !l(nz_num)
     integer ( kind = 4 ) ua(*) !ua(n)
     real ( kind = 8 ) r(*) !r(n)
-    
+
     integer ( kind = 4 ) i
     integer ( kind = 4 ) j
     real ( kind = 8 ) w(n)
@@ -297,7 +297,7 @@ end subroutine BICGSTAB_LinSolv
 
     !  Copy Z out.
     z(1:n) = w(1:n)
-    
+
     return
   end subroutine lus_cr
 
@@ -314,23 +314,23 @@ end subroutine BICGSTAB_LinSolv
     !
     !    Input/output, real ( kind = 8 ) G(1:K+1), the vector to be modified.
     !    On output, the Givens rotation has been applied to entries G(K) and G(K+1).
-    
+
     implicit none
-    
+
     real ( kind = 8 ) c
     real ( kind = 8 ) s
     integer ( kind = 4 ) k
     real ( kind = 8 ) g(*) !g(1:k+1)
-    
+
     real ( kind = 8 ) g1
     real ( kind = 8 ) g2
-    
+
     g1 = c * g(k) - s * g(k+1)
     g2 = s * g(k) + c * g(k+1)
-    
+
     g(k)   = g1
     g(k+1) = g2
-    
+
     return
   end subroutine mult_givens
 
@@ -349,10 +349,10 @@ end subroutine BICGSTAB_LinSolv
     !
     !    Input, real ( kind = 8 ) RHS(N), the right hand side of the linear system.
     !
-    !    Input, integer ( kind = 4 ) ITR_MAX, the maximum number of (outer) 
+    !    Input, integer ( kind = 4 ) ITR_MAX, the maximum number of (outer)
     !    iterations to take.
     !
-    !    Input, integer ( kind = 4 ) MR, the maximum number of (inner) iterations 
+    !    Input, integer ( kind = 4 ) MR, the maximum number of (inner) iterations
     !    to take.  MR must be less than N.
     !
     !    Input, real ( kind = 8 ) TOL_ABS, an absolute tolerance applied to the
@@ -362,7 +362,7 @@ end subroutine BICGSTAB_LinSolv
     !    current residual to the initial residual.
     !
     implicit none
-    
+
     integer ( kind = 4 ) mr
     integer ( kind = 4 ) n
     integer ( kind = 4 ) nz_num
@@ -375,7 +375,7 @@ end subroutine BICGSTAB_LinSolv
     real ( kind = 8 ) rhs(*) !rhs(n)
     real ( kind = 8 ) tol_abs
     real ( kind = 8 ) tol_rel
-    
+
 
     real ( kind = 8 ) av
     real ( kind = 8 ) c(mr+1)
@@ -400,11 +400,11 @@ end subroutine BICGSTAB_LinSolv
     real ( kind = 8 ) v(n,mr+1);
     logical, parameter :: verbose = .false.
     real ( kind = 8 ) y(mr+1)
-    
+
     itr_used = 0
 
     call rearrange_cr ( n, ia, ja, a )
-    
+
     call diagonal_pointer_cr ( n, ia, ja, ua )
 
     call ilu_cr ( n, nz_num, ia, ja, a, ua, l )
@@ -414,50 +414,50 @@ end subroutine BICGSTAB_LinSolv
        write ( *, '(a)' ) 'PMGMRES_ILU_CR'
        write ( *, '(a,i4)' ) '  Number of unknowns = ', n
     end if
-    
+
     do itr = 1, itr_max
-       
+
        call ax_cr ( n, ia, ja, a, x, r )
-       
+
        r(1:n) = rhs(1:n) - r(1:n)
 
-!!!! note that uses r,r in the call, but r,z in subroutine ??       
+!!!! note that uses r,r in the call, but r,z in subroutine ??
        call lus_cr ( n, ia, ja, l, ua, r, r )
-       
+
        rho = sqrt ( dot_product ( r, r ) )
-       
+
        if ( verbose ) then
           write ( *, '(a,i4,a,g14.6)' ) '  ITR = ', itr, '  Residual = ', rho
        end if
-       
+
        if ( itr == 1 ) then
           rho_tol = rho * tol_rel
        end if
-       
+
        v(1:n,1) = r(1:n) / rho
-       
+
        g(1) = rho
        g(2:mr+1) = 0.0D+00
-       
+
        h(1:mr+1,1:mr) = 0.0D+00
-       
+
        do k = 1, mr
-          
+
           k_copy = k
-          
-          call ax_cr ( n, ia, ja, a, v(1:n,k), v(1:n,k+1) ) 
-          
+
+          call ax_cr ( n, ia, ja, a, v(1:n,k), v(1:n,k+1) )
+
           call lus_cr ( n, ia, ja, l, ua, v(1:n,k+1), v(1:n,k+1) )
-          
+
           av = sqrt ( dot_product ( v(1:n,k+1), v(1:n,k+1) ) )
-          
+
           do j = 1, k
              h(j,k) = dot_product ( v(1:n,k+1), v(1:n,j) )
              v(1:n,k+1) = v(1:n,k+1) - v(1:n,j) * h(j,k)
           end do
-          
+
           h(k+1,k) = sqrt ( dot_product ( v(1:n,k+1), v(1:n,k+1) ) )
-          
+
           if ( ( av + delta * h(k+1,k)) == av ) then
              do j = 1, k
                 htmp = dot_product ( v(1:n,k+1), v(1:n,j) )
@@ -466,11 +466,11 @@ end subroutine BICGSTAB_LinSolv
              end do
              h(k+1,k) = sqrt ( dot_product ( v(1:n,k+1), v(1:n,k+1) ) )
           end if
-          
+
           if ( h(k+1,k) /= 0.0D+00 ) then
              v(1:n,k+1) = v(1:n,k+1) / h(k+1,k)
           end if
-          
+
           if ( 1 < k ) then
              y(1:k+1) = h(1:k+1,k)
              do j = 1, k - 1
@@ -478,54 +478,54 @@ end subroutine BICGSTAB_LinSolv
              end do
              h(1:k+1,k) = y(1:k+1)
           end if
-          
+
           mu = sqrt ( h(k,k)**2 + h(k+1,k)**2 )
-          
+
           c(k) = h(k,k) / mu
           s(k) = -h(k+1,k) / mu
           h(k,k) = c(k) * h(k,k) - s(k) * h(k+1,k)
           h(k+1,k) = 0.0D+00
           call mult_givens ( c(k), s(k), k, g )
-          
+
           rho = abs ( g(k+1) )
-          
+
           itr_used = itr_used + 1
-          
+
           if ( verbose ) then
              write ( *, '(a,i4,a,g14.6)' ) '  K = ', k, '  Residual = ', rho
           end if
-          
+
           if ( rho <= rho_tol .and. rho <= tol_abs ) then
              exit
           end if
-          
+
        end do
-       
+
        k = k_copy - 1
-       
+
        y(k+1) = g(k+1) / h(k+1,k+1)
-       
+
        do i = k, 1, -1
           y(i) = ( g(i) - dot_product ( h(i,i+1:k+1), y(i+1:k+1) ) ) / h(i,i)
        end do
-       
+
        do i = 1, n
           x(i) = x(i) + dot_product ( v(i,1:k+1), y(1:k+1) )
        end do
-       
+
        if ( rho <= rho_tol .and. rho <= tol_abs ) then
           exit
        end if
-       
+
     end do
-    
+
     if ( verbose ) then
        write ( *, '(a)' ) ' '
        write ( *, '(a)' ) 'PMGMRES_ILU_CR:'
        write ( *, '(a,i6)' ) '  Iterations = ', itr_used
        write ( *, '(a,g14.6)' ) '  Final residual = ', rho
     end if
-    
+
     return
   end subroutine pmgmres_ilu_cr
 
@@ -552,39 +552,39 @@ end subroutine BICGSTAB_LinSolv
     !    the matrix values may have been moved somewhat because of the sorting.
     !
     implicit none
-    
+
     integer ( kind = 4 ) n
     integer ( kind = 4 ) ia(*) !ia(n+1)
     integer ( kind = 4 ) ja(*) !ja(nz_num)
     real ( kind = 8 ) a(*) !a(nz_num)
-    
+
     integer ( kind = 4 ) i
     integer ( kind = 4 ) i4temp
     integer ( kind = 4 ) k
     integer ( kind = 4 ) l
     real ( kind = 8 ) r8temp
-    
+
     do i = 1, n
-       
+
        do k = ia(i), ia(i+1) - 2
           do l = k + 1, ia(i+1) - 1
-             
+
              if ( ja(l) < ja(k) ) then
                 i4temp = ja(l)
                 ja(l)  = ja(k)
                 ja(k)  = i4temp
-                
+
                 r8temp = a(l)
                 a(l)   = a(k)
                 a(k)   = r8temp
              end if
-             
+
           end do
        end do
-       
+
     end do
-    
+
     return
   end subroutine rearrange_cr
-  
+
 end module solve

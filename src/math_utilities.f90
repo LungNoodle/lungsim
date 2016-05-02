@@ -1,4 +1,4 @@
-module MathUtilities
+module math_utilities
 !*Brief Description:* This module contains solvers required for lung problems
 !
 !*LICENSE:*
@@ -21,32 +21,32 @@ contains
 !*ax_cr:* Computes A*x for a matrix stored in sparse compressed row form
   subroutine ax_cr ( n, ia, ja, a, x, w )
     implicit none
-    
+
     integer ( kind = 4 ) n !the order of the system
     integer ( kind = 4 ) ia(*) !ia(n+1) row indices
     integer ( kind = 4 ) ja(*) !ja(nz_num) column indices
     real ( kind = 8 ) a(*) !a(nz_num) Matrix values
     real ( kind = 8 ) x(*) !x(n) Vector to be multiplied by A
     real ( kind = 8 ) w(*) !w(n) Value of A*x
-    
+
     integer ( kind = 4 ) i
     integer ( kind = 4 ) k1
     integer ( kind = 4 ) k2
-    
+
     w(1:n) = 0.0D+00
-    
+
     do i = 1, n
        k1 = ia(i)
        k2 = ia(i+1) - 1
        w(i) = w(i) + dot_product ( a(k1:k2), x(ja(k1:k2)) )
     end do
-    
+
     return
   end subroutine ax_cr
 !
 !##############################################################################
 !
-! *ILU_CR:* computes the incomplete LU factorization of a matrix. For a matrix 
+! *ILU_CR:* computes the incomplete LU factorization of a matrix. For a matrix
 ! stored in compressed row format.
     !    Input, integer ( kind = 4 ) UA(N), the index of the diagonal element
     !    of each row.
@@ -59,7 +59,7 @@ contains
     real ( kind = 8 ) a(*) !a(nz_num)
     integer ( kind = 4 ) ua(*) !ua(n)
     real ( kind = 8 ) l(*) !l(nz_num)
-    
+
     integer ( kind = 4 ) i
     integer ( kind = 4 ) iw(n)
     integer ( kind = 4 ) j
@@ -72,11 +72,11 @@ contains
 
     !  Copy A.
     l(1:nz_num) = a(1:nz_num)
-   
+
     do i = 1, n ! for each row, up to max number of rows
        !  IW points to the nonzero entries in row I.
        iw(1:n) = -1
-       do k = ia(i), ia(i+1) - 1 !for each 
+       do k = ia(i), ia(i+1) - 1 !for each
           iw(ja(k)) = k
        end do
        do j = ia(i), ia(i+1) - 1
@@ -113,7 +113,7 @@ contains
     end do
 
     l(ua(1:n)) = 1.0D+00 / l(ua(1:n))
-    
+
     return
   end subroutine ilu_cr
 !
@@ -128,12 +128,12 @@ subroutine diagonal_pointer_cr ( n, ia, ja, ua )
     integer ( kind = 4 ) ia(*) !ia(n+1)
     integer ( kind = 4 ) ja(*) !ja(nz_num)
     integer ( kind = 4 ) ua(*) !ua(n)
-    
+
     integer ( kind = 4 ) i
     integer ( kind = 4 ) k
-    
+
     ua(1:n) = -1
-    
+
     do i = 1, n
        do k = ia(i), ia(i+1) - 1
           if ( ja(k) == i ) then
@@ -146,4 +146,4 @@ subroutine diagonal_pointer_cr ( n, ia, ja, ua )
 
 
 
-end module MathUtilities
+end module math_utilities

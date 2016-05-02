@@ -36,7 +36,7 @@ set(LIB_SRCS
   src/gasmix.f90
   src/geometry.f90
   src/indices.f90
-  src/MathUtilities.f90
+  src/math_utilities.f90
   src/other_consts.f90
   src/pressure_resistance_flow.f90
   src/solve.f90
