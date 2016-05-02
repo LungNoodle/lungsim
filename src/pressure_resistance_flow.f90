@@ -11,11 +11,9 @@ module pressure_resistance_flow
 !
 
   implicit none
-  private
-  public 
 contains
-  
 
 
-  
+
+
 end module pressure_resistance_flow

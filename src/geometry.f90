@@ -1,18 +1,18 @@
 module geometry
-!*Brief Description:* This module handles all geometry read/write/generation. 
+!*Brief Description:* This module handles all geometry read/write/generation.
 !
 !*LICENSE:*
 !
-! 
+!
 !
 !*Full Description:*
 !
-!This module handles all geometry read/write/generation. 
+!This module handles all geometry read/write/generation.
   use other_consts
   implicit none
 
   !Module parameters
-  
+
   !Module types
 
   !Module variables
@@ -47,7 +47,7 @@ contains
     use diagnostics, only: enter_exit
     implicit none
 
-    character(len=100), intent(in) :: AIRWAY_MESHFILE
+    character(len=MAX_FILENAME_LEN), intent(in) :: AIRWAY_MESHFILE
     ! Local parameters
     character(len=100) :: buffer
     integer, parameter :: fh = 15
@@ -187,7 +187,7 @@ contains
 !###################################################################################
 !
 !*append_units:* Appends terminal units at the end of a tree structure
-  subroutine append_units
+  subroutine append_units()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_APPEND_UNITS" :: APPEND_UNITS
     use arrays,only: elem_cnct,elem_symmetry,elem_units_below,&
          num_elems,num_units,units,unit_field
@@ -253,7 +253,7 @@ contains
     use diagnostics, only: enter_exit
     implicit none
 
-    character(LEN=*),intent(in) :: ELEMFILE
+    character(len=MAX_FILENAME_LEN), intent(in) :: ELEMFILE
     !     Local Variables
     integer :: ibeg,iend,ierror,i_ss_end,j,ne,ne_global,&
          nn,np,np1,np2,np_global
@@ -352,7 +352,7 @@ contains
 !###################################################################################
 !
 !*define_mesh_geometry_test:*
-  subroutine define_mesh_geometry_test
+  subroutine define_mesh_geometry_test()
     use arrays,only: dp,nodes,node_field,node_xyz,num_nodes,&
          elem_direction,elem_field,elems,elem_cnct,elem_nodes,&
          elem_ordrs,elem_symmetry,elems_at_node,elem_units_below,&
@@ -501,13 +501,14 @@ contains
   subroutine define_node_geometry(NODEFILE)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_NODE_GEOMETRY" :: DEFINE_NODE_GEOMETRY
 
-  !*define_node_geometry:* Reads in an ipnode file to define a tree geometry 
+  !*define_node_geometry:* Reads in an ipnode file to define a tree geometry
     use arrays,only: dp,nodes,node_field,node_xyz,num_nodes
     use diagnostics, only: enter_exit
     use indices
+    use other_consts, only: MAX_FILENAME_LEN
     implicit none
 
-    character(LEN=*),intent(in) :: NODEFILE !Input nodefile
+    character(len=MAX_FILENAME_LEN), intent(in) :: NODEFILE !Input nodefile
     !     Local Variables
     integer :: i,ierror,np,np_global,&
          num_versions,nv,NJT=0
@@ -606,7 +607,7 @@ contains
 !
 !###################################################################################
 !
-  subroutine define_rad_from_file(FIELDFILE,TYPE)
+  subroutine define_rad_from_file(FIELDFILE, radius_type)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_RAD_FROM_FILE" :: DEFINE_RAD_FROM_FILE
 
   !*define_rad_from_file:* reads in a radius field associated with an aiway tree
@@ -620,8 +621,8 @@ contains
     use diagnostics, only: enter_exit
     implicit none
 
-    character(LEN=*),intent(in) :: FIELDFILE
-   character(LEN=*),optional ::  TYPE
+    character(len=MAX_FILENAME_LEN), intent(in) :: FIELDFILE
+    character(len=MAX_STRING_LEN), optional ::  radius_type
     !     Local Variables
     integer :: ierror,ne,np,np1,np2,np_global,surround
     character(LEN=132) :: ctemp1
@@ -631,9 +632,8 @@ contains
 
     sub_name = 'define_rad_from_file'
     call enter_exit(sub_name,1)
-    if(present(TYPE))then
-    else
-      TYPE='no_taper'
+    if(.not. present(radius_type))then
+      radius_type='no_taper'
     endif
 
 !!! note that 'constrict' should not be used here (so is set to 1.0).
@@ -652,7 +652,7 @@ contains
           exit read_versions !exit the named do loop
        endif
     end do read_versions
- 
+
     np = 0
     !.....read the coordinate, derivative, and version information for each node.
     read_a_node : do !define a do loop name
@@ -665,7 +665,7 @@ contains
           surround=elems_at_node(np,0)         !get number of surrounding elems
           ne=elems_at_node(np,1)  !First element at this node
           if(surround==1)then !only one element at this node so either a terminal or inlet
-             if(TYPE.eq.'taper')then !inlet radius needs to be defined
+             if(radius_type.eq.'taper')then !inlet radius needs to be defined
                if(elem_cnct(-1,0,ne).eq.0)then!Inlet as it has no parent need to set up radius into this vessel
                  read(unit=10, fmt="(a)", iostat=ierror) ctemp1
                  read(unit=10, fmt="(a)", iostat=ierror) ctemp1
@@ -678,7 +678,7 @@ contains
                  endif
                endif
              endif
-             if(elem_cnct(-1,0,ne).eq.0)cycle      !No parent therefore inlet. Skip and go to the next 
+             if(elem_cnct(-1,0,ne).eq.0)cycle      !No parent therefore inlet. Skip and go to the next
              read(unit=10, fmt="(a)", iostat=ierror) ctemp1
              read(unit=10, fmt="(a)", iostat=ierror) ctemp1
              if(index(ctemp1, "version number")>0) then
@@ -686,7 +686,7 @@ contains
              endif
              if(index(ctemp1, "value")> 0) then
                 call get_final_real(ctemp1,radius)
-                 if(TYPE.eq.'taper')then
+                 if(radius_type.eq.'taper')then
                    elem_field(ne_radius_out,ne)=constrict*radius
                  else
                   elem_field(ne_radius,ne)=constrict*radius
@@ -698,7 +698,7 @@ contains
              read(unit=10, fmt="(a)", iostat=ierror) ctemp1
              if(index(ctemp1, "value")> 0) then
                 call get_final_real(ctemp1,radius)
-                  if(TYPE.eq.'taper')then
+                  if(radius_type.eq.'taper')then
                     elem_field(ne_radius_out,ne)=constrict*radius
                   else
                     elem_field(ne_radius,ne)=constrict*radius
@@ -712,7 +712,7 @@ contains
 !If airway type calculate element volume
     ! calculate the element volumes
     do ne=1,num_elems
-       if(TYPE.eq.'taper')then
+       if(radius_type.eq.'taper')then
          if(elem_cnct(-1,0,ne).ne.0)then !radius in is radius of upstream vessel
             elem_field(ne_radius_in,ne)=elem_field(ne_radius_out,elem_cnct(-1,1,ne))
          endif
@@ -733,17 +733,17 @@ contains
 !##################################################################################
 !
 !*define_rad_from_geom:* Defines vessel or airway radius based on their geometric structure
-  subroutine define_rad_from_geom(ORDR_SYSTEM,CONTROL_PARAM,START_FROM,START_RAD,GROUP_TYPE,GROUP_OPTIONS)
+  subroutine define_rad_from_geom(ORDER_SYSTEM,CONTROL_PARAM,START_FROM,START_RAD,GROUP_TYPE,GROUP_OPTIONS)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_RAD_FROM_GEOM" :: DEFINE_RAD_FROM_GEOM
     use arrays,only: dp,num_elems,elem_field,elem_ordrs,maxgen,elem_cnct
     use indices
     use diagnostics, only: enter_exit
     implicit none
-   character(LEN=*),intent(in) :: ORDR_SYSTEM,START_FROM
-   character(LEN=*), optional :: GROUP_TYPE,GROUP_OPTIONS
+   character(LEN=100), intent(in) :: ORDER_SYSTEM,START_FROM
+   character(LEN=100), optional :: GROUP_TYPE,GROUP_OPTIONS
    real(dp), intent(in) :: CONTROL_PARAM,START_RAD
-   !Input options ORDR_SYSTEM=STRAHLER (CONTROL_PARAM=RDS), HORSFIELD (CONTROL_PARAM=RDH)
-  
+   !Input options ORDER_SYSTEM=STRAHLER (CONTROL_PARAM=RDS), HORSFIELD (CONTROL_PARAM=RDH)
+
    !Local variables
    integer :: ne_min,ne_max,nindex,ne,n_max_ord,n,ne_start,&
       inlet_count
@@ -780,12 +780,12 @@ contains
     endif
 
     !Strahler and Horsfield ordering system
-    if(ORDR_SYSTEM(1:5).EQ.'strah')THEN
+    if(ORDER_SYSTEM(1:5).EQ.'strah')THEN
       nindex=no_sord !for Strahler ordering
-    else if(ORDR_SYSTEM(1:5).eq.'horsf')then
+    else if(ORDER_SYSTEM(1:5).eq.'horsf')then
       nindex = no_hord !for Horsfield ordering
     endif
-    
+
     ne=ne_start
     n_max_ord=elem_ordrs(nindex,ne)
     elem_field(ne_radius,ne)=START_RAD
@@ -805,7 +805,7 @@ contains
 !###########################################################################
 !
 !*element_connectivity_1d:*  Calculates element connectivity in 1D and stores in elelem_cnct
-  subroutine element_connectivity_1d
+  subroutine element_connectivity_1d()
     use arrays,only: elem_cnct,elem_nodes,elems_at_node,num_elems,num_nodes
     use diagnostics, only: enter_exit
     implicit none
@@ -860,7 +860,7 @@ contains
 !###################################################################################
 !
 !*evaluate_ordering:* calculates generations, Horsfield orders, Strahler orders for a given tree
-  subroutine evaluate_ordering
+  subroutine evaluate_ordering()
     use arrays,only: elem_cnct,elem_nodes,elem_ordrs,elem_symmetry,&
          elems_at_node,num_elems,num_nodes,maxgen
     use diagnostics, only: enter_exit

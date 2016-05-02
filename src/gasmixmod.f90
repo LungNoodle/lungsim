@@ -8,13 +8,13 @@
 !> Contributor(s):
 !>
 !>\Description
-!> This module contains code specific to running gas mixing problems 
+!> This module contains code specific to running gas mixing problems
 
 module gasmixmod
   use arrays,only: dp
   implicit none
   private airway_mesh_deform
-  public initial_gasmix,normalised_slope,solve_gasmix,transfer_flow_vol_from_units
+  public initial_gasmix,solve_gasmix,transfer_flow_vol_from_units
 
   integer,public :: inlet_node = 1
   integer,private :: NonZeros_unreduced
@@ -707,7 +707,7 @@ contains
 
 !!! ##################################################################
 
-  subroutine transfer_flow_vol_from_units
+  subroutine transfer_flow_vol_from_units()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_TRANSFER_FLOW_VOL_FROM_UNITS" :: TRANSFER_FLOW_VOL_FROM_UNITS
 
     use arrays,only: dp,elem_cnct,elem_field,elem_symmetry,&

@@ -10,10 +10,11 @@
 
 !> This module handles all read and write filenames.
 module filenames
+  use other_consts, only : MAX_FILENAME_LEN
   implicit none
  !Module parameters
 
-  CHARACTER(LEN=255) :: AIRWAY_ELEMFILE,AIRWAY_NODEFILE,AIRWAY_FIELDFILE, &
+  CHARACTER(LEN=MAX_FILENAME_LEN) :: AIRWAY_ELEMFILE,AIRWAY_NODEFILE,AIRWAY_FIELDFILE, &
        AIRWAY_EXNODEFILE,AIRWAY_EXELEMFILE,AIRWAYFIELD_EXELEMFILE,&
        AIRWAY_MESHFILE, &
        ARTERY_ELEMFILE,ARTERY_NODEFILE,ARTERY_FIELDFILE, &
@@ -21,7 +22,7 @@ module filenames
        ARTERY_MESHFILE, &
        TERMINAL_EXNODEFILE, MAIN_GEOMETRY_FILE, &
        FLOW_GEOMETRY_FILE,MAIN_PARAMETER_FILE,FLOW_PARAMETER_FILE,&
-       FLOW_EXELEMFILE, FLOW_EXNODEFILE, FLOW_RADIUS_EXELEM
+       FLOW_EXELEMFILE, FLOW_EXNODEFILE, FLOW_RADIUS_EXELEM, EMPTY_FILENAME
 
 public AIRWAY_ELEMFILE,AIRWAY_NODEFILE,AIRWAY_FIELDFILE, &
        AIRWAY_EXNODEFILE,AIRWAY_EXELEMFILE,AIRWAYFIELD_EXELEMFILE,&
@@ -32,18 +33,6 @@ public AIRWAY_ELEMFILE,AIRWAY_NODEFILE,AIRWAY_FIELDFILE, &
        TERMINAL_EXNODEFILE, MAIN_GEOMETRY_FILE, &
        FLOW_GEOMETRY_FILE,MAIN_PARAMETER_FILE,FLOW_PARAMETER_FILE,&
        FLOW_EXELEMFILE, FLOW_EXNODEFILE, FLOW_RADIUS_EXELEM
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_AIRWAY_EXNODEFILE" :: AIRWAY_EXNODEFILE
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_AIRWAY_EXELEMFILE" :: AIRWAY_EXELEMFILE
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_AIRWAY_FIELDFILE" :: AIRWAY_FIELDFILE
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_AIRWAY_ELEMFILE" :: AIRWAY_ELEMFILE
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_AIRWAY_NODEFILE" :: AIRWAY_NODEFILE
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_TERMINAL_EXNODEFILE" :: TERMINAL_EXNODEFILE
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_FLOW_RADIUS_EXELEM" :: FLOW_RADIUS_EXELEM
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_FLOW_EXELEMFILE" :: FLOW_EXELEMFILE
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_ARTERY_EXELEMFILE" :: ARTERY_EXELEMFILE
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_ARTERY_EXNODEFILE" :: ARTERY_EXNODEFILE
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_ARTERY_ELEMFILE" :: ARTERY_ELEMFILE
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_ARTERY_NODEFILE" :: ARTERY_NODEFILE
   !Module types
 
   !Module variables
@@ -53,16 +42,17 @@ public AIRWAY_ELEMFILE,AIRWAY_NODEFILE,AIRWAY_FIELDFILE, &
   private
   public read_geometry_main
   public read_geometry_evaluate_flow
+  public get_filename
 
 contains
 !
 !###################################################################################
 !
-!> reads in output filenames typically used to analyse and visualise ventilation model results 
-  subroutine read_geometry_evaluate_flow
+!> reads in output filenames typically used to analyse and visualise ventilation model results
+  subroutine read_geometry_evaluate_flow()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_READ_GEOMETRY_EVALUATE_FLOW" :: READ_GEOMETRY_EVALUATE_FLOW
 
-  use diagnostics, only: enter_exit
+    use diagnostics, only: enter_exit
     implicit none
 
     ! Input related variables
@@ -115,10 +105,10 @@ contains
 
   !###################################################################################
 
-  subroutine read_geometry_main
+  subroutine read_geometry_main()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_READ_GEOMETRY_MAIN" :: READ_GEOMETRY_MAIN
 
-  use diagnostics, only: enter_exit
+    use diagnostics, only: enter_exit
     implicit none
 
     ! Input related variables
@@ -188,4 +178,52 @@ contains
 !
 !#####################################################################################################
 !
+  function get_filename(label) result(str)
+    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
+    implicit none
+
+    character(len=MAX_STRING_LEN), intent(in) :: label
+    character(len=MAX_FILENAME_LEN) :: str
+
+    select case (label)
+    case ('airway_ipnode')
+       str = AIRWAY_NODEFILE
+    case ('airway_ipelem')
+       str = AIRWAY_ELEMFILE
+    case ('airway_ipfiel')
+       str = AIRWAY_FIELDFILE
+    case ('airway_ipmesh')
+       str = AIRWAY_MESHFILE
+    case ('airway_exnode')
+       str = AIRWAY_EXNODEFILE
+    case ('airway_exelem')
+       str = AIRWAY_EXELEMFILE
+    case ('artery_ipnode')
+       str = ARTERY_NODEFILE
+    case ('artery_ipelem')
+       str = ARTERY_ELEMFILE
+    case ('artery_ipfiel')
+       str = ARTERY_FIELDFILE
+    case ('artery_ipmesh')
+       str = ARTERY_MESHFILE
+    case ('artery_exnode')
+       str = ARTERY_EXNODEFILE
+    case ('artery_exelem')
+       str = ARTERY_EXELEMFILE
+    case ('exelem')
+       str =  AIRWAYFIELD_EXELEMFILE
+    case ('exnode')
+       str =  TERMINAL_EXNODEFILE
+    case ('flowexelem')
+       str =  FLOW_EXELEMFILE
+    case ('flowexnode')
+       str =  FLOW_EXNODEFILE
+    case ('flowradiusexelem')
+       str =  FLOW_RADIUS_EXELEM
+    case default
+       print *, 'Umm I dont know this label, sorry'
+       str = EMPTY_FILENAME
+    end select
+
+  end function get_filename
 end module filenames

@@ -11,32 +11,32 @@
 !> This module handles all export functions
 module exports
   implicit none
-  
+
+  private
   public export_1d_elem_geometry,export_node_geometry,export_node_field,&
-       export_elem_field,export_terminal_solution
-  
+       export_elem_field,export_terminal_solution, export_1d_elem_field
+
 contains
-  
 !!!################################################################
-  
+
   subroutine export_1d_elem_field(ne_field, EXELEMFILE, group_name, field_name )
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_1D_ELEM_FIELD" :: EXPORT_1D_ELEM_FIELD
-    
+    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
     use arrays,only: elem_field,num_elems
     implicit none
-    
+
 !!! Parameters
-    integer,intent(in) :: ne_field
-    character(len=*),intent(in) :: EXELEMFILE
-    character(len=*),intent(in) :: field_name
-    character(len=*),intent(in) :: group_name
-    
+    integer, intent(in) :: ne_field
+    character(len=MAX_FILENAME_LEN), intent(in) :: EXELEMFILE
+    character(len=MAX_STRING_LEN), intent(in) :: field_name
+    character(len=MAX_STRING_LEN), intent(in) :: group_name
+
 !!! Local Variables
     integer :: len_end,ne
     logical :: CHANGED
-    
+
     open(10, file=EXELEMFILE, status='replace')
-    
+
     len_end=len_trim(group_name)
     !**     write the group name
     write(10,'( '' Group name: '',A)') group_name(:len_end)
@@ -58,32 +58,33 @@ contains
                field_name(:len_end)
           write(10,'( ''  #xi1=1'')')
        endif
-       
+
        write(10,'(1X,''Element: '',I12,'' 0 0'' )') ne
        write(10,'(3X,''Values:'' )')
        write(10,'(4X,2(1X,E12.5))') elem_field(ne_field,ne),elem_field(ne_field,ne)
     enddo !no_nelist (ne)
     close(10)
-    
+
   end subroutine export_1d_elem_field
 
 !!!############################################################################
-  
+
   subroutine export_1d_elem_geometry(EXELEMFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_1D_ELEM_GEOMETRY" :: EXPORT_1D_ELEM_GEOMETRY
-    
+
     use arrays,only: elem_nodes,num_elems
+    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
     implicit none
-    
+
 !!! Parameters
-    character(len=*) :: EXELEMFILE
-    character(len=*) :: name
-    
+    character(len=MAX_FILENAME_LEN), intent(in) :: EXELEMFILE
+    character(len=MAX_STRING_LEN), intent(in) :: name
+
 !!! Local Variables
     integer :: len_end,ne,nj,nn
     character(len=1) :: char1
     logical :: CHANGED
-  
+
     open(10, file=EXELEMFILE, status='replace')
     len_end=len_trim(name)
     !**     write the group name
@@ -121,24 +122,25 @@ contains
        write(10,'(4X,2(1X,E12.5))') 1.d0,1.d0
     enddo !no_nelist (ne)
     close(10)
-    
+
   end subroutine export_1d_elem_geometry
-  
-  
+
+
 !!!##########################################################################
-  
+
   subroutine export_node_geometry(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_NODE_GEOMETRY" :: EXPORT_NODE_GEOMETRY
 
-  use arrays,only: node_xyz,num_nodes
+    use arrays,only: node_xyz,num_nodes
+    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
     implicit none
-    
+
 !!! Parameters
-    character(len=*),intent(in) :: EXNODEFILE
-    character(len=*),intent(in) :: name
-    
+    character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
+    character(len=MAX_STRING_LEN),intent(in) :: name
+
 !!! Local Variables
-    integer :: len_end,nj,np,np_last,VALUE_INDEX 
+    integer :: len_end,nj,np,np_last,VALUE_INDEX
     logical :: FIRST_NODE
 
     len_end=len_trim(name)
@@ -155,7 +157,7 @@ contains
           VALUE_INDEX=1
           if(FIRST_NODE)THEN
              write(10,'( '' #Fields=1'' )')
-             write(10,'('' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')') 
+             write(10,'('' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
              do nj=1,3
                 if(nj.eq.1) write(10,'(2X,''x.  '')',advance="no")
                 if(nj.eq.2) write(10,'(2X,''y.  '')',advance="no")
@@ -174,7 +176,7 @@ contains
        enddo !nolist (np)
     endif !num_nodes
     close(10)
-  
+
   end subroutine export_node_geometry
 
 
@@ -183,19 +185,20 @@ contains
   subroutine export_terminal_solution(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_TERMINAL_SOLUTION" :: EXPORT_TERMINAL_SOLUTION
 
-  use arrays,only: elem_nodes,&
+    use arrays,only: elem_nodes,&
          node_xyz,num_units,units,unit_field
     use indices,only: nu_comp,nu_pe,nu_vt,nu_vent
+    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
     implicit none
 
 !!! Parameters
-    character(len=*),intent(in) :: EXNODEFILE
-    character(len=*),intent(in) :: name
-  
+    character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
+    character(len=MAX_STRING_LEN),intent(in) :: name
+
 !!! Local Variables
-    integer :: len_end,ne,nj,NOLIST,np,np_last,VALUE_INDEX 
+    integer :: len_end,ne,nj,NOLIST,np,np_last,VALUE_INDEX
     logical :: FIRST_NODE
-  
+
     len_end=len_trim(name)
     if(num_units.GT.0) THEN
        open(10, file=EXNODEFILE, status='replace')
@@ -212,7 +215,7 @@ contains
           VALUE_INDEX=1
           if(FIRST_NODE)THEN
              write(10,'( '' #Fields=5'' )')
-             write(10,'('' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')') 
+             write(10,'('' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
              do nj=1,3
                 if(nj.eq.1) write(10,'(2X,''x.  '')',advance="no")
                 if(nj.eq.2) write(10,'(2X,''y.  '')',advance="no")
@@ -221,7 +224,7 @@ contains
                 VALUE_INDEX=VALUE_INDEX+1
              enddo
              !Ventilation (tidal volume/insp time)
-             write(10,'('' 2) flow, field, rectangular cartesian, #Components=1'')') 
+             write(10,'('' 2) flow, field, rectangular cartesian, #Components=1'')')
              write(10,'(2X,''1.  '')',advance="no")
              write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
              !VALUE_INDEX=VALUE_INDEX+1
@@ -236,17 +239,17 @@ contains
              !write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
              VALUE_INDEX=VALUE_INDEX+1
              !Compliance
-             write(10,'('' 5) compliance, field, rectangular cartesian, #Components=1'')') 
+             write(10,'('' 5) compliance, field, rectangular cartesian, #Components=1'')')
              write(10,'(2X,''1.  '')',advance="no")
              write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
              VALUE_INDEX=VALUE_INDEX+1
              !Pleural pressure
-             write(10,'('' 6) pleural pressure, field, rectangular cartesian, #Components=1'')') 
+             write(10,'('' 6) pleural pressure, field, rectangular cartesian, #Components=1'')')
              write(10,'(2X,''1.  '')',advance="no")
              write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
              VALUE_INDEX=VALUE_INDEX+1
              !Tidal volume
-             write(10,'('' 7) tidal volume, field, rectangular cartesian, #Components=1'')') 
+             write(10,'('' 7) tidal volume, field, rectangular cartesian, #Components=1'')')
              write(10,'(2X,''1.  '')',advance="no")
              write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
           endif !FIRST_NODE
@@ -266,7 +269,7 @@ contains
        enddo !nolist (np)
     endif !num_nodes
     close(10)
-    
+
   end subroutine export_terminal_solution
 
 
@@ -275,20 +278,20 @@ contains
   subroutine export_node_field(nj_field, EXNODEFIELD, name, field_name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_NODE_FIELD" :: EXPORT_NODE_FIELD
 
-  use arrays,only: node_field,num_nodes
-    
+    use arrays,only: node_field,num_nodes
+    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
     implicit none
 
 !!! Parameters
     integer,intent(in) :: nj_field
-    character(len=*),intent(in) :: EXNODEFIELD
-    character(len=*),intent(in) :: field_name
-    character(len=*),intent(in) :: name
-  
+    character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFIELD
+    character(len=MAX_STRING_LEN),intent(in) :: field_name
+    character(len=MAX_STRING_LEN),intent(in) :: name
+
 !!! Local Variables
     integer :: len_end,np
     logical :: FIRST_NODE
-    
+
     open(10, file=EXNODEFIELD, status='replace')
     !**     write the group name
     len_end=len_trim(name)
@@ -311,7 +314,7 @@ contains
        FIRST_NODE=.FALSE.
     enddo !num_nodes
     close(10)
-  
+
   end subroutine export_node_field
 
 
@@ -319,19 +322,20 @@ contains
 
   subroutine export_elem_field(EXELEMFIELD, name, field_name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_ELEM_FIELD" :: EXPORT_ELEM_FIELD
-    
+
     use arrays,only: elem_nodes,num_elems
+    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
     implicit none
 
 !!! Parameters
-    character(len=*) :: EXELEMFIELD
-    character(len=*) :: field_name
-    character(len=*) :: name
-  
+    character(len=MAX_FILENAME_LEN), intent(in) :: EXELEMFIELD
+    character(len=MAX_STRING_LEN), intent(in) :: field_name
+    character(len=MAX_STRING_LEN), intent(in) :: name
+
 !!! Local Variables
     integer :: len_end,ne,nn
     logical :: CHANGED
-  
+
     open(10, file=EXELEMFIELD, status='replace')
     len_end=len_trim(name)
     !**     write the group name
@@ -369,7 +373,7 @@ contains
        write(10,'(4X,2(1X,E12.5))') 1.d0,1.d0
     enddo !no_nelist (ne)
     close(10)
-    
+
   end subroutine export_elem_field
 
 end module exports
