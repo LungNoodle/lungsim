@@ -33,7 +33,7 @@ set(LIB_SRCS
   src/diagnostics.f90
   src/exports.f90
   src/filenames.f90
-  src/gasmixmod.f90
+  src/gasmix.f90
   src/geometry.f90
   src/indices.f90
   src/MathUtilities.f90

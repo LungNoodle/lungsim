@@ -10,7 +10,7 @@
 !>\Description
 !> This module contains code specific to running gas mixing problems
 
-module gasmixmod
+module gasmix
   use arrays,only: dp
   implicit none
   private airway_mesh_deform
@@ -1130,4 +1130,4 @@ contains
 
   end subroutine normalised_slope
 
-end module gasmixmod
+end module gasmix
