@@ -607,7 +607,7 @@ contains
 !
 !###################################################################################
 !
-  subroutine define_rad_from_file(FIELDFILE, radius_type)
+  subroutine define_rad_from_file(FIELDFILE, radius_type_in)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_RAD_FROM_FILE" :: DEFINE_RAD_FROM_FILE
 
   !*define_rad_from_file:* reads in a radius field associated with an aiway tree
@@ -622,9 +622,10 @@ contains
     implicit none
 
     character(len=MAX_FILENAME_LEN), intent(in) :: FIELDFILE
-    character(len=MAX_STRING_LEN), optional ::  radius_type
+    character(len=MAX_STRING_LEN), optional ::  radius_type_in
     !     Local Variables
     integer :: ierror,ne,np,np1,np2,np_global,surround
+    character(len=MAX_STRING_LEN) ::  radius_type
     character(LEN=132) :: ctemp1
     LOGICAL :: versions=.TRUE.
     real(dp) :: constrict,radius
@@ -632,8 +633,10 @@ contains
 
     sub_name = 'define_rad_from_file'
     call enter_exit(sub_name,1)
-    if(.not. present(radius_type))then
-      radius_type='no_taper'
+    if(present(radius_type_in))then
+      radius_type = radius_type_in
+    else
+      radius_type = 'no_taper'
     endif
 
 !!! note that 'constrict' should not be used here (so is set to 1.0).
@@ -733,18 +736,19 @@ contains
 !##################################################################################
 !
 !*define_rad_from_geom:* Defines vessel or airway radius based on their geometric structure
-  subroutine define_rad_from_geom(ORDER_SYSTEM,CONTROL_PARAM,START_FROM,START_RAD,GROUP_TYPE,GROUP_OPTIONS)
+  subroutine define_rad_from_geom(ORDER_SYSTEM, CONTROL_PARAM, START_FROM, START_RAD, group_type_in, group_option_in)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_RAD_FROM_GEOM" :: DEFINE_RAD_FROM_GEOM
     use arrays,only: dp,num_elems,elem_field,elem_ordrs,maxgen,elem_cnct
     use indices
     use diagnostics, only: enter_exit
     implicit none
    character(LEN=100), intent(in) :: ORDER_SYSTEM,START_FROM
-   character(LEN=100), optional :: GROUP_TYPE,GROUP_OPTIONS
+   character(LEN=100), optional :: group_type_in, group_option_in
    real(dp), intent(in) :: CONTROL_PARAM,START_RAD
    !Input options ORDER_SYSTEM=STRAHLER (CONTROL_PARAM=RDS), HORSFIELD (CONTROL_PARAM=RDH)
 
    !Local variables
+   character(LEN=100) :: group_type, group_options
    integer :: ne_min,ne_max,nindex,ne,n_max_ord,n,ne_start,&
       inlet_count
    real(dp) :: radius
@@ -753,16 +757,18 @@ contains
    sub_name = 'define_rad_from_geom'
     call enter_exit(sub_name,1)
     !define list of elements you are going to operate on
-    if(present(GROUP_TYPE))then
+    if(present(group_type_in))then
+      group_type = group_type_in
     else!default to all
-      GROUP_TYPE='all'
+      group_type='all'
     endif
-    if(GROUP_TYPE.eq.'all')then
+    if(group_type.eq.'all')then
        ne_min=1
        ne_max=num_elems
-    elseif(GROUP_TYPE.eq.'efield')then
+    elseif(group_type.eq.'efield')then
 
     endif
+
     !Define start element
     if(START_FROM.eq.'inlet')then
       inlet_count=0
