@@ -37,4 +37,9 @@ foreach(SWIG_INTERFACE ${INTERFACE_SRCS})
     VISIBILITY_INLINES_HIDDEN 1)
 endforeach()
 
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/setup.py
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/setup.py ${CMAKE_CURRENT_BINARY_DIR}/setup.py
+  MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/setup.py)
 
+set_property(SOURCE ../interface/arrays.i APPEND PROPERTY OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
