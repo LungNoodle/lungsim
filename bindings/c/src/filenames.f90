@@ -42,9 +42,6 @@ contains
     call strncpy(label_f, label, label_len)
 
     filename_f = get_filename(label_f)
-    print *, "============================"
-    print *, label_len
-    print *, "'", filename_f, "'"
     test = 0
     N = MAX_FILENAME_LEN
     DO I = N, 1, -1
@@ -54,12 +51,7 @@ contains
         test = 1
       end if
     END DO
-    print *, "'", filename, "'"
     filename(MAX_FILENAME_LEN + 1) = C_NULL_CHAR
-    !call strncpy(filename, filename_f)
-    !call c_f_pointer(filename,filename_c_chars,[MAX_FILENAME_LEN + 1])
-    !filename_c_chars = f_c_string(filename_f)
-    !print *, filename_c_chars
 
   end subroutine get_filename_c
 !
