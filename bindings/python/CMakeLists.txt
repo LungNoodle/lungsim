@@ -33,8 +33,14 @@ foreach(SWIG_INTERFACE ${INTERFACE_SRCS})
   set_target_properties(${MODULE_TARGET} PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${PYTHON_PACKAGE_DIR}
     RUNTIME_OUTPUT_DIRECTORY ${PYTHON_PACKAGE_DIR}
+    FOLDER bindings/python
     C_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN 1)
+    # Disable use of Debug Python libraries (not always present on windows)
+    # See http://stackoverflow.com/questions/11311877/creating-a-dll-from-a-wrapped-cpp-file-with-swig
+    if (MSVC)
+        target_compile_definitions(${MODULE_TARGET} PRIVATE $<$<CONFIG:Debug>:SWIG_PYTHON_INTERPRETER_NO_DEBUG>)
+    endif()
 endforeach()
 
 add_custom_command(

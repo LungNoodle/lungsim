@@ -19,7 +19,7 @@ contains
 !!!###################################################################################
 
   subroutine evaluate_flow
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EVALUATE_FLOW" :: EVALUATE_FLOW
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_FLOW" :: EVALUATE_FLOW
 
     use arrays,only: dp,elem_field,elem_units_below,num_elems,num_units,units,unit_field
     use indices,only: ne_flow,ne_flow0,ne_t_resist,nu_comp,nu_dpdt,nu_pe,nu_vt
@@ -336,7 +336,7 @@ contains
   !###################################################################################
 
   subroutine evaluate_uniform_flow
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EVALUATE_UNIFORM_FLOW" :: EVALUATE_UNIFORM_FLOW
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_UNIFORM_FLOW" :: EVALUATE_UNIFORM_FLOW
   
     use arrays,only: dp,elem_field,num_elems,num_units,&
          units,unit_field

@@ -44,7 +44,7 @@ module arrays
 
 contains
   subroutine set_node_field_value(row, col, value)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_SET_NODE_FIELD_VALUE" :: SET_NODE_FIELD_VALUE
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SET_NODE_FIELD_VALUE" :: SET_NODE_FIELD_VALUE
     implicit none
 
     integer, intent(in) :: row, col

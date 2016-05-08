@@ -28,6 +28,11 @@ set(AETHER_INSTALL_PREFIX ${INSTALL_PREFIX} CACHE STRING  "Set the base install 
 set(CMAKE_INSTALL_PREFIX ${AETHER_INSTALL_PREFIX} CACHE INTERNAL "Internlaise CMAKE_INSTALL_PREFIX, manipulate via AETHER_INSTALL_PREFIX" FORCE)
 mark_as_advanced(AETHER_INSTALL_PREFIX)
 
+# Turn on the ability to create folders to organize projects (.vcproj)
+# It creates "CMakePredefinedTargets" folder by default and adds CMake
+# defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 set(LIB_SRCS
   src/arrays.f90
   src/diagnostics.f90
@@ -48,8 +53,15 @@ set_target_properties(aether_obj PROPERTIES
   Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules"
   POSITION_INDEPENDENT_CODE TRUE)
 
+if(MSVC)
+set(dummy_file "${CMAKE_CURRENT_BINARY_DIR}/dummy.f90")
+file(WRITE ${dummy_file} "module dummy
+  implicit none
+contains
+end module dummy\n")
+endif()
 
-add_library(aether $<TARGET_OBJECTS:aether_obj>)
+add_library(aether $<TARGET_OBJECTS:aether_obj> ${dummy_file})
 
 set_target_properties(aether PROPERTIES
   Fortran_VISIBILITY_PRESET hidden

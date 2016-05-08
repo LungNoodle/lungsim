@@ -20,7 +20,7 @@ contains
 !!!################################################################
 
   subroutine export_1d_elem_field(ne_field, EXELEMFILE, group_name, field_name )
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_1D_ELEM_FIELD" :: EXPORT_1D_ELEM_FIELD
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_1D_ELEM_FIELD" :: EXPORT_1D_ELEM_FIELD
     use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
     use arrays,only: elem_field,num_elems
     implicit none
@@ -70,7 +70,7 @@ contains
 !!!############################################################################
 
   subroutine export_1d_elem_geometry(EXELEMFILE, name)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_1D_ELEM_GEOMETRY" :: EXPORT_1D_ELEM_GEOMETRY
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_1D_ELEM_GEOMETRY" :: EXPORT_1D_ELEM_GEOMETRY
 
     use arrays,only: elem_nodes,num_elems
     use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
@@ -129,7 +129,7 @@ contains
 !!!##########################################################################
 
   subroutine export_node_geometry(EXNODEFILE, name)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_NODE_GEOMETRY" :: EXPORT_NODE_GEOMETRY
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_GEOMETRY" :: EXPORT_NODE_GEOMETRY
 
     use arrays,only: node_xyz,num_nodes
     use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
@@ -183,7 +183,7 @@ contains
 !!!########################################################################
 
   subroutine export_terminal_solution(EXNODEFILE, name)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_TERMINAL_SOLUTION" :: EXPORT_TERMINAL_SOLUTION
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_SOLUTION" :: EXPORT_TERMINAL_SOLUTION
 
     use arrays,only: elem_nodes,&
          node_xyz,num_units,units,unit_field
@@ -276,7 +276,7 @@ contains
 !!! #################################################################
 
   subroutine export_node_field(nj_field, EXNODEFIELD, name, field_name)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_NODE_FIELD" :: EXPORT_NODE_FIELD
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_FIELD" :: EXPORT_NODE_FIELD
 
     use arrays,only: node_field,num_nodes
     use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
@@ -321,7 +321,7 @@ contains
 !!! ###########################################################
 
   subroutine export_elem_field(EXELEMFIELD, name, field_name)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_ELEM_FIELD" :: EXPORT_ELEM_FIELD
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_ELEM_FIELD" :: EXPORT_ELEM_FIELD
 
     use arrays,only: elem_nodes,num_elems
     use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN

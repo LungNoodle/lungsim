@@ -8,7 +8,7 @@ contains
 
   subroutine export_1d_elem_field_c(ne_field, EXELEMFILE, filename_len, group_name, group_name_len, field_name, field_name_len) &
     bind(C, name="export_1d_elem_field_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_1D_ELEM_FIELD_C" :: EXPORT_1D_ELEM_FIELD_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_1D_ELEM_FIELD_C" :: EXPORT_1D_ELEM_FIELD_C
 
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
@@ -24,14 +24,14 @@ contains
     call strncpy(group_name_f, group_name, group_name_len)
     call strncpy(field_name_f, field_name, field_name_len)
 
-    call export_1d_elem_field(ne_field, filename_f, group_name_f, field_name_f)
+    call so_export_1d_elem_field(ne_field, filename_f, group_name_f, field_name_f)
 
   end subroutine export_1d_elem_field_c
 
 !!!############################################################################
 
   subroutine export_1d_elem_geometry_c(EXELEMFILE, filename_len, name, name_len) bind(C, name="export_1d_elem_geometry_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_1D_ELEM_GEOMETRY_C" :: EXPORT_1D_ELEM_GEOMETRY_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_1D_ELEM_GEOMETRY_C" :: EXPORT_1D_ELEM_GEOMETRY_C
 
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
@@ -46,7 +46,7 @@ contains
     call strncpy(filename_f, EXELEMFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-    call export_1d_elem_geometry(filename_f, name_f)
+    call so_export_1d_elem_geometry(filename_f, name_f)
 
   end subroutine export_1d_elem_geometry_c
 
@@ -54,7 +54,7 @@ contains
 !!!##########################################################################
 
   subroutine export_node_geometry_c(EXNODEFILE, filename_len, name, name_len) bind(C, name="export_node_geometry_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_NODE_GEOMETRY_C" :: EXPORT_NODE_GEOMETRY_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_NODE_GEOMETRY_C" :: EXPORT_NODE_GEOMETRY_C
 
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
@@ -70,7 +70,7 @@ contains
     call strncpy(filename_f, EXNODEFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-    call export_node_geometry(filename_f, name_f)
+    call so_export_node_geometry(filename_f, name_f)
 
   end subroutine export_node_geometry_c
 
@@ -78,7 +78,7 @@ contains
 !!!########################################################################
 
   subroutine export_terminal_solution_c(EXNODEFILE, filename_len, name, name_len) bind(C, name="export_terminal_solution_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_TERMINAL_SOLUTION_C" :: EXPORT_TERMINAL_SOLUTION_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_TERMINAL_SOLUTION_C" :: EXPORT_TERMINAL_SOLUTION_C
 
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
@@ -93,7 +93,7 @@ contains
     call strncpy(filename_f, EXNODEFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-    call export_terminal_solution(filename_f, name_f)
+    call so_export_terminal_solution(filename_f, name_f)
 
   end subroutine export_terminal_solution_c
 
@@ -102,7 +102,7 @@ contains
 
   subroutine export_node_field_c(nj_field, EXNODEFIELD, filename_len, name, name_len, field_name, field_name_len) &
     bind(C, name="export_node_field_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_NODE_FIELD_C" :: EXPORT_NODE_FIELD_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_NODE_FIELD_C" :: EXPORT_NODE_FIELD_C
 
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
@@ -118,7 +118,7 @@ contains
     call strncpy(name_f, name, name_len)
     call strncpy(field_name_f, field_name, field_name_len)
 
-    call export_node_field(nj_field, filename_f, name_f, field_name_f)
+    call so_export_node_field(nj_field, filename_f, name_f, field_name_f)
 
   end subroutine export_node_field_c
 
@@ -127,7 +127,7 @@ contains
 
   subroutine export_elem_field_c(EXELEMFIELD, filename_len, name, name_len, field_name, field_name_len) &
     bind(C, name="export_elem_field_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_ELEM_FIELD_C" :: EXPORT_ELEM_FIELD_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EXPORT_ELEM_FIELD_C" :: EXPORT_ELEM_FIELD_C
 
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
@@ -144,7 +144,7 @@ contains
     call strncpy(name_f, name, name_len)
     call strncpy(field_name_f, field_name, field_name_len)
 
-    call export_elem_field(filename_f, name_f, field_name_f)
+    call so_export_elem_field(filename_f, name_f, field_name_f)
 
   end subroutine export_elem_field_c
 

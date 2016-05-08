@@ -50,7 +50,7 @@ contains
 !
 !> reads in output filenames typically used to analyse and visualise ventilation model results
   subroutine read_geometry_evaluate_flow()
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_READ_GEOMETRY_EVALUATE_FLOW" :: READ_GEOMETRY_EVALUATE_FLOW
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_READ_GEOMETRY_EVALUATE_FLOW" :: READ_GEOMETRY_EVALUATE_FLOW
 
     use diagnostics, only: enter_exit
     implicit none
@@ -106,7 +106,7 @@ contains
   !###################################################################################
 
   subroutine read_geometry_main()
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_READ_GEOMETRY_MAIN" :: READ_GEOMETRY_MAIN
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_READ_GEOMETRY_MAIN" :: READ_GEOMETRY_MAIN
 
     use diagnostics, only: enter_exit
     implicit none
@@ -179,6 +179,7 @@ contains
 !#####################################################################################################
 !
   function get_filename(label) result(str)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GET_FILENAME" :: GET_FILENAME
     use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
     implicit none
 

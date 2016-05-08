@@ -41,7 +41,7 @@ contains
 
   !> Ventilation indices
   subroutine ventilation_indices
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_VENTILATION_INDICES" :: VENTILATION_INDICES
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_VENTILATION_INDICES" :: VENTILATION_INDICES
 
     use diagnostics, only: enter_exit
     implicit none
@@ -85,7 +85,7 @@ contains
 !
 !> Perfusion indices
   subroutine perfusion_indices
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_PERFUSION_INDICES" :: PERFUSION_INDICES
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_PERFUSION_INDICES" :: PERFUSION_INDICES
 
     use diagnostics, only: enter_exit
     implicit none
@@ -110,7 +110,7 @@ contains
   end subroutine perfusion_indices
 
   function get_ne_radius() result(res)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_GET_NE_RADIUS" :: GET_NE_RADIUS
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GET_NE_RADIUS" :: GET_NE_RADIUS
 
     use diagnostics, only: enter_exit
     implicit none
@@ -126,7 +126,7 @@ contains
   end function get_ne_radius
 
   function get_nj_conc1() result(res)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_GET_NJ_CONC1" :: GET_NJ_CONC1
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GET_NJ_CONC1" :: GET_NJ_CONC1
 
     use diagnostics, only: enter_exit
     implicit none

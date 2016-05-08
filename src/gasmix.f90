@@ -169,7 +169,7 @@ contains
 !!!########################################################################
 
   subroutine initial_gasmix(initial_concentration,inlet_concentration)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_INITIAL_GASMIX" :: INITIAL_GASMIX
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIAL_GASMIX" :: INITIAL_GASMIX
 
     use arrays,only: dp,node_field,num_nodes
     use indices,only: nj_conc1,nu_conc1
@@ -261,7 +261,7 @@ contains
   subroutine solve_gasmix(fileid,inr_itr_max,out_itr_max,diffusion_coeff,&
        dt,initial_volume,inlet_concentration,inlet_flow,solve_tolerance,time_end,&
        time_start,inspiration)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_SOLVE_GASMIX" :: SOLVE_GASMIX
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SOLVE_GASMIX" :: SOLVE_GASMIX
 
 !!! Assemble matrices for 1D inert gas mixing equation, and solve. The sparsity
 !!! structure is first calculated. At each time step the mesh size is changed
@@ -708,7 +708,7 @@ contains
 !!! ##################################################################
 
   subroutine transfer_flow_vol_from_units()
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_TRANSFER_FLOW_VOL_FROM_UNITS" :: TRANSFER_FLOW_VOL_FROM_UNITS
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_TRANSFER_FLOW_VOL_FROM_UNITS" :: TRANSFER_FLOW_VOL_FROM_UNITS
 
     use arrays,only: dp,elem_cnct,elem_field,elem_symmetry,&
          elem_units_below,expansile,units,num_elems,num_units,&

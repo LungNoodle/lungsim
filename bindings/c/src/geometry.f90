@@ -8,7 +8,7 @@ contains
 !
 !*add_mesh:* Reads in an ipmesh file and adds this mesh to the terminal branches of an existing tree geometry
   subroutine add_mesh_c(AIRWAY_MESHFILE, filename_len) bind(C, name="add_mesh_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_ADD_MESH_C" :: ADD_MESH_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_ADD_MESH_C" :: ADD_MESH_C
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
     use other_consts, only: MAX_FILENAME_LEN
@@ -20,7 +20,7 @@ contains
     character(len=MAX_FILENAME_LEN) :: filename_f
 
     call strncpy(filename_f, AIRWAY_MESHFILE, filename_len)
-    call add_mesh(filename_f)
+    call so_add_mesh(filename_f)
 
   end subroutine add_mesh_c
 !
@@ -28,11 +28,11 @@ contains
 !
 !*append_units:* Appends terminal units at the end of a tree structure
   subroutine append_units_c() bind(C, name="append_units_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_APPEND_UNITS_c" :: APPEND_UNITS_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_APPEND_UNITS_c" :: APPEND_UNITS_C
     use geometry, only: append_units
     implicit none
 
-    call append_units
+    call so_append_units
 
   end subroutine append_units_c
 
@@ -40,7 +40,7 @@ contains
 !###################################################################################
 !
   subroutine define_1d_elements_c(ELEMFILE, filename_len) bind(C, name="define_1d_elements_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_1D_ELEMENTS" :: DEFINE_1D_ELEMENTS
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_1D_ELEMENTS" :: DEFINE_1D_ELEMENTS
 
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
@@ -53,7 +53,7 @@ contains
     character(len=MAX_FILENAME_LEN) :: filename_f
 
     call strncpy(filename_f, ELEMFILE, filename_len)
-    call define_1d_elements(filename_f)
+    call so_define_1d_elements(filename_f)
 
   end subroutine define_1d_elements_c
 !
@@ -61,7 +61,7 @@ contains
 !
 !*define_mesh_geometry_test:*
   subroutine define_mesh_geometry_test_c() bind(C, name="define_mesh_geometry_test_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_MESH_GEOMETRY_TEST_C" :: DEFINE_MESH_GEOMETRY_TEST_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_MESH_GEOMETRY_TEST_C" :: DEFINE_MESH_GEOMETRY_TEST_C
     use geometry, only: define_mesh_geometry_test
     implicit none
 
@@ -72,7 +72,7 @@ contains
 !###################################################################################
 !
   subroutine define_node_geometry_c(NODEFILE, filename_len) bind(C, name="define_node_geometry_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_NODE_GEOMETRY_C" :: DEFINE_NODE_GEOMETRY_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_NODE_GEOMETRY_C" :: DEFINE_NODE_GEOMETRY_C
 
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
@@ -92,7 +92,7 @@ contains
 !###################################################################################
 !
   subroutine define_rad_from_file_c(FIELDFILE, filename_len, radius_type, radius_type_len) bind(C, name="define_rad_from_file_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_RAD_FROM_FILE_C" :: DEFINE_RAD_FROM_FILE_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_RAD_FROM_FILE_C" :: DEFINE_RAD_FROM_FILE_C
 
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
@@ -116,7 +116,7 @@ contains
   subroutine define_rad_from_geom_c(order_system, order_system_len, control_param, &
         start_from, start_from_len, start_rad, group_type, group_type_len, group_options, group_options_len) &
         bind(C, name="define_rad_from_geom_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_RAD_FROM_GEOM_C" :: DEFINE_RAD_FROM_GEOM_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_RAD_FROM_GEOM_C" :: DEFINE_RAD_FROM_GEOM_C
 
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
@@ -141,7 +141,7 @@ contains
 !
 !*element_connectivity_1d:*  Calculates element connectivity in 1D and stores in elelem_cnct
   subroutine element_connectivity_1d_c() bind(C, name="element_connectivity_1d_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_ELEMENT_CONNECTIVITY_1D_C" :: ELEMENT_CONNECTIVITY_1D_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_ELEMENT_CONNECTIVITY_1D_C" :: ELEMENT_CONNECTIVITY_1D_C
     use geometry, only: element_connectivity_1d
     implicit none
 
@@ -154,7 +154,7 @@ contains
 !
 !*evaluate_ordering:* calculates generations, Horsfield orders, Strahler orders for a given tree
   subroutine evaluate_ordering_c() bind(C, name="evaluate_ordering_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EVALUATE_ORDERING_C" :: EVALUATE_ORDERING_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EVALUATE_ORDERING_C" :: EVALUATE_ORDERING_C
     use geometry, only: evaluate_ordering
     implicit none
 
@@ -168,7 +168,7 @@ contains
 !>based on an assumption of a linear gradient in the gravitational direction with max
 !> min and COV values defined.
   subroutine set_initial_volume_c(Gdirn, COV, total_volume, Rmax, Rmin) bind(C, name="set_initial_volume_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_SET_INITIAL_VOLUME_C" :: SET_INITIAL_VOLUME_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_SET_INITIAL_VOLUME_C" :: SET_INITIAL_VOLUME_C
 
     use geometry, only: set_initial_volume
     use other_consts, only: dp
@@ -187,7 +187,7 @@ contains
 !
 !*volume_of_mesh:* calculates the volume of an airway mesh including conducting and respiratory airways
   subroutine volume_of_mesh_c(volume_model,volume_tree) bind(C, name="volume_of_mesh_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_VOLUME_OF_MESH_C" :: VOLUME_OF_MESH_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_VOLUME_OF_MESH_C" :: VOLUME_OF_MESH_C
     use other_consts,only: dp
     use geometry, only: volume_of_mesh
     implicit none

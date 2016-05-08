@@ -18,12 +18,17 @@ void read_geometry_evaluate_flow()
 }
 
 #include <stdlib.h>
+#include <stdio.h>
 
 char *get_filename(const char *label)
 {
   int label_len = strlen(label);
 
+  printf("get filename: '%s', %d\n", label, label_len);
   char *tmp = (char *)malloc(255 + 1);
   get_filename_c(label, &label_len, tmp);
+  //tmp = "bob";
+  printf("done: %x, %d\n", tmp, strlen(tmp));
+  printf("'%s'\n",tmp);
   return tmp;//get_filename_c(label, &label_len);
 }

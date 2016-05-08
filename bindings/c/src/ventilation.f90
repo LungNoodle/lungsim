@@ -7,7 +7,7 @@ contains
 !!!###################################################################################
 
   subroutine evaluate_flow_c() bind(C, name="evaluate_flow_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EVALUATE_FLOW_C" :: EVALUATE_FLOW_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EVALUATE_FLOW_C" :: EVALUATE_FLOW_C
 
     use ventilation, only: evaluate_flow
     implicit none
@@ -20,7 +20,7 @@ contains
   !###################################################################################
 
   subroutine evaluate_uniform_flow_c() bind(C, name="evaluate_uniform_flow_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EVALUATE_UNIFORM_FLOW_C" :: EVALUATE_UNIFORM_FLOW_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EVALUATE_UNIFORM_FLOW_C" :: EVALUATE_UNIFORM_FLOW_C
 
     use ventilation, only: evaluate_uniform_flow
     implicit none
@@ -33,7 +33,7 @@ contains
 !###################################################################################
 
   subroutine two_unit_test_c() bind(C, name="two_unit_test_c")
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_TWO_UNIT_TEST_C" :: TWO_UNIT_TEST_C
+  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_TWO_UNIT_TEST_C" :: TWO_UNIT_TEST_C
     use ventilation, only: two_unit_test
     implicit none
 

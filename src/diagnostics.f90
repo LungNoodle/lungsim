@@ -22,7 +22,7 @@ contains
 !!!######################################################################
 
   subroutine enter_exit(sub_name, state)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_ENTER_EXIT" :: ENTER_EXIT
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ENTER_EXIT" :: ENTER_EXIT
     use other_consts, only: MAX_SUBNAME_LEN
     implicit none
 
@@ -40,7 +40,7 @@ contains
   end subroutine enter_exit
 
   subroutine set_diagnostics_on(state)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_SET_DIAGNOSTICS_ON" :: SET_DIAGNOSTICS_ON
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SET_DIAGNOSTICS_ON" :: SET_DIAGNOSTICS_ON
     implicit none
 
     logical, intent(in) :: state

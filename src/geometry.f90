@@ -37,7 +37,7 @@ contains
 !
 !*add_mesh:* Reads in an ipmesh file and adds this mesh to the terminal branches of an existing tree geometry
   subroutine add_mesh(AIRWAY_MESHFILE)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_ADD_MESH" :: ADD_MESH
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADD_MESH" :: ADD_MESH
     use arrays,only: dp,elems,elem_cnct,elem_direction,elem_field,&
          elem_nodes,elem_ordrs,elem_symmetry,&
          nodes,node_xyz,num_elems,&
@@ -188,7 +188,7 @@ contains
 !
 !*append_units:* Appends terminal units at the end of a tree structure
   subroutine append_units()
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_APPEND_UNITS" :: APPEND_UNITS
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_APPEND_UNITS" :: APPEND_UNITS
     use arrays,only: elem_cnct,elem_symmetry,elem_units_below,&
          num_elems,num_units,units,unit_field
     use indices,only: num_nu
@@ -243,7 +243,7 @@ contains
 !###################################################################################
 !
   subroutine define_1d_elements(ELEMFILE)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_1D_ELEMENTS" :: DEFINE_1D_ELEMENTS
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_1D_ELEMENTS" :: DEFINE_1D_ELEMENTS
 
   !*define_1d_elements:* Reads in an element ipelem file to define a geometry
     use arrays,only: elem_direction,elem_field,elems,elem_cnct,elem_nodes,&
@@ -499,7 +499,7 @@ contains
 !###################################################################################
 !
   subroutine define_node_geometry(NODEFILE)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_NODE_GEOMETRY" :: DEFINE_NODE_GEOMETRY
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY" :: DEFINE_NODE_GEOMETRY
 
   !*define_node_geometry:* Reads in an ipnode file to define a tree geometry
     use arrays,only: dp,nodes,node_field,node_xyz,num_nodes
@@ -608,7 +608,7 @@ contains
 !###################################################################################
 !
   subroutine define_rad_from_file(FIELDFILE, radius_type_in)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_RAD_FROM_FILE" :: DEFINE_RAD_FROM_FILE
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_FILE" :: DEFINE_RAD_FROM_FILE
 
   !*define_rad_from_file:* reads in a radius field associated with an aiway tree
 ! and assigns radius information to each element, also calculates volume of each
@@ -737,7 +737,7 @@ contains
 !
 !*define_rad_from_geom:* Defines vessel or airway radius based on their geometric structure
   subroutine define_rad_from_geom(ORDER_SYSTEM, CONTROL_PARAM, START_FROM, START_RAD, group_type_in, group_option_in)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_DEFINE_RAD_FROM_GEOM" :: DEFINE_RAD_FROM_GEOM
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_GEOM" :: DEFINE_RAD_FROM_GEOM
     use arrays,only: dp,num_elems,elem_field,elem_ordrs,maxgen,elem_cnct
     use indices
     use diagnostics, only: enter_exit
@@ -967,9 +967,9 @@ contains
 !>based on an assumption of a linear gradient in the gravitational direction with max
 !> min and COV values defined.
   subroutine set_initial_volume(Gdirn,COV,total_volume,Rmax,Rmin)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_SET_INITIAL_VOLUME" :: SET_INITIAL_VOLUME
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SET_INITIAL_VOLUME" :: SET_INITIAL_VOLUME
 
-  use arrays,only: dp,elem_nodes,elem_units_below,&
+    use arrays,only: dp,elem_nodes,elem_units_below,&
          node_xyz,num_elems,num_units,units,unit_field
     use indices,only: nu_vol,nu_vt
     use diagnostics, only: enter_exit
