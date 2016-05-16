@@ -51,8 +51,8 @@ contains
     ! Local parameters
     character(len=100) :: buffer
     integer, parameter :: fh = 15
-    integer :: ios = 0
-    integer :: line = 0
+    integer :: ios
+    integer :: line
     integer :: i,ibeg,iend,i_ss_end,j,ne,ne0,ne_global,ne_parent,ne_start, &
          ngen_parent,np,np0,np_global,&
          num_elems_new,num_elems_to_add,num_nodes_new,nunit,nlabel
@@ -64,6 +64,8 @@ contains
     sub_name = 'add_mesh'
     call enter_exit(sub_name,1)
 
+    ios = 0
+    line = 0
     open(fh, file=AIRWAY_MESHFILE)
 
     ! ios is negative if an end of record condition is encountered or if
@@ -275,16 +277,26 @@ contains
     end do read_number_of_elements
 
 !!! allocate memory for element arrays
-    if(.not.allocated(elems)) allocate(elems(num_elems))
-    if(.not.allocated(elem_cnct)) allocate(elem_cnct(-1:1,0:2,0:num_elems))
-    if(.not.allocated(elem_nodes)) allocate(elem_nodes(2,num_elems))
-    if(.not.allocated(elem_ordrs)) allocate(elem_ordrs(num_ord,num_elems))
-    if(.not.allocated(elem_symmetry)) allocate(elem_symmetry(num_elems))
-    if(.not.allocated(elem_units_below)) allocate(elem_units_below(num_elems))
-    if(.not.allocated(elems_at_node)) allocate(elems_at_node(num_nodes,0:3))
-    if(.not.allocated(elem_field)) allocate(elem_field(num_ne,num_elems))
-    if(.not.allocated(elem_direction)) allocate(elem_direction(3,num_elems))
-    if(.not.allocated(expansile)) allocate(expansile(num_elems))
+    if(allocated(elems)) deallocate(elems)
+    allocate(elems(num_elems))
+    if(allocated(elem_cnct)) deallocate(elem_cnct)
+    allocate(elem_cnct(-1:1,0:2,0:num_elems))
+    if(allocated(elem_nodes)) deallocate(elem_nodes)
+    allocate(elem_nodes(2,num_elems))
+    if(allocated(elem_ordrs)) deallocate(elem_ordrs)
+    allocate(elem_ordrs(num_ord,num_elems))
+    if(allocated(elem_symmetry)) deallocate(elem_symmetry)
+    allocate(elem_symmetry(num_elems))
+    if(allocated(elem_units_below)) deallocate(elem_units_below)
+    allocate(elem_units_below(num_elems))
+    if(allocated(elems_at_node)) deallocate(elems_at_node)
+    allocate(elems_at_node(num_nodes,0:3))
+    if(allocated(elem_field)) deallocate(elem_field)
+    allocate(elem_field(num_ne,num_elems))
+    if(allocated(elem_direction)) deallocate(elem_direction)
+    allocate(elem_direction(3,num_elems))
+    if(allocated(expansile)) deallocate(expansile)
+    allocate(expansile(num_elems))
 
 !!! initialise element arrays
     elems=0
@@ -511,15 +523,17 @@ contains
     character(len=MAX_FILENAME_LEN), intent(in) :: NODEFILE !Input nodefile
     !     Local Variables
     integer :: i,ierror,np,np_global,&
-         num_versions,nv,NJT=0
+         num_versions,nv,NJT
     character(LEN=132) :: ctemp1
-    LOGICAL :: versions=.TRUE.
+    LOGICAL :: versions
     real(dp) :: point
     character(len=60) :: sub_name
 
     sub_name = 'define_node_geometry'
     call enter_exit(sub_name,1)
 
+    versions = .TRUE.
+    NJT = 0
     open(10, file=NODEFILE, status='old')
 
     !.....read in the total number of nodes. read each line until one is found
@@ -533,9 +547,12 @@ contains
        endif
     end do read_number_of_nodes
 
-    if(.not.allocated(nodes)) allocate (nodes(num_nodes))
-    if(.not.allocated(node_xyz)) allocate (node_xyz(3,num_nodes))
-    if(.not.allocated(node_field)) allocate (node_field(num_nj,num_nodes))
+    if(allocated(nodes)) deallocate (nodes)
+    allocate (nodes(num_nodes))
+    if(allocated(node_xyz)) deallocate (node_xyz)
+    allocate (node_xyz(3,num_nodes))
+    if(allocated(node_field)) deallocate (node_field)
+    allocate (node_field(num_nj,num_nodes))
     nodes = 0 !initialise node index values
     node_xyz = 0.0_dp !initialise
     node_field = 0.0_dp !initialise
@@ -627,12 +644,14 @@ contains
     integer :: ierror,ne,np,np1,np2,np_global,surround
     character(len=MAX_STRING_LEN) ::  radius_type
     character(LEN=132) :: ctemp1
-    LOGICAL :: versions=.TRUE.
+    LOGICAL :: versions
     real(dp) :: constrict,radius
     character(len=60) :: sub_name
 
     sub_name = 'define_rad_from_file'
     call enter_exit(sub_name,1)
+    
+    versions = .TRUE.
     if(present(radius_type_in))then
       radius_type = radius_type_in
     else
@@ -986,6 +1005,9 @@ contains
 
     sub_name = 'set_initial_volume'
     call enter_exit(sub_name,1)
+    
+    volume_estimate = 1.0_dp
+    volume_of_tree = 0.0_dp
 
     call volume_of_mesh(volume_estimate,volume_of_tree)
 

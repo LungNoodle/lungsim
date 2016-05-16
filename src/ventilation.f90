@@ -47,6 +47,8 @@ contains
 
     sub_name = 'evaluate_flow'
     call enter_exit(sub_name,1)
+    
+    init_vol = 1.0_dp
 
 !!! -------------  DESCRIPTION OF IMPORTANT VARIABLES ---------------
 !!! pmus_factor (_in and _ex) are used to scale the driving pressureS, to converge
@@ -823,8 +825,8 @@ contains
     character(len=100) :: buffer, label
     integer :: pos
     integer, parameter :: fh = 15
-    integer :: ios = 0
-    integer :: line = 0
+    integer :: ios
+    integer :: line
 
     character(len=60) :: sub_name
 
@@ -833,6 +835,8 @@ contains
     sub_name = 'read_params_main'
     call enter_exit(sub_name,1)
 
+    ios = 0
+    line = 0
     open(fh, file='Parameters/params_main.txt')
 
     ! ios is negative if an end of record condition is encountered or if
@@ -868,6 +872,7 @@ contains
        end if
     end do
 
+    close(fh)
     call enter_exit(sub_name,2)
 
   end subroutine read_params_main
@@ -891,13 +896,15 @@ contains
     character(len=100) :: buffer, label
     integer :: pos
     integer, parameter :: fh = 15
-    integer :: ios = 0
-    integer :: line = 0
+    integer :: ios
+    integer :: line
 
     character(len=60) :: sub_name
 
     ! ###########################################################################
 
+    ios = 0
+    line = 0
     sub_name = 'read_params_evaluate_flow'
     call enter_exit(sub_name,1)
 
@@ -980,6 +987,7 @@ contains
        end if
     end do
 
+    close(fh)
     call enter_exit(sub_name,2)
 
   end subroutine read_params_evaluate_flow

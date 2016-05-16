@@ -59,12 +59,15 @@ contains
     character(len=255) :: buffer, label
     integer :: pos
     integer, parameter :: fh = 15
-    integer :: ios = 0
-    integer :: line = 0
+    integer :: ios
+    integer :: line
     character(len=60) :: sub_name
 
     sub_name = 'read_geometry_evaluate_flow'
     call enter_exit(sub_name,1)
+    
+    ios = 0
+    line = 0
 
     open(fh, file='Parameters/geometry_evaluate_flow.txt')
 
@@ -99,6 +102,7 @@ contains
        end if
     end do
 
+    close(fh)
     call enter_exit(sub_name,2)
 
   end subroutine read_geometry_evaluate_flow
@@ -115,8 +119,8 @@ contains
     character(len=255) :: buffer, label
     integer :: pos
     integer, parameter :: fh = 15
-    integer :: ios = 0
-    integer :: line = 0
+    integer :: ios
+    integer :: line
     character(len=60) :: sub_name
 !
 ! ###########################################################################
@@ -125,6 +129,8 @@ contains
     sub_name = 'read_geometry_main'
     call enter_exit(sub_name,1)
 
+    ios = 0
+    line = 0
     open(fh, file='Parameters/geometry_main.txt')
 
     ! ios is negative if an end of record condition is encountered or if
@@ -172,6 +178,7 @@ contains
        end if
     end do
 
+    close(fh)
     call enter_exit(sub_name,2)
 
   end subroutine read_geometry_main

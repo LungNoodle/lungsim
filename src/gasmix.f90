@@ -644,6 +644,9 @@ contains
           endif                !NXI
        endif
     enddo !noelem(ne)
+    
+    deallocate(nsmooth_list)
+    deallocate(smoothed)
 
   end subroutine smooth_expiration
 
@@ -702,6 +705,8 @@ contains
        np=elem_nodes(2,ne)
        node_field(nj_field,np)=intercept+slope*length(n)
     enddo
+    
+    deallocate(length)
 
   end subroutine smooth_expiration_linear
 
