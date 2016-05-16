@@ -7,7 +7,7 @@ contains
     use filenames, only : read_geometry_evaluate_flow
     implicit none
 
-    call so_read_geometry_evaluate_flow()
+    call read_geometry_evaluate_flow()
 
   end subroutine read_geometry_evaluate_flow_c
 
@@ -17,7 +17,7 @@ contains
   use filenames, only : read_geometry_main
   implicit none
 
-  call so_read_geometry_main()
+  call read_geometry_main()
 
   end subroutine read_geometry_main_c
 

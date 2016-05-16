@@ -9,12 +9,12 @@ contains
   !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_INITIAL_GASMIX_C" :: INITIAL_GASMIX_C
 
     use gasmix, only: initial_gasmix
-    use other_consts, only: dp
+    use arrays, only: dp
     implicit none
 
     real(dp),intent(in) :: initial_concentration,inlet_concentration
 
-    call so_initial_gasmix(initial_concentration, inlet_concentration)
+    call initial_gasmix(initial_concentration, inlet_concentration)
 
   end subroutine initial_gasmix_c
 
@@ -26,7 +26,7 @@ contains
   !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_SOLVE_GASMIX_C" :: SOLVE_GASMIX_C
 
     use gasmix, only: solve_gasmix
-    use other_consts, only: dp
+    use arrays, only: dp
     implicit none
 
     integer,intent(in) :: fileid,inr_itr_max,out_itr_max
@@ -34,7 +34,7 @@ contains
          inlet_concentration,inlet_flow,solve_tolerance,time_end,time_start
     logical,intent(in) :: inspiration
 
-    call so_solve_gasmix(fileid,inr_itr_max,out_itr_max,diffusion_coeff,&
+    call solve_gasmix(fileid,inr_itr_max,out_itr_max,diffusion_coeff,&
       dt,initial_volume,inlet_concentration,inlet_flow,solve_tolerance,time_end,&
       time_start,inspiration)
 
@@ -48,7 +48,7 @@ contains
     use gasmix, only: transfer_flow_vol_from_units
     implicit none
 
-    call so_transfer_flow_vol_from_units()
+    call transfer_flow_vol_from_units()
 
   end subroutine transfer_flow_vol_from_units_c
 

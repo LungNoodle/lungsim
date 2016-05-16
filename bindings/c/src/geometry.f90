@@ -19,7 +19,7 @@ contains
     character(len=MAX_FILENAME_LEN) :: filename_f
 
     call strncpy(filename_f, AIRWAY_MESHFILE, filename_len)
-    call so_add_mesh(filename_f)
+    call add_mesh(filename_f)
 
   end subroutine add_mesh_c
 !
@@ -30,7 +30,7 @@ contains
     use geometry, only: append_units
     implicit none
 
-    call so_append_units
+    call append_units
 
   end subroutine append_units_c
 
@@ -50,7 +50,7 @@ contains
     character(len=MAX_FILENAME_LEN) :: filename_f
 
     call strncpy(filename_f, ELEMFILE, filename_len)
-    call so_define_1d_elements(filename_f)
+    call define_1d_elements(filename_f)
 
   end subroutine define_1d_elements_c
 !
@@ -113,7 +113,8 @@ contains
 
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
-    use other_consts, only: MAX_STRING_LEN, dp
+    use other_consts, only: MAX_STRING_LEN
+    use arrays, only: dp
     use geometry, only: define_rad_from_geom
     implicit none
 
@@ -161,7 +162,7 @@ contains
   subroutine set_initial_volume_c(Gdirn, COV, total_volume, Rmax, Rmin) bind(C, name="set_initial_volume_c")
 
     use geometry, only: set_initial_volume
-    use other_consts, only: dp
+    use arrays, only: dp
     implicit none
 
     !     Parameter List
@@ -177,7 +178,7 @@ contains
 !
 !*volume_of_mesh:* calculates the volume of an airway mesh including conducting and respiratory airways
   subroutine volume_of_mesh_c(volume_model,volume_tree) bind(C, name="volume_of_mesh_c")
-    use other_consts,only: dp
+    use arrays, only: dp
     use geometry, only: volume_of_mesh
     implicit none
 

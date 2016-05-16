@@ -191,7 +191,7 @@ contains
 !*append_units:* Appends terminal units at the end of a tree structure
   subroutine append_units()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_APPEND_UNITS" :: APPEND_UNITS
-    use arrays,only: elem_cnct,elem_symmetry,elem_units_below,&
+    use arrays,only: dp, elem_cnct,elem_symmetry,elem_units_below,&
          num_elems,num_units,units,unit_field
     use indices,only: num_nu
     use diagnostics, only: enter_exit
@@ -248,7 +248,7 @@ contains
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_1D_ELEMENTS" :: DEFINE_1D_ELEMENTS
 
   !*define_1d_elements:* Reads in an element ipelem file to define a geometry
-    use arrays,only: elem_direction,elem_field,elems,elem_cnct,elem_nodes,&
+    use arrays,only: dp, elem_direction,elem_field,elems,elem_cnct,elem_nodes,&
          elem_ordrs,elem_symmetry,elems_at_node,elem_units_below,&
          expansile,node_xyz,num_elems,num_nodes
     use indices

@@ -18,7 +18,7 @@ contains
     character(len=MAX_STRING_LEN) :: sub_name_f
 
     call strncpy(sub_name_f, sub_name, sub_name_len)
-    call so_enter_exit(sub_name_f, state)
+    call enter_exit(sub_name_f, state)
 
   end subroutine enter_exit_c
 
@@ -30,7 +30,7 @@ contains
 
     logical, intent(in) :: state
 
-    call so_set_diagnostics_on(state)
+    call set_diagnostics_on(state)
 
   end subroutine set_diagnostics_on_c
 

@@ -23,7 +23,7 @@ contains
     integer, intent(in) :: row, col
     real(dp), intent(in) :: value
 
-    call so_set_node_field_value(row, col, value)
+    call set_node_field_value(row, col, value)
 
   end subroutine set_node_field_value_c
 
