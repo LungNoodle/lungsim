@@ -12,7 +12,7 @@ contains
     use indices, only: ventilation_indices
     implicit none
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_ventilation_indices()
 #else
     call ventilation_indices()
@@ -28,7 +28,7 @@ contains
     use indices, only: perfusion_indices
     implicit none
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_perfusion_indices()
 #else
     call perfusion_indices()

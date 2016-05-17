@@ -18,7 +18,7 @@ contains
     character(len=MAX_STRING_LEN) :: sub_name_f
 
     call strncpy(sub_name_f, sub_name, sub_name_len)
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_enter_exit(sub_name_f, state)
 #else
     call enter_exit(sub_name_f, state)
@@ -33,7 +33,7 @@ contains
 
     logical, intent(in) :: state
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_set_diagnostics_on(state)
 #else
     call set_diagnostics_on(state)

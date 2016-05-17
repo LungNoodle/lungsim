@@ -19,7 +19,7 @@ contains
     character(len=MAX_FILENAME_LEN) :: filename_f
 
     call strncpy(filename_f, AIRWAY_MESHFILE, filename_len)
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_add_mesh(filename_f)
 #else
     call add_mesh(filename_f)
@@ -34,7 +34,7 @@ contains
     use geometry, only: append_units
     implicit none
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_append_units
 #else
     call append_units
@@ -59,7 +59,7 @@ contains
 
     call strncpy(filename_f, ELEMFILE, filename_len)
     
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_define_1d_elements(filename_f)
 #else
     call define_1d_elements(filename_f)
@@ -74,7 +74,7 @@ contains
     use geometry, only: define_mesh_geometry_test
     implicit none
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_define_mesh_geometry_test
 #else
     call define_mesh_geometry_test
@@ -98,7 +98,7 @@ contains
 
     call strncpy(filename_f, NODEFILE, filename_len)
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_define_node_geometry(filename_f)
 #else
     call define_node_geometry(filename_f)
@@ -123,7 +123,7 @@ contains
     call strncpy(filename_f, FIELDFILE, filename_len)
     call strncpy(radius_type_f, radius_type, radius_type_len)
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_define_rad_from_file(filename_f, radius_type_f)
 #else
     call define_rad_from_file(filename_f, radius_type_f)
@@ -155,7 +155,7 @@ contains
     call strncpy(group_options_f, group_options, group_options_len)
     call strncpy(group_options_f, group_type, group_type_len)
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_define_rad_from_geom(order_system_f, control_param, start_from_f, start_rad, group_type_f, group_options_f)
 #else
     call define_rad_from_geom(order_system_f, control_param, start_from_f, start_rad, group_type_f, group_options_f)
@@ -170,7 +170,7 @@ contains
     use geometry, only: element_connectivity_1d
     implicit none
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_element_connectivity_1d
 #else
     call element_connectivity_1d
@@ -186,7 +186,7 @@ contains
     use geometry, only: evaluate_ordering
     implicit none
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_evaluate_ordering
 #else
     call evaluate_ordering
@@ -209,7 +209,7 @@ contains
     integer,intent(in) :: Gdirn
     real(dp),intent(in) :: COV, total_volume, Rmax, Rmin
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_set_initial_volume(Gdirn, COV, total_volume, Rmax, Rmin)
 #else
     call set_initial_volume(Gdirn, COV, total_volume, Rmax, Rmin)
@@ -228,7 +228,7 @@ contains
 
     real(dp) :: volume_model,volume_tree
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_volume_of_mesh(volume_model, volume_tree)
 #else
     call volume_of_mesh(volume_model, volume_tree)

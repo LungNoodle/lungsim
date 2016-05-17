@@ -23,7 +23,7 @@ contains
     call strncpy(group_name_f, group_name, group_name_len)
     call strncpy(field_name_f, field_name, field_name_len)
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_export_1d_elem_field(ne_field, filename_f, group_name_f, field_name_f)
 #else
     call export_1d_elem_field(ne_field, filename_f, group_name_f, field_name_f)
@@ -48,7 +48,7 @@ contains
     call strncpy(filename_f, EXELEMFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_export_1d_elem_geometry(filename_f, name_f)
 #else
     call export_1d_elem_geometry(filename_f, name_f)
@@ -75,7 +75,7 @@ contains
     call strncpy(filename_f, EXNODEFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_export_node_geometry(filename_f, name_f)
 #else
     call export_node_geometry(filename_f, name_f)
@@ -101,7 +101,7 @@ contains
     call strncpy(filename_f, EXNODEFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_export_terminal_solution(filename_f, name_f)
 #else
     call export_terminal_solution(filename_f, name_f)
@@ -129,7 +129,7 @@ contains
     call strncpy(name_f, name, name_len)
     call strncpy(field_name_f, field_name, field_name_len)
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_export_node_field(nj_field, filename_f, name_f, field_name_f)
 #else
     call export_node_field(nj_field, filename_f, name_f, field_name_f)
@@ -158,7 +158,7 @@ contains
     call strncpy(name_f, name, name_len)
     call strncpy(field_name_f, field_name, field_name_len)
 
-#if defined _WIN32 .and. defined __INTEL_COMPILER
+#if defined _WIN32 && defined __INTEL_COMPILER
     call so_export_elem_field(filename_f, name_f, field_name_f)
 #else
     call export_elem_field(filename_f, name_f, field_name_f)

@@ -53,13 +53,13 @@ set_target_properties(aether_obj PROPERTIES
   Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules"
   POSITION_INDEPENDENT_CODE TRUE)
 
-if(MSVC)
+if (MSVC)
 set(dummy_file "${CMAKE_CURRENT_BINARY_DIR}/dummy.f90")
 file(WRITE ${dummy_file} "module dummy
   implicit none
 contains
 end module dummy\n")
-endif()
+endif ()
 
 add_library(aether $<TARGET_OBJECTS:aether_obj> ${dummy_file})
 

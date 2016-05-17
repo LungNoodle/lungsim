@@ -47,13 +47,9 @@ set_target_properties(aether_c PROPERTIES
     FOLDER bindings/c
     C_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN 1)
-#target_include_directories(aether_c PRIVATE $<TARGET_PROPERTY:aether_obj,Fortran_MODULE_DIRECTORY>)
-#target_sources(aether_c PUBLIC aether)
-#target_link_libraries(aether_c "C:\\Program Files (x86)\\IntelSWTools\\compilers_and_libraries_2016.2.180\\windows\\compiler\\lib\\intel64_win\\ifconsol.lib"
-#  "C:\\Program Files (x86)\\IntelSWTools\\compilers_and_libraries_2016.2.180\\windows\\compiler\\lib\\intel64_win\\libifcoremt.lib"
-#  "C:\\Program Files (x86)\\IntelSWTools\\compilers_and_libraries_2016.2.180\\windows\\compiler\\lib\\intel64_win\\libmmt.lib"
-#  "C:\\Program Files (x86)\\IntelSWTools\\compilers_and_libraries_2016.2.180\\windows\\compiler\\lib\\intel64_win\\libirc.lib"
-#  "C:\\Program Files (x86)\\IntelSWTools\\compilers_and_libraries_2016.2.180\\windows\\compiler\\lib\\intel64_win\\svml_dispmt.lib"
-#  "C:\\Program Files (x86)\\IntelSWTools\\compilers_and_libraries_2016.2.180\\windows\\compiler\\lib\\intel64_win\\ifmodintr.lib"
-#  "C:\\Program Files (x86)\\IntelSWTools\\compilers_and_libraries_2016.2.180\\windows\\compiler\\lib\\intel64_win\\libifport.lib")
+# Have to set this manually, as it is only set automatically if the file extension has an
+# uppercase 'F' and not lowercase as we have here for GNU compiler.
+if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+    set_source_files_properties(${C_FORTRAN_LIB_SRCS} PROPERTIES COMPILE_FLAGS -cpp)
+endif ()
 target_link_libraries(aether_c PUBLIC aether_c_fortran)
