@@ -995,6 +995,7 @@ contains
 !###################################################################################
 
   subroutine two_unit_test
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_TWO_UNIT_TEST" :: TWO_UNIT_TEST
     use arrays
     use diagnostics, only: enter_exit
     use geometry,only: append_units

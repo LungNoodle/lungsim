@@ -3,27 +3,33 @@ module filenames_c
 contains
   !###################################################################################
   subroutine read_geometry_evaluate_flow_c() bind(C, name="read_geometry_evaluate_flow_c")
-  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_READ_GEOMETRY_EVALUATE_FLOW_C" :: READ_GEOMETRY_EVALUATE_FLOW_C
     use filenames, only : read_geometry_evaluate_flow
     implicit none
 
+#if defined _WIN32 .and. defined __INTEL_COMPILER
+    call so_read_geometry_evaluate_flow()
+#else
     call read_geometry_evaluate_flow()
+#endif
 
   end subroutine read_geometry_evaluate_flow_c
 
   !###################################################################################
   subroutine read_geometry_main_c() bind(C, name="read_geometry_main_c")
-  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_READ_GEOMETRY_MAIN_C" :: READ_GEOMETRY_MAIN_C
-  use filenames, only : read_geometry_main
-  implicit none
+    use filenames, only : read_geometry_main
+    implicit none
 
-  call read_geometry_main()
+#if defined _WIN32 .and. defined __INTEL_COMPILER
+    call so_read_geometry_main()
+#else
+    call read_geometry_main()
+#endif
 
   end subroutine read_geometry_main_c
 
   !###################################################################################
   subroutine get_filename_c(label, label_len, filename) bind(C, name="get_filename_c")
-  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_GET_FILENAME_C" :: READ_GET_FILENAME_C
+
     use iso_c_binding, only: c_ptr, c_f_pointer, c_char, c_int, c_null_char
     use utils_c, only: strncpy, f_c_string
     use other_consts, only: MAX_STRING_LEN, MAX_FILENAME_LEN

@@ -16,14 +16,17 @@ module arrays_c
 
 contains
   subroutine set_node_field_value_c(row, col, value) bind(C, name="set_node_field_value_c")
-  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_SET_NODE_FIELD_VALUE_C" :: SET_NODE_FIELD_VALUE_C
     use arrays, only: set_node_field_value
     implicit none
 
     integer, intent(in) :: row, col
     real(dp), intent(in) :: value
 
+#if defined _WIN32 .and. defined __INTEL_COMPILER
+    call so_set_node_field_value(row, col, value)
+#else
     call set_node_field_value(row, col, value)
+#endif
 
   end subroutine set_node_field_value_c
 

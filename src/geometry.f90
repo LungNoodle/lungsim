@@ -365,6 +365,7 @@ contains
 !
 !*define_mesh_geometry_test:*
   subroutine define_mesh_geometry_test()
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_MESH_GEOMETRY_TEST" :: DEFINE_MESH_GEOMETRY_TEST
     use arrays,only: dp,nodes,node_field,node_xyz,num_nodes,&
          elem_direction,elem_field,elems,elem_cnct,elem_nodes,&
          elem_ordrs,elem_symmetry,elems_at_node,elem_units_below,&
@@ -831,6 +832,7 @@ contains
 !
 !*element_connectivity_1d:*  Calculates element connectivity in 1D and stores in elelem_cnct
   subroutine element_connectivity_1d()
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ELEMENT_CONNECTIVITY_1D" :: ELEMENT_CONNECTIVITY_1D
     use arrays,only: elem_cnct,elem_nodes,elems_at_node,num_elems,num_nodes
     use diagnostics, only: enter_exit
     implicit none
@@ -886,6 +888,7 @@ contains
 !
 !*evaluate_ordering:* calculates generations, Horsfield orders, Strahler orders for a given tree
   subroutine evaluate_ordering()
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_ORDERING" :: EVALUATE_ORDERING
     use arrays,only: elem_cnct,elem_nodes,elem_ordrs,elem_symmetry,&
          elems_at_node,num_elems,num_nodes,maxgen
     use diagnostics, only: enter_exit
@@ -1061,6 +1064,7 @@ contains
 !
 !*volume_of_mesh:* calculates the volume of an airway mesh including conducting and respiratory airways
   subroutine volume_of_mesh(volume_model,volume_tree)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_VOLUME_OF_MESH" :: VOLUME_OF_MESH
     use arrays,only: dp,elem_cnct,elem_field,elem_symmetry,&
          num_elems,num_units,units,unit_field
     use indices,only: ne_vol,nu_vol

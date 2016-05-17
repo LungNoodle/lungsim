@@ -7,12 +7,15 @@ contains
 !!!###################################################################################
 
   subroutine evaluate_flow_c() bind(C, name="evaluate_flow_c")
-  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EVALUATE_FLOW_C" :: EVALUATE_FLOW_C
 
     use ventilation, only: evaluate_flow
     implicit none
 
+#if defined _WIN32 .and. defined __INTEL_COMPILER
+    call so_evaluate_flow
+#else
     call evaluate_flow
+#endif
 
   end subroutine evaluate_flow_c
 
@@ -20,12 +23,15 @@ contains
   !###################################################################################
 
   subroutine evaluate_uniform_flow_c() bind(C, name="evaluate_uniform_flow_c")
-  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_EVALUATE_UNIFORM_FLOW_C" :: EVALUATE_UNIFORM_FLOW_C
 
     use ventilation, only: evaluate_uniform_flow
     implicit none
 
+#if defined _WIN32 .and. defined __INTEL_COMPILER
+    call so_evaluate_uniform_flow
+#else
     call evaluate_uniform_flow
+#endif
 
   end subroutine evaluate_uniform_flow_c
 
@@ -33,11 +39,14 @@ contains
 !###################################################################################
 
   subroutine two_unit_test_c() bind(C, name="two_unit_test_c")
-  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_TWO_UNIT_TEST_C" :: TWO_UNIT_TEST_C
     use ventilation, only: two_unit_test
     implicit none
 
+#if defined _WIN32 .and. defined __INTEL_COMPILER
+    call so_two_unit_test
+#else
     call two_unit_test
+#endif
 
   end subroutine two_unit_test_c
 

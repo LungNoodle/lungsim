@@ -18,19 +18,26 @@ contains
     character(len=MAX_STRING_LEN) :: sub_name_f
 
     call strncpy(sub_name_f, sub_name, sub_name_len)
+#if defined _WIN32 .and. defined __INTEL_COMPILER
+    call so_enter_exit(sub_name_f, state)
+#else
     call enter_exit(sub_name_f, state)
+#endif
 
   end subroutine enter_exit_c
 
   !!!######################################################################
   subroutine set_diagnostics_on_c(state) bind(C, name="set_diagnostics_on_c")
-  !!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"DLL_SET_DIAGNOSTICS_ON_C" :: SET_DIAGNOSTICS_ON_C
     use diagnostics, only: set_diagnostics_on
     implicit none
 
     logical, intent(in) :: state
 
+#if defined _WIN32 .and. defined __INTEL_COMPILER
+    call so_set_diagnostics_on(state)
+#else
     call set_diagnostics_on(state)
+#endif
 
   end subroutine set_diagnostics_on_c
 

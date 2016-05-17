@@ -40,7 +40,7 @@ contains
   end subroutine enter_exit
 
   subroutine set_diagnostics_on(state)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SET_DIAGNOSTICS_ON" :: SET_DIAGNOSTICS_ON
+  !DEC$ ATTRIBUTES DLLEXPORT, ALIAS:"SO_SET_DIAGNOSTICS_ON":: SET_DIAGNOSTICS_ON
     implicit none
 
     logical, intent(in) :: state
