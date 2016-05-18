@@ -39,6 +39,7 @@ set(C_LIB_HDRS
 
 add_library(aether_c_fortran STATIC ${C_FORTRAN_LIB_SRCS} $<TARGET_OBJECTS:aether_obj>)
 set_target_properties(aether_c_fortran PROPERTIES
+    POSITION_INDEPENDENT_CODE True
     Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules"
     FOLDER bindings/c)
 target_include_directories(aether_c_fortran PRIVATE $<TARGET_PROPERTY:aether_obj,Fortran_MODULE_DIRECTORY>)
