@@ -58,7 +58,7 @@ contains
     character(len=MAX_FILENAME_LEN) :: filename_f
 
     call strncpy(filename_f, ELEMFILE, filename_len)
-    
+
 #if defined _WIN32 && defined __INTEL_COMPILER
     call so_define_1d_elements(filename_f)
 #else
@@ -153,7 +153,7 @@ contains
     call strncpy(order_system_f, order_system, order_system_len)
     call strncpy(start_from_f, start_from, start_from_len)
     call strncpy(group_options_f, group_options, group_options_len)
-    call strncpy(group_options_f, group_type, group_type_len)
+    call strncpy(group_type_f, group_type, group_type_len)
 
 #if defined _WIN32 && defined __INTEL_COMPILER
     call so_define_rad_from_geom(order_system_f, control_param, start_from_f, start_rad, group_type_f, group_options_f)
