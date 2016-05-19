@@ -6,18 +6,18 @@ contains
 
 !!!###################################################################################
 
-  subroutine evaluate_flow_c() bind(C, name="evaluate_flow_c")
+  subroutine evaluate_vent_c() bind(C, name="evaluate_vent_c")
 
-    use ventilation, only: evaluate_flow
+    use ventilation, only: evaluate_vent
     implicit none
 
 #if defined _WIN32 && defined __INTEL_COMPILER
-    call so_evaluate_flow
+    call so_evaluate_vent
 #else
-    call evaluate_flow
+    call evaluate_vent
 #endif
 
-  end subroutine evaluate_flow_c
+  end subroutine evaluate_vent_c
 
 
   !###################################################################################

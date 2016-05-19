@@ -3,7 +3,7 @@
 
 #include "symbol_export.h"
 
-SHO_PUBLIC void evaluate_flow();
+SHO_PUBLIC void evaluate_vent();
 SHO_PUBLIC void evaluate_uniform_flow();
 SHO_PUBLIC void two_unit_test();
 

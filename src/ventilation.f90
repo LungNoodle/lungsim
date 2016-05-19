@@ -12,14 +12,14 @@
 module ventilation
   implicit none
   private
-  public evaluate_flow,evaluate_uniform_flow,two_unit_test
+  public evaluate_vent,evaluate_uniform_flow,two_unit_test
 
 contains
 
 !!!###################################################################################
 
-  subroutine evaluate_flow
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_FLOW" :: EVALUATE_FLOW
+  subroutine evaluate_vent
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_VENT" :: EVALUATE_VENT
 
     use arrays,only: dp,elem_field,elem_units_below,num_elems,num_units,units,unit_field
     use indices,only: ne_flow,ne_flow0,ne_t_resist,nu_comp,nu_dpdt,nu_pe,nu_vt
@@ -45,7 +45,7 @@ contains
 
     ! ###########################################################################
 
-    sub_name = 'evaluate_flow'
+    sub_name = 'evaluate_vent'
     call enter_exit(sub_name,1)
     
     init_vol = 1.0_dp
@@ -332,7 +332,7 @@ contains
 
     call enter_exit(sub_name,2)
 
-  end subroutine evaluate_flow
+  end subroutine evaluate_vent
 
 
   !###################################################################################
