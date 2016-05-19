@@ -17,6 +17,7 @@ set(INTERFACE_SRCS
   ../interface/gasmix.i
   ../interface/geometry.i
   ../interface/indices.i
+  ../interface/pressure_resistance_flow.i
   ../interface/ventilation.i
 )
 

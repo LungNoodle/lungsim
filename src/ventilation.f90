@@ -1,18 +1,26 @@
-!> \file
-!> \author Merryn Tawhai
-!> \brief This module handles all code specific to simulating ventilation
-!>
-!> \section LICENSE
-!>
-!>
-!> Contributor(s):
-!>
-!>\Description
-!> This module handles all code specific to simulating ventilation 
 module ventilation
+!*Brief Description:* This module handles all code specific to simulating ventilation
+!
+!*LICENSE:*
+!TBC
+!
+!
+!*Full Description:*
+!
+! This module handles all code specific to simulating ventilation 
+
   implicit none
+  !Module parameters
+
+  !Module types
+
+  !Module variables
+
+  !Interfaces
   private
-  public evaluate_vent,evaluate_uniform_flow,two_unit_test
+  public evaluate_vent
+  public evaluate_uniform_flow
+  public two_unit_test
 
 contains
 

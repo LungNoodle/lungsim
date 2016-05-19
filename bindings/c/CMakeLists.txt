@@ -9,6 +9,7 @@ set(C_FORTRAN_LIB_SRCS
     src/gasmix.f90
     src/geometry.f90
     src/indices.f90
+    src/pressure_resistance_flow.f90
     src/utils.f90
     src/ventilation.f90
 )
@@ -20,6 +21,7 @@ set(C_C_LIB_SRCS
     src/gasmix.c
     src/geometry.c
     src/indices.c
+    src/pressure_resistance_flow.c
     src/utils.c
     src/ventilation.c
 )
@@ -33,6 +35,7 @@ set(C_LIB_HDRS
   src/gasmix.h
   src/geometry.h
   src/indices.h
+  src/pressure_resistance_flow.h
   src/utils.h
   src/ventilation.h
 )
