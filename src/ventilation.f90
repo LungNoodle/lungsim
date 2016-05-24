@@ -25,10 +25,9 @@ module ventilation
 contains
 
 !!!###################################################################################
-
+!*evaluate_vent:* Sets up and solves venilation model
   subroutine evaluate_vent
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_VENT" :: EVALUATE_VENT
-
     use arrays,only: dp,elem_field,elem_units_below,num_elems,num_units,units,unit_field
     use indices,only: ne_flow,ne_flow0,ne_t_resist,nu_comp,nu_dpdt,nu_pe,nu_vt
     use exports,only: export_1d_elem_field,export_terminal_solution

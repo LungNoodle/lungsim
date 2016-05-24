@@ -244,10 +244,10 @@ contains
 !
 !###################################################################################
 !
+  !*define_1d_elements:* Reads in an element ipelem file to define a geometry
   subroutine define_1d_elements(ELEMFILE)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_1D_ELEMENTS" :: DEFINE_1D_ELEMENTS
 
-  !*define_1d_elements:* Reads in an element ipelem file to define a geometry
     use arrays,only: dp, elem_direction,elem_field,elems,elem_cnct,elem_nodes,&
          elem_ordrs,elem_symmetry,elems_at_node,elem_units_below,&
          expansile,node_xyz,num_elems,num_nodes
