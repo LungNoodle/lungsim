@@ -125,8 +125,8 @@ variable_types=2 !pressure/flow
    call calculate_resistance(density,gamma,viscosity)
         
 !! Calculate sparsity structure for solution matrices
-   call calc_sparse_1dtree(SparseCol,SparseRow,FIX,SparseVal,RHS,NDIAG,NPLIST,&
-        variables_to_node,variables_to_elem,nz_esed,prq_solution)
+  ! call calc_sparse_1dtree(SparseCol,SparseRow,FIX,SparseVal,RHS,NDIAG,NPLIST,&
+   !     variables_to_node,variables_to_elem,nz_esed,prq_solution)
 
 
     deallocate (node_to_variables, STAT = AllocateStatus)
