@@ -41,6 +41,7 @@ mark_as_advanced(AETHER_INSTALL_PREFIX)
 # defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# The list of all source files that are required to build the library
 set(LIB_SRCS
   src/arrays.f90
   src/diagnostics.f90
@@ -56,6 +57,7 @@ set(LIB_SRCS
   src/ventilation.f90
 )
 
+# Create an object library so we can use the objects in two different libraries
 add_library(aether_obj OBJECT ${LIB_SRCS})
 set_target_properties(aether_obj PROPERTIES
   Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules"
@@ -70,6 +72,7 @@ contains
 end module dummy\n")
 endif ()
 
+# Create the aether fortran library
 add_library(aether $<TARGET_OBJECTS:aether_obj> ${dummy_file})
 
 set_target_properties(aether PROPERTIES
