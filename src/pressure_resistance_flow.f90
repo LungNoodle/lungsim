@@ -131,16 +131,9 @@ variable_types=2 !pressure/flow
    call calculate_resistance(density,gamma,viscosity)
         
 !! Calculate sparsity structure for solution matrices
-!estimate nonzeros
-NonZeros=250000! need to minus num of knowns
-MatrixSize=0 !=number of unknowns
-DO variable=1,mesh_dof
-  IF(.NOT.FIX(variable)) THEN
-    MatrixSize=MatrixSize+1
-  ENDIF
-ENDDO !no2
+   call calc_sparse_size(mesh_dof,variables_at_elem,variables_at_node,FIX,NonZeros,MatrixSize)
 
-   write(*,*) 'MatrixSize',MatrixSize,num_elems,num_nodes,mesh_dof
+   write(*,*) 'MatrixSize',MatrixSize,NonZeros
     allocate (SparseCol(NonZeros), STAT = AllocateStatus)
     IF (AllocateStatus /= 0) STOP "*** Not enough memory for SparseCol array ***"
     allocate (SparseRow(MatrixSize+1), STAT = AllocateStatus)
@@ -693,6 +686,110 @@ subroutine calc_sparse_1dtree(mesh_dof,variables_at_elem,variables_at_node,FIX,N
 
     call enter_exit(sub_name,2)
   end subroutine calc_sparse_1dtree
+
+
+!
+!##################################################################
+!
+!*calc_sparse_size:* Calculates sparsity sizes
+
+subroutine calc_sparse_size(mesh_dof,variables_at_elem,variables_at_node,FIX,NonZeros,MatrixSize)
+    use indices
+    use arrays,only: dp,num_elems,elem_ordrs,elems,elem_nodes,num_nodes,elems_at_node,elem_field
+    use diagnostics, only: enter_exit
+    integer, intent(in) :: mesh_dof
+    integer,intent(in) :: variables_at_elem(0:2,2,num_elems)
+    integer,intent(in) :: variables_at_node(num_nodes,0:2,2)
+    logical, intent(in) :: FIX(mesh_dof)
+    integer :: NonZeros,MatrixSize
+!local variables
+    integer :: noelem,ne,np1,variable,variable1,NumDiag,nhs,np2,variable2,ost2,nzz,nzz_val,&
+      nzz_row,ost1,ny2c,nn,np,ny,ny2,ne2,noelem2,nonode
+    integer :: NPLIST(0:num_nodes)
+    logical :: FLOW_BALANCED
+    real(dp) :: grav,flow_term
+    character(len=60) :: sub_name
+   sub_name = 'calc_sparse_size'
+    call enter_exit(sub_name,1)
+
+ 
+  NPLIST=0
+  NumDiag=0!number of diagonal entries
+  !NonZeros=0
+  nzz=1 !position in SparseCol
+  nzz_val=1 !position in SparseVal
+  nzz_row=1 !position in SparseRow
+  ost1=0!offset
+  ost2=0!offset
+
+  do ne=1,num_elems
+     !ne=elems(noelem)!elem no
+     np1=elem_nodes(2,ne) !second node in that element
+     variable1=variables_at_node(np1,1,1) !which entry
+     if((.NOT.FIX(variable1)).OR.(elems_at_node(np1,0).LE.1))then !if its not fixed, or it only has one element connected
+       NumDiag=NumDiag+1!one more diagonal entry
+        do nhs=1,2 !for each row entry
+              np2=elem_nodes(nhs,ne) 
+              variable2=variables_at_node(np2,1,1) 
+              if(.NOT.FIX(variable2))then !if variable for node2 is not fixed
+                 nzz=nzz+1
+		 IF (nhs.EQ.1) THEN !row entry one
+                    nzz_val=nzz_val+1
+                 ELSEIF (nhs.EQ.2) THEN !row entry two
+                    nzz_val=nzz_val+1
+                 ENDIF
+             else!notfix variable2
+             endif
+        enddo!for each row entry,nhs
+           !now looking at flow variables
+           ny2c=variables_at_elem(0,1,ne)
+           IF(.NOT.FIX(ny2c)) THEN !if not fixed
+              nzz=nzz+1
+              nzz_val=nzz_val+1
+           ELSE
+           ENDIF !FIX
+        nzz_row=nzz_row+1
+        !Now flow balance equation
+        DO nn=1,2 !balances at each node of ne
+           FLOW_BALANCED=.FALSE. !initialise
+           np=elem_nodes(nn,ne)
+           DO nonode=1,NPLIST(0) !junctions balanced at already
+              IF(np.EQ.NPLIST(nonode)) THEN
+                 FLOW_BALANCED=.TRUE. !already balanced at np
+              ENDIF
+           ENDDO !nonode
+           IF((elems_at_node(np,0).GT.1).AND.(.NOT.FLOW_BALANCED))THEN !if there is more than one node at a junction an we arent flow balanced
+              !at an unbalanced junction
+              DO noelem2=1,elems_at_node(np,0) !for elems with
+                 ne2=elems_at_node(np,noelem2) !subtended branches only
+!                 IF(nzz.LT.NISC_GKM) THEN
+                    ny2=variables_at_elem(1,1,ne2)
+                    IF(.NOT.FIX(ny2))THEN
+                       nzz=nzz+1
+                       IF(np.EQ.elem_nodes(2,ne2)) THEN !end node
+                          nzz_val=nzz_val+1
+                       ELSEIF(np.EQ.elem_nodes(1,ne2)) THEN !start node
+                          nzz_val=nzz_val+1
+                       ENDIF
+                    ENDIF
+              ENDDO !noelem2
+              NPLIST(0)=NPLIST(0)+1 !stores nodes where flow
+              NPLIST(NPLIST(0))=np !balance been done
+           ENDIF !elem_from_node(np,0).GT.1
+           IF((.NOT.FLOW_BALANCED).AND.(elems_at_node(np,0).GT.1))THEN
+              nzz_row=nzz_row+1
+              NumDiag=NumDiag+1 !# entries on diagonal
+           ENDIF !.NOT.FLOW_BALANCED
+        ENDDO !nn
+     else
+     endif
+
+  enddo 
+    NonZeros=nzz-1
+    MatrixSize=nzz_row-1
+
+    call enter_exit(sub_name,2)
+  end subroutine calc_sparse_size
 
 
 
