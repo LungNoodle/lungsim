@@ -54,9 +54,10 @@ set_target_properties(aether_obj PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 if (MSVC)
-set(dummy_file "${CMAKE_CURRENT_BINARY_DIR}/dummy.f90")
-file(WRITE ${dummy_file} "module dummy
-  implicit none
+  # Visual Studio requires a dummy file as it will not build a library from only objects.
+  set(dummy_file "${CMAKE_CURRENT_BINARY_DIR}/dummy.f90")
+  file(WRITE ${dummy_file} "module dummy
+implicit none
 contains
 end module dummy\n")
 endif ()
