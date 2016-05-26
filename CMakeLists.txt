@@ -3,6 +3,14 @@
 cmake_minimum_required(VERSION 3.2)
 project(Aether VERSION 0.1.0 LANGUAGES Fortran C CXX)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+# Required for creating documentation from restructured text files
+find_package(Sphinx)
+
+# Create additional build types
+include(buildtypes)
+
 # Build shared or static library
 if(NOT BUILD_SHARED)
   set(BUILD_SHARED ON)
@@ -71,3 +79,32 @@ set_target_properties(aether PROPERTIES
 if(AETHER_BUILD_BINDINGS)
   add_subdirectory(bindings)
 endif()
+
+if(SPHINX_FOUND)
+  if(NOT DEFINED SPHINX_THEME)
+    set(SPHINX_THEME default)
+  endif()
+
+  if(NOT DEFINED SPHINX_THEME_DIR)
+    set(SPHINX_THEME_DIR)
+  endif()
+
+  # Sphinx cache with pickled ReST documents
+  set(SPHINX_CACHE_DIR "${CMAKE_CURRENT_BINARY_DIR}/_doctrees")
+
+  # HTML output directory
+  set(SPHINX_HTML_DIR "${CMAKE_CURRENT_BINARY_DIR}/html")
+
+  # Sphinx source directory
+  set(SPHINX_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Documentation")
+
+  add_custom_target(docs
+    ${SPHINX_EXECUTABLE}
+      -q -b html
+      -d "${SPHINX_CACHE_DIR}"
+      "${SPHINX_SOURCE_DIR}"
+      "${SPHINX_HTML_DIR}"
+    COMMENT "Building HTML documentation with Sphinx")
+
+endif()
+
