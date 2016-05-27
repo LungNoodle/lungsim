@@ -1,6 +1,7 @@
 
 project(AetherPythonBindings LANGUAGES C)
 
+set(ADDITIONAL_GENERATED_FILES)
 # SWIG has already been found at this point.
 include(${SWIG_USE_FILE})
 
@@ -26,16 +27,18 @@ include_directories(${PYTHON_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/../c/src)
 if(MSVC)
   set(PYTHON_PACKAGE_DIR ${CMAKE_CURRENT_BINARY_DIR}/$(Configuration)/aether)
   set(PYTHON_PACKAGE_INIT_FILE ${CMAKE_CURRENT_BINARY_DIR}/$(Configuration)/aether/__init__.py)
-  set(PYTHON_SETUP_PY_FILE ${CMAKE_CURRENT_BINARY_DIR}/$(Configuration))
+  set(PYTHON_SETUP_PY_FILE_DIR ${CMAKE_CURRENT_BINARY_DIR}/$(Configuration))
 else()
   set(PYTHON_PACKAGE_DIR ${CMAKE_CURRENT_BINARY_DIR}/aether)
   set(PYTHON_PACKAGE_INIT_FILE ${CMAKE_CURRENT_BINARY_DIR}/aether/__init__.py)
-  set(PYTHON_SETUP_PY_FILE ${CMAKE_CURRENT_BINARY_DIR})
+  set(PYTHON_SETUP_PY_FILE_DIR ${CMAKE_CURRENT_BINARY_DIR})
 endif()
+list(APPEND ADDITIONAL_GENERATED_FILES ${PYTHON_PACKAGE_INIT_FILE})
 set(CMAKE_SWIG_OUTDIR "${PYTHON_PACKAGE_DIR}")
 
 set(CMAKE_SWIG_FLAGS ${PYTHONLIBS_SWIG_FLAGS})
 
+set(MODULE_TARGETS)
 foreach(SWIG_INTERFACE ${INTERFACE_SRCS})
   get_filename_component(MODULE_NAME ${SWIG_INTERFACE} NAME_WE)
   swig_add_module(${MODULE_NAME} python ${SWIG_INTERFACE})
@@ -52,9 +55,8 @@ foreach(SWIG_INTERFACE ${INTERFACE_SRCS})
     FOLDER bindings/python
     C_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN 1)
-  # Create the Python __init__.py file, Okay so we are over doing it but it is better than under doing it.
-  add_custom_command( TARGET ${MODULE_TARGET} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E touch ${PYTHON_PACKAGE_INIT_FILE})
+  list(APPEND MODULE_TARGETS ${MODULE_TARGET})
+
   if (MSVC)
     if (${PYTHON_LIBRARY_DEBUG})
       # Again from the above comment we need the debug Python library and release Python library when
@@ -73,10 +75,18 @@ endforeach()
 
 # Copy over setup.py
 add_custom_command(
-  OUTPUT ${PYTHON_SETUP_PY_FILE}/setup.py
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/setup.py ${PYTHON_SETUP_PY_FILE}/setup.py
+  OUTPUT ${PYTHON_SETUP_PY_FILE_DIR}/setup.py
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/setup.py ${PYTHON_SETUP_PY_FILE_DIR}/setup.py
   MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/setup.py)  
 
-set_property(SOURCE ../interface/arrays.i APPEND PROPERTY OBJECT_DEPENDS ${PYTHON_SETUP_PY_FILE}/setup.py)
+set_property(SOURCE ../interface/arrays.i APPEND PROPERTY OBJECT_DEPENDS ${PYTHON_SETUP_PY_FILE_DIR}/setup.py)
 # Alternative option is to configure the setup.py file to the appropriate location.
 #configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py 
+
+add_custom_target(pybindings ALL)
+add_dependencies(pybindings ${MODULE_TARGETS})
+# Create the Python __init__.py file.
+add_custom_command( TARGET pybindings POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E touch ${PYTHON_PACKAGE_INIT_FILE})
+
+set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "${ADDITIONAL_GENERATED_FILES}")

@@ -57,3 +57,7 @@ if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     set_source_files_properties(${C_FORTRAN_LIB_SRCS} PROPERTIES COMPILE_FLAGS -cpp)
 endif ()
 target_link_libraries(aether_c PUBLIC aether_c_fortran)
+
+add_custom_target(cbindings ALL)
+add_dependencies(cbindings aether_c)
+

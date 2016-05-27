@@ -84,6 +84,7 @@ if(AETHER_BUILD_BINDINGS)
   add_subdirectory(bindings)
 endif()
 
+set(ADDITIONAL_GENERATED_FILES)
 if(SPHINX_FOUND)
   if(NOT DEFINED SPHINX_THEME)
     set(SPHINX_THEME default)
@@ -100,7 +101,7 @@ if(SPHINX_FOUND)
   set(SPHINX_HTML_DIR "${CMAKE_CURRENT_BINARY_DIR}/html")
 
   # Sphinx source directory
-  set(SPHINX_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Documentation")
+  set(SPHINX_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/documentation")
 
   add_custom_target(docs
     ${SPHINX_EXECUTABLE}
@@ -110,5 +111,9 @@ if(SPHINX_FOUND)
       "${SPHINX_HTML_DIR}"
     COMMENT "Building HTML documentation with Sphinx")
 
+  list(APPEND ADDITIONAL_GENERATED_FILES html _doctrees)
+
 endif()
+
+set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "${ADDITIONAL_GENERATED_FILES}")
 
