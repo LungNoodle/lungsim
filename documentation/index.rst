@@ -3,6 +3,7 @@
 
 Welcome to the documentation for Aether (name tbc)!
 ===================================================
+
 Hello everyone! Welcome to the documentation for our lung code! 
 
 Contents:
