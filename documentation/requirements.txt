@@ -1,2 +1,2 @@
-sphinxfortran.fortran_domain
+sphinx-fortran
 
