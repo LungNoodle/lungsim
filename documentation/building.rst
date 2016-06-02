@@ -10,6 +10,73 @@ There are two ways to build the pulmonary simulation library:
 
 The CMake builds the library outside of the source directory and allows for configuration via the command line or GUI.  CMake will configure the build files required for the current environment, on GNU/Linux and OS X this could be a Makefile or Xcode project and on Windows a Visual Studio solution file.  The supplied makefile shows an example of building your library. The library will build in the source directory with the flags set in the makefile itself.  
 
+------------
+Requirements
+------------
+
+In order to build the Aether library there are some tools that are required:
+
+  * Compiler toolchain
+  * CMake
+  * SWIG (optional)
+  * Python (optional)
+  * Sphinx (optional)
+  
+    * sphinx-fortran
+
+If you wish to build the Python bindings for the library then Python and SWIG become necessary requirements.  Sphinx is used to generate nicely formatted output for the documentation, you can still edit and read the documentation without Sphinx.  The 'docs' target in the build will generate the html version of the documentation using Sphinx, without Sphinx this target will not be available.
+
+Windows
+=======
+
+On Windows, Visual Studio is the recommended toolchain with intel fortran compiler.  CMake is readily available and a binary is supplied on the CMake `download page <CMakeDownload_>`_.  SWIG 3.0 is available from the SWIG `download page <SWIGDownload_>`_.  The latest release at this time is version 3.0.8.  For Sphinx you will first need to have Python installed, which is required when creating the Python bindings anyway.  Python 3.5 works well with Visual Studio 2015 when building Python extension libraries (which is what the bindings are when used from Python).  Python 3.5 is availble from the Python `download page <PythonDownload>`_.  Once Python is installed Sphinx can be installed with pip::
+
+  pip install sphinx
+  pip install sphinx-fortran
+  
+Also install the sphinx-fortran extension for Sphinx for dealing with Fortran code.
+
+OS X
+====
+
+Use brew to install gcc, which includes gfortran.  If you don't have brew install it by following the instructions from `brew.sh <http://brew.sh/>`_.  CMake is readily available and a binary is supplied on the CMake `download page <CMakeDownload_>`_.  SWIG can be installed through brew::
+
+  brew install swig
+  
+To install Sphinx you will need pip, if you don't already have it you can use the `get-pip.py script <https://bootstrap.pypa.io/get-pip.py>`_::
+
+  curl https://bootstrap.pypa.io/get-pip.py > get-pip.py
+  sudo python get-pip.py
+  
+Once pip is installed you can get Sphinx and sphinx-fortran as above::
+
+  pip install sphinx
+  pip install sphinx-fortran
+  
+
+GNU/Linux
+=========
+
+The package manager for the distro will (most likely) have the required packages to install.  Before installing check to see if any of the requirements are already available::
+
+  gfortran --version
+  cmake --version
+  python --version
+  swig -version
+  sphinx-build --version
+  
+For the Ubuntu distribution you can get the missing packages with the following commands::
+
+  sudo apt-get install gfortran
+  sudo apt-get install cmake
+  sudo apt-get install pythonX.Y-dev # Where X and Y are the major and minor version numbers of the Python you want to install, any version above 2.6 will work
+  sudo apt-get install swig
+  sudo apt-get install python-sphinx
+  
+Install sphinx-fortran extension with pip::
+
+  sudo pip install sphinx-fortran
+
 -----
 CMake
 -----
@@ -73,3 +140,10 @@ Supplied makefile
 From the terminal change into the 'lungsim' directory, then run the **make** command.  Edit the compiler flags by editing the makefile in this directory.
 
 .. note:: Not recently checked to see if this is still working.
+
+
+.. _CMakeDownload: https://cmake.org/download
+
+.. _SWIGDownload: http://www.swig.org/download.html
+
+.. _PythonDownload: https://www.python.org/downloads/
