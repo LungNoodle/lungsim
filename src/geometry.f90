@@ -1356,6 +1356,24 @@ contains
   end subroutine get_final_integer
 
 !
+! ##########################################################################      
+!
+
+  function inlist(item,ilist)
+!!! dummy arguments
+    integer :: item,ilist(:)
+! local variables
+    integer :: n
+    logical :: inlist
+
+    inlist = .false.
+    do n=1,size(ilist)
+       if(item == ilist(n)) inlist = .true.
+    enddo
+
+  end function inlist
+
+!
 !###########################################################################################
 !
 end module geometry
