@@ -290,7 +290,7 @@ contains
     real(dp),allocatable :: solution(:)
 
     integer :: MatrixSize,nonzeros,ncol,nentry, &
-         noffset_entry,noffset_row,np,nrow,nrow_BB
+         noffset_entry,noffset_row,np,nrow,nrow_BB,SolverFlag
     real(dp) :: AA,BB,current_mass,current_volume, &
          mass_error,theta,time,volume_error,volume_tree,zero_tol=1.0e-8_dp,&
          mass0,mass1,mass_error_deform,mass_error_track,mass_error_solve
@@ -383,7 +383,7 @@ contains
           ! be represented in compressed row format.
           call pmgmres_ilu_cr (MatrixSize,NonZeros,reduced_row,&
                reduced_col,global_AA,solution,global_BB,&
-               out_itr_max,inr_itr_max,solve_tolerance,solve_tolerance)
+               out_itr_max,inr_itr_max,solve_tolerance,solve_tolerance,SolverFlag)
 
           ! transfer the solver solution (in 'Solution') to the node field array
           do np = 1,num_nodes

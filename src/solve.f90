@@ -337,7 +337,7 @@ end subroutine BICGSTAB_LinSolv
 
   !*****************************************************************************
   subroutine pmgmres_ilu_cr ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, &
-       tol_abs, tol_rel )
+       tol_abs, tol_rel,FLAG )
 !!! PMGMRES_ILU_CR applies the preconditioned restarted GMRES algorithm.
     !    This routine uses the incomplete LU decomposition for the
     !    preconditioning.  This preconditioner requires that the sparse
@@ -375,6 +375,7 @@ end subroutine BICGSTAB_LinSolv
     real ( kind = 8 ) rhs(*) !rhs(n)
     real ( kind = 8 ) tol_abs
     real ( kind = 8 ) tol_rel
+    integer (kind = 4) FLAG
 
 
     real ( kind = 8 ) av
@@ -401,7 +402,9 @@ end subroutine BICGSTAB_LinSolv
     logical, parameter :: verbose = .false.
     real ( kind = 8 ) y(mr+1)
 
+
     itr_used = 0
+    FLAG=0 !not converged 
 
     call rearrange_cr ( n, ia, ja, a )
 
@@ -496,6 +499,10 @@ end subroutine BICGSTAB_LinSolv
           end if
 
           if ( rho <= rho_tol .and. rho <= tol_abs ) then
+             FLAG=1
+             exit
+          elseif (isnan(rho))then
+             FLAG=2
              exit
           end if
 
@@ -514,10 +521,16 @@ end subroutine BICGSTAB_LinSolv
        end do
 
        if ( rho <= rho_tol .and. rho <= tol_abs ) then
+          FLAG=1
+          exit
+       elseif (isnan(rho))then
+          FLAG=2
           exit
        end if
 
     end do
+    
+
 
     if ( verbose ) then
        write ( *, '(a)' ) ' '
