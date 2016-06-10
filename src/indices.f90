@@ -20,7 +20,8 @@ module indices
   ! indices for elem_field
   integer ::num_ne,ne_radius,ne_length,ne_vol,&
       ne_resist,ne_t_resist,ne_flow,ne_flow0,ne_a_A,&
-       ne_dvdt,ne_radius_in, ne_radius_out
+       ne_dvdt,ne_radius_in,ne_radius_in0, ne_radius_out,&
+       ne_radius_out0
   ! indices for unit_field
   integer :: num_nu,nu_vol,nu_comp,nu_flow0,nu_flow1, &
        nu_flow2,nu_dpdt,nu_pe,nu_vt,nu_press,nu_conc1,nu_vent
@@ -29,8 +30,8 @@ public num_ord,no_gen,no_hord,no_sord,&
       num_nj,nj_radius,nj_radius0,nj_press,nj_conc1,&
        num_ne,ne_radius,ne_length,ne_vol,&
       ne_resist,ne_t_resist,ne_flow,ne_flow0,ne_a_A,&
-       ne_dvdt,ne_radius_in,ne_radius_out,&
-      num_nu,nu_vol,nu_comp,nu_flow0,nu_flow1, &
+       ne_dvdt,ne_radius_in,ne_radius_in0,ne_radius_out,&
+      ne_radius_out0,num_nu,nu_vol,nu_comp,nu_flow0,nu_flow1, &
        nu_flow2,nu_dpdt,nu_pe,nu_vt,nu_press,nu_conc1,nu_vent
 
 !Interfaces
@@ -98,11 +99,15 @@ contains
     num_nj=1
     nj_press=1 !pressure
     ! indices for elem_field
-    num_ne=5
+    num_ne=8
     ne_radius=1 !strained average radius over whole element
     ne_radius_in=2 !unstrained radius into an element
     ne_radius_out=3 !unstrained radius out of an element
     ne_length=4
+    ne_radius_in0=5
+    ne_radius_out0=6
+    ne_flow=7
+    ne_resist=8
     !ne_group=5!Groups vessels into arteries (field=0), capillaries (field=1) and veins(field=2)
     !ne_vol=3, ne_resist=4,ne_t_resist=5,ne_flow=6,ne_flow0=7,ne_radius0=8
 
