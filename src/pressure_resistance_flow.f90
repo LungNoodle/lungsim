@@ -8,7 +8,7 @@ module pressure_resistance_flow
 !*Full Description:*
 !
 !This module contains tools that are used to solve systems of equations representing steady pressure, resistance and flow problems in any branching geometry. The subroutines in this module are core subroutines that are used in many problem types and are applicable beyond lung modelling
-  use solve, only: BICGSTAB_LinSolv
+  use solve, only: BICGSTAB_LinSolv,pmgmres_ilu_cr
   implicit none
   !Module parameters
 
@@ -25,7 +25,8 @@ contains
 !*evaluate_PRQ:* Solves for pressure and flow in a rigid or compliant tree structure
   subroutine evaluate_prq
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_PRQ" :: EVALUATE_PRQ
-    use arrays,only: dp,num_elems,num_nodes
+    use indices
+    use arrays,only: dp,num_elems,num_nodes,elem_field
     use diagnostics, only: enter_exit
     !local variables
     integer :: mesh_dof,variable_types
@@ -35,6 +36,7 @@ contains
     integer, dimension(0:2,2) :: variable_totals
     integer, allocatable :: SparseCol(:)
     integer, allocatable :: SparseRow(:)
+    integer, allocatable :: update_resistance_entries(:)
     real(dp), allocatable :: SparseVal(:)
     real(dp), allocatable :: RHS(:)
     integer :: num_vars,NonZeros,MatrixSize
@@ -43,9 +45,10 @@ contains
     real(dp), allocatable :: prq_solution(:,:),solver_solution(:)
     real(dp) :: viscosity,density,inletbc,outletbc,grav_vect(3),gamma,total_resistance,ERR
     logical, allocatable :: FIX(:)
-    logical :: ADD=.FALSE.
+    logical :: ADD=.FALSE.,CONVERGED=.FALSE.
     character(len=60) :: sub_name,mesh_type,vessel_type,mechanics_type,bc_type,g_type
-    integer :: g_dirn,no,variable
+    integer :: g_dirn,no,variable,KOUNT,nz,ne,SOLVER_FLAG
+    real(dp) :: MIN_ERR,N_MIN_ERR,ptrans,beta,Go_artery,Ptm_max
 
     sub_name = 'evaluate_prq'
     call enter_exit(sub_name,1)
@@ -58,7 +61,7 @@ contains
 !mechanics type: const (constant pressure external to vessels), linear (assumed gradient in Ppl along gravitational direction), mechanics (Ppl determined by solution to a mechanics model)
 !bc_type: can be pressure (at inlet and outlets) or flow (flow at inlet pressure at outlet).
 mesh_type='simple_tree'
-vessel_type='rigid'
+vessel_type='linear_compliance'!rigid'
 mechanics_type='linear'
 bc_type='pressure'
 g_type='off'
@@ -84,6 +87,10 @@ endif
 
 inletbc=2266.0_dp
 outletbc=666.7_dp
+ptrans=5.33_dp
+beta=1.0_dp
+Go_artery=6.67_dp
+Ptm_max=32.0_dp
 
 !!---------DESCRIPTION OF IMPORTANT PARAMETERS-----------
 !viscosity: fluid viscosity
@@ -91,12 +98,12 @@ outletbc=666.7_dp
 !
 
 !!!set the default values for the parameters that control the prq simulation, these should be controlled by user input
-call read_params_evaluate_prq(viscosity,density,gamma)
+    call read_params_evaluate_prq(viscosity,density,gamma)
 
 
-!! Allocate memory to solution arrays
-mesh_dof=num_elems+num_nodes
-variable_types=2 !pressure/flow
+!! Allocate memory to variable arrays
+    mesh_dof=num_elems+num_nodes
+    variable_types=2 !pressure/flow
     allocate (mesh_from_variables(0:2,mesh_dof,0:2), STAT = AllocateStatus)
     IF (AllocateStatus /= 0) STOP "*** Not enough memory for mesh_from_variables array ***"
     allocate (variables_at_elem(0:2,variable_types,num_elems), STAT = AllocateStatus)
@@ -125,15 +132,14 @@ variable_types=2 !pressure/flow
         call boundary_conditions(ADD,FIX,bc_type,g_type,grav_vect,density,inletbc,outletbc,&
             variables_at_node,variables_at_elem,prq_solution,mesh_dof)   
     endif
-    print *,prq_solution(:,1)  
+
  
 !! Calculate resistance of each element
    call calculate_resistance(density,gamma,viscosity)
         
 !! Calculate sparsity structure for solution matrices
-   call calc_sparse_size(mesh_dof,variables_at_elem,variables_at_node,FIX,NonZeros,MatrixSize)
-
-   write(*,*) 'MatrixSize',MatrixSize,NonZeros
+    !Determine size of and allocate solution vectors/matrices
+    call calc_sparse_size(mesh_dof,variables_at_elem,variables_at_node,FIX,NonZeros,MatrixSize)
     allocate (SparseCol(NonZeros), STAT = AllocateStatus)
     IF (AllocateStatus /= 0) STOP "*** Not enough memory for SparseCol array ***"
     allocate (SparseRow(MatrixSize+1), STAT = AllocateStatus)
@@ -142,51 +148,105 @@ variable_types=2 !pressure/flow
     IF (AllocateStatus /= 0) STOP "*** Not enough memory for SparseVal array ***"
     allocate (RHS(MatrixSize), STAT = AllocateStatus)
     IF (AllocateStatus /= 0) STOP "*** Not enough memory for RHS array ***"
-
-   call calc_sparse_1dtree(mesh_dof,variables_at_elem,variables_at_node,FIX,NonZeros,MatrixSize,SparseCol,&
-	SparseRow,SparseVal,RHS,prq_solution)!(SparseCol,SparseRow,FIX,SparseVal,RHS,NDIAG,NPLIST,&
-   !     variables_at_node,variables_at_elem,nz_esed,prq_solution)
-
     allocate (solver_solution(MatrixSize), STAT = AllocateStatus)
     IF (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
-    solver_solution=0
-!! Initialise solution vector based on bcs and rigid vessel resistance
-   if(bc_type.eq.'pressure')then
-      call tree_resistance(total_resistance)
-      write(*,*) 'Total Resistance:',total_resistance
-      call initialise_solution(inletbc,outletbc,(inletbc-outletbc)/total_resistance,mesh_dof,prq_solution,&
-           variables_at_node,variables_at_elem,FIX)
-        !put into initial guess
-	no=0
-     	DO variable=1,mesh_dof
-        IF(.NOT.FIX(variable)) THEN
-           no=no+1
-           solver_solution(no)=prq_solution(variable,1) 
-        ENDIF
-     ENDDO !no2
-   else
-   endif
+    allocate (update_resistance_entries(num_elems), STAT = AllocateStatus)
+    IF (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
 
-  !  print *,prq_solution(:,1)  
-    print *,solver_solution
+    call calc_sparse_1dtree(mesh_dof,variables_at_elem,variables_at_node,FIX,NonZeros,MatrixSize,SparseCol,&
+	SparseRow,SparseVal,RHS,prq_solution,update_resistance_entries)
 
-    call BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,solver_solution,SparseCol,SparseRow,SparseVal,1.d-9,500)
-  !  print *,solver_solution(:)
-! Put solution values into YP
-     no=0
-     DO variable=1,mesh_dof
-        IF(.NOT.FIX(variable)) THEN
-           no=no+1
-           prq_solution(variable,2)=prq_solution(variable,1) !temp storage of previous solution
-           prq_solution(variable,1)=solver_solution(no) !new pressure & flow solutions
-           IF(DABS(prq_solution(variable,1)).GT.0.d-6)THEN
-              ERR=ERR+(prq_solution(variable,2)-prq_solution(variable,1))**2.d0/prq_solution(variable,1)**2
-           ENDIF
-        ENDIF
-     ENDDO !no2
-    write(*,*) 'ERROR', ERR
+!!! --ITERATIVE LOOP--
+    MIN_ERR=1.d10
+    N_MIN_ERR=0
+    KOUNT=0
+    do while(.NOT.CONVERGED)
+      KOUNT=KOUNT+1
+      print*, 'Outer loop iterations:',KOUNT
+!!! Initialise solution vector based on bcs and rigid vessel resistance
+      if(KOUNT.eq.1)then!set up boundary conditions
+        if(bc_type.eq.'pressure')then
+          call tree_resistance(total_resistance)
+          call initialise_solution(inletbc,outletbc,(inletbc-outletbc)/total_resistance, &
+              mesh_dof,prq_solution,variables_at_node,variables_at_elem,FIX)
+          !move initialisation to solver solution (skipping BCs).
+          no=0
+     	  do variable=1,mesh_dof !loop over mesh dofs
+            if(.NOT.FIX(variable))then
+              no=no+1
+              solver_solution(no)=prq_solution(variable,1)
+            endif
+          enddo !mesh_dof
+        else!flow BCs to be implemented
+        endif
+      else!Need to update just the resistance values in the solution matrix
+        do ne=1,num_elems !update for all ne
+          nz=update_resistance_entries(ne)
+          SparseVal(nz)=-elem_field(ne_resist,ne) !Just updating resistance
+        enddo
+      endif!first or subsequent iteration
+!! ----CALL SOLVER----
 
-    
+      call pmgmres_ilu_cr(MatrixSize, NonZeros, SparseRow, SparseCol, SparseVal, &
+         solver_solution, RHS, 500, 500,1.d-5,1.d-4,SOLVER_FLAG)
+       if(SOLVER_FLAG == 0)then 
+          print *, 'Warning: pmgmres has reached max iterations. Solution may not be valid if this warning persists'
+       elseif(SOLVER_FLAG ==2)then
+          print *, 'ERROR: pmgmres has failed to converge'
+          deallocate (mesh_from_variables, STAT = AllocateStatus)
+          deallocate (variables_at_elem, STAT = AllocateStatus)
+          deallocate (variables_at_node, STAT = AllocateStatus)
+          deallocate (prq_solution, STAT = AllocateStatus)
+          deallocate (FIX, STAT = AllocateStatus)
+          deallocate (solver_solution, STAT = AllocateStatus)
+          deallocate (SparseCol, STAT = AllocateStatus)
+          deallocate (SparseVal, STAT = AllocateStatus)
+          deallocate (SparseRow, STAT = AllocateStatus)
+          deallocate (RHS, STAT = AllocateStatus)
+          deallocate (update_resistance_entries, STAT=AllocateStatus)
+          exit
+       endif
+!!--TRANSFER SOLVER SOLUTIONS TO FULL SOLUTIONS
+      ERR=0.0_dp
+      no=0
+      do variable=1,mesh_dof
+         if(.NOT.FIX(variable)) THEN
+            no=no+1
+            prq_solution(variable,2)=prq_solution(variable,1) !temp storage of previous solution
+            prq_solution(variable,1)=solver_solution(no) !new pressure & flow solutions
+            if(DABS(prq_solution(variable,1)).GT.0.d-6)THEN
+               ERR=ERR+(prq_solution(variable,2)-prq_solution(variable,1))**2.d0/prq_solution(variable,1)**2
+            endif
+         endif
+      enddo !no2
+!rigid vessels no need to update - tag as converged and exit
+      if(vessel_type.eq.'rigid')then
+        ERR=0.0_dp
+        CONVERGED=.TRUE.
+      else
+!Update vessel radii based on predicted pressures and then update resistance through tree
+        call calc_press_area(KOUNT,variables_at_node,prq_solution,mesh_dof,ptrans,beta,Go_artery,Ptm_max)
+        call calculate_resistance(viscosity,density,gamma)
+
+!Put the ladder stuff here --> See solve11.f
+
+         ERR=ERR/MatrixSize !sum of error divided by no of unknown variables
+         if(ERR.LE.1.d-6.AND.(KOUNT.NE.1))then
+           CONVERGED=.TRUE.
+            write(*,*),"Convergence achieved after",KOUNT,"iterations",ERR
+         else !if error not converged
+            if(ERR.GE.MIN_ERR) then
+              N_MIN_ERR=N_MIN_ERR+1
+            else
+              MIN_ERR=ERR
+            endif
+            write(*,*),"Not converged, error =",ERR
+         endif !ERR not converged
+      endif!vessel type
+    enddo !notconverged
+
+!need to write solution to element/nodal fields for export
+
     deallocate (mesh_from_variables, STAT = AllocateStatus)
     deallocate (variables_at_elem, STAT = AllocateStatus)
     deallocate (variables_at_node, STAT = AllocateStatus)
@@ -197,6 +257,7 @@ variable_types=2 !pressure/flow
     deallocate (SparseVal, STAT = AllocateStatus)
     deallocate (SparseRow, STAT = AllocateStatus)
     deallocate (RHS, STAT = AllocateStatus)
+    deallocate (update_resistance_entries, STAT=AllocateStatus)
     call enter_exit(sub_name,2)
   end subroutine evaluate_prq
 !
@@ -268,7 +329,6 @@ variable_types=2 !pressure/flow
         ENDIF
      ENDDO
   ELSE !Add terminal pressure BC for all terminal branches
-    !write(*,*) num_units,units
      DO nonode=1,num_units
         np=elem_nodes(2,units(nonode)) !Second node in element = terminal node
         ny1=variables_at_node(np,1,1) !for fixed pressure BC
@@ -288,7 +348,7 @@ variable_types=2 !pressure/flow
            write(*,*),"gravity",ne,grav
         ENDIF
         prq_solution(ny1,1)=outletbc-grav !Putting BC value into solution array       
-        write(*,*),"BC----",ny1,outletbc,grav,prq_solution(ny1,1)
+        !write(*,*),"BC----",ny1,outletbc,grav,prq_solution(ny1,1)
      ENDDO
   ENDIF
     call enter_exit(sub_name,2)
@@ -328,8 +388,8 @@ subroutine calculate_resistance(density,gamma,viscosity)
             (PI*elem_field(ne_radius,ne)**4) !laminar resistance
 
        ! element turbulent resistance (flow in bifurcating tubes)
-       reynolds=DABS(elem_field(ne_flow,ne)*2.d0*density/ &
-            (PI*elem_field(ne_radius,ne)*viscosity))
+       !reynolds=DABS(elem_field(ne_flow,ne)*2.d0*density/ &
+         !   (PI*elem_field(ne_radius,ne)*viscosity))
        zeta = MAX(1.d0,dsqrt(2.d0*elem_field(ne_radius,ne)* &
             reynolds/elem_field(ne_length,ne))*gamma)
        elem_field(ne_resist,ne) = resistance * zeta
@@ -445,7 +505,6 @@ subroutine calculate_resistance(density,gamma,viscosity)
     elem_res(1:num_elems)=elem_field(ne_resist,1:num_elems)
     do ne=num_elems,1,-1
        !ne=elems(num)
-       write(*,*) ne, elem_field(ne_resist,ne),elem_cnct(1,0,ne),elem_res(ne)
       invres=0.0_dp
       do num2=1,elem_cnct(1,0,ne)
          ne2=elem_cnct(1,num2,ne)
@@ -454,10 +513,8 @@ subroutine calculate_resistance(density,gamma,viscosity)
       if(elem_cnct(1,0,ne).gt.0)then 
         elem_res(ne)=elem_res(ne)+1.0_dp/invres
        endif
-       write(*,*) 'end loop',ne, elem_field(ne_resist,ne),elem_cnct(1,0,ne),elem_res(ne)
     enddo
     resistance=elem_res(1)
-    write(*,*) 'resistance',resistance
 
     call enter_exit(sub_name,2)
   end subroutine tree_resistance
@@ -468,6 +525,7 @@ subroutine calculate_resistance(density,gamma,viscosity)
 
 subroutine initialise_solution(pressure_in,pressure_out,cardiac_output,mesh_dof,prq_solution,&
     variables_at_node,variables_at_elem,FIX)
+
     use indices
     use arrays,only: dp,num_elems,elem_ordrs,elems,elem_nodes,num_nodes
     use diagnostics, only: enter_exit
@@ -482,22 +540,20 @@ subroutine initialise_solution(pressure_in,pressure_out,cardiac_output,mesh_dof,
     character(len=60) :: sub_name
    sub_name = 'intialise_solution'
     call enter_exit(sub_name,1)
-    DO ne=1,num_elems
+    do ne=1,num_elems
        !ne=elems(noelem)
-       DO nn=1,2 !Loop over number of nodes in each element: always=2 in 1D element
-        np=elem_nodes(nn,ne) !Node number
-        !write(*,*) np,ne
-        n_variable=variables_at_node(np,0,1) !--> This will be a pressure because it's the variable at a node 
-        !write(*,*) n_variable
-        if(.NOT.FIX(n_variable))then
-        prq_solution(n_variable,1)=(pressure_in+pressure_out)/2.0
-        endif
-        n_variable=variables_at_elem(0,1,ne) !--> This will be a flow because it's the variable at the element
-        if(.NOT.FIX(n_variable))then
-        prq_solution(n_variable,1)=cardiac_output/(2**(elem_ordrs(1,ne)-1)) !Here you can use the generation number to split flow
-        endif
-       ENDDO
-    ENDDO
+       do nn=1,2 !Loop over number of nodes in each element: always=2 in 1D element
+         np=elem_nodes(nn,ne) !Node number
+         n_variable=variables_at_node(np,0,1) !--> This will be a pressure because it's the variable at a node
+         if(.NOT.FIX(n_variable))then
+           prq_solution(n_variable,1)=(pressure_in+pressure_out)/2.0
+         endif
+         n_variable=variables_at_elem(0,1,ne) !--> This will be a flow because it's the variable at the element
+         if(.NOT.FIX(n_variable))then
+           prq_solution(n_variable,1)=cardiac_output/(2**(elem_ordrs(1,ne)-1)) !Here you can use the generation number to split flow
+         endif
+       enddo
+    enddo
     call enter_exit(sub_name,2)
   end subroutine initialise_solution
 !
@@ -506,7 +562,7 @@ subroutine initialise_solution(pressure_in,pressure_out,cardiac_output,mesh_dof,
 !*calc_sparse_1d_tree:* Calculates sparsity structure for 1d tree problems
 
 subroutine calc_sparse_1dtree(mesh_dof,variables_at_elem,variables_at_node,FIX,NonZeros,&
-        MatrixSize,SparseCol,SparseRow,SparseVal,RHS,prq_solution)
+        MatrixSize,SparseCol,SparseRow,SparseVal,RHS,prq_solution,update_resistance_entries)
     use indices
     use arrays,only: dp,num_elems,elem_ordrs,elems,elem_nodes,num_nodes,elems_at_node,elem_field
     use diagnostics, only: enter_exit
@@ -517,6 +573,7 @@ subroutine calc_sparse_1dtree(mesh_dof,variables_at_elem,variables_at_node,FIX,N
     integer :: NonZeros,MatrixSize
     integer :: SparseCol(NonZeros)
     integer :: SparseRow(MatrixSize+1)
+    integer :: update_resistance_entries(num_elems)
     real(dp) :: SparseVal(NonZeros)
     real(dp) :: RHS(MatrixSize)
     real(dp) :: prq_solution(mesh_dof,2)
@@ -531,7 +588,7 @@ subroutine calc_sparse_1dtree(mesh_dof,variables_at_elem,variables_at_node,FIX,N
     call enter_exit(sub_name,1)
 
   SparseCol=0
-  SparseRow=0
+  SparseRow=1
   SparseVal=0.0_dp
   RHS=0.0_dp
   NPLIST=0
@@ -605,7 +662,7 @@ subroutine calc_sparse_1dtree(mesh_dof,variables_at_elem,variables_at_node,FIX,N
               SparseCol(nzz)=(ny2c-ost2) !store column #
               nzz=nzz+1
               SparseVal(nzz_val)=-elem_field(ne_resist,ne) !resistance components of dP=QR
-              !NZ_ESED(ne)=nzz_gkk! needed?
+              update_resistance_entries(ne)=nzz_val! needed?
               nzz_val=nzz_val+1
            ELSE
               RHS(nzz_row)=prq_solution(ny2c,1)
@@ -671,18 +728,7 @@ subroutine calc_sparse_1dtree(mesh_dof,variables_at_elem,variables_at_node,FIX,N
        ost1=ost1+1
      endif
 
-  enddo 
-!  write(*,*) 'SparseRow'
-!  write(*,*) SparseRow
-! write(*,*) 'SparseCol'
-! write(*,*) SparseCol
-! write(*,*) 'SparseVal'
-! write(*,*) SparseValq
-
- !write(*,*) 'RHS'
- !write(*,*) RHS
- write(*,*) nzz,nzz_row
-
+  enddo
 
     call enter_exit(sub_name,2)
   end subroutine calc_sparse_1dtree
@@ -791,6 +837,86 @@ subroutine calc_sparse_size(mesh_dof,variables_at_elem,variables_at_node,FIX,Non
     call enter_exit(sub_name,2)
   end subroutine calc_sparse_size
 
+!##################################################################
+!
+!*calc_press_area:* Calculates new radii based on pressure area relnships
 
+subroutine calc_press_area(KOUNT,variables_at_node,prq_solution,mesh_dof,ptrans,beta,Go_artery,Ptm_max)
+use indices
+use arrays,only: dp,num_nodes,num_elems,elem_field,elem_nodes,elem_cnct!,num_elems,elem_ordrs,elems,elem_nodes,num_nodes,elems_at_node,elem_field
+use diagnostics, only: enter_exit
+integer,intent(in) :: KOUNT,mesh_dof
+integer,intent(in) :: variables_at_node(num_nodes,0:2,2)
+real(dp) ::  prq_solution(mesh_dof,2)
+real(dp) :: ptrans,beta,Go_artery,Ptm_max
+
+!local variables
+integer :: np,de,ne,ny,numelem,nn
+double precision :: HEIGHT(3),G_PLEURAL,Ptm,R0,Pblood,Ppl
+
+character(len=60) :: sub_name
+sub_name = 'calc_press_area'
+call enter_exit(sub_name,1)
+
+IF(KOUNT.EQ.1)THEN !store initial, unstressed radius values
+  DO ne=1,num_elems
+    elem_field(ne_radius_in0,ne)=elem_field(ne_radius_in,ne)
+    elem_field(ne_radius_out0,ne)=elem_field(ne_radius_in,ne)
+ENDDO !elems
+ENDIF
+
+DO ne=1,num_elems
+  do nn=1,2
+  np=elem_nodes(1,ne)
+  ny=variables_at_node(np,0,1)
+  Ppl=(ptrans*98.07d0/1000.0d0)!-G_PLEURAL !cmH2O->kPa
+  Pblood=prq_solution(ny,1)/1000.0d0 ! Pa->kPa
+  Ptm=Pblood+Ppl     ! kPa
+  R0=elem_field(ne_radius_in0,ne)
+!...ARC: giving a maximum distension
+  IF(Ptm.LT.Ptm_max.and.Go_artery.gt.0.d0)THEN
+     if(nn.eq.1) elem_field(ne_radius_in,ne)=R0*((Ptm/Go_artery)+1.d0)**(1.d0/beta)
+     if(nn.eq.2) elem_field(ne_radius_out,ne)=R0*((Ptm/Go_artery)+1.d0)**(1.d0/beta)
+  ELSEIF(Ptm.lt.0.or.Go_artery.eq.0.d0)THEN
+    IF(Ptm.lt.0)write(*,*) 'Transmural pressure < zero',ne,Ptm,Pblood,Ppl
+     if(nn.eq.1) elem_field(ne_radius_in,ne)=R0
+     if(nn.eq.2) elem_field(ne_radius_out,ne)=R0
+  ELSE!ptm>ptmmax
+    if(nn.eq.1) elem_field(ne_radius_in,ne)=R0*((Ptm_max/Go_artery)+1.d0)**(1.d0/beta)
+    if(nn.eq.2) elem_field(ne_radius_in,ne)=R0*((Ptm_max/Go_artery)+1.d0)**(1.d0/beta)
+  ENDIF
+  enddo!nn
+enddo!ne
+!ny=variables_at_node(np,0,1)
+
+!...  KSB: Adding gravity-dependent pleural pressure
+!G_PLEURAL=0.d0    !gravitational force
+!DO nj=1,3
+!HEIGHT(nj)=node_xyz(nj,np)-node_xyz(nj,np_in)
+!G_PLEURAL=G_PLEURAL+PLEURAL_DENSITY*grav_vect(nj)*9810.d0*HEIGHT(nj) !kg
+!ENDDO
+!Ppl=(ptrans*98.07d0/1000.0d0)!-G_PLEURAL !cmH2O->kPa
+!Pblood=solution_prq(ny,1)/1000.0d0 ! Pa->kPa
+!Ptm=Pblood+Ppl     ! kPa
+
+
+!R0=elem_field(nj_radius0,np)
+!...ARC: giving a maximum distension
+!IF(Ptm.LT.Ptm_max.and.Go_vein.gt.0.d0)THEN
+!node_field(nj_radius,np)=R0*((Ptm/Go)+1.d0)**(1.d0/beta)
+!ELSEIF(Ptm.lt.0.or.Go.eq.0.d0)THEN
+!IF(Ptm.lt.0)write(*,*) 'Transmural pressure < zero',ne,Ptm,Pblood,Ppl
+!node_field(nj_radius,np)=R0
+!ELSE
+!node_field(nj_radius,np)=R0*((Ptm_max/Go)+1.d0)**(1.d0/beta)
+!write(*,*) 'Transmural pressure < zero',ne,Ptm,Pblood,Ppl,Go,Go_vein
+!ENDIF
+!Hypoxia removed
+!ENDDO     !nonode
+
+
+
+call enter_exit(sub_name,2)
+end subroutine calc_press_area
 
 end module pressure_resistance_flow
