@@ -54,6 +54,7 @@ set(LIB_SRCS
   src/other_consts.f90
   src/pressure_resistance_flow.f90
   src/solve.f90
+  src/tree_wave_propagation.f90
   src/ventilation.f90
 )
 

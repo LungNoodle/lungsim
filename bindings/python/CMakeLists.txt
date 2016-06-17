@@ -19,6 +19,7 @@ set(INTERFACE_SRCS
   ../interface/geometry.i
   ../interface/indices.i
   ../interface/pressure_resistance_flow.i
+  ../interface/tree_wave_propagation.i
   ../interface/ventilation.i
 )
 
