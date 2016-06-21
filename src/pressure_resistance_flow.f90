@@ -249,6 +249,7 @@ pleural_density=0.25_dp*0.1e-5_dp !kg/mm**3
     enddo !notconverged
 
 !need to write solution to element/nodal fields for export
+    call map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof)
 
     deallocate (mesh_from_depvar, STAT = AllocateStatus)
     deallocate (depvar_at_elem, STAT = AllocateStatus)
@@ -905,6 +906,36 @@ subroutine calc_press_area(grav_type,grav_vect,KOUNT,depvar_at_node,prq_solution
 
 call enter_exit(sub_name,2)
 end subroutine calc_press_area
+!##############################################################################
+!
+!*map_solution_to_elem* maps the solution array to appropriate nodal and element fields
+subroutine map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof)
+    use indices
+    use arrays,only: dp,num_nodes,num_elems,elem_field,node_field
+    use diagnostics, only: enter_exit
+
+    integer, intent(in) :: mesh_dof
+    real(dp),intent(in) ::  prq_solution(mesh_dof,2)
+    integer,intent(in) :: depvar_at_elem(0:2,2,num_elems)
+    integer,intent(in) :: depvar_at_node(num_nodes,0:2,2)
+    !local variables
+    integer :: nj,np,ne,ny,nn
+
+
+    character(len=60) :: sub_name
+    sub_name = 'map_solution_to_mesh'
+    call enter_exit(sub_name,1)
+      do  ne=1,num_elems
+        ny=depvar_at_elem(1,1,ne)
+        elem_field(ne_flow,ne)=prq_solution(ny,1)
+      enddo !elems
+      do np=1,num_nodes
+        ny=depvar_at_node(np,0,1)
+        node_field(nj_press,np)=prq_solution(ny,1)
+      enddo
+
+    call enter_exit(sub_name,2)
+end subroutine map_solution_to_mesh
 
 end module pressure_resistance_flow
 
