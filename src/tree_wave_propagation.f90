@@ -27,7 +27,7 @@ contains
 !
 !##############################################################################
 !
-subroutine evaluate_wave_propagation(no_freq,a0,a,b)
+subroutine evaluate_wave_propagation(a0,no_freq,a,b)
 !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SOLVE_WAVE_PROPAGATION: SOLVE_WAVE_PROPAGATION
   use diagnostics, only: enter_exit
 

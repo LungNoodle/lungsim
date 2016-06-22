@@ -30,3 +30,7 @@
 # OS X
 .DS_Store
 .project
+
+# Qt Creator
+CMakeLists.txt.user
+
