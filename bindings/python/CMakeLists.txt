@@ -1,6 +1,8 @@
 
 project(AetherPythonBindings LANGUAGES C)
 
+find_package(NumPy REQUIRED)
+
 set(ADDITIONAL_GENERATED_FILES)
 # SWIG has already been found at this point.
 include(${SWIG_USE_FILE})
@@ -23,7 +25,7 @@ set(INTERFACE_SRCS
   ../interface/ventilation.i
 )
 
-include_directories(${PYTHON_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/../c/src)
+include_directories(${PYTHON_INCLUDE_DIRS} ${NUMPY_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/../c/src)
 
 if(MSVC)
   set(PYTHON_PACKAGE_DIR ${CMAKE_CURRENT_BINARY_DIR}/$(Configuration)/aether)
