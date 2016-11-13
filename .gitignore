@@ -32,3 +32,6 @@
 
 # Qt Creator
 CMakeLists.txt.user
+
+# Eclipse
+.project
