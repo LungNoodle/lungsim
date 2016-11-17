@@ -36,6 +36,10 @@ On Windows, Visual Studio is the recommended toolchain with intel fortran compil
   
 Also install the sphinx-fortran extension for Sphinx for dealing with Fortran code.
 
+It is also useful to make use of python virtual environments, this is not critical on windows but very useful if you want to have easy access to multiple branches of compiled code through python.  Install virtualenv with pip::
+
+  pip install virtualenv
+
 OS X
 ====
 
@@ -46,13 +50,16 @@ Use brew to install gcc, which includes gfortran.  If you don't have brew instal
 To install Sphinx you will need pip, if you don't already have it you can use the `get-pip.py script <https://bootstrap.pypa.io/get-pip.py>`_::
 
   curl https://bootstrap.pypa.io/get-pip.py > get-pip.py
-  sudo python get-pip.py
+  sudo -H python get-pip.py
   
 Once pip is installed you can get Sphinx and sphinx-fortran as above::
 
-  pip install sphinx
-  pip install sphinx-fortran
+  sudo -H pip install sphinx
+  sudo -H pip install sphinx-fortran
   
+It is also useful to make use of python virtual environments, this is very useful if you want to have easy access to multiple branches of compiled code through python.  Install virtualenv with pip::
+  
+  sudo -H pip install virtualenv
 
 GNU/Linux
 =========
@@ -64,14 +71,16 @@ The package manager for the distro will (most likely) have the required packages
   python --version
   swig -version
   sphinx-build --version
+  virtualenv --version
   
-For the Ubuntu distribution you can get the missing packages with the following commands::
+In the case of the python package we require the *development* package for python this must be installed for the python bindings to become available.  For the Ubuntu distribution you can get the missing packages with the following commands::
 
   sudo apt-get install gfortran
   sudo apt-get install cmake
   sudo apt-get install pythonX.Y-dev # Where X and Y are the major and minor version numbers of the Python you want to install, any version above 2.6 will work
   sudo apt-get install swig
   sudo apt-get install python-sphinx
+  sudo apt-get install python-virtualenv
   
 Install sphinx-fortran extension with pip::
 
