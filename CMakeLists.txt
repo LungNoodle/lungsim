@@ -8,8 +8,14 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # Required for creating documentation from restructured text files
 find_package(Sphinx)
 
+# Helpful functions
+include(miscfunctions)
+
 # Create additional build types
 include(buildtypes)
+
+# Mark some variables as advanced hiding them from basic users
+tidy_gui()
 
 # Build shared or static library
 if(NOT BUILD_SHARED)
