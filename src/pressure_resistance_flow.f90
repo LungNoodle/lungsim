@@ -867,7 +867,7 @@ subroutine calc_press_area(grav_type,grav_vect,KOUNT,depvar_at_node,prq_solution
     if(KOUNT.EQ.1)then !store initial, unstressed radius values
       do  ne=1,num_elems
         elem_field(ne_radius_in0,ne)=elem_field(ne_radius_in,ne)
-        elem_field(ne_radius_out0,ne)=elem_field(ne_radius_in,ne)
+        elem_field(ne_radius_out0,ne)=elem_field(ne_radius_out,ne)
       enddo !elems
     endif
 
@@ -896,7 +896,7 @@ subroutine calc_press_area(grav_type,grav_vect,KOUNT,depvar_at_node,prq_solution
         if(nn.eq.2) elem_field(ne_radius_out,ne)=R0
       else!ptm>ptmmax
         if(nn.eq.1) elem_field(ne_radius_in,ne)=R0*((Ptm_max/Go_artery)+1.d0)**(1.d0/beta)
-        if(nn.eq.2) elem_field(ne_radius_in,ne)=R0*((Ptm_max/Go_artery)+1.d0)**(1.d0/beta)
+        if(nn.eq.2) elem_field(ne_radius_out,ne)=R0*((Ptm_max/Go_artery)+1.d0)**(1.d0/beta)
       endif
       enddo!nn
     enddo!ne
