@@ -46,29 +46,33 @@ contains
     real(dp) :: viscosity,density,inletbc,outletbc,grav_vect(3),gamma,total_resistance,ERR
     logical, allocatable :: FIX(:)
     logical :: ADD=.FALSE.,CONVERGED=.FALSE.
-    character(len=60) :: sub_name,mesh_type,vessel_type,mechanics_type,bc_type,grav_type
+    character(len=60) :: sub_name,mesh_type,vessel_type,mechanics_type,bc_type
     integer :: grav_dirn,no,depvar,KOUNT,nz,ne,SOLVER_FLAG
-    real(dp) :: MIN_ERR,N_MIN_ERR,ptrans,elasticity_parameters(3),grav_factor,pleural_density
+    real(dp) :: MIN_ERR,N_MIN_ERR,elasticity_parameters(3),mechanics_parameters(2),grav_factor
 
     sub_name = 'evaluate_prq'
     call enter_exit(sub_name,1)
 !!---------DESCRIPTION OF MODEL Types -----------
 !mesh_type: can be simple_tree, full_ladder, full_sheet, full_tube The first can be airways, arteries, veins but no special features at the terminal level, the last one has arteries and veins connected by capillary units of some type (lung ladder acinus, lung sheet capillary bed, capillaries are just tubes represented by an element)
-!
-!
-!vessel_type:
-!rigid, no elasticity, no parameters required
-!elastic_g_elasticity_parameters(2), R=R0*((Ptm/G0)+1.d0)^(1.d0/elasticity_parameters(2)),with an optional maximum pressure beyond which the vessel radius is constant three parameters, g0, elasticity_parameters(2), elasticity_parameters(3)
-!elastic alpha,  R=R0*(alpha*Ptm+1.d0), up to a limit elasticity_parameters(3) two parameters alpha, elasticity_parameters(3)
-!elastic_hooke, two parameters E and h,R=R0+3.0_dp*R0**2*Ptm/(4.0_dp*E*h*R0)
 
-!mechanics type: const (constant pressure external to vessels), linear (assumed gradient in Ppl along gravitational direction), mechanics (Ppl determined by solution to a mechanics model)
-!bc_type: can be pressure (at inlet and outlets) or flow (flow at inlet pressure at outlet).
+!vessel_type:
+  !rigid, no elasticity, no parameters required
+  !elastic_g0_beta, R=R0*((Ptm/G0)+1.d0)^(1.d0/elasticity_parameters(2)),with an optional maximum pressure beyond which the vessel radius is constant three parameters, g0, elasticity_parameters(2), elasticity_parameters(3)
+  !elastic alpha,  R=R0*(alpha*Ptm+1.d0), up to a limit elasticity_parameters(3) two parameters alpha, elasticity_parameters(3)
+  !elastic_hooke, two parameters E and h,R=R0+3.0_dp*R0**2*Ptm/(4.0_dp*E*h*R0)
+
+!mechanics type:
+  !linear two parmeters, transpulmonary pressure (average) and pleural density (gradient)
+  !mechanics, two parameters, pressure and stretch fields
+
+!bc_type:
+    !pressure (at inlet and outlets)
+    !flow (flow at inlet pressure at outlet).
+
 mesh_type='simple_tree'
-vessel_type='elastic_hooke'
+vessel_type='elastic_g0_beta'
 mechanics_type='linear'
 bc_type='pressure'
-grav_type='on'
 
 if (vessel_type.eq.'rigid') then
     elasticity_parameters=0.0_dp
@@ -85,36 +89,48 @@ elseif (vessel_type.eq.'elastic_hooke') then
      elasticity_parameters(2)=0.1_dp!this is a fraction of the radius so is unitless
      elasticity_parameters(3)=0.0_dp !Not used
 else
-    print *, 'Your chosen vessel type does not seem to be implemented assuming rigid'
+    print *, 'WARNING: Your chosen vessel type does not seem to be implemented assuming rigid'
     vessel_type='rigid'
     elasticity_parameters=0.0_dp
+endif
+
+if (mechanics_type.eq.'linear') then
+    mechanics_parameters(1)=5.33_dp*98.07_dp !average transpulmonary pressure (Pa)
+    mechanics_parameters(2)=0.25_dp*0.1e-5_dp !pleural density, defines gradient in pleural pressure (kg/mm**3)
+else
+    print *, 'ERROR: Only linear mechanics models have been implemented to date,assuming default parameters'
+     call exit(0)
 endif
 
 grav_dirn=2
 grav_factor=1.0_dp
 
-if (grav_type.eq.'off') then
-           grav_vect=0.d0
-elseif (grav_dirn.eq.1) then
-           grav_vect(1)=1.d0
+grav_vect=0.d0
+if (grav_dirn.eq.1) then
+    grav_vect(1)=1.0_dp
 elseif (grav_dirn.eq.-1) then
-           grav_vect(1)=-1.d0
+    grav_vect(1)=-1.0_dp
 elseif (grav_dirn.eq.2) then
-           grav_vect(2)=1.d0
+    grav_vect(2)=1.0_dp
 elseif (grav_dirn.eq.-2) then
-           grav_vect(2)=-1.d0
+    grav_vect(2)=-1.0_dp
 elseif (grav_dirn.eq.3) then
-           grav_vect(3)=1.d0
+    grav_vect(3)=1.0_dp
 elseif (grav_dirn.eq.-3) then
-           grav_vect(3)=-1.d0
+     grav_vect(3)=-1.0_dp
 else
-           print *,"Posture not recognised (nogravity, upright, inverted, prone, supine?)"
+     print *, "ERROR: Posture not recognised (currently only x=+-1,y=+-2,z=+-3) implemented)"
+     call exit(0)
 endif
+grav_vect=grav_vect*grav_factor
 
-inletbc=2266.0_dp
-outletbc=666.7_dp
-ptrans=5.33_dp
-pleural_density=0.25_dp*0.1e-5_dp !kg/mm**3
+if(bc_type.eq.'pressure')then
+    inletbc=2266.0_dp
+    outletbc=666.7_dp
+elseif(bc_type.eq.'flow')then
+    print  *, "ERROR: Flow boundary conditions not yet implemented"
+     call exit(0)
+endif
 
 !!---------DESCRIPTION OF IMPORTANT PARAMETERS-----------
 !viscosity: fluid viscosity
@@ -148,12 +164,12 @@ pleural_density=0.25_dp*0.1e-5_dp !kg/mm**3
 
 !! Define boundary conditions
     !first call to define inlet boundary conditions
-    call boundary_conditions(ADD,FIX,bc_type,grav_type,grav_vect,density,inletbc,outletbc,&
+    call boundary_conditions(ADD,FIX,bc_type,grav_vect,density,inletbc,outletbc,&
       depvar_at_node,depvar_at_elem,prq_solution,mesh_dof)
     !second call if simple tree need to define pressure bcs at all terminal branches
     if(mesh_type.eq.'simple_tree')then
         ADD=.TRUE.
-        call boundary_conditions(ADD,FIX,bc_type,grav_type,grav_vect,density,inletbc,outletbc,&
+        call boundary_conditions(ADD,FIX,bc_type,grav_vect,density,inletbc,outletbc,&
             depvar_at_node,depvar_at_elem,prq_solution,mesh_dof)   
     endif
 
@@ -177,7 +193,7 @@ pleural_density=0.25_dp*0.1e-5_dp !kg/mm**3
     allocate (update_resistance_entries(num_elems), STAT = AllocateStatus)
     if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
     !calculate the sparsity structure
-    call calc_sparse_1dtree(density,FIX,grav_type,grav_vect,mesh_dof,depvar_at_elem, &
+    call calc_sparse_1dtree(density,FIX,grav_vect,mesh_dof,depvar_at_elem, &
         depvar_at_node,NonZeros,MatrixSize,SparseCol,SparseRow,SparseVal,RHS, &
         prq_solution,update_resistance_entries)
 !!! --ITERATIVE LOOP--
@@ -249,8 +265,8 @@ pleural_density=0.25_dp*0.1e-5_dp !kg/mm**3
         CONVERGED=.TRUE.
       else
 !Update vessel radii based on predicted pressures and then update resistance through tree
-        call calc_press_area(grav_type,grav_vect,KOUNT,depvar_at_node,prq_solution,&
-           mesh_dof,ptrans,vessel_type,elasticity_parameters,pleural_density)
+        call calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
+           mesh_dof,vessel_type,elasticity_parameters,mechanics_type,mechanics_parameters)
         call calculate_resistance(viscosity,density,gamma)
 
 !Put the ladder stuff here --> See solve11.f
@@ -272,6 +288,8 @@ pleural_density=0.25_dp*0.1e-5_dp !kg/mm**3
 
 !need to write solution to element/nodal fields for export
     call map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof)
+
+    write(*,*) prq_solution
 
     deallocate (mesh_from_depvar, STAT = AllocateStatus)
     deallocate (depvar_at_elem, STAT = AllocateStatus)
@@ -310,7 +328,7 @@ pleural_density=0.25_dp*0.1e-5_dp !kg/mm**3
 !###################################################################################
 !
 !*boundary_conditions:* Defines boundary conditions for prq problems
- subroutine boundary_conditions(ADD,FIX,bc_type,grav_type,grav_vect,density,inletbc,outletbc,&
+ subroutine boundary_conditions(ADD,FIX,bc_type,grav_vect,density,inletbc,outletbc,&
        depvar_at_node,depvar_at_elem,prq_solution,mesh_dof)
  use arrays,only: dp,num_elems,num_nodes,elem_nodes,elem_cnct,node_xyz,units,&
         num_units
@@ -322,7 +340,7 @@ pleural_density=0.25_dp*0.1e-5_dp !kg/mm**3
     real(dp) :: prq_solution(mesh_dof,2),inletbc,outletbc,density,grav_vect(3)
     logical:: ADD
     logical :: FIX(mesh_dof)
-    character(len=60) ::bc_type,grav_type
+    character(len=60) ::bc_type
  
   ! local variables
     integer :: nonode,np,ne,ny1,nj,np_in
@@ -364,14 +382,10 @@ pleural_density=0.25_dp*0.1e-5_dp !kg/mm**3
            print *,"Warning --> np_in is not set yet, setting to first node as default"
            np_in=1 !Setting to first node as default
         endif
-        if(grav_type.eq.'off') then
-           grav=0.d0
-        else                    
-           grav=0.d0
-           do nj=1,3
-              grav=grav+density*grav_vect(nj)*9810.d0*(node_xyz(nj,np_in)-node_xyz(nj,np))
-           enddo
-        endif
+         grav=0.d0
+         do nj=1,3
+            grav=grav+density*grav_vect(nj)*9810.d0*(node_xyz(nj,np_in)-node_xyz(nj,np))
+         enddo
         prq_solution(ny1,1)=outletbc-grav !Putting BC value into solution array       
         !print *,"BC----",ny1,outletbc,grav,prq_solution(ny1,1)
      enddo
@@ -585,7 +599,7 @@ subroutine initialise_solution(pressure_in,pressure_out,cardiac_output,mesh_dof,
 !
 !*calc_sparse_1d_tree:* Calculates sparsity structure for 1d tree problems
 
-subroutine calc_sparse_1dtree(density,FIX,grav_type,grav_vect,mesh_dof,depvar_at_elem,&
+subroutine calc_sparse_1dtree(density,FIX,grav_vect,mesh_dof,depvar_at_elem,&
         depvar_at_node,NonZeros,MatrixSize,SparseCol,SparseRow,SparseVal,RHS,&
         prq_solution,update_resistance_entries)
 
@@ -597,7 +611,6 @@ subroutine calc_sparse_1dtree(density,FIX,grav_type,grav_vect,mesh_dof,depvar_at
     use diagnostics, only: enter_exit
 
     real(dp), intent(in) :: density
-    character, intent(in) :: grav_type
     real(dp), intent(in) :: grav_vect(3)
     integer, intent(in) :: mesh_dof
     logical, intent(in) :: FIX(mesh_dof)
@@ -621,6 +634,7 @@ subroutine calc_sparse_1dtree(density,FIX,grav_type,grav_vect,mesh_dof,depvar_at
     sub_name = 'calc_sparse_1dtree'
     call enter_exit(sub_name,1)
 !Initialise matrices and indices
+
     SparseCol=0
     SparseRow=1
     SparseVal=0.0_dp
@@ -652,11 +666,9 @@ subroutine calc_sparse_1dtree(density,FIX,grav_type,grav_vect,mesh_dof,depvar_at
             SparseCol(nzz)=(depvar2-ost2) !store the col # offset by ost2 -correct
             nzz=nzz+1
             grav=0.d0
-            if(grav_type.eq.'on') then
-              do nj=1,3                                  
-                grav=grav+density*grav_vect(nj)*9810.0_dp*(node_xyz(nj,elem_nodes(1,ne))-node_xyz(nj,elem_nodes(2,ne)))
-              enddo
-            endif
+            do nj=1,3
+              grav=grav+density*grav_vect(nj)*9810.0_dp*(node_xyz(nj,elem_nodes(1,ne))-node_xyz(nj,elem_nodes(2,ne)))
+            enddo
             if(nhs.EQ.1) THEN !row entry one
               SparseVal(nzz_val)=1.0_dp
               nzz_val=nzz_val+1
@@ -667,11 +679,9 @@ subroutine calc_sparse_1dtree(density,FIX,grav_type,grav_vect,mesh_dof,depvar_at
             endif
           else!notfix depvar2
             grav=0.d0
-            if(grav_type.eq.'on') then
-              do nj=1,3                                  
-                 grav=grav+density*grav_vect(nj)*9810.0_dp*(node_xyz(nj,elem_nodes(1,ne))-node_xyz(nj,elem_nodes(2,ne)))
-              enddo
-            endif
+            do nj=1,3
+              grav=grav+density*grav_vect(nj)*9810.0_dp*(node_xyz(nj,elem_nodes(1,ne))-node_xyz(nj,elem_nodes(2,ne)))
+            enddo
                  if(nhs.EQ.1) THEN
                     RHS(nzz_row)=-prq_solution(depvar2,1)+grav
                  elseif(nhs.EQ.2) THEN
@@ -864,19 +874,19 @@ subroutine calc_sparse_size(mesh_dof,depvar_at_elem,depvar_at_node,FIX,NonZeros,
 !
 !*calc_press_area:* Calculates new radii based on pressure area relnships
 
-subroutine calc_press_area(grav_type,grav_vect,KOUNT,depvar_at_node,prq_solution,&
-    mesh_dof,ptrans,vessel_type,elasticity_parameters,pleural_density)
+subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
+    mesh_dof,vessel_type,elasticity_parameters,mechanics_type,mechanics_parameters)
 
     use indices
     use arrays,only: dp,num_nodes,num_elems,elem_field,elem_nodes,node_xyz
     use diagnostics, only: enter_exit
-    character(len=60), intent(in) :: grav_type
     character(len=60), intent(in) :: vessel_type
+    character(len=60), intent(in) :: mechanics_type
     real(dp), intent(in) :: grav_vect(3)
     integer,intent(in) :: KOUNT,mesh_dof
     integer,intent(in) :: depvar_at_node(num_nodes,0:2,2)
     real(dp),intent(in) ::  prq_solution(mesh_dof,2)
-    real(dp),intent(in) :: elasticity_parameters(3),ptrans,pleural_density
+    real(dp),intent(in) :: elasticity_parameters(3),mechanics_parameters(2)
 
 !local variables
     integer :: nj,np,ne,ny,nn
@@ -897,13 +907,11 @@ subroutine calc_press_area(grav_type,grav_vect,KOUNT,depvar_at_node,prq_solution
       np=elem_nodes(1,ne)
       ny=depvar_at_node(np,0,1)
       G_PLEURAL=0.0_dp    !gravitational force
-      if(grav_type.eq.'on')then
-        do nj=1,3
-          HEIGHT(nj)=node_xyz(nj,np)-node_xyz(nj,1) !ARC - where to put grav reference height?
-          G_PLEURAL=G_PLEURAL+PLEURAL_DENSITY*grav_vect(nj)*9810.d0*HEIGHT(nj) !kg
-       enddo
-      endif
-      Ppl=(ptrans*98.07d0)-G_PLEURAL !cmH2O->Pa
+      do nj=1,3
+        HEIGHT(nj)=node_xyz(nj,np)-node_xyz(nj,1) !ARC - where to put grav reference height?
+        G_PLEURAL=G_PLEURAL+mechanics_parameters(2)*grav_vect(nj)*9810.d0*HEIGHT(nj) !kg
+      enddo
+      Ppl=mechanics_parameters(1)-G_PLEURAL !Pa
       Pblood=prq_solution(ny,1)! Pa
       Ptm=Pblood+Ppl     ! Pa
       R0=elem_field(ne_radius_in0,ne)
