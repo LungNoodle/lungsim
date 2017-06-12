@@ -132,14 +132,13 @@ elseif(bc_type.eq.'flow')then
      call exit(0)
 endif
 
-!!---------DESCRIPTION OF IMPORTANT PARAMETERS-----------
+!!---------PHYSICAL PARAMETERS-----------
 !viscosity: fluid viscosity
 !density:fluid density
-!
-
-!!!set the default values for the parameters that control the prq simulation, these should be controlled by user input
-    call read_params_evaluate_prq(viscosity,density,gamma)
-
+!gamma:Pedley correction factor
+density=0.10500e-02_dp !kg/cm3
+viscosity=0.33600e-02_dp !Pa.s
+gamma = 0.327_dp !=1.85/(4*sqrt(2))
 
 !! Allocate memory to depvar arrays
     mesh_dof=num_elems+num_nodes
@@ -289,8 +288,6 @@ endif
 !need to write solution to element/nodal fields for export
     call map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof)
 
-    write(*,*) prq_solution
-
     deallocate (mesh_from_depvar, STAT = AllocateStatus)
     deallocate (depvar_at_elem, STAT = AllocateStatus)
     deallocate (depvar_at_node, STAT = AllocateStatus)
@@ -304,26 +301,6 @@ endif
     deallocate (update_resistance_entries, STAT=AllocateStatus)
     call enter_exit(sub_name,2)
   end subroutine evaluate_prq
-!
-!###################################################################################
-!
-!*read_params_evaluate_prq:* Reads in important parameters for PRQ problems
-  subroutine read_params_evaluate_prq(viscosity,density,gamma)
-    use arrays,only: dp
-    use diagnostics, only: enter_exit
-    !local parameters
-    real(dp) :: viscosity,density,gamma
-    character(len=60) :: sub_name
-
-    sub_name = 'read_params_evaluate_prq'
-    call enter_exit(sub_name,1)
-      density=0.10500e-02_dp
-      viscosity=0.33600e-02_dp
-      gamma = 0.327_dp !=1.85/(4*sqrt(2))
-
-
-    call enter_exit(sub_name,2)
-  end subroutine read_params_evaluate_prq
 !
 !###################################################################################
 !
