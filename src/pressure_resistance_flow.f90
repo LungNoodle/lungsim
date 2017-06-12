@@ -48,23 +48,48 @@ contains
     logical :: ADD=.FALSE.,CONVERGED=.FALSE.
     character(len=60) :: sub_name,mesh_type,vessel_type,mechanics_type,bc_type,grav_type
     integer :: grav_dirn,no,depvar,KOUNT,nz,ne,SOLVER_FLAG
-    real(dp) :: MIN_ERR,N_MIN_ERR,ptrans,beta,Go_artery,Ptm_max,grav_factor,pleural_density
+    real(dp) :: MIN_ERR,N_MIN_ERR,ptrans,elasticity_parameters(3),grav_factor,pleural_density
 
     sub_name = 'evaluate_prq'
     call enter_exit(sub_name,1)
-!!---------DESCRIPTION OF MODEL TypeS -----------
+!!---------DESCRIPTION OF MODEL Types -----------
 !mesh_type: can be simple_tree, full_ladder, full_sheet, full_tube The first can be airways, arteries, veins but no special features at the terminal level, the last one has arteries and veins connected by capillary units of some type (lung ladder acinus, lung sheet capillary bed, capillaries are just tubes represented by an element)
 !
 !
-!vessel_type: rigid (no pressure area relationship), elastic_g_beta (non linear pressure area relationship controlled by g0,beta), elastic_alpha (linear pressure area relationship controlled by alpha.
-!
+!vessel_type:
+!rigid, no elasticity, no parameters required
+!elastic_g_elasticity_parameters(2), R=R0*((Ptm/G0)+1.d0)^(1.d0/elasticity_parameters(2)),with an optional maximum pressure beyond which the vessel radius is constant three parameters, g0, elasticity_parameters(2), elasticity_parameters(3)
+!elastic alpha,  R=R0*(alpha*Ptm+1.d0), up to a limit elasticity_parameters(3) two parameters alpha, elasticity_parameters(3)
+!elastic_hooke, two parameters E and h,R=R0+3.0_dp*R0**2*Ptm/(4.0_dp*E*h*R0)
+
 !mechanics type: const (constant pressure external to vessels), linear (assumed gradient in Ppl along gravitational direction), mechanics (Ppl determined by solution to a mechanics model)
 !bc_type: can be pressure (at inlet and outlets) or flow (flow at inlet pressure at outlet).
 mesh_type='simple_tree'
-vessel_type='linear_compliance'!rigid'
+vessel_type='elastic_hooke'
 mechanics_type='linear'
 bc_type='pressure'
 grav_type='on'
+
+if (vessel_type.eq.'rigid') then
+    elasticity_parameters=0.0_dp
+elseif (vessel_type.eq.'elastic_g0_beta') then
+    elasticity_parameters(1)=6.67e3_dp!G0 (Pa)
+    elasticity_parameters(2)=1.0_dp!elasticity_parameters(2)
+    elasticity_parameters(3)=32.0_dp*98.07_dp !elasticity_parameters(3) (Pa)
+elseif (vessel_type.eq.'elastic_alpha') then
+    elasticity_parameters(1)=1.503e-4_dp!alpha (1/Pa)
+    elasticity_parameters(2)=32.0_dp*98.07_dp !elasticity_parameters(3) (Pa)
+    elasticity_parameters(3)=0.0_dp !Not used
+elseif (vessel_type.eq.'elastic_hooke') then
+     elasticity_parameters(1)=1.5e6_dp !Pa
+     elasticity_parameters(2)=0.1_dp!this is a fraction of the radius so is unitless
+     elasticity_parameters(3)=0.0_dp !Not used
+else
+    print *, 'Your chosen vessel type does not seem to be implemented assuming rigid'
+    vessel_type='rigid'
+    elasticity_parameters=0.0_dp
+endif
+
 grav_dirn=2
 grav_factor=1.0_dp
 
@@ -89,9 +114,6 @@ endif
 inletbc=2266.0_dp
 outletbc=666.7_dp
 ptrans=5.33_dp
-beta=1.0_dp
-Go_artery=6.67_dp
-Ptm_max=32.0_dp
 pleural_density=0.25_dp*0.1e-5_dp !kg/mm**3
 
 !!---------DESCRIPTION OF IMPORTANT PARAMETERS-----------
@@ -228,7 +250,7 @@ pleural_density=0.25_dp*0.1e-5_dp !kg/mm**3
       else
 !Update vessel radii based on predicted pressures and then update resistance through tree
         call calc_press_area(grav_type,grav_vect,KOUNT,depvar_at_node,prq_solution,&
-           mesh_dof,ptrans,beta,Go_artery,Ptm_max,pleural_density)
+           mesh_dof,ptrans,vessel_type,elasticity_parameters,pleural_density)
         call calculate_resistance(viscosity,density,gamma)
 
 !Put the ladder stuff here --> See solve11.f
@@ -843,27 +865,26 @@ subroutine calc_sparse_size(mesh_dof,depvar_at_elem,depvar_at_node,FIX,NonZeros,
 !*calc_press_area:* Calculates new radii based on pressure area relnships
 
 subroutine calc_press_area(grav_type,grav_vect,KOUNT,depvar_at_node,prq_solution,&
-    mesh_dof,ptrans,beta,Go_artery,Ptm_max,pleural_density)
+    mesh_dof,ptrans,vessel_type,elasticity_parameters,pleural_density)
 
     use indices
     use arrays,only: dp,num_nodes,num_elems,elem_field,elem_nodes,node_xyz
     use diagnostics, only: enter_exit
-
-    character, intent(in) :: grav_type
+    character(len=60), intent(in) :: grav_type
+    character(len=60), intent(in) :: vessel_type
     real(dp), intent(in) :: grav_vect(3)
     integer,intent(in) :: KOUNT,mesh_dof
     integer,intent(in) :: depvar_at_node(num_nodes,0:2,2)
     real(dp),intent(in) ::  prq_solution(mesh_dof,2)
-    real(dp),intent(in) :: ptrans,beta,Go_artery,Ptm_max,pleural_density
+    real(dp),intent(in) :: elasticity_parameters(3),ptrans,pleural_density
 
 !local variables
     integer :: nj,np,ne,ny,nn
-    real(dp) :: HEIGHT(3),G_PLEURAL,Ptm,R0,Pblood,Ppl
+    real(dp) :: h,HEIGHT(3),G_PLEURAL,Ptm,R0,Pblood,Ppl
 
     character(len=60) :: sub_name
     sub_name = 'calc_press_area'
     call enter_exit(sub_name,1)
-
     if(KOUNT.EQ.1)then !store initial, unstressed radius values
       do  ne=1,num_elems
         elem_field(ne_radius_in0,ne)=elem_field(ne_radius_in,ne)
@@ -882,21 +903,52 @@ subroutine calc_press_area(grav_type,grav_vect,KOUNT,depvar_at_node,prq_solution
           G_PLEURAL=G_PLEURAL+PLEURAL_DENSITY*grav_vect(nj)*9810.d0*HEIGHT(nj) !kg
        enddo
       endif
-      Ppl=(ptrans*98.07d0/1000.0d0)-G_PLEURAL !cmH2O->kPa
-      Pblood=prq_solution(ny,1)/1000.0d0 ! Pa->kPa
-      Ptm=Pblood+Ppl     ! kPa
+      Ppl=(ptrans*98.07d0)-G_PLEURAL !cmH2O->Pa
+      Pblood=prq_solution(ny,1)! Pa
+      Ptm=Pblood+Ppl     ! Pa
       R0=elem_field(ne_radius_in0,ne)
-    !...ARC: giving a maximum distension
-      if(Ptm.LT.Ptm_max.and.Go_artery.gt.0.0_dp)THEN
-        if(nn.eq.1) elem_field(ne_radius_in,ne)=R0*((Ptm/Go_artery)+1.d0)**(1.d0/beta)
-        if(nn.eq.2) elem_field(ne_radius_out,ne)=R0*((Ptm/Go_artery)+1.d0)**(1.d0/beta)
-      elseif(Ptm.lt.0.0_dp.or.Go_artery.eq.0.0_dp)THEN
-        if(Ptm.lt.0)write(*,*) 'Transmural pressure < zero',ne,Ptm,Pblood,Ppl
+      if(vessel_type.eq.'elastic_g0_beta')then
+        if(Ptm.LT.elasticity_parameters(3).and.elasticity_parameters(1).gt.0.0_dp)THEN
+          if(nn.eq.1) elem_field(ne_radius_in,ne)=R0*((Ptm/elasticity_parameters(1))+1.d0)**(1.d0/elasticity_parameters(2))
+          if(nn.eq.2) elem_field(ne_radius_out,ne)=R0*((Ptm/elasticity_parameters(1))+1.d0)**(1.d0/elasticity_parameters(2))
+        elseif(Ptm.lt.0.0_dp.or.elasticity_parameters(1).eq.0.0_dp)THEN
+          if(Ptm.lt.0)write(*,*) 'Transmural pressure < zero',ne,Ptm,Pblood,Ppl
+          if(nn.eq.1) elem_field(ne_radius_in,ne)=R0
+          if(nn.eq.2) elem_field(ne_radius_out,ne)=R0
+        else!ptm>ptmmax
+          if(nn.eq.1)then
+             elem_field(ne_radius_in,ne)=R0*((elasticity_parameters(3)/elasticity_parameters(1))+1.d0) &
+               **(1.d0/elasticity_parameters(2))
+          endif
+          if(nn.eq.2)then
+            elem_field(ne_radius_out,ne)=R0*((elasticity_parameters(3)/elasticity_parameters(1))+1.d0) &
+              **(1.d0/elasticity_parameters(2))
+          endif
+        endif
+      elseif(vessel_type.eq.'elastic_alpha')then
+         if(Ptm.LT.elasticity_parameters(2))THEN
+          if(nn.eq.1) elem_field(ne_radius_in,ne)=R0*((Ptm*elasticity_parameters(1))+1.d0)
+          if(nn.eq.2) elem_field(ne_radius_out,ne)=R0*((Ptm*elasticity_parameters(1))+1.d0)
+        elseif(Ptm.lt.0.0_dp)THEN
+          if(Ptm.lt.0)write(*,*) 'Transmural pressure < zero',ne,Ptm,Pblood,Ppl
+          if(nn.eq.1) elem_field(ne_radius_in,ne)=R0
+          if(nn.eq.2) elem_field(ne_radius_out,ne)=R0
+        else!ptm>ptmmax
+          if(nn.eq.1)then
+             elem_field(ne_radius_in,ne)=R0*((elasticity_parameters(2)/elasticity_parameters(1))+1.d0)
+          endif
+          if(nn.eq.2)then
+            elem_field(ne_radius_out,ne)=R0*((elasticity_parameters(2)/elasticity_parameters(1))+1.d0)
+          endif
+        endif
+      elseif(vessel_type.eq.'elastic_hooke')then
+        h=elasticity_parameters(2)*R0
+        if(nn.eq.1) elem_field(ne_radius_in,ne)=R0+3.0_dp*R0**2*Ptm/(4.0_dp*elasticity_parameters(1)*h)
+        if(nn.eq.2) elem_field(ne_radius_out,ne)=R0+3.0_dp*R0**2*Ptm/(4.0_dp*elasticity_parameters(1)*h)
+      else
+        print *, 'no vessel type defined, assuming rigid'
         if(nn.eq.1) elem_field(ne_radius_in,ne)=R0
         if(nn.eq.2) elem_field(ne_radius_out,ne)=R0
-      else!ptm>ptmmax
-        if(nn.eq.1) elem_field(ne_radius_in,ne)=R0*((Ptm_max/Go_artery)+1.d0)**(1.d0/beta)
-        if(nn.eq.2) elem_field(ne_radius_out,ne)=R0*((Ptm_max/Go_artery)+1.d0)**(1.d0/beta)
       endif
       enddo!nn
     enddo!ne
