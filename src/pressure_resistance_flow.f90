@@ -54,8 +54,7 @@ contains
     call enter_exit(sub_name,1)
 !!---------DESCRIPTION OF MODEL Types -----------
 !mesh_type: can be simple_tree, full_ladder, full_sheet, full_tube The first can be airways, arteries, veins but no special features at the terminal level, the last one has arteries and veins connected by capillary units of some type (lung ladder acinus, lung sheet capillary bed, capillaries are just tubes represented by an element)
-!
-!
+
 !vessel_type:
   !rigid, no elasticity, no parameters required
   !elastic_g0_beta, R=R0*((Ptm/G0)+1.d0)^(1.d0/elasticity_parameters(2)),with an optional maximum pressure beyond which the vessel radius is constant three parameters, g0, elasticity_parameters(2), elasticity_parameters(3)
@@ -66,8 +65,10 @@ contains
   !linear two parmeters, transpulmonary pressure (average) and pleural density (gradient)
   !mechanics, two parameters, pressure and stretch fields
 
+!bc_type:
+    !pressure (at inlet and outlets)
+    !flow (flow at inlet pressure at outlet).
 
-!bc_type: can be pressure (at inlet and outlets) or flow (flow at inlet pressure at outlet).
 mesh_type='simple_tree'
 vessel_type='elastic_g0_beta'
 mechanics_type='linear'
@@ -97,9 +98,8 @@ if (mechanics_type.eq.'linear') then
     mechanics_parameters(1)=5.33_dp*98.07_dp !average transpulmonary pressure (Pa)
     mechanics_parameters(2)=0.25_dp*0.1e-5_dp !pleural density, defines gradient in pleural pressure (kg/mm**3)
 else
-    print *, 'WARNING: Only linear mechanics models have been implemented to date,assuming default parameters'
-        mechanics_parameters(1)=5.33_dp*98.07_dp !average transpulmonary pressure (Pa)
-    mechanics_parameters(2)=0.25_dp*0.1e-5_dp !pleural density, defines gradient in pleural pressure (kg/mm**3)
+    print *, 'ERROR: Only linear mechanics models have been implemented to date,assuming default parameters'
+     call exit(0)
 endif
 
 grav_dirn=2
@@ -119,12 +119,18 @@ elseif (grav_dirn.eq.3) then
 elseif (grav_dirn.eq.-3) then
      grav_vect(3)=-1.0_dp
 else
-     print *,"Posture not recognised (nogravity, upright, inverted, prone, supine?)"
+     print *, "ERROR: Posture not recognised (currently only x=+-1,y=+-2,z=+-3) implemented)"
+     call exit(0)
 endif
 grav_vect=grav_vect*grav_factor
 
-inletbc=2266.0_dp
-outletbc=666.7_dp
+if(bc_type.eq.'pressure')then
+    inletbc=2266.0_dp
+    outletbc=666.7_dp
+elseif(bc_type.eq.'flow')then
+    print  *, "ERROR: Flow boundary conditions not yet implemented"
+     call exit(0)
+endif
 
 !!---------DESCRIPTION OF IMPORTANT PARAMETERS-----------
 !viscosity: fluid viscosity
