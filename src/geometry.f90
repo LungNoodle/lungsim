@@ -20,6 +20,7 @@ module geometry
   !Interfaces
   private
   public add_mesh
+  public add_matching_mesh
   public append_units
   public define_1d_elements
   public define_mesh_geometry_test
@@ -185,6 +186,31 @@ contains
     call enter_exit(sub_name,2)
 
   end subroutine add_mesh
+
+!
+!###################################################################################
+!
+!*add_matching_mesh:*
+  subroutine add_matching_mesh()
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADD_MATCHING_MESH" :: ADD_MATCHING_MESH
+    use arrays,only: dp,elems,elem_cnct,elem_direction,elem_field,&
+         elem_nodes,elem_ordrs,elem_symmetry,&
+         nodes,node_xyz,num_elems,&
+         num_nodes,num_units,units
+    use indices,only: ne_length,ne_radius,ne_a_A, ne_vol
+    use other_consts,only: PI
+    use diagnostics, only: enter_exit
+    implicit none
+    character(len=60) :: sub_name
+
+    sub_name = 'add_matching_mesh'
+    call enter_exit(sub_name,1)
+
+
+    call enter_exit(sub_name,2)
+
+  end subroutine add_matching_mesh
+
 !
 !###################################################################################
 !
