@@ -14,7 +14,8 @@ module exports
 
   private
   public export_1d_elem_geometry,export_node_geometry,export_node_field,&
-       export_elem_field,export_terminal_solution, export_1d_elem_field
+       export_elem_field,export_terminal_solution,export_terminal_perfusion,&
+       export_1d_elem_field
 
 contains
 !!!################################################################
@@ -214,7 +215,7 @@ contains
           !*** Write the field information
           VALUE_INDEX=1
           if(FIRST_NODE)THEN
-             write(10,'( '' #Fields=5'' )')
+             write(10,'( '' #Fields=3'' )')
              write(10,'('' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
              do nj=1,3
                 if(nj.eq.1) write(10,'(2X,''x.  '')',advance="no")
@@ -238,27 +239,30 @@ contains
              !write(10,'(2X,''1.  '')',advance="no")
              !write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
              VALUE_INDEX=VALUE_INDEX+1
+             write(10,'('' 3) pressure, field, rectangular cartesian, #Components=1'')')
+             write(10,'(2X,''1.  '')',advance="no")
+             write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
              !Compliance
-             write(10,'('' 5) compliance, field, rectangular cartesian, #Components=1'')')
-             write(10,'(2X,''1.  '')',advance="no")
-             write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
-             VALUE_INDEX=VALUE_INDEX+1
+             !write(10,'('' 5) compliance, field, rectangular cartesian, #Components=1'')')
+             !write(10,'(2X,''1.  '')',advance="no")
+             !write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
+             !VALUE_INDEX=VALUE_INDEX+1
              !Pleural pressure
-             write(10,'('' 6) pleural pressure, field, rectangular cartesian, #Components=1'')')
-             write(10,'(2X,''1.  '')',advance="no")
-             write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
-             VALUE_INDEX=VALUE_INDEX+1
+             !write(10,'('' 6) pleural pressure, field, rectangular cartesian, #Components=1'')')
+             !write(10,'(2X,''1.  '')',advance="no")
+             !write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
+             !VALUE_INDEX=VALUE_INDEX+1
              !Tidal volume
-             write(10,'('' 7) tidal volume, field, rectangular cartesian, #Components=1'')')
-             write(10,'(2X,''1.  '')',advance="no")
-             write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
+             !write(10,'('' 7) tidal volume, field, rectangular cartesian, #Components=1'')')
+             !write(10,'(2X,''1.  '')',advance="no")
+             !write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
           endif !FIRST_NODE
           !***      write the node
           write(10,'(1X,''Node: '',I12)') np
           do nj=1,3
              write(10,'(2X,4(1X,F12.6))') (node_xyz(nj,np))      !Coordinates
           enddo !njj2
-          write(10,'(2X,4(1X,F12.6))') (unit_field(nu_vent,NOLIST)) !Ventilation
+          !write(10,'(2X,4(1X,F12.6))') (unit_field(nu_vent,NOLIST)) !Ventilation
           !write(10,'(2X,4(1X,F12.6))') (unit_field(nu_vol,nolist))   !Volume (end expiration)
           !write(10,'(2X,4(1X,F12.6))') (unit_field(nu_press,nolist)) !Pressure
           write(10,'(2X,4(1X,F12.6))') (unit_field(nu_comp,nolist))  !Compliance (end exp)
@@ -271,6 +275,74 @@ contains
     close(10)
 
   end subroutine export_terminal_solution
+!!! ##########################################################
+  subroutine export_terminal_perfusion(EXNODEFILE, name)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_PERFUSION" :: EXPORT_TERMINAL_PERFUSION
+
+    use arrays,only: elem_nodes,&
+         node_xyz,num_units,units,unit_field
+    use indices
+    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
+    implicit none
+
+!!! Parameters
+    character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
+    character(len=MAX_STRING_LEN),intent(in) :: name
+
+!!! Local Variables
+    integer :: len_end,ne,nj,NOLIST,np,np_last,VALUE_INDEX
+    logical :: FIRST_NODE
+
+    len_end=len_trim(name)
+    if(num_units.GT.0) THEN
+       open(10, file=EXNODEFILE, status='replace')
+       !**     write the group name
+       write(10,'( '' Group name: '',A)') name(:len_end)
+       FIRST_NODE=.TRUE.
+       np_last=1
+       !*** Exporting Terminal Solution
+       do nolist=1,num_units
+          if(nolist.GT.1) np_last = np
+          ne=units(nolist)
+          np=elem_nodes(2,ne)
+          !*** Write the field information
+          VALUE_INDEX=1
+          if(FIRST_NODE)THEN
+             write(10,'( '' #Fields=3'' )')
+             write(10,'('' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
+             do nj=1,3
+                if(nj.eq.1) write(10,'(2X,''x.  '')',advance="no")
+                if(nj.eq.2) write(10,'(2X,''y.  '')',advance="no")
+                if(nj.eq.3) write(10,'(2X,''z.  '')',advance="no")
+                write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
+                VALUE_INDEX=VALUE_INDEX+1
+             enddo
+             !perfusion
+             write(10,'('' 2) flow, field, rectangular cartesian, #Components=1'')')
+             write(10,'(2X,''1.  '')',advance="no")
+             write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
+             !Pressure
+             VALUE_INDEX=VALUE_INDEX+1
+             write(10,'('' 3) pressure, field, rectangular cartesian, #Components=1'')')
+             write(10,'(2X,''1.  '')',advance="no")
+             write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="yes") VALUE_INDEX,0
+          endif !FIRST_NODE
+          !***      write the node
+          write(10,'(1X,''Node: '',I12)') np
+          do nj=1,3
+             write(10,'(2X,4(1X,F12.6))') (node_xyz(nj,np))      !Coordinates
+          enddo !njj2
+           write(10,'(2X,4(1X,F20.6))') (unit_field(nu_perf,NOLIST)) !flow
+           write(10,'(2X,4(1X,F12.6))') (unit_field(nu_blood_press,NOLIST)) !pressure
+          FIRST_NODE=.FALSE.
+          np_last=np
+       enddo !nolist (np)
+    endif !num_nodes
+    close(10)
+
+  end subroutine export_terminal_perfusion
+
+
 
 
 !!! #################################################################
