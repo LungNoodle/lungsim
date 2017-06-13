@@ -24,7 +24,8 @@ module indices
        ne_radius_out0
   ! indices for unit_field
   integer :: num_nu,nu_vol,nu_comp,nu_flow0,nu_flow1, &
-       nu_flow2,nu_dpdt,nu_pe,nu_vt,nu_press,nu_conc1,nu_vent
+       nu_flow2,nu_dpdt,nu_pe,nu_vt,nu_press,nu_conc1,nu_vent,&
+       nu_perf,nu_blood_press
 
 public num_ord,no_gen,no_hord,no_sord,&
       num_nj,nj_radius,nj_radius0,nj_press,nj_conc1,&
@@ -32,7 +33,8 @@ public num_ord,no_gen,no_hord,no_sord,&
       ne_resist,ne_t_resist,ne_flow,ne_flow0,ne_a_A,&
        ne_dvdt,ne_radius_in,ne_radius_in0,ne_radius_out,&
       ne_radius_out0,num_nu,nu_vol,nu_comp,nu_flow0,nu_flow1, &
-       nu_flow2,nu_dpdt,nu_pe,nu_vt,nu_press,nu_conc1,nu_vent
+       nu_flow2,nu_dpdt,nu_pe,nu_vt,nu_press,nu_conc1,nu_vent,&
+       nu_perf,nu_blood_press
 
 !Interfaces
 private
@@ -109,7 +111,10 @@ contains
     ne_flow=7
     ne_resist=8
     !ne_group=5!Groups vessels into arteries (field=0), capillaries (field=1) and veins(field=2)
-    !ne_vol=3, ne_resist=4,ne_t_resist=5,ne_flow=6,ne_flow0=7,ne_radius0=8
+    !indices for units
+    num_nu=2
+    nu_perf=1
+    nu_blood_press=2
 
      call enter_exit(sub_name,2)
   end subroutine perfusion_indices

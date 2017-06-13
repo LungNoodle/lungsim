@@ -287,6 +287,8 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 
 !need to write solution to element/nodal fields for export
     call map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof)
+    !NEED TO UPDATE TERMINAL SOLUTION HERE. LOOP THO' UNITS AND TAKE FLOW AND PRESSURE AT TERMINALS
+    call map_flow_to_terminals
 
     deallocate (mesh_from_depvar, STAT = AllocateStatus)
     deallocate (depvar_at_elem, STAT = AllocateStatus)
@@ -945,7 +947,7 @@ call enter_exit(sub_name,2)
 end subroutine calc_press_area
 !##############################################################################
 !
-!*map_solution_to_elem* maps the solution array to appropriate nodal and element fields
+!*map_solution_to_mesh* maps the solution array to appropriate nodal and element fields
 subroutine map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof)
     use indices
     use arrays,only: dp,num_nodes,num_elems,elem_field,node_field
@@ -973,6 +975,28 @@ subroutine map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_
 
     call enter_exit(sub_name,2)
 end subroutine map_solution_to_mesh
+
+!##############################################################################
+!
+!*map_flow_to_terminals* maps the solution array to appropriate nodal and element fields
+subroutine map_flow_to_terminals
+    use indices
+    use arrays,only: dp,num_nodes,num_elems,elem_field,node_field,num_units,units,unit_field,elem_nodes
+    use diagnostics, only: enter_exit
+    integer :: nu,ne,np
+    character(len=60) :: sub_name
+    sub_name = 'map_flow_to_terminals'
+    call enter_exit(sub_name,1)
+
+    do nu=1,num_units
+      ne=units(nu)
+      np=elem_nodes(2,ne)
+      unit_field(nu_perf,nu)=elem_field(ne_flow,ne)
+      unit_field(nu_blood_press,nu)=node_field(nj_press,np)
+    enddo
+
+    call enter_exit(sub_name,2)
+end subroutine map_flow_to_terminals
 
 end module pressure_resistance_flow
 
