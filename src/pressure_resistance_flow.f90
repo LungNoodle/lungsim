@@ -69,7 +69,7 @@ contains
     !pressure (at inlet and outlets)
     !flow (flow at inlet pressure at outlet).
 
-mesh_type='simple_tree'
+mesh_type='full_plus_ladder'
 vessel_type='elastic_g0_beta'
 mechanics_type='linear'
 bc_type='pressure'
@@ -164,12 +164,16 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 !! Define boundary conditions
     !first call to define inlet boundary conditions
     call boundary_conditions(ADD,FIX,bc_type,grav_vect,density,inletbc,outletbc,&
-      depvar_at_node,depvar_at_elem,prq_solution,mesh_dof)
+      depvar_at_node,depvar_at_elem,prq_solution,mesh_dof,mesh_type)
     !second call if simple tree need to define pressure bcs at all terminal branches
     if(mesh_type.eq.'simple_tree')then
         ADD=.TRUE.
         call boundary_conditions(ADD,FIX,bc_type,grav_vect,density,inletbc,outletbc,&
-            depvar_at_node,depvar_at_elem,prq_solution,mesh_dof)   
+            depvar_at_node,depvar_at_elem,prq_solution,mesh_dof,mesh_type)
+    elseif(mesh_type.eq.'full_plus_ladder')then
+        ADD=.TRUE.
+        call boundary_conditions(ADD,FIX,bc_type,grav_vect,density,inletbc,outletbc,&
+            depvar_at_node,depvar_at_elem,prq_solution,mesh_dof,mesh_type)
     endif
 
  
@@ -225,7 +229,6 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
         enddo
       endif!first or subsequent iteration
 !! ----CALL SOLVER----
-
       call pmgmres_ilu_cr(MatrixSize, NonZeros, SparseRow, SparseCol, SparseVal, &
          solver_solution, RHS, 500, 500,1.d-5,1.d-4,SOLVER_FLAG)
        if(SOLVER_FLAG == 0)then 
@@ -308,7 +311,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 !
 !*boundary_conditions:* Defines boundary conditions for prq problems
  subroutine boundary_conditions(ADD,FIX,bc_type,grav_vect,density,inletbc,outletbc,&
-       depvar_at_node,depvar_at_elem,prq_solution,mesh_dof)
+       depvar_at_node,depvar_at_elem,prq_solution,mesh_dof,mesh_type)
  use arrays,only: dp,num_elems,num_nodes,elem_nodes,elem_cnct,node_xyz,units,&
         num_units
     use diagnostics, only: enter_exit
@@ -319,7 +322,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     real(dp) :: prq_solution(mesh_dof,2),inletbc,outletbc,density,grav_vect(3)
     logical:: ADD
     logical :: FIX(mesh_dof)
-    character(len=60) ::bc_type
+    character(len=60) ::bc_type,mesh_type
  
   ! local variables
     integer :: nonode,np,ne,ny1,nj,np_in
@@ -352,22 +355,36 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
         endif
      enddo
   else !Add terminal pressure BC for all terminal branches
-     do nonode=1,num_units
-        np=elem_nodes(2,units(nonode)) !Second node in element = terminal node
-        ny1=depvar_at_node(np,1,1) !for fixed pressure BC
-        FIX(ny1)=.TRUE. !set fixed
+    if(mesh_type.eq.'simple_tree')then !NEED TO SET GRAVITY IN THIS CASE
+      do nonode=1,num_units
+         np=elem_nodes(2,units(nonode)) !Second node in element = terminal node
+         ny1=depvar_at_node(np,1,1) !for fixed pressure BC
+         FIX(ny1)=.TRUE. !set fixed
 !! NB// Add gravitational factor in here
-        if(np_in.eq.0) then
-           print *,"Warning --> np_in is not set yet, setting to first node as default"
-           np_in=1 !Setting to first node as default
-        endif
+         if(np_in.eq.0) then
+            print *,"Warning --> np_in is not set yet, setting to first node as default"
+            np_in=1 !Setting to first node as default
+         endif
          grav=0.d0
          do nj=1,3
             grav=grav+density*grav_vect(nj)*9810.d0*(node_xyz(nj,np_in)-node_xyz(nj,np))
          enddo
-        prq_solution(ny1,1)=outletbc-grav !Putting BC value into solution array       
-        !print *,"BC----",ny1,outletbc,grav,prq_solution(ny1,1)
-     enddo
+         prq_solution(ny1,1)=outletbc-grav !Putting BC value into solution array
+         !print *,"BC----",ny1,outletbc,grav,prq_solution(ny1,1)
+       enddo
+     else
+       do ne=1,num_elems
+        !ne=elems(noelem)
+        if (elem_cnct(1,0,ne) == 0) THEN !EXIT ELEMENT
+              np=elem_nodes(2,ne)
+              ny1=depvar_at_node(np,1,1) !for fixed pressure BC
+              FIX(ny1)=.TRUE. !set fixed
+              prq_solution(ny1,1)=outletbc !Putting BC value into solution array
+              np_in=np !inlet node set here, gravity reference to this point
+          endif
+        enddo
+
+     endif
   endif
     call enter_exit(sub_name,2)
   end subroutine boundary_conditions
@@ -845,7 +862,6 @@ subroutine calc_sparse_size(mesh_dof,depvar_at_elem,depvar_at_node,FIX,NonZeros,
   enddo 
     NonZeros=nzz-1
     MatrixSize=nzz_row-1
-
     call enter_exit(sub_name,2)
   end subroutine calc_sparse_size
 
