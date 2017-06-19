@@ -10,6 +10,7 @@ void export_1d_elem_geometry_c(const char *EXELEMFILE, int *EXELEMFILE_LEN, cons
 void export_node_field_c(int *nj_field, const char *EXNODEFIELD, int *EXNODEFIELD_LEN,
                          const char *name, int *name_len, const char *field_name, int *field_name_len);
 void export_terminal_solution_c(const char *EXNODEFILE, int *EXNODEFILE_LEN, const char *name, int *name_len);
+void export_terminal_perfusion_c(const char *EXNODEFILE, int *EXNODEFILE_LEN, const char *name, int *name_len);
 void export_node_geometry_c(const char *EXNODEFILE, int *EXNODEFILE_LEN, const char *name, int *name_len);
 void export_elem_field_c(const char *EXELEMFIELD, int *EXELEMFIELD_LEN,
                          const char *name, int *name_len, const char *field_name, int *field_name_len);
@@ -46,6 +47,14 @@ void export_terminal_solution(const char *EXNODEFILE, const char *name)
   int name_len = strlen(name);
 
   export_terminal_solution_c(EXNODEFILE, &filename_len, name, &name_len);
+}
+
+void export_terminal_perfusion(const char *EXNODEFILE, const char *name)
+{
+  int filename_len = strlen(EXNODEFILE);
+  int name_len = strlen(name);
+
+  export_terminal_perfusion_c(EXNODEFILE, &filename_len, name, &name_len);
 }
 
 void export_node_geometry(const char *EXNODEFILE, const char *name)

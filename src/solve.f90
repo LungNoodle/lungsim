@@ -72,13 +72,13 @@ subroutine BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,Solution,SparseCol,SparseRow
 
     !bnrm2=norm(RHS)
     bnrm2=sqrt(DOT_PRODUCT(RHS,RHS))!Checked against matlab
-    IF(bnrm2.eq.0.d0) bnrm2=1.d0
+    IF(bnrm2.eq.0.0_dp) bnrm2=1.0_dp
 
 
-    error_r=0.d0
+    error_r=0.0_dp
     !CALL ax_cr(MatrixSize,SparseRow,SparseCol,SparseVal,solution,Ax)
     DO i=1,MatrixSize !This loop depends on sparsity structure
-        Ax(i)=0.d0 !Initialise Ax for this entry
+        Ax(i)=0.0_dp !Initialise Ax for this entry
         kstart=SparseRow(i)
         kend=SparseRow(i+1)-1
         DO k=kstart,kend
@@ -96,24 +96,24 @@ subroutine BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,Solution,SparseCol,SparseRow
         FLAG=0
     RETURN
     ENDIF
-    alpha=0.d0
-    beta=0.d0
-    omega=1.d0
+    alpha=0.0_dp
+    beta=0.0_dp
+    omega=1.0_dp
 
 !!START OF ITERATIVE LOOP
      iterative_loop: DO Iter=1,MaxIter
         !rho is dot product of r and t tilde
         rho=DOT_PRODUCT(r,rtilde) !checked against matlab
-        IF(rho.EQ.0.d0) EXIT iterative_loop
-        IF(ITER.GT.1.d0)THEN
+        IF(rho.EQ.0.0_dp) EXIT iterative_loop
+        IF(ITER.GT.1.0_dp)THEN
             beta=(rho/rho_1)*(alpha/omega)
             p=r+beta*(p-omega*v)
             phat=PreConInv*p
-            v=0.d0*v
+            v=0.0_dp*v
         ELSE
             p=r
             phat=PreConInv*p
-            v=0.d0*p
+            v=0.0_dp*p
         ENDIF
 
 
@@ -142,7 +142,7 @@ subroutine BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,Solution,SparseCol,SparseRow
 
         !!Stabiliser shat=precon-1*s
         shat=PreConInv*s
-        t=0.d0*s
+        t=0.0_dp*s
         DO i=1,MatrixSize
             kstart=SparseRow(i)
             kend=SparseRow(i+1)-1
@@ -158,7 +158,7 @@ subroutine BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,Solution,SparseCol,SparseRow
         error_r=SQRT(DOT_PRODUCT(r,r))/bnrm2
 
         IF(error_r.LE.TOLER) EXIT iterative_loop
-        IF(omega.EQ.0.d0) EXIT iterative_loop
+        IF(omega.EQ.0.0_dp) EXIT iterative_loop
         rho_1=rho!
 
     ENDDO iterative_loop

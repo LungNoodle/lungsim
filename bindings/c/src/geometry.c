@@ -4,6 +4,7 @@
 #include "string.h"
 
 void add_mesh_c(const char *AIRWAY_MESHFILE, int *filename_len);
+void add_matching_mesh_c();
 void append_units_c();
 void define_1d_elements_c(const char *ELEMFILE, int *filename_len);
 void define_mesh_geometry_test_c();
@@ -21,6 +22,11 @@ void add_mesh(const char *AIRWAY_MESHFILE)
 {
   int filename_len = strlen(AIRWAY_MESHFILE);
   add_mesh_c(AIRWAY_MESHFILE, &filename_len);
+}
+
+void add_matching_mesh()
+{
+	add_matching_mesh_c();
 }
 
 void append_units()
