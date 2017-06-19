@@ -45,6 +45,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(LIB_SRCS
   src/arrays.f90
   src/diagnostics.f90
+  src/capillaryflow.f90
   src/exports.f90
   src/filenames.f90
   src/gasmix.f90
