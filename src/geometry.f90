@@ -215,7 +215,7 @@ contains
     call enter_exit(sub_name,1)
     !Ultimately offset should be an input argument
     offset(1)=0.0_dp
-    offset(2)=1.0_dp
+    offset(2)=1e-6_dp
     offset(3)=0.0_dp
 
 
@@ -233,7 +233,7 @@ contains
         call exit(0)
     endif
     call reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
-
+    noelem0=0
     ne0 = num_elems ! the starting local element number
     ne_global = elems(ne0) ! assumes this is the highest element number (!!!)
     np0 = num_nodes ! the starting local node number
@@ -330,7 +330,7 @@ contains
          elem_ordrs(nindex,ne1)=elem_ordrs(nindex,ne_m)
          nindex=no_hord
          elem_ordrs(nindex,ne1)=elem_ordrs(nindex,ne_m)
-         elem_field(ne_group,ne_m)=0.0_dp!connection between meshes
+         elem_field(ne_group,ne1)=1.0_dp!connection between meshes
        enddo
         print *, 'Number of connections', cap_term
      endif
