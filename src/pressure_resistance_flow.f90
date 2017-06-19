@@ -117,7 +117,7 @@ elseif (grav_dirn.eq.2) then
 elseif (grav_dirn.eq.3) then
     grav_vect(3)=1.0_dp
 else
-     print *, "ERROR: Posture not recognised (currently only x=+-1,y=+-2,z=+-3) implemented)"
+     print *, "ERROR: Posture not recognised (currently only x=1,y=2,z=3))"
      call exit(0)
 endif
 grav_vect=grav_vect*grav_factor
