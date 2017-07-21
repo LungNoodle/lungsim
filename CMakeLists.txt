@@ -47,48 +47,8 @@ mark_as_advanced(AETHER_INSTALL_PREFIX)
 # defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# The list of all source files that are required to build the library
-set(LIB_SRCS
-  src/arrays.f90
-  src/diagnostics.f90
-  src/exports.f90
-  src/filenames.f90
-  src/gasmix.f90
-  src/geometry.f90
-  src/indices.f90
-  src/math_utilities.f90
-  src/other_consts.f90
-  src/pressure_resistance_flow.f90
-  src/solve.f90
-  src/ventilation.f90
-)
-
-# Create an object library so we can use the objects in two different libraries
-add_library(aether_obj OBJECT ${LIB_SRCS})
-set_target_properties(aether_obj PROPERTIES
-  Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules"
-  POSITION_INDEPENDENT_CODE TRUE)
-
-if (MSVC)
-  # Visual Studio requires a dummy file as it will not build a library from only objects.
-  set(dummy_file "${CMAKE_CURRENT_BINARY_DIR}/dummy.f90")
-  file(WRITE ${dummy_file} "module dummy
-implicit none
-contains
-end module dummy\n")
-endif ()
-
-# Create the aether fortran library
-add_library(aether $<TARGET_OBJECTS:aether_obj> ${dummy_file})
-
-set_target_properties(aether PROPERTIES
-  Fortran_VISIBILITY_PRESET hidden
-  C_VISIBILITY_PRESET hidden
-  VISIBILITY_INLINES_HIDDEN 1)
-
-if(AETHER_BUILD_BINDINGS)
-  add_subdirectory(bindings)
-endif()
+# All the source files for the library and bindings are located under this directory.
+add_subdirectory(src)
 
 set(ADDITIONAL_GENERATED_FILES)
 if(SPHINX_FOUND)
