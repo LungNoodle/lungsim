@@ -73,15 +73,8 @@ foreach(SWIG_INTERFACE ${INTERFACE_SRCS})
   endif()
 endforeach()
 
-# Copy over setup.py
-add_custom_command(
-  OUTPUT ${PYTHON_SETUP_PY_FILE_DIR}/setup.py
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/setup.py ${PYTHON_SETUP_PY_FILE_DIR}/setup.py
-  MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/setup.py)  
-
-set_property(SOURCE ../interface/arrays.i APPEND PROPERTY OBJECT_DEPENDS ${PYTHON_SETUP_PY_FILE_DIR}/setup.py)
 # Alternative option is to configure the setup.py file to the appropriate location.
-#configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py 
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py ${PYTHON_SETUP_PY_FILE_DIR}/setup.py @ONLY)
 
 add_custom_target(pybindings ALL)
 add_dependencies(pybindings ${MODULE_TARGETS})

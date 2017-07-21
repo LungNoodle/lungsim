@@ -25,7 +25,7 @@ doclines = __doc__#.split("\n")
 
 setup(
 	name='aether',
-	version='0.1.0',
+        version='@Aether_VERSION@',
 	author='Lung Group, Auckland Bioengineering Institute.',
 	author_email='h.sorby@auckland.ac.nz',
 	packages=['aether'],
