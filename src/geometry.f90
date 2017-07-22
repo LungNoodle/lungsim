@@ -20,6 +20,7 @@ module geometry
   !Interfaces
   private
   public add_mesh
+  public add_matching_mesh
   public append_units
   public define_1d_elements
   public define_mesh_geometry_test
@@ -185,6 +186,161 @@ contains
     call enter_exit(sub_name,2)
 
   end subroutine add_mesh
+
+!
+!###################################################################################
+!
+!*add_matching_mesh:*
+  subroutine add_matching_mesh()
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADD_MATCHING_MESH" :: ADD_MATCHING_MESH
+    use arrays,only: dp,elems,elem_cnct,elem_direction,elem_field,&
+         elem_nodes,elem_ordrs,elem_symmetry,elems_at_node,&
+         nodes,node_xyz,num_elems,&
+         num_nodes,num_units,units
+    use indices
+    use other_consts,only: PI
+    use diagnostics, only: enter_exit
+    implicit none
+    !Parameters to become inputs
+    real(dp) :: offset(3)
+    logical :: REVERSE=.TRUE.
+    character(len=60) :: mesh_type='terminal'
+    !local variables
+    integer :: num_nodes_new,num_elems_new,ne,ne_global,np,np_global,np0,nonode,np_m
+    integer :: nj,ne_m,noelem,ne0,n,nindex,ne1,noelem0,nu,cap_conns,cap_term,np1,np2
+    integer, allocatable :: np_map(:)
+    character(len=60) :: sub_name
+
+    sub_name = 'add_matching_mesh'
+    call enter_exit(sub_name,1)
+    !Ultimately offset should be an input argument
+    offset(1)=0.0_dp
+    offset(2)=1e-6_dp
+    offset(3)=0.0_dp
+
+
+    allocate(np_map(num_nodes))
+!!! increase the size of node and element arrays to accommodate the additional elements
+    ! the number of nodes after adding mesh will be:
+    num_nodes_new = 2*num_nodes
+    ! the number of elems after adding mesh will be:
+    if(mesh_type.eq.'basic')then
+      num_elems_new = 2*num_elems
+    elseif(mesh_type.eq.'terminal')then
+      num_elems_new = 2*num_elems + num_units
+    elseif(mesh_type.eq.'ladder')then
+        print *, "NOT YET IMPLEMENTED"
+        call exit(0)
+    endif
+    call reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
+    noelem0=0
+    ne0 = num_elems ! the starting local element number
+    ne_global = elems(ne0) ! assumes this is the highest element number (!!!)
+    np0 = num_nodes ! the starting local node number
+    np_global = nodes(np0) ! assumes this is the highest node number (!!!)
+
+    do nonode=1,num_nodes
+       np=np_global+nonode
+       np_m=nodes(nonode)
+       np_map(np_m)=np !maps new to old node numbering
+       nodes(np0+nonode)=np
+       do nj=1,3
+         node_xyz(nj,np)=node_xyz(nj,np_m)+offset(nj)
+       enddo
+       elems_at_node(np,0)=0 !initialise
+     !Doesnt map versions, would be added here
+    enddo
+
+    do noelem=1,num_elems
+        ne=ne_global+noelem
+        elem_field(ne_group,ne)=2.0_dp!VEIN
+        ne_m=elems(noelem)
+        elem_field(ne_group,ne_m)=0.0_dp!ARTERY
+        elems(ne0+noelem)=ne
+        if(.NOT.REVERSE)then
+          elem_nodes(1,ne)=np_map(elem_nodes(1,ne_m))
+          elem_nodes(2,ne)=np_map(elem_nodes(2,ne_m))
+          elem_cnct(1,0,ne)=elem_cnct(1,0,ne_m)
+          elem_cnct(-1,0,ne)=elem_cnct(-1,0,ne_m)
+          do n=1,elem_cnct(1,0,ne)
+            elem_cnct(1,n,ne)=elem_cnct(1,n,ne_m)+ne0
+          enddo
+          do n=1,elem_cnct(-1,0,ne)
+            elem_cnct(-1,n,ne)=elem_cnct(-1,n,ne_m)+ne0
+          enddo
+        else
+          elem_nodes(1,ne)=np_map(elem_nodes(2,ne_m))
+          elem_nodes(2,ne)=np_map(elem_nodes(1,ne_m))
+          elem_cnct(-1,0,ne)=elem_cnct(1,0,ne_m)
+          elem_cnct(1,0,ne)=elem_cnct(-1,0,ne_m)
+          do n=1,elem_cnct(1,0,ne)
+            elem_cnct(-1,n,ne)=elem_cnct(1,n,ne_m)+ne0
+          enddo
+          do n=1,elem_cnct(-1,0,ne)
+            elem_cnct(1,n,ne)=elem_cnct(-1,n,ne_m)+ne0
+          enddo
+        endif
+        !if worrying about regions and versions do it here
+        elems_at_node(elem_nodes(1,ne),0)=elems_at_node(elem_nodes(1,ne),0)+1
+        elems_at_node(elem_nodes(1,ne),elems_at_node(elem_nodes(1,ne),0))=ne
+        elems_at_node(elem_nodes(2,ne),0)=elems_at_node(elem_nodes(2,ne),0)+1
+        elems_at_node(elem_nodes(2,ne),elems_at_node(elem_nodes(2,ne),0))=ne
+        nindex=no_gen
+        elem_ordrs(nindex,ne)=elem_ordrs(nindex,ne_m)
+        nindex=no_sord
+        elem_ordrs(nindex,ne)=elem_ordrs(nindex,ne_m)
+        nindex=no_hord
+        elem_ordrs(nindex,ne)=elem_ordrs(nindex,ne_m)
+      enddo
+
+     !update current no of nodes and elements to determine connectivity
+     np0=np !current highest node
+     ne1=ne !current highest element
+     noelem0=num_elems+noelem0
+     if(mesh_type.eq.'ladder')then
+        !To be implemented
+     elseif(mesh_type.eq.'terminal')then
+       cap_conns=0
+       cap_term=0
+       do nu=1,num_units
+         ne=units(nu)
+         cap_term=cap_term+1
+         np1=elem_nodes(2,ne)
+         np2=np_map(np1)
+         noelem0=noelem0+1
+         ne1=ne1+1
+         elems(noelem0)=ne1
+         elem_nodes(1,ne1)=np1
+         elem_nodes(2,ne1)=np2
+         elems_at_node(np1,0)=elems_at_node(np1,0)+1
+         elems_at_node(np1,elems_at_node(np1,0))=ne1
+         elems_at_node(np2,0)=elems_at_node(np2,0)+1
+         elems_at_node(np2,elems_at_node(np2,0))=ne1
+         elem_cnct(1,elem_cnct(1,0,ne)+1,ne)=ne1
+         elem_cnct(1,0,ne)=elem_cnct(1,0,ne)+1
+         elem_cnct(-1,elem_cnct(-1,0,ne+ne_global)+1,ne+ne_global)=ne1
+         elem_cnct(-1,0,ne+ne_global)=elem_cnct(-1,0,ne+ne_global)+1
+         elem_cnct(-1,0,ne1)=1
+         elem_cnct(1,0,ne1)=1
+         elem_cnct(-1,1,ne1)=ne
+         elem_cnct(1,1,ne1)=ne+ne0
+         nindex=no_gen
+         elem_ordrs(nindex,ne1)=elem_ordrs(nindex,ne_m)
+         nindex=no_sord
+         elem_ordrs(nindex,ne1)=elem_ordrs(nindex,ne_m)
+         nindex=no_hord
+         elem_ordrs(nindex,ne1)=elem_ordrs(nindex,ne_m)
+         elem_field(ne_group,ne1)=1.0_dp!connection between meshes
+       enddo
+        print *, 'Number of connections', cap_term
+     endif
+    num_nodes=num_nodes_new
+    num_elems=num_elems_new
+    deallocate(np_map)
+    call enter_exit(sub_name,2)
+
+  end subroutine add_matching_mesh
+
 !
 !###################################################################################
 !
@@ -786,9 +942,10 @@ contains
        ne_min=1
        ne_max=num_elems
     elseif(group_type.eq.'efield')then
-
+    elseif(group_type.eq.'list')then
+      read (START_FROM,'(I10)') ne_min
+      read (group_option_in,'(I10)') ne_max
     endif
-
     !Define start element
     if(START_FROM.eq.'inlet')then
       inlet_count=0
@@ -816,7 +973,7 @@ contains
     n_max_ord=elem_ordrs(nindex,ne)
     elem_field(ne_radius,ne)=START_RAD
 
-    do ne=1,num_elems
+    do ne=ne_min,ne_max
      radius=10.0_dp**(log10(CONTROL_PARAM)*dble(elem_ordrs(nindex,ne)-n_max_ord)&
         +log10(START_RAD))
      elem_field(ne_radius,ne)=radius
