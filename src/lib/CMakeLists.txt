@@ -15,10 +15,12 @@ set(LIB_SRCS
   ventilation.f90
 )
 
+set(AETHER_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules")
+
 # Create an object library so we can use the objects in two different libraries
 add_library(aether_obj OBJECT ${LIB_SRCS})
 set_target_properties(aether_obj PROPERTIES
-  Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules"
+  Fortran_MODULE_DIRECTORY "${AETHER_MODULE_DIRECTORY}"
   POSITION_INDEPENDENT_CODE TRUE)
 
 if (MSVC)
@@ -37,4 +39,6 @@ set_target_properties(aether PROPERTIES
   Fortran_VISIBILITY_PRESET hidden
   C_VISIBILITY_PRESET hidden
   VISIBILITY_INLINES_HIDDEN 1)
+
+target_include_directories(aether PUBLIC "${AETHER_MODULE_DIRECTORY}")
 

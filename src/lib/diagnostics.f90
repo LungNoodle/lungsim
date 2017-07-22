@@ -15,7 +15,7 @@ module diagnostics
   logical :: diagnostics_on
 
   private
-  public enter_exit, set_diagnostics_on
+  public enter_exit, get_diagnostics_on, set_diagnostics_on
 
 contains
 
@@ -48,5 +48,14 @@ contains
     diagnostics_on = state
 
   end subroutine set_diagnostics_on
+
+  subroutine get_diagnostics_on(state)
+    implicit none
+
+    logical :: state
+
+    state = diagnostics_on
+
+  end subroutine get_diagnostics_on
 
 end module diagnostics
