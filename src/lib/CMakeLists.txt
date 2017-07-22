@@ -2,6 +2,7 @@
 # The list of all source files that are required to build the library
 set(LIB_SRCS
   arrays.f90
+  capillaryflow.f90
   diagnostics.f90
   exports.f90
   filenames.f90
