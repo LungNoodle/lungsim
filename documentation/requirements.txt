@@ -1,2 +1,2 @@
 sphinx-fortran
-
+numpy

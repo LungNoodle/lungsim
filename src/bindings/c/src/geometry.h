@@ -5,6 +5,7 @@
 #include "symbol_export.h"
 
 SHO_PUBLIC void add_mesh(const char *AIRWAY_MESHFILE);
+SHO_PUBLIC void add_matching_mesh();
 SHO_PUBLIC void append_units();
 SHO_PUBLIC void define_1d_elements(const char *ELEMFILE);
 SHO_PUBLIC void define_mesh_geometry_test();

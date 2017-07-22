@@ -29,6 +29,22 @@ contains
 !
 !###################################################################################
 !
+!*add_matching_mesh:* Replicates an existing mesh, continuing node and element numbers
+  subroutine add_matching_mesh_c() bind(C, name="add_matching_mesh_c")
+    use geometry, only: add_matching_mesh
+    implicit none
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_add_matching_mesh
+#else
+    call add_matching_mesh
+#endif
+
+  end subroutine add_matching_mesh_c
+
+!
+!###################################################################################
+!
 !*append_units:* Appends terminal units at the end of a tree structure
   subroutine append_units_c() bind(C, name="append_units_c")
     use geometry, only: append_units
