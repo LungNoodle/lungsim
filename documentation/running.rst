@@ -53,9 +53,9 @@ With an active python virtual environment change directory into the lungsim buil
 
   cd /path/to/lungsim-build/
   
-From this directory change into the *bindings/python* directory::
+From this directory change into the *src/bindings/python* directory::
 
-  cd bindings/python
+  cd src/bindings/python
   
 in this directory a python file named *setup.py* should exist.  To make the aether library available via the active virtual environment execute the following command::
 
