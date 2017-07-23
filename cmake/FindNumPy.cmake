@@ -25,8 +25,8 @@ if (PYTHON_EXECUTABLE)
     OUTPUT_VARIABLE NUMPY_PATH)
     unset (NUMPY_LIBRARIES)
 
-  execute_process(COMMAND "${PYTHON_EXECUTABLE}" "-c"
-    "import sys, site; map(lambda x: sys.stdout.write('%s\\n' % x), site.getsitepackages())"
+  execute_process(COMMAND "${PYTHON_EXECUTABLE}"
+    "${CMAKE_CURRENT_LIST_DIR}/sitepackagelocations.py"
     RESULT_VARIABLE _PYTHON_SUCCESS
     OUTPUT_VARIABLE _PYTHON_SITE_PACKAGES
     ERROR_VARIABLE _PYTHON_ERROR_VALUE
@@ -38,6 +38,7 @@ if (PYTHON_EXECUTABLE)
     foreach(d ${_PYTHON_SITE_PACKAGES})
       list(APPEND _NUMPY_LIB_PATHS "${d}/numpy/core")
     endforeach()
+
     find_library (NUMPY_NPYMATH_LIBRARY npymath
       HINTS ${_NUMPY_LIB_PATHS}
       PATH_SUFFIXES lib)

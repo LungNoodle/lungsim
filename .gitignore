@@ -29,6 +29,11 @@
 
 # OS X
 .DS_Store
+
+# Qt Creator
+CMakeLists.txt.user
+
+# Eclipse
 .project
 
 # Qt Creator
