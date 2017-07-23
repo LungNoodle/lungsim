@@ -13,6 +13,7 @@ set(LIB_SRCS
   other_consts.f90
   pressure_resistance_flow.f90
   solve.f90
+  tree_wave_propagation.f90
   ventilation.f90
 )
 
