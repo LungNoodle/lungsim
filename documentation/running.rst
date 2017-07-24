@@ -8,9 +8,9 @@ The pulmonary simulation library, as it's name suggests, is a library and as suc
 Making Use of Virtual Environments
 ==================================
 
-Possibly the best way to make use of the Aether library is through the python bindings made available through virtual environments.  This allows a correspondance of library configuration to virtual environment that can be easily moved between.
+Possibly the best way to make use of the Aether library is through the python bindings made available through virtual environments.  This allows a correspondance of library configuration to virtual environment that can be easily moved between i.e. for each build configuration Debug, Release we create a corresponding virtual environment.
 
-Follow these steps for creating a python virtual environment from which the aether library will be available.
+Follow these steps for creating a Python virtual environment from which the Aether library will be available.
 
 Create a home for all virtual environments
 ------------------------------------------
