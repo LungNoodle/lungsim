@@ -1,0 +1,16 @@
+@test
+subroutine testSetDiagnostics()
+   use pfunit_mod
+   use diagnostics, only: get_diagnostics_on, set_diagnostics_on
+   implicit none
+
+   logical :: state
+
+   call get_diagnostics_on(state)
+   @assertFalse(state)
+   call set_diagnostics_on(.true.)
+   call get_diagnostics_on(state)
+   @assertTrue(state)
+
+end subroutine testSetDiagnostics
+

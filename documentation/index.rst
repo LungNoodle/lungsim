@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    building
+   testing
    running
    modules
    fortranstyles
