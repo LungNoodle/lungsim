@@ -9,23 +9,23 @@ First using the correct fortran style, begin to write your module:
 
    fortranstyles 
 
-First we need to include it as a module for cmake. In your lungsim root directory, open CMakeLists.txt and insert the module into your list of source files by adding the following line in the appropriate place:
+First we need to include it as a module for CMake. From your lungsim root directory, open CMakeLists.txt in the ./src/lib directory and insert the module into your list of source files by adding the following line in the appropriate place (source files are listed in alphabetical order, CMake will sort out the compilation order):
 
-*/src/module_name.f90*
+*module_name.f90*
 
 Now we need to set up bindings. Create the following files, and fill in their contents appropriately (instructions to come in future)
 
-./bindings/c/src/module_name.c
+./src/bindings/c/src/module_name.c
 
-./bindings/c/src/module_name.f90
+./src/bindings/c/src/module_name.f90
 
-./bindings/c/src/module_name.h
+./src/bindings/c/src/module_name.h
 
-./bindings/interface/module_name.i
+./src/bindings/interface/module_name.i
 
 and add interface sources named after your module in:
 
-./bindings/python/CMakeLists.txt
+./src/bindings/python/CMakeLists.txt
 
 
 
