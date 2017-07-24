@@ -36,5 +36,6 @@ CMakeLists.txt.user
 # Eclipse
 .project
 
-#Qt Creator
+# Qt Creator
 CMakeLists.txt.user
+

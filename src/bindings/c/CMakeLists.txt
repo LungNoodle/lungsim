@@ -10,6 +10,7 @@ set(C_FORTRAN_LIB_SRCS
     src/geometry.f90
     src/indices.f90
     src/pressure_resistance_flow.f90
+    src/tree_wave_propagation.f90
     src/utils.f90
     src/ventilation.f90
 )
@@ -22,6 +23,7 @@ set(C_C_LIB_SRCS
     src/geometry.c
     src/indices.c
     src/pressure_resistance_flow.c
+    src/tree_wave_propagation.c
     src/utils.c
     src/ventilation.c
 )
@@ -36,6 +38,7 @@ set(C_LIB_HDRS
   src/geometry.h
   src/indices.h
   src/pressure_resistance_flow.h
+  src/tree_wave_propagation.h
   src/utils.h
   src/ventilation.h
 )
