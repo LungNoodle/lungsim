@@ -1,15 +1,14 @@
 
 =================
-Wrapping a Module
+Wrapping a module
 =================
 
 When we want to make modules or functions/subroutines available from Python we cannot use the Fortran code directly, we need to wrap it in some way.  Because it is not a straightforward task to wrap the Aether library, which is written in Fortran, directly into Python we use a tool called Simplified Wrapping and Interface Generator (SWIG).  SWIG performs a lot of the work transforming Python data structures; integers, floats, strings, etc.. into C or C++ for us.  However since Aether is written in Fortran we still have a bit of work to do, namely making the Fortran code available from C.  It is then our task to wrap the Aether library into a C interface and set up SWIG to complete the process.
 
 This documentation describes how we create C bindings to the Fortran code and then how to get SWIG to wrap the code into Python.
 
-----------
-C Bindings
-----------
+C bindings
+==========
 
 There are three files associated with a single module in the Aether library that are required for making the C bindings.  These files are:
 
@@ -21,8 +20,8 @@ The C header file is used by SWIG to generate the wrapped functions.  The C impl
 
 If we are adding a new module follow the instructions in :doc:`adding_modules` and then return here to implement the wrapping.
 
-C Header File
-=============
+C header file
+-------------
 
 The C header file contains the definitions of all the functions that are public from the current module.  The less functions made public the better, once a function is public and other developers or users have started using it changes to the function will break their code.  Keep this in mind when determining whether a function should be available in Python or not.
 
@@ -77,7 +76,7 @@ character  char *
 
 Keep this table in mind when working out which data type best matches your arguments when creating C bindings for you own functions.
 
-C Implementation File
+C implementation file
 =====================
 
 The C implemention file is where we start to handover to the Fortran language. The first task in creating a C implementation file is to include the associated header file for our example module *module_name* we would include the header file at the very top of the file like so::
@@ -116,8 +115,8 @@ In *set_diagnostics_on* we simply pass the argument *state* by reference to the 
 
 The standard we are using for adding the length of string argument is to add it directly after the string argument in the function argument list.  It then follows that if we have more than one string argument or mixed string and value arguments then the string argument is always followed by it's length argument. 
 
-Fortran Implementation File
-===========================
+Fortran implementation file
+---------------------------
 
 The Fortran implmentation file is where the majority of the work is done.  We have to tell compilers what to bind the Fortran function name to so the C compiler can locate the function when linking.  We also have to implment the conversion from C char pointers to Fortran character arrays.
 
@@ -195,9 +194,8 @@ We can also see that there is a conditional preprocessor statement that triggers
 
 The last thing we need to consider is the way that C string is dealt with in *add_mesh_c*.  We have to be careful when converting from C to Fortran but we can make use of the *strncpy* utility to make life easier.  In this situation we can just copy from the example we will accept that it works.
 
---------------
-SWIG Interface
---------------
+SWIG interface
+==============
 
 When creating a new module we need to create an interface file so that SWIG creates a corresponding module in the target language.  The interface file is typically very simple but we can add some directives in this file to help map from C to the target language and vice versa.  In the simplest case we just describe the interface using the C header file.  For our example module *module_name* the interface file looks like the following::
 
