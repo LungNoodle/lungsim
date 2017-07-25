@@ -33,6 +33,7 @@ from __future__ import with_statement
 
 ##### system code #####
 
+import sys
 # python2 - Deprecated in python 2.7+
 import imp
 try:
@@ -67,6 +68,7 @@ parser = argparse.ArgumentParser( \
                                   usage='%(prog) --maxRank MaximumRankOfArrays' \
                                   )
 parser.add_argument('--maxRank', help='The maximum rank of the arrays for which to generate code.')
+parser.add_argument('--quiet', help='Suppress printing to stdout.')
 args = parser.parse_args()
 
                                   
@@ -1570,7 +1572,10 @@ def filePreamble(filename):
 
 """
 
-def addFileToMakefile(fileName,includeFile="generated.inc"):
+def addFileToMakefile(fileName,includeFile="generated.inc", quiet=False):
+    if not quiet:
+        sys.stdout.write('{0}\n'.format(fileName))
+
     with open(includeFile,'a') as f:
         f.write('GENERATED_CODE += ' + fileName + '\n')
     return
@@ -1592,7 +1597,7 @@ relationalOperatorShortNames=["NotEqual",\
                             "LessThan",\
                             "LessThanOrEqual",\
                             "RelativelyEqual"]
-def makeModuleReal(maxRank=5):
+def makeModuleReal(maxRank=5, quiet=False):
     assertionShortNames=relationalOperatorShortNames
 #    assertionShortNames=["NotEqual",\
 #                        "Equal",\
@@ -1609,13 +1614,13 @@ def makeModuleReal(maxRank=5):
         with open(mod.getFileName(),'w') as f:
             f.write(filePreamble(mod.getFileName()))
             f.write('\n'.join(mod.generate()))
-        addFileToMakefile(mod.getFileName())
+        addFileToMakefile(mod.getFileName(), quiet=quiet)
         for iName in assertionShortNames : 
             addModToF90Include(mod.getName(),postFix=", only : " + 'Assert'+iName)
-    print('makeModuleReal: done')
+    #print('makeModuleReal: done')
     return
 
-def makeModuleComplex(maxRank=5):
+def makeModuleComplex(maxRank=5, quiet=False):
     assertionShortNames=['NotEqual','Equal','RelativelyEqual']
     for iRank in range(0,maxRank+1):
         foundRanks = [iRank]
@@ -1627,13 +1632,13 @@ def makeModuleComplex(maxRank=5):
         with open(mod.getFileName(),'w') as f:
             f.write(filePreamble(mod.getFileName()))
             f.write('\n'.join(mod.generate()))
-        addFileToMakefile(mod.getFileName())
+        addFileToMakefile(mod.getFileName(), quiet=quiet)
         for iName in assertionShortNames : 
            addModToF90Include(mod.getName(),postFix=", only : " + 'assert'+iName)
-    print('makeModuleComplex: done')
+    #print('makeModuleComplex: done')
     return
 
-def makeModuleInteger(maxRank=5):
+def makeModuleInteger(maxRank=5, quiet=False):
     # assertionShortNames=['Equal']
     assertionShortNames=\
         ["NotEqual",\
@@ -1652,11 +1657,11 @@ def makeModuleInteger(maxRank=5):
         with open(mod.getFileName(),'w') as f:
             f.write(filePreamble(mod.getFileName()))
             f.write('\n'.join(mod.generate()))
-        addFileToMakefile(mod.getFileName())
+        addFileToMakefile(mod.getFileName(), quiet=quiet)
 # Not ready to add integers to AssertArrays...
         for iName in assertionShortNames : 
            addModToF90Include(mod.getName(),postFix=", only : " + 'assert'+iName)       
-    print('makeModuleInteger: done')
+    #print('makeModuleInteger: done')
     return
 
 # def makeModuleLogical():
@@ -1667,55 +1672,55 @@ def makeModuleInteger(maxRank=5):
 #     print('makeModuleInteger: done')
 #     return
 
-def makeSupportModule(assertionShortNames=[],maxRank=5):
+def makeSupportModule(assertionShortNames=[],maxRank=5, quiet=False):
 #        print ('1000: aSN: ',assertionShortNames)
         mod = constructSupportModule(assertionShortNames=assertionShortNames,maxRank=maxRank)
         with open(mod.getFileName(),'w') as f:
             f.write(filePreamble(mod.getFileName()))
             f.write('\n'.join(mod.generate()))
-        addFileToMakefile(mod.getFileName())
+        addFileToMakefile(mod.getFileName(), quiet=quiet)
 #        for iName in assertionShortNames : 
 #           addModToF90Include(mod.getName(),postFix=", only : " + 'assert'+iName)
-        print('makeSupportModule: done')
+        #print('makeSupportModule: done')
         return
 
-def makeInternalModule(assertionShortNames=[],maxRank=5):
+def makeInternalModule(assertionShortNames=[],maxRank=5, quiet=False):
         for iAssertion in assertionShortNames :
                 mod = constructInternalModule(assertionShortName=iAssertion,maxRank=maxRank)
                 with open(mod.getFileName(),'w') as f:
                     f.write(filePreamble(mod.getFileName()))
                     f.write('\n'.join(mod.generate()))
-                addFileToMakefile(mod.getFileName())
+                addFileToMakefile(mod.getFileName(), quiet=quiet)
 #???                
 #                Do I need to addModToF90Include?
 
 #????
 #        for iName in assertionShortNames : 
 #           addModToF90Include(mod.getName(),postFix=", only : " + 'assert'+iName)
-        print('makeInternalModule: done')
+        #print('makeInternalModule: done')
         return
 
     
-def main(maxRank=5):
+def main(maxRank=5, quiet=False):
     # Make the modules for the different types...
     #
     makeGeneratedInclude(includeFile="generated.inc")
     #++
-    makeModuleReal(maxRank=maxRank)
+    makeModuleReal(maxRank=maxRank, quiet=quiet)
     #++
-    makeModuleComplex(maxRank=maxRank)
+    makeModuleComplex(maxRank=maxRank, quiet=quiet)
     #? The following requires testing.
-    makeModuleInteger(maxRank=maxRank)
+    makeModuleInteger(maxRank=maxRank, quiet=quiet)
     #? Just started...
     #- makeModuleLogical()
 
     # Make the routines that do the work.
-    makeInternalModule(assertionShortNames=relationalOperatorShortNames,maxRank=maxRank)
+    makeInternalModule(assertionShortNames=relationalOperatorShortNames,maxRank=maxRank, quiet=quiet)
     
     # Make the intermediate routines.
-    makeSupportModule(assertionShortNames=relationalOperatorShortNames,maxRank=maxRank)
+    makeSupportModule(assertionShortNames=relationalOperatorShortNames,maxRank=maxRank, quiet=quiet)
     
     return
 
 if __name__ == "__main__":
-    main(maxRank=int(args.maxRank or 5))
+    main(maxRank=int(args.maxRank or 5), quiet=args.quiet if 'quiet' in args else False)
