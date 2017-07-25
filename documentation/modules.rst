@@ -1,12 +1,22 @@
-Modules
-========
 
-List of modules and link to their contents:
+=======
+Modules
+=======
+
+Creating and wrapping modules
+=============================
 
 .. toctree::
    :maxdepth: 1
 
-   adding_modules   
+   adding_modules
+   wrapping
+
+List of modules
+===============
+
+.. toctree::
+   :maxdepth: 1
+
    Modules/arrays
    Modules/geometry
-   

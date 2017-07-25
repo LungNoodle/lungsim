@@ -7,14 +7,13 @@ Testing is an integral part of developing software and validating the code.  It 
 
 For the testing of the Fortran code the pFUnit testing framework has been chosen.  The pFUnit testing framework uses Python to manage some of the test generation, without Python we cannot build the tests.
 
--------------
-Adding a Test
--------------
+How to add a test
+=================
 
 All tests live under the *tests* tree and mirror what is in the source tree.  In the following example we are going to add a new testing module for the *diagnostics* module in the *lib* directory from the *src* tree.
 
-Write Test
-==========
+Write test
+----------
 
 To start we are first going to make sure we have the correct structure that matches the *src* tree.  Starting from the root directory of the lungsim repository we need to make sure that the directory::
 
@@ -49,8 +48,8 @@ Into this file we will write our first test for the module.  This test will chec
 With our test written we now need to add this into the CMake build generation system.
 
 
-Add Test to CMake
-=================
+Add test to CMake
+-----------------
 
 The first task to do when adding a test to the CMake files is to check that a CMake file exists.  When adding a test to a new directory, as we are doing here, there won't be a CMake file for us to use.  To fix this we first need to tell CMake that a new subdirectory is available.  We do this by adding a *sub_directory* command into an existing *CMakeLists.txt* file in a parent directory of the directory we have just added a test to.  In our example we would edit the file (any text editor will do, don't feel you need to use *vi*)::
 
@@ -83,8 +82,8 @@ and add the following to create an executable test that will work with CTest (we
 
 With our test added to the test framework we can now build and run our test.
 
-Build and Run Test
-==================
+Build and run test
+------------------
 
 The test we have just completed will be built when we build the configuration from the build directory by default.  That is if we execute the *BUILD_ALL* build target for IDEs like Visual Studio or on *Makefile* generation builds we would simple issue the command *make* in the build directory.  We can also build our test directly be building the target *diagnostics_test*, for *Makefile* generation builds we would issue the command::
 
