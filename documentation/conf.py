@@ -35,7 +35,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
     'sphinxfortran.fortran_domain',
-    'sphinxfortran.fortran_autodoc'
+    'sphinxfortran.fortran_autodoc',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -300,6 +300,5 @@ texinfo_documents = [
 #texinfo_no_detailmenu = False
 
 #----- fortran source files
-fortran_ext =['f90', 'f95']
-fortran_src = ['/people/acla148/lung/NEONlung/Library/src/arrays.f90','/people/acla148/lung/NEONlung/Library/src/geometry.f90']
+fortran_src = '../src/lib/'
 

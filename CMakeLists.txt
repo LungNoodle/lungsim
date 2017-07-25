@@ -81,6 +81,7 @@ if(SPHINX_FOUND)
       -d "${SPHINX_CACHE_DIR}"
       "${SPHINX_SOURCE_DIR}"
       "${SPHINX_HTML_DIR}"
+    WORKING_DIRECTORY "${SPHINX_SOURCE_DIR}"
     COMMENT "Building HTML documentation with Sphinx")
 
   list(APPEND ADDITIONAL_GENERATED_FILES html _doctrees)
