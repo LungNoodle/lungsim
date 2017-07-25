@@ -28,7 +28,7 @@ Once the directory structure is correct we then create the testing module.  Beca
 
    vi tests/lib/test_diagnostics.pf
 
-Into this file we will write our first test for the module.  This test will check that the diagnositcs flag has been set when using the *set_diagnostics* subroutine::
+Into this file we will write our first test for the module.  This test will check that the diagnositcs flag has been set when using the *set_diagnostics_on* subroutine::
 
    @test
    subroutine testSetDiagnostics()
