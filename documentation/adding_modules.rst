@@ -15,11 +15,11 @@ First we need to include it as a module for CMake. From your lungsim root direct
 
 Now we need to set up bindings. Create the following files, and fill in their contents appropriately (instructions to come in future)
 
-./src/bindings/c/src/module_name.c
+./src/bindings/c/module_name.c
 
-./src/bindings/c/src/module_name.f90
+./src/bindings/c/module_name.f90
 
-./src/bindings/c/src/module_name.h
+./src/bindings/c/module_name.h
 
 ./src/bindings/interface/module_name.i
 

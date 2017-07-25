@@ -24,7 +24,7 @@ set(INTERFACE_SRCS
   ../interface/ventilation.i
 )
 
-include_directories(${PYTHON_INCLUDE_DIRS} ${NUMPY_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/../c/src)
+include_directories(${PYTHON_INCLUDE_DIRS} ${NUMPY_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/../c)
 
 if(MSVC)
   set(PYTHON_PACKAGE_DIR ${CMAKE_CURRENT_BINARY_DIR}/$(Configuration)/aether)
