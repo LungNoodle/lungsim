@@ -2,42 +2,42 @@
 project(AetherCBindings LANGUAGES C Fortran)
 
 set(C_FORTRAN_LIB_SRCS
-    src/arrays.f90
-    src/diagnostics.f90
-    src/exports.f90
-    src/filenames.f90
-    src/gasmix.f90
-    src/geometry.f90
-    src/indices.f90
-    src/pressure_resistance_flow.f90
-    src/utils.f90
-    src/ventilation.f90
+    arrays.f90
+    diagnostics.f90
+    exports.f90
+    filenames.f90
+    gasmix.f90
+    geometry.f90
+    indices.f90
+    pressure_resistance_flow.f90
+    utils.f90
+    ventilation.f90
 )
 set(C_C_LIB_SRCS
-    src/arrays.c
-    src/diagnostics.c
-    src/exports.c
-    src/filenames.c
-    src/gasmix.c
-    src/geometry.c
-    src/indices.c
-    src/pressure_resistance_flow.c
-    src/utils.c
-    src/ventilation.c
+    arrays.c
+    diagnostics.c
+    exports.c
+    filenames.c
+    gasmix.c
+    geometry.c
+    indices.c
+    pressure_resistance_flow.c
+    utils.c
+    ventilation.c
 )
 
 set(C_LIB_HDRS
-  src/symbol_export.h
-  src/arrays.h
-  src/diagnostics.h
-  src/exports.h
-  src/filenames.h
-  src/gasmix.h
-  src/geometry.h
-  src/indices.h
-  src/pressure_resistance_flow.h
-  src/utils.h
-  src/ventilation.h
+  symbol_export.h
+  arrays.h
+  diagnostics.h
+  exports.h
+  filenames.h
+  gasmix.h
+  geometry.h
+  indices.h
+  pressure_resistance_flow.h
+  utils.h
+  ventilation.h
 )
 
 add_library(aether_c_fortran STATIC ${C_FORTRAN_LIB_SRCS} $<TARGET_OBJECTS:aether_obj>)
