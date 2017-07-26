@@ -18,41 +18,47 @@ project (pFUnit
     VERSION 3.1.1
     LANGUAGES Fortran)
 
-option(MAX_RANK "Maximum array rank for generated code." NO)
-if (NOT MAX_RANK)
+if (DEFINED MAX_RANK)
+    set(PFUNIT_MAX_RANK ${MAX_RANK} CACHE STRING "Maximum array rank for generated code." FORCE)
+endif ()
+set(PFUNIT_MAX_RANK 5 CACHE STRING "Maximum array rank for generated code.")
+if (NOT PFUNIT_MAX_RANK)
    # Remove PFUNIT_MAX_RANK in version 4.
    if (DEFINED ENV{PFUNIT_MAX_RANK})
-      set(MAX_RANK "$ENV{PFUNIT_MAX_RANK}")
+      set(PFUNIT_MAX_RANK "$ENV{PFUNIT_MAX_RANK}")
    # Promote following to primary in version 4.
    elseif (DEFINED ENV{PFUNIT_MAX_ARRAY_RANK})
-      set(MAX_RANK "$ENV{PFUNIT_MAX_ARRAY_RANK}")
+      set(PFUNIT_MAX_RANK "$ENV{PFUNIT_MAX_ARRAY_RANK}")
    else ()
-      set(MAX_RANK 5)
+      set(PFUNIT_MAX_RANK 5)
    endif ()
 endif ()
 
-
-option(MPI "Use MPI for parallel runs" NO)
-option(FIND_MPI "Attempt to automatically find MPI information" YES)
-option(MPI_USE_MPIEXEC "Use CMake's FindMPI to find mpiexec" NO)
-option(OPENMP "Use OPENMP for parallel runs" NO)
+if (DEFINED MPI)
+    set(PFUNIT_MPI ${MPI} CACHE BOOL "Use MPI for parallel runs" FORCE)
+endif ()
+option(PFUNIT_MPI "Use MPI for parallel runs" NO)
+option(PFUNIT_FIND_MPI "Attempt to automatically find MPI information" YES)
+option(PFUNIT_MPI_USE_MPIEXEC "Use CMake's FindMPI to find mpiexec" NO)
+option(PFUNIT_OPENMP "Use OPENMP for parallel runs" NO)
 
 # The following sets robust to "ON".
-option(ROBUST "Build robust test runner" YES)
+option(PFUNIT_ROBUST "Build robust test runner" YES)
 
 # If the user specifies this on the command line (or equivalently, in the
 # CMake cache), we take them at their word and do not attempt any kind of
 # autodetection.
-set(OPENMP_FLAGS "OPENMP_FLAGS-NOTFOUND"
+set(PFUNIT_OPENMP_FLAGS "OPENMP_FLAGS-NOTFOUND"
   CACHE STRING "OpenMP flags for the Fortran compiler.")
 
 
-if (MPI)
+if (PFUNIT_MPI)
     add_definitions(-DUSE_MPI)
-    if (FIND_MPI)
-      find_package(MPI REQUIRED)
-      add_definitions(${MPI_Fortran_COMPILE_FLAGS})
-      include_directories(${MPI_Fortran_INCLUDE_PATH})
+    if (PFUNIT_FIND_MPI)
+        set(MPI_USE_MPIEXEC ${PFUNIT_MPI_USE_MPIEXEC})
+        find_package(MPI REQUIRED)
+        add_definitions(${MPI_Fortran_COMPILE_FLAGS})
+        include_directories(${MPI_Fortran_INCLUDE_PATH})
     endif()
     message( STATUS "MPI enabled")
 endif()
@@ -62,7 +68,7 @@ endif()
 #   add_definitions(-DMAX_RANK=${MAX_RANK})
 #endif()
 
-if (ROBUST)
+if (PFUNIT_ROBUST)
     add_definitions(-DBUILD_ROBUST)
 endif()
 
@@ -142,15 +148,15 @@ endif()
 
 # Fortran OpenMP support is not yet integrated into the CMake distribution.
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/include/cmake/Modules/")
-if (OPENMP)
+if (PFUNIT_OPENMP)
 #    find_package(OpenMP_Fortran REQUIRED)
 #    if(OPENMP_FORTRAN_FOUND)
 #      set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${OpenMP_Fortran_FLAGS}")
 #      set(CMAKE_Fortran_LINKER_FLAGS "${CMAKE_Fortran_FLAGS} ${OpenMP_Fortran_FLAGS}")
 #      message( STATUS "OpenMP enabled")
 #    endif()
-   if (OPENMP_FLAGS)
-     set(OpenMP_Fortran_FLAGS "${OPENMP_FLAGS}")
+   if (PFUNIT_OPENMP_FLAGS)
+     set(OpenMP_Fortran_FLAGS "${PFUNIT_OPENMP_FLAGS}")
    else()
      find_package(OpenMP_Fortran REQUIRED)
    endif()
