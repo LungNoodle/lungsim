@@ -71,8 +71,7 @@ module arrays
   private
   public set_node_field_value, elem_field, num_elems, elem_nodes, node_xyz, nodes, elems, &
     num_nodes, units, num_units, unit_field, node_field, dp, elem_cnct, elem_ordrs, elem_direction, &
-    elems_at_node, elem_symmetry, expansile, elem_units_below, maxgen,capillary_bf_parameters,node_label,unit_elem_label, &
-    elem_label
+    elems_at_node, elem_symmetry, expansile, elem_units_below, maxgen,capillary_bf_parameters,node_label,unit_elem_label
 
 contains
   subroutine set_node_field_value(row, col, value)
