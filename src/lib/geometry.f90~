@@ -551,7 +551,7 @@ contains
     allocate (node_label(num_nodes))
     node_label = 0.0_dp !initialise
     
-    nn=0;
+    write(*,*) nn,'111111'
     !.....read in the labelled index of each node
     read_label_index_of_node : do !define a do loop name
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !read a line into ctemp1

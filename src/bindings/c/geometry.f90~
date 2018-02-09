@@ -279,7 +279,7 @@ contains
 !###################################################################################
   
 !*scale_airway_geometry:* scales the airway geometry to match a specified lung volume
-  subroutine scale_airway_geometry_c() bind(C, name="scale_airway_geometry_c")
+subroutine scale_airway_geometry_c() bind(C, name="scale_airway_geometry_c")
     use geometry, only: scale_airway_geometry
     implicit none
 
@@ -291,6 +291,5 @@ contains
 #endif
 
   end subroutine scale_airway_geometry_c
-  
 end module geometry_c
 

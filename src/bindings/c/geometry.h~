@@ -18,6 +18,7 @@ SHO_PUBLIC void evaluate_ordering();
 SHO_PUBLIC void set_initial_volume(int Gdirn, double COV, double total_volume, double Rmax, double Rmin);
 SHO_PUBLIC void volume_of_mesh(double *volume_model, double *volume_tree);
 SHO_PUBLIC void define_disease_label(const char *LABEL_EXNODE);
+//SHO_PUBLIC void scale_airway_geometry(double *initial_volume, double *target_volume);
 SHO_PUBLIC void scale_airway_geometry();
 
 #endif /* AETHER_GEOMETRY_H */

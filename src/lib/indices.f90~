@@ -75,7 +75,7 @@ contains
     nu_flow0=3
     nu_flow1=4
     nu_flow2=5
-    nu_dpdt=6 ! the change of the pressure at the proximal node of each unit
+    nu_dpdt=6
     nu_pe=7 ! elastic recoil pressure for the unit
     nu_vt=8
     nu_press=9

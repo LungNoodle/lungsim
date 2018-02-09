@@ -17,6 +17,7 @@ void element_connectivity_1d_c();
 void evaluate_ordering_c();
 void set_initial_volume_c(int *Gdirn, double *COV, double *total_volume, double *Rmax, double *Rmin);
 void volume_of_mesh_c(double *volume_model, double *volume_tree);
+/*void scale_airway_geometry_c(double *initial_volume, double *target_volume);*/
 void scale_airway_geometry_c();
 
 void add_mesh(const char *AIRWAY_MESHFILE)
