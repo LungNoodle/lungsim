@@ -36,8 +36,8 @@ CMakeLists.txt.user
 # Eclipse
 .project
 
-#Qt Creator
-CMakeLists.txt.user
+#Linux autosavefiles
+*~
 
 # Compiled Python files
 *.pyc
