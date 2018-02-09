@@ -38,3 +38,8 @@ CMakeLists.txt.user
 
 #Linux autosavefiles
 *~
+
+# Compiled Python files
+*.pyc
+__pycache__/
+

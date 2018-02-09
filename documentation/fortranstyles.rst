@@ -9,35 +9,35 @@ Preamble
 ========
 ::
 
-	module module name
-	!*Brief Description:* A one line descriptor of what the module does. 
-	!
-	!*LICENSE:*
-	!
-	!
-	!
-	!*Full Description:*
-	!More info on what the module does if necessary
-	!
-	  use anyothermodulesused
-	  implicit none
+    module module name
+    !*Brief Description:* A one line descriptor of what the module does. 
+    !
+    !*LICENSE:*
+    !
+    !
+    !
+    !*Full Description:*
+    !More info on what the module does if necessary
+    !
+      use anyothermodulesused
+      implicit none
   
-  	  !Module parameters
+      !Module parameters
   
-  	  !Module types
+      !Module types
 
-  	  !Module variables
+      !Module variables
 
-  	  !Interfaces
-  	  private list1
-  	  public list2
-  	  public list3
-  	
-	contains
-	!
-	!##############################################################################
-	!
-	
+      !Interfaces
+      private list1
+      public list2
+      public list3
+
+    contains
+    !
+    !##############################################################################
+    !
+
 Indenting
 =========
 Please indent using two spaces.
@@ -46,18 +46,21 @@ Subroutines
 ===========
 Include subroutines in alphabetical order.
 
-Seperate subroutines as follows
+Separate subroutines as follows
 ::
-	!
-	!##############################################################################
-	!
-	
+
+    !
+    !##############################################################################
+    !
+
 Begin each subroutine with its name and a brief description of its functionality
 ::
-	!*subname:* What the subroutine does
+
+    !*subname:* What the subroutine does
 
 Subroutine contents:
 ::
+
     subroutine subname(things,you,pass)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SUBNAME: SUBNAME
       use module1,only: stuff,from,module1 
@@ -77,7 +80,7 @@ Subroutine contents:
 
       !BODY OF CODE
 
-   	  call enter_exit(sub_name,2)
+      call enter_exit(sub_name,2)
     end subroutine subname
 
 Functions

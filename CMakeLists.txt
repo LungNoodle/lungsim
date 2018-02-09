@@ -8,8 +8,14 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # Required for creating documentation from restructured text files
 find_package(Sphinx)
 
+# Helpful functions
+include(miscfunctions)
+
 # Create additional build types
 include(buildtypes)
+
+# Mark some variables as advanced hiding them from basic users
+tidy_gui()
 
 # Build shared or static library
 if(NOT BUILD_SHARED)
@@ -41,49 +47,14 @@ mark_as_advanced(AETHER_INSTALL_PREFIX)
 # defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# The list of all source files that are required to build the library
-set(LIB_SRCS
-  src/arrays.f90
-  src/diagnostics.f90
-  src/capillaryflow.f90
-  src/exports.f90
-  src/filenames.f90
-  src/gasmix.f90
-  src/geometry.f90
-  src/indices.f90
-  src/math_utilities.f90
-  src/other_consts.f90
-  src/pressure_resistance_flow.f90
-  src/solve.f90
-  src/ventilation.f90
-)
+# All the source files for the library and bindings are located under this directory.
+add_subdirectory(src)
 
-# Create an object library so we can use the objects in two different libraries
-add_library(aether_obj OBJECT ${LIB_SRCS})
-set_target_properties(aether_obj PROPERTIES
-  Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules"
-  POSITION_INDEPENDENT_CODE TRUE)
+# Must enable testing at the lowest level in CMake.
+enable_testing()
 
-if (MSVC)
-  # Visual Studio requires a dummy file as it will not build a library from only objects.
-  set(dummy_file "${CMAKE_CURRENT_BINARY_DIR}/dummy.f90")
-  file(WRITE ${dummy_file} "module dummy
-implicit none
-contains
-end module dummy\n")
-endif ()
-
-# Create the aether fortran library
-add_library(aether $<TARGET_OBJECTS:aether_obj> ${dummy_file})
-
-set_target_properties(aether PROPERTIES
-  Fortran_VISIBILITY_PRESET hidden
-  C_VISIBILITY_PRESET hidden
-  VISIBILITY_INLINES_HIDDEN 1)
-
-if(AETHER_BUILD_BINDINGS)
-  add_subdirectory(bindings)
-endif()
+# All the tests for the library are located under this directory.
+add_subdirectory(tests)
 
 set(ADDITIONAL_GENERATED_FILES)
 if(SPHINX_FOUND)
@@ -110,6 +81,7 @@ if(SPHINX_FOUND)
       -d "${SPHINX_CACHE_DIR}"
       "${SPHINX_SOURCE_DIR}"
       "${SPHINX_HTML_DIR}"
+    WORKING_DIRECTORY "${SPHINX_SOURCE_DIR}"
     COMMENT "Building HTML documentation with Sphinx")
 
   list(APPEND ADDITIONAL_GENERATED_FILES html _doctrees)
