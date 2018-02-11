@@ -14,6 +14,7 @@ set(LIB_SRCS
   pressure_resistance_flow.f90
   solve.f90
   ventilation.f90
+  new_module.f90
 )
 
 set(AETHER_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules")
