@@ -1,6 +1,7 @@
-module gas_exchange
-!*Brief Description:* This module is for simulating lung gas exchange.
-!
+module species_transport
+!*Brief Description:* This module contains all the subroutines common
+!to species transport models, this includes gas exchange, gas mixing,
+!and particle transport models
 !*LICENSE:*
 !
 !
@@ -19,13 +20,13 @@ module gas_exchange
 
   !Interfaces
   private 
-  public initial_gasexchange
+  public initialise_transport
 
 contains
 !
 !##############################################################################
 !
- subroutine initial_gasexchange()
+ subroutine initialise_transport()
  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_TEST_FUNCTION: TEST_FUNCTION
    use indices,only: ne_radius
    use arrays, only: dp
@@ -36,15 +37,15 @@ contains
 
    character(len=60) :: sub_name
 
-   sub_name = 'initial_gasexchange'
+   sub_name = 'initialise_transport'
    call enter_exit(sub_name,1)
 
    write(*,*) ne_radius
 
    call enter_exit(sub_name,2)
- end subroutine initial_gasexchange
+ end subroutine initialise_transport
 
 !
 !###########################################################################################
 !
-end module gas_exchange
+end module species_transport

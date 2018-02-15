@@ -1,6 +1,6 @@
-module gas_exchange
-!*Brief Description:* This module is for simulating lung gas exchange.
-!
+module imports
+!*Brief Description:* This module contains all the subroutines required to
+!import fields, previous model results, etc.
 !*LICENSE:*
 !
 !
@@ -19,13 +19,13 @@ module gas_exchange
 
   !Interfaces
   private 
-  public initial_gasexchange
+  public import_ventilation
 
 contains
 !
 !##############################################################################
 !
- subroutine initial_gasexchange()
+ subroutine import_ventilation()
  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_TEST_FUNCTION: TEST_FUNCTION
    use indices,only: ne_radius
    use arrays, only: dp
@@ -36,15 +36,15 @@ contains
 
    character(len=60) :: sub_name
 
-   sub_name = 'initial_gasexchange'
+   sub_name = 'import_ventilation'
    call enter_exit(sub_name,1)
 
    write(*,*) ne_radius
 
    call enter_exit(sub_name,2)
- end subroutine initial_gasexchange
+ end subroutine import_ventilation
 
 !
 !###########################################################################################
 !
-end module gas_exchange
+end module imports
