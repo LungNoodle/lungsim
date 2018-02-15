@@ -29,7 +29,7 @@ contains
   subroutine evaluate_vent
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_VENT" :: EVALUATE_VENT
     use arrays,only: dp,elem_field,elem_units_below,num_elems,num_units,units,unit_field
-    use indices,only: ne_flow,ne_flow0,ne_t_resist,nu_comp,nu_dpdt,nu_pe,nu_vt
+    use indices,only: ne_Vdot,ne_Vdot0,ne_t_resist,nu_comp,nu_dpdt,nu_pe,nu_vt
     use exports,only: export_1d_elem_field,export_terminal_solution
     use other_consts !PI
     use diagnostics, only: enter_exit
@@ -229,7 +229,7 @@ contains
           endif
 
           p_mus = p_mus + dpmus !current value for muscle pressure
-          prev_flow=elem_field(ne_flow,1)
+          prev_flow=elem_field(ne_Vdot,1)
 
 !!! Solve for a new flow and pressure field
 !!! We will estimate the flow into each terminal lumped
@@ -239,7 +239,7 @@ contains
 !!! the pressures throughout the tree.
 
           !initialise Qinit to the previous flow
-          elem_field(ne_flow0,1:num_elems) = elem_field(ne_flow,1:num_elems)
+          elem_field(ne_Vdot0,1:num_elems) = elem_field(ne_Vdot,1:num_elems)
           converged = .FALSE.
           iter_step=0
           do while (.not.converged)
@@ -253,7 +253,7 @@ contains
                      'tolerance and time step - check values, Error='',D10.3)') &
                      err_est
              endif
-             call sum_elem_field_from_periphery(ne_flow) !sum the flows recursively UP the tree
+             call sum_elem_field_from_periphery(ne_Vdot) !sum the flows recursively UP the tree
              call update_elem_field !updates resistances
              call update_node_pressures(press_in) !updates the pressures at nodes
              call update_unit_dpdt(dt) ! update dP/dt at the terminal units
@@ -273,7 +273,7 @@ contains
           time = time + dt
           WRITE(*,'(F7.3,2(F8.1),8(F8.2))') &
                time, & !time through breath (s)
-               elem_field(ne_flow,1)/1.0e+3_dp, & !flow at the inlet (mL/s)
+               elem_field(ne_Vdot,1)/1.0e+3_dp, & !flow at the inlet (mL/s)
                (now_vol - init_vol)/1.0e+3_dp, & !current tidal volume (mL)
                elem_field(ne_t_resist,1)*1.0e+6_dp/98.0665_dp, & !airway resistance (cmH2O/L.s)
                totalC*98.0665_dp/1.0e+6_dp, & !total model compliance
@@ -285,10 +285,10 @@ contains
                (p_mus+Pcw)/98.0665_dp !Pmuscle - Pchest_wall (cmH2O)
 
           ! increment the tidal volume, or the volume expired
-          if(elem_field(ne_flow,1).gt.0.0_dp)then
-             sum_tidal=sum_tidal+elem_field(ne_flow,1)*dt
+          if(elem_field(ne_Vdot,1).gt.0.0_dp)then
+             sum_tidal=sum_tidal+elem_field(ne_Vdot,1)*dt
           else
-             sum_expid=sum_expid-elem_field(ne_flow,1)*dt
+             sum_expid=sum_expid-elem_field(ne_Vdot,1)*dt
              if(prev_flow.gt.0.0_dp)then
                 WOBe_insp=(WOBe+sum_tidal*ptrans_frc*1.0e-9_dp)*(30.0_dp/Tinsp)
                 WOBr_insp=WOBr*(30.0_dp/Tinsp)
@@ -330,10 +330,10 @@ contains
 !!! Divide by inlet flow. This gives the time-averaged and normalised flow field for the tree.
     do nunit=1,num_units !for each terminal element only (with tissue units attached)
        ne=units(nunit) !local element number
-       elem_field(ne_flow,ne) = unit_field(nu_vt,nunit)
+       elem_field(ne_Vdot,ne) = unit_field(nu_vt,nunit)
     enddo
-    call sum_elem_field_from_periphery(ne_flow)
-    elem_field(ne_flow,1:num_elems) = elem_field(ne_flow,1:num_elems)/elem_field(ne_flow,1)
+    call sum_elem_field_from_periphery(ne_Vdot)
+    elem_field(ne_Vdot,1:num_elems) = elem_field(ne_Vdot,1:num_elems)/elem_field(ne_Vdot,1)
 
 !    call export_terminal_solution(TERMINAL_EXNODEFILE,'terminals')
 
@@ -349,7 +349,7 @@ contains
   
     use arrays,only: dp,elem_field,num_elems,num_units,&
          units,unit_field
-    use indices,only: ne_flow,nu_flow0,nu_vol
+    use indices,only: ne_Vdot,nu_Vdot0,nu_vol
     use other_consts
     use diagnostics, only: enter_exit
     use geometry,only: volume_of_mesh
@@ -370,16 +370,16 @@ contains
     call volume_of_mesh(init_vol,volume_tree)
 
 !!! initialise the flow field to zero
-    elem_field(ne_flow,1:num_elems) = 0.0_dp
+    elem_field(ne_Vdot,1:num_elems) = 0.0_dp
 
 !!! For each elastic unit, calculate uniform ventilation
     do nunit=1,num_units !for each terminal element only (with tissue units attached)
        ne=units(nunit) !local element number
-       unit_field(nu_flow0,nunit) = unit_field(nu_vol,nunit)/(init_vol-volume_tree)
-       elem_field(ne_flow,ne) = unit_field(nu_flow0,nunit)
+       unit_field(nu_Vdot0,nunit) = unit_field(nu_vol,nunit)/(init_vol-volume_tree)
+       elem_field(ne_Vdot,ne) = unit_field(nu_Vdot0,nunit)
     enddo
 
-    call sum_elem_field_from_periphery(ne_flow)
+    call sum_elem_field_from_periphery(ne_Vdot)
 
     call enter_exit(sub_name,2)
 
@@ -491,7 +491,7 @@ contains
 
   subroutine update_node_pressures(press_in)
     use arrays,only: dp,elem_field,elem_nodes,node_field,num_elems
-    use indices,only: ne_flow,ne_resist,nj_press
+    use indices,only: ne_Vdot,ne_resist,nj_press
     use diagnostics, only: enter_exit
     implicit none
 
@@ -518,7 +518,7 @@ contains
        np2=elem_nodes(2,ne) !end node number
        !P(np2) = P(np1) - Resistance(ne)*Flow(ne)
        node_field(nj_press,np2)=node_field(nj_press,np1) &
-            -elem_field(ne_resist,ne)*elem_field(ne_flow,ne)
+            -elem_field(ne_resist,ne)*elem_field(ne_Vdot,ne)
     enddo !noelem
 
     call enter_exit(sub_name,2)
@@ -616,7 +616,7 @@ contains
     use arrays,only: dp,elem_field,elem_nodes,num_units,&
          units,unit_field
     use diagnostics, only: enter_exit
-    use indices,only: ne_flow,nu_vol,nu_vt,nu_vent
+    use indices,only: ne_Vdot,nu_vol,nu_vt,nu_vent
     implicit none
 
     real(dp),intent(in) :: dt,Tinsp
@@ -634,10 +634,10 @@ contains
        np=elem_nodes(2,ne)
        ! update the volume of the lumped tissue unit
        unit_field(nu_vol,nunit)=unit_field(nu_vol,nunit)+dt* &
-            elem_field(ne_flow,ne) !in mm^3
-       if(elem_field(ne_flow,1).gt.0.0_dp)then  !only store inspired volume
+            elem_field(ne_Vdot,ne) !in mm^3
+       if(elem_field(ne_Vdot,1).gt.0.0_dp)then  !only store inspired volume
           unit_field(nu_vt,nunit)=unit_field(nu_vt,nunit)+dt* &
-               elem_field(ne_flow,ne)
+               elem_field(ne_Vdot,ne)
         unit_field(nu_vent,nunit)=unit_field(nu_vt,nunit)/TInsp
        endif
     enddo !nunit
@@ -651,7 +651,7 @@ contains
   subroutine update_elem_field
     use arrays,only: dp,elem_field,elem_nodes,node_xyz,num_elems
     use diagnostics, only: enter_exit
-    use indices,only: ne_flow,ne_length, &
+    use indices,only: ne_Vdot,ne_length, &
          ne_radius,ne_resist,ne_t_resist,ne_vol
     use other_consts
     implicit none
@@ -693,9 +693,9 @@ contains
 
        ! element turbulent resistance (flow in bifurcating tubes)
        gamma = 0.357_dp !inspiration
-       if(elem_field(ne_flow,ne).lt.0.0_dp) gamma = 0.46_dp !expiration
+       if(elem_field(ne_Vdot,ne).lt.0.0_dp) gamma = 0.46_dp !expiration
 
-       reynolds=DABS(elem_field(ne_flow,ne)*2.0_dp*GAS_DENSITY/ &
+       reynolds=DABS(elem_field(ne_Vdot,ne)*2.0_dp*GAS_DENSITY/ &
             (PI*elem_field(ne_radius,ne)*GAS_VISCOSITY))
        zeta = MAX(1.0_dp,dsqrt(2.0_dp*elem_field(ne_radius,ne)* &
             reynolds/elem_field(ne_length,ne))*gamma)
@@ -715,8 +715,8 @@ contains
     use arrays,only: dp,elem_field,num_units,&
          units,unit_field
     use diagnostics, only: enter_exit
-    use indices,only: ne_flow,ne_flow0,ne_resist,nu_comp,&
-         nu_dpdt,nu_flow0,nu_flow1,nu_flow2
+    use indices,only: ne_Vdot,ne_Vdot0,ne_resist,nu_comp,&
+         nu_dpdt,nu_Vdot0,nu_Vdot1,nu_Vdot2
     implicit none
 
     real(dp),intent(in) :: dpmus,dt
@@ -740,7 +740,7 @@ contains
        ! Calculate the mean flow into the unit in the time step
        ! alpha is the rate of change of pressure at start node of terminal element
        alpha=unit_field(nu_dpdt,nunit) !dPaw/dt, initialised to zero and updated each iter
-       Qinit=elem_field(ne_flow0,ne) !terminal element flow, updated each dt
+       Qinit=elem_field(ne_Vdot0,ne) !terminal element flow, updated each dt
        ! beta is the rate of change of pleural pressure
        beta = dpmus/dt ! == dPmus/dt (-ve for inspiration), updated each dt
 
@@ -749,27 +749,27 @@ contains
             (Qinit-unit_field(nu_comp,nunit)*(alpha-beta))* &
             DEXP(-dt/(unit_field(nu_comp,nunit)*elem_field(ne_resist,ne)))
 
-       unit_field(nu_flow2,nunit)=unit_field(nu_flow1,nunit) !flow at iter-2
-       unit_field(nu_flow1,nunit)=unit_field(nu_flow0,nunit) !flow at iter-1
+       unit_field(nu_Vdot2,nunit)=unit_field(nu_Vdot1,nunit) !flow at iter-2
+       unit_field(nu_Vdot1,nunit)=unit_field(nu_Vdot0,nunit) !flow at iter-1
 
        ! flow estimate for current iter includes flow estimates at previous two iters
-       !       unit_field(nu_flow0,nunit) = 0.75d0*unit_field(nu_flow2,nunit)+ &
-       !            0.25d0*(Q+unit_field(nu_flow1,nunit))*0.5d0
+       !       unit_field(nu_Vdot0,nunit) = 0.75d0*unit_field(nu_Vdot2,nunit)+ &
+       !            0.25d0*(Q+unit_field(nu_Vdot1,nunit))*0.5d0
        ! flow estimate for current iter includes flow estimate at previous iter
-!       unit_field(nu_flow0,nunit) = (Q + unit_field(nu_flow1,nunit))*0.5d0
+!       unit_field(nu_Vdot0,nunit) = (Q + unit_field(nu_Vdot1,nunit))*0.5d0
 !!! from original code:
-       unit_field(nu_flow0,nunit) = 0.75d0*unit_field(nu_flow2,nunit)+ &
-            0.25d0*(Q+unit_field(nu_flow1,nunit))*0.5d0
+       unit_field(nu_Vdot0,nunit) = 0.75d0*unit_field(nu_Vdot2,nunit)+ &
+            0.25d0*(Q+unit_field(nu_Vdot1,nunit))*0.5d0
 
-       flow_diff=unit_field(nu_flow0,nunit) - elem_field(ne_flow,ne)
+       flow_diff=unit_field(nu_Vdot0,nunit) - elem_field(ne_Vdot,ne)
        err_est=err_est+DABS(flow_diff)**2 !sum up the error for all elements
-       flow_sum=flow_sum+unit_field(nu_flow0,nunit)**2
+       flow_sum=flow_sum+unit_field(nu_Vdot0,nunit)**2
 
 !!! ARC: DO NOT CHANGE BELOW. THIS IS NEEDED FOR THE ITERATIVE STEP
 !!! - SIMPLER OPTIONS JUST FORCE IT TO CONVERGE WHEN ITS NOT
-       elem_field(ne_flow,ne) = (unit_field(nu_flow0,nunit)&
-            +unit_field(nu_flow1,nunit))/2.0_dp
-       unit_field(nu_flow0,nunit) = elem_field(ne_flow,ne)
+       elem_field(ne_Vdot,ne) = (unit_field(nu_Vdot0,nunit)&
+            +unit_field(nu_Vdot1,nunit))/2.0_dp
+       unit_field(nu_Vdot0,nunit) = elem_field(ne_Vdot,ne)
     enddo !nunit
 
     ! the estimate of error for the iterative solution

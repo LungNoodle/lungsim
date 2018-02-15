@@ -19,21 +19,22 @@ module indices
   integer :: num_nj,nj_radius,nj_radius0,nj_press,nj_conc1
   ! indices for elem_field
   integer ::num_ne,ne_radius,ne_length,ne_vol,&
-      ne_resist,ne_t_resist,ne_flow,ne_flow0,ne_a_A,&
+      ne_resist,ne_t_resist,ne_Vdot,ne_Vdot0,ne_a_A,&
        ne_dvdt,ne_radius_in,ne_radius_in0, ne_radius_out,&
-       ne_radius_out0,ne_group
+       ne_radius_out0,ne_group,ne_Qdot
   ! indices for unit_field
-  integer :: num_nu,nu_vol,nu_comp,nu_flow0,nu_flow1, &
-       nu_flow2,nu_dpdt,nu_pe,nu_vt,nu_press,nu_conc1,nu_vent,&
+  integer :: num_nu,nu_vol,nu_comp,nu_Vdot0,nu_Vdot1, &
+       nu_Vdot2,nu_dpdt,nu_pe,nu_vt,nu_press,nu_conc1,nu_vent,&
        nu_perf,nu_blood_press
 
 public num_ord,no_gen,no_hord,no_sord,&
       num_nj,nj_radius,nj_radius0,nj_press,nj_conc1,&
        num_ne,ne_radius,ne_length,ne_vol,&
-      ne_resist,ne_t_resist,ne_flow,ne_flow0,ne_a_A,&
+      ne_resist,ne_t_resist,ne_Vdot,ne_Vdot0,ne_a_A,&
        ne_dvdt,ne_radius_in,ne_radius_in0,ne_radius_out,&
-      ne_radius_out0,ne_group,num_nu,nu_vol,nu_comp,nu_flow0,nu_flow1, &
-       nu_flow2,nu_dpdt,nu_pe,nu_vt,nu_press,nu_conc1,nu_vent,&
+      ne_radius_out0,ne_group,ne_Qdot,num_nu,nu_vol,nu_comp,&
+       nu_Vdot0,nu_Vdot1, &
+       nu_Vdot2,nu_dpdt,nu_pe,nu_vt,nu_press,nu_conc1,nu_vent,&
        nu_perf,nu_blood_press
 
 !Interfaces
@@ -64,17 +65,17 @@ contains
     ne_vol=3
     ne_resist=4
     ne_t_resist=5
-    ne_flow=6
-    ne_flow0=7
+    ne_Vdot=6
+    ne_Vdot0=7
     ne_a_A=8
     ne_dvdt=9
     ! indices for unit_field
     num_nu=11
     nu_vol=1
     nu_comp=2
-    nu_flow0=3
-    nu_flow1=4
-    nu_flow2=5
+    nu_Vdot0=3
+    nu_Vdot1=4
+    nu_Vdot2=5
     nu_dpdt=6
     nu_pe=7
     nu_vt=8
@@ -108,7 +109,7 @@ contains
     ne_length=4
     ne_radius_in0=5
     ne_radius_out0=6
-    ne_flow=7
+    ne_Qdot=7
     ne_resist=8
     ne_group=9!Groups vessels into arteries (field=0), capillaries (field=1) and veins(field=2)
     !indices for units

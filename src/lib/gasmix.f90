@@ -14,7 +14,6 @@ module gasmix
   use arrays,only: dp
   implicit none
   private airway_mesh_deform
-  public initial_gasmix,solve_gasmix,transfer_flow_vol_from_units
 
   integer,public :: inlet_node = 1
   integer,private :: NonZeros_unreduced
@@ -488,7 +487,7 @@ contains
 
   subroutine update_unit_mass(dt,inlet_concentration,inlet_flow)
     use arrays,only: dp,elem_field,elem_nodes,num_units,units,unit_field
-    use indices,only: ne_flow,nu_conc1,nu_vol
+    use indices,only: ne_Vdot,nu_conc1,nu_vol
     use geometry, only: volume_of_mesh
     use diagnostics, only: enter_exit
     implicit none
@@ -513,7 +512,7 @@ contains
        ne = units(nunit) ! local element number
        np = elem_nodes(2,ne) ! end node
        unit_mass = unit_field(nu_vol,nunit)*unit_field(nu_conc1,nunit)
-       volume_change = elem_field(ne_flow,ne)*inlet_flow*dt
+       volume_change = elem_field(ne_Vdot,ne)*inlet_flow*dt
        if(inlet_flow.ge.0.0_dp)then !filling units
           call track_to_location(ne,concentration,mass_change,&
                dt,inlet_concentration,inlet_flow)
@@ -534,7 +533,7 @@ contains
   subroutine airway_mesh_deform(dt,initial_volume,inlet_flow)
 
 !!! changes the size of elastic units and airways, based on pre-computed
-!!! fields for flow into the units (ne_flow) and element volume change (ne_dvdt).
+!!! fields for flow into the units (ne_Vdot) and element volume change (ne_dvdt).
 !!! The concentration in the units is adjusted to make sure that mass is conserved
 !!! when the unit changes volume. If a unit changes in volume, then both the radius
 !!! and length scale as the cube root of volume change. For alveolated airways (where
@@ -542,7 +541,7 @@ contains
 
     use arrays,only: dp,elem_field,elem_nodes,&
          num_elems,num_units,units,unit_field
-    use indices,only: ne_dvdt,ne_flow,ne_length,ne_radius,&
+    use indices,only: ne_dvdt,ne_Vdot,ne_length,ne_radius,&
          ne_vol,nu_conc1,nu_vol
     use geometry, only: volume_of_mesh
     use diagnostics, only: enter_exit
@@ -569,7 +568,7 @@ contains
        ne = units(nunit) ! local element number
        np = elem_nodes(2,ne) ! end node, attaches to unit
        unit_mass = unit_field(nu_vol,nunit)*unit_field(nu_conc1,nunit) ! m = v(unit)*c
-       volume_change = elem_field(ne_flow,ne)*inlet_flow*dt ! dv = q(unit)*dt
+       volume_change = elem_field(ne_Vdot,ne)*inlet_flow*dt ! dv = q(unit)*dt
        unit_field(nu_vol,nunit) = unit_field(nu_vol,nunit) + volume_change ! v(new)
        ! important: adjust the concentration to maintain mass conservation
        unit_field(nu_conc1,nunit) = unit_mass/unit_field(nu_vol,nunit)
@@ -718,7 +717,7 @@ contains
     use arrays,only: dp,elem_cnct,elem_field,elem_symmetry,&
          elem_units_below,expansile,units,num_elems,num_units,&
          unit_field
-    use indices,only: ne_dvdt,ne_flow,ne_length,ne_radius,ne_vol,nu_vol
+    use indices,only: ne_dvdt,ne_Vdot,ne_length,ne_radius,ne_vol,nu_vol
     implicit none
 
 !!! Parameters
@@ -788,18 +787,18 @@ contains
           elem_field(ne_vol,ne_child)=elem_field(ne_vol,ne_child)*ratio
           elem_field(ne_length,ne_child)=elem_field(ne_length,ne_child)*(ratio)**(1/3)
           elem_field(ne_radius,ne_child)=elem_field(ne_radius,ne_child)*(ratio)**(1/3)
-          elem_field(ne_dvdt,ne_child)=elem_field(ne_flow,ne_stem)*&
+          elem_field(ne_dvdt,ne_child)=elem_field(ne_Vdot,ne_stem)*&
                elem_field(ne_vol,ne_child)/&
                (unit_field(nu_vol,nunit)-elem_field(ne_vol,ne_stem))
        enddo
 !!! calculate the flow field. flow(in) = flow(out) + DV
        do nparent=num_list_total,1,-1
           ne_parent=elem_list_total(nparent)
-          elem_field(ne_flow,ne_parent)=elem_field(ne_dvdt,ne_parent)
+          elem_field(ne_Vdot,ne_parent)=elem_field(ne_dvdt,ne_parent)
           do nchild=1,elem_cnct(1,0,ne_parent)
              ne_child=elem_cnct(1,nchild,ne_parent)
-               elem_field(ne_flow,ne_parent)=elem_field(ne_flow,ne_parent)+&
-                  elem_field(ne_flow,ne_child)*elem_symmetry(ne_child)
+               elem_field(ne_Vdot,ne_parent)=elem_field(ne_Vdot,ne_parent)+&
+                  elem_field(ne_Vdot,ne_child)*elem_symmetry(ne_child)
           enddo !nchild
        enddo !nparent
     enddo !nunit
@@ -818,7 +817,7 @@ contains
   subroutine track_back(dt,inlet_concentration,inlet_flow,inspiration)
     use arrays,only: dp,elem_cnct,elem_field,elem_nodes,elem_symmetry,&
          elems_at_node,node_field,num_nodes,num_units,unit_field,units
-    use indices,only: ne_dvdt,ne_flow,ne_vol,nj_conc1,nu_conc1
+    use indices,only: ne_dvdt,ne_Vdot,ne_vol,nj_conc1,nu_conc1
     implicit none
 
 !!! Parameters
@@ -879,7 +878,7 @@ contains
                 if(np.gt.1) ne_parent = elem_cnct(-1,1,ne)
                 total_time=branch_time(j)
                 time_through_element = dabs(elem_field(ne_vol,ne)/&
-                     (inlet_flow*elem_field(ne_flow,ne)))
+                     (inlet_flow*elem_field(ne_Vdot,ne)))
                 if(total_time+time_through_element.ge.dt)then
                    !     A material point is within this element
                    local_xi = (dt-total_time)/time_through_element
@@ -889,8 +888,8 @@ contains
                         +node_field(nj_conc1,np2)*local_xi
 !!! this isn't quite right: needs to take into account the rate of change of parent branch size
 !!! also should do this when estimating time to pass through a branch.
-                   flow_parent = elem_field(ne_flow,ne_parent) - elem_field(ne_dvdt,ne_parent)
-                   flow_fraction = branch_fraction(j)*(elem_field(ne_flow,ne)*&
+                   flow_parent = elem_field(ne_Vdot,ne_parent) - elem_field(ne_dvdt,ne_parent)
+                   flow_fraction = branch_fraction(j)*(elem_field(ne_Vdot,ne)*&
                         elem_symmetry(ne))/flow_parent
                    initial_conc(np) = initial_conc(np) + concentration*flow_fraction
                 else
@@ -898,8 +897,8 @@ contains
                    if(elem_cnct(1,0,ne).eq.0)then !set to terminal node concentration
                       np2 = elem_nodes(2,ne)
                       concentration = node_field(nj_conc1,np2)
-                      flow_parent = elem_field(ne_flow,ne_parent) - elem_field(ne_dvdt,ne_parent)
-                      flow_fraction = branch_fraction(j)*(elem_field(ne_flow,ne)*&
+                      flow_parent = elem_field(ne_Vdot,ne_parent) - elem_field(ne_dvdt,ne_parent)
+                      flow_fraction = branch_fraction(j)*(elem_field(ne_Vdot,ne)*&
                            elem_symmetry(ne))/flow_parent
                       initial_conc(np) = initial_conc(np) + &
                            concentration*flow_fraction
@@ -909,9 +908,9 @@ contains
                          elems_below(num_to_check+nextra) = elem_cnct(1,i,ne)
                          branch_time(num_to_check+nextra) = &
                               total_time+time_through_element
-                         flow_parent = elem_field(ne_flow,ne_parent) - elem_field(ne_dvdt,ne_parent)
+                         flow_parent = elem_field(ne_Vdot,ne_parent) - elem_field(ne_dvdt,ne_parent)
                          branch_fraction(num_to_check+nextra) = branch_fraction(j)*&
-                              (elem_field(ne_flow,ne)*elem_symmetry(ne))/flow_parent
+                              (elem_field(ne_Vdot,ne)*elem_symmetry(ne))/flow_parent
                       enddo   ! i
                    endif      ! terminal or not
                 endif         ! exceed the time criteria?
@@ -942,7 +941,7 @@ contains
        dt,inlet_concentration,inlet_flow)
 
     use arrays,only: dp,elem_cnct,elem_field,elem_nodes,node_field
-    use indices,only: ne_flow,ne_vol,nj_conc1
+    use indices,only: ne_Vdot,ne_vol,nj_conc1
     implicit none
 
 !!! Parameters
@@ -958,7 +957,7 @@ contains
 
     cumulative_mass = 0.0_dp !used only if there is a 'unit' appended
 
-    time_through_element = elem_field(ne_vol,ne)/(inlet_flow*elem_field(ne_flow,ne))
+    time_through_element = elem_field(ne_vol,ne)/(inlet_flow*elem_field(ne_Vdot,ne))
     total_time = time_through_element
     np1 = elem_nodes(1,ne)
     np2 = elem_nodes(2,ne)
@@ -986,10 +985,10 @@ contains
              np2 = elem_nodes(2,ne0)
 
              time_through_element = elem_field(ne_vol,ne0)/&
-                  (inlet_flow*elem_field(ne_flow,ne0))
+                  (inlet_flow*elem_field(ne_Vdot,ne0))
              total_time = total_time + time_through_element
 
-             proportion_flow = elem_field(ne_flow,ne)/elem_field(ne_flow,ne0)
+             proportion_flow = elem_field(ne_Vdot,ne)/elem_field(ne_Vdot,ne0)
 
              if(total_time.ge.dt)then !location is within this element
                 local_xi = (total_time-dt)/time_through_element !logic correct
@@ -1009,7 +1008,7 @@ contains
              continue=.false.
              concentration = inlet_concentration
 
-             proportion_flow = elem_field(ne_flow,ne)/elem_field(ne_flow,1)
+             proportion_flow = elem_field(ne_Vdot,ne)/elem_field(ne_Vdot,1)
              cumulative_mass = cumulative_mass + concentration* &
                   inlet_flow*(dt-total_time)*proportion_flow
           endif
