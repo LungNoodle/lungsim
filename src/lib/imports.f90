@@ -19,13 +19,13 @@ module imports
 
   !Interfaces
   private 
-  public import_ventilation
+  public import_terminal_ventilation
 
 contains
 !
 !##############################################################################
 !
- subroutine import_ventilation()
+ subroutine import_terminal_ventilation()
  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_TEST_FUNCTION: TEST_FUNCTION
    use indices,only: ne_radius
    use arrays, only: dp
@@ -36,13 +36,13 @@ contains
 
    character(len=60) :: sub_name
 
-   sub_name = 'import_ventilation'
+   sub_name = 'import_terminal_ventilation'
    call enter_exit(sub_name,1)
 
    write(*,*) ne_radius
 
    call enter_exit(sub_name,2)
- end subroutine import_ventilation
+ end subroutine import_terminal_ventilation
 
 !
 !###########################################################################################

@@ -1,7 +1,7 @@
 
 #include "gas_exchange.h"
 
-void initial_gasexchange();
+void initial_gasexchange_c();
 
 void initial_gasexchange()
 {
