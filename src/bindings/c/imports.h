@@ -3,6 +3,6 @@
 
 #include "symbol_export.h"
 
-SHO_PUBLIC void import_terminal_ventilation();
+SHO_PUBLIC void import_terminal_ventilation(const char *FLOWFILE);
 
 #endif /* AETHER_IMPORTS_H */
