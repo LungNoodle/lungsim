@@ -15,8 +15,8 @@ module indices
 !parameters
   ! indices for elem_ordrs
   integer :: num_ord=3,no_gen=1,no_hord=2,no_sord=3
-  ! indices for node_field
-  integer :: num_nj,nj_radius,nj_radius0,nj_press,nj_conc1
+  ! indices for node_fields
+  integer :: num_nj,nj_press,nj_conc1
   ! indices for elem_field
   integer ::num_ne,ne_radius,ne_length,ne_vol,&
       ne_resist,ne_t_resist,ne_Vdot,ne_Vdot0,ne_a_A,&
@@ -29,7 +29,7 @@ module indices
   character :: problem_type
 
 public num_ord,no_gen,no_hord,no_sord,&
-      num_nj,nj_radius,nj_radius0,nj_press,nj_conc1,&
+      num_nj,nj_press,nj_conc1,&
        num_ne,ne_radius,ne_length,ne_vol,&
       ne_resist,ne_t_resist,ne_Vdot,ne_Vdot0,ne_a_A,&
        ne_dvdt,ne_radius_in,ne_radius_in0,ne_radius_out,&
