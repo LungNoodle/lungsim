@@ -25,7 +25,7 @@ module indices
   ! indices for unit_field
   integer :: num_nu,nu_vol,nu_comp,nu_Vdot0,nu_Vdot1, &
        nu_Vdot2,nu_dpdt,nu_pe,nu_vt,nu_air_press,nu_conc1,nu_vent,&
-       nu_perf,nu_blood_press
+       nu_vd,nu_perf,nu_blood_press
   character :: problem_type
 
 public num_ord,no_gen,no_hord,no_sord
@@ -39,7 +39,7 @@ public num_ne,ne_radius,ne_length,ne_vol,&
 
 public num_nu,nu_vol,nu_comp,nu_Vdot0,nu_Vdot1, &
        nu_Vdot2,nu_dpdt,nu_pe,nu_vt,nu_air_press,&
-       nu_conc1,nu_vent,&
+       nu_conc1,nu_vent,nu_vd,&
        nu_perf,nu_blood_press
 
 public problem_type
@@ -58,15 +58,16 @@ contains
 
     character(len=MAX_FILENAME_LEN),intent(in) :: PROBLEM_TYPE
     character(len=60) :: sub_name
-    write(*,*) PROBLEM_TYPE
     select case (PROBLEM_TYPE)
       case ('gas_exchange')
         print *, 'You are solving a gas exchange model, setting up indices'
+        call exchange_indices
       case ('gas_mix')
         print *, 'You are solving a gas mixing model, setting up indices'
         call gasmix_indices
       case ('gas_transfer')
         print *, 'You are solving a gas transfer model, setting up indices'
+         call exchange_indices
       case ('perfusion')
         print *, 'You are solving a static perfusion model, setting up indices'
         call perfusion_indices
@@ -79,6 +80,42 @@ contains
   end subroutine define_problem_type
 
   !>Gas mixing indices
+  subroutine exchange_indices
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GASMIX_INDICES" :: GASMIX_INDICES
+
+    use diagnostics, only: enter_exit
+    implicit none
+    character(len=60) :: sub_name
+
+    sub_name = 'exchange_indices'
+    call enter_exit(sub_name,1)
+    ! indices for elem_ordrs. These dont usually change.
+    ! indices for node_field
+    num_nj=1
+
+    ! indices for elem_field
+    num_ne=9
+    ne_radius=1
+    ne_length=2
+    ne_vol=3
+    ne_resist=4
+    ne_Vdot=5
+    ne_Qdot=6
+
+    ! indices for unit_field
+    num_nu=6
+    nu_vol=1
+    nu_comp=2
+    nu_Vdot0=3
+    nu_vd=4
+    nu_vent=5
+    nu_perf=6
+
+
+    call enter_exit(sub_name,2)
+  end subroutine exchange_indices
+
+  !>Gas mixing indices
   subroutine gasmix_indices
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GASMIX_INDICES" :: GASMIX_INDICES
 
@@ -86,7 +123,7 @@ contains
     implicit none
     character(len=60) :: sub_name
 
-    sub_name = 'ventilation_indices'
+    sub_name = 'gasmix_indices'
     call enter_exit(sub_name,1)
     ! indices for elem_ordrs. These dont usually change.
     ! indices for node_field

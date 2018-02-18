@@ -21,6 +21,7 @@ module ventilation
   public evaluate_vent
   public evaluate_uniform_flow
   public two_unit_test
+  public sum_elem_field_from_periphery
 
 contains
 

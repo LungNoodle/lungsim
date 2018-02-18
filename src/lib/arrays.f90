@@ -15,6 +15,8 @@ module arrays
   integer :: num_elems,num_nodes,num_units,maxgen
 
   integer, parameter :: dp=kind(0.d0) !  for double precision
+  real(dp),parameter :: zero_tol = 1.0e-12_dp
+  real(dp),parameter :: loose_tol = 1.0e-6_dp
 
   integer,allocatable :: nodes(:) !allocated in define_node_geometry
   integer,allocatable :: elems(:) !allocated in define_1d_elements
@@ -64,7 +66,8 @@ module arrays
   private
   public set_node_field_value, elem_field, num_elems, elem_nodes, node_xyz, nodes, elems, &
     num_nodes, units, num_units, unit_field, node_field, dp, elem_cnct, elem_ordrs, elem_direction, &
-    elems_at_node, elem_symmetry, expansile, elem_units_below, maxgen,capillary_bf_parameters
+    elems_at_node, elem_symmetry, expansile, elem_units_below, maxgen,capillary_bf_parameters, &
+    zero_tol,loose_tol
 
 contains
   subroutine set_node_field_value(row, col, value)
