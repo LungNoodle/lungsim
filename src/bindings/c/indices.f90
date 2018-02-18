@@ -5,6 +5,27 @@ module indices_c
 private
 
 contains
+  subroutine define_problem_type_c(PROBLEMTYPE, filename_len) bind(C, name="define_problem_type_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use indices, only: define_problem_type
+    use other_consts, only: MAX_STRING_LEN, MAX_FILENAME_LEN
+    implicit none
+    integer,intent(in) :: filename_len
+    type(c_ptr), value, intent(in) :: PROBLEMTYPE
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, PROBLEMTYPE, filename_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_define_problem_type(filename_f)
+#else
+    call define_problem_type(filename_f)
+#endif
+
+  end subroutine define_problem_type_c
+
 
   !> Ventilation indices
   subroutine ventilation_indices_c() bind(C, name="ventilation_indices_c")

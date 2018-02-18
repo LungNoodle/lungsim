@@ -26,6 +26,7 @@ module indices
   integer :: num_nu,nu_vol,nu_comp,nu_Vdot0,nu_Vdot1, &
        nu_Vdot2,nu_dpdt,nu_pe,nu_vt,nu_press,nu_conc1,nu_vent,&
        nu_perf,nu_blood_press
+  character :: problem_type
 
 public num_ord,no_gen,no_hord,no_sord,&
       num_nj,nj_radius,nj_radius0,nj_press,nj_conc1,&
@@ -36,12 +37,38 @@ public num_ord,no_gen,no_hord,no_sord,&
        nu_Vdot0,nu_Vdot1, &
        nu_Vdot2,nu_dpdt,nu_pe,nu_vt,nu_press,nu_conc1,nu_vent,&
        nu_perf,nu_blood_press
+ public problem_type
 
 !Interfaces
 private
-public ventilation_indices, perfusion_indices, get_ne_radius, get_nj_conc1
+public define_problem_type,ventilation_indices, perfusion_indices, get_ne_radius, get_nj_conc1
 
 contains
+
+  !> Define problem type
+  subroutine define_problem_type(PROBLEM_TYPE)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_PROBLEM_TYPE" :: DEFINE_PROBLEM_TYPE
+    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
+    use diagnostics, only: enter_exit
+
+    character(len=MAX_FILENAME_LEN),intent(in) :: PROBLEM_TYPE
+    character(len=60) :: sub_name
+    write(*,*) PROBLEM_TYPE
+    select case (PROBLEM_TYPE)
+      case ('gas_exchange')
+        print *, 'You are solving a gas exchange model, setting up indices'
+      case ('gas_transfer')
+        print *, 'You are solving a gas transfer model, setting up indices'
+      case ('perfusion')
+        print *, 'You are solving a static perfusion model, setting up indices'
+        call perfusion_indices
+      case ('ventilation')
+        print *, 'You are solving a ventilation model, setting up indices'
+        call ventilation_indices
+    end select
+
+    call enter_exit(sub_name,2)
+  end subroutine define_problem_type
 
   !> Ventilation indices
   subroutine ventilation_indices
@@ -55,18 +82,18 @@ contains
     call enter_exit(sub_name,1)
     ! indices for elem_ordrs. These dont usually change.
     ! indices for node_field
-    num_nj=3
-    nj_press=2
-    nj_conc1=3
+    num_nj=3 !number of nodal fields
+    nj_press=2 !air pressure
+    nj_conc1=3 !concentration
     ! indices for elem_field
-    num_ne=9
-    ne_radius=1
-    ne_length=2
-    ne_vol=3
-    ne_resist=4
+    num_ne=9 !number of element fields
+    ne_radius=1 !radius of airway
+    ne_length=2 !length of airway
+    ne_vol=3 !volume
+    ne_resist=4 !resistance of airway
     ne_t_resist=5
-    ne_Vdot=6
-    ne_Vdot0=7
+    ne_Vdot=6 !Air flow, current time step
+    ne_Vdot0=7 !air flow, last timestep
     ne_a_A=8
     ne_dvdt=9
     ! indices for unit_field
