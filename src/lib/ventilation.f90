@@ -391,7 +391,7 @@ contains
   subroutine update_unit_dpdt(dt)
     use arrays,only: dp,elem_nodes,node_field,&
          num_units,units,unit_field
-    use indices,only: nj_press,nu_dpdt,nu_press
+    use indices,only: nj_aw_press,nu_dpdt,nu_air_press
     use diagnostics, only: enter_exit
     implicit none
 
@@ -412,8 +412,8 @@ contains
        ne=units(nunit)
        np1=elem_nodes(1,ne)
        ! linear estimate
-       est=(node_field(nj_press,np1) &
-            -unit_field(nu_press,nunit))/dt
+       est=(node_field(nj_aw_press,np1) &
+            -unit_field(nu_air_press,nunit))/dt
        ! weight new estimate with the previous dP/dt
        unit_field(nu_dpdt,nunit)=0.5d0*(est+unit_field(nu_dpdt,nunit))
     enddo !nunit
@@ -427,7 +427,7 @@ contains
 
   subroutine update_proximal_pressure
     use arrays,only: elem_nodes,node_field,num_units,units,unit_field
-    use indices,only: nj_press,nu_press
+    use indices,only: nj_aw_press,nu_air_press
     use diagnostics, only: enter_exit
     implicit none
 
@@ -444,7 +444,7 @@ contains
     do nunit=1,num_units
        ne=units(nunit)
        np1=elem_nodes(1,ne)
-       unit_field(nu_press,nunit)=node_field(nj_press,np1) !store the pressure at entry node
+       unit_field(nu_air_press,nunit)=node_field(nj_aw_press,np1) !store the pressure at entry node
     enddo !noelem
 
     call enter_exit(sub_name,2)
@@ -459,7 +459,7 @@ contains
 !!! i.e. Ppl(unit) = -Pel(unit)+Palv(unit)
     use arrays,only: dp,elem_nodes,node_field,num_units,units,unit_field
     use diagnostics, only: enter_exit
-    use indices,only: nj_press,nu_pe
+    use indices,only: nj_aw_press,nu_pe
     implicit none
 
     real(dp),intent(out) :: ppl_current
@@ -477,7 +477,7 @@ contains
        ne=units(nunit)
        np2=elem_nodes(2,ne)
        ppl_current = ppl_current - unit_field(nu_pe,nunit) + &
-            node_field(nj_press,np2)
+            node_field(nj_aw_press,np2)
     enddo !noelem
     ppl_current = ppl_current/num_units
 
@@ -491,7 +491,7 @@ contains
 
   subroutine update_node_pressures(press_in)
     use arrays,only: dp,elem_field,elem_nodes,node_field,num_elems
-    use indices,only: ne_Vdot,ne_resist,nj_press
+    use indices,only: ne_Vdot,ne_resist,nj_aw_press
     use diagnostics, only: enter_exit
     implicit none
 
@@ -511,13 +511,13 @@ contains
     ! set the initial node pressure to be the input pressure (usually zero)
     ne=1 !element number at top of tree, usually = 1
     np1=elem_nodes(1,ne) !first node in element
-    node_field(nj_press,np1)=press_in !set pressure at top of tree
+    node_field(nj_aw_press,np1)=press_in !set pressure at top of tree
 
     do ne=1,num_elems !for each element
        np1=elem_nodes(1,ne) !start node number
        np2=elem_nodes(2,ne) !end node number
        !P(np2) = P(np1) - Resistance(ne)*Flow(ne)
-       node_field(nj_press,np2)=node_field(nj_press,np1) &
+       node_field(nj_aw_press,np2)=node_field(nj_aw_press,np1) &
             -elem_field(ne_resist,ne)*elem_field(ne_Vdot,ne)
     enddo !noelem
 
@@ -785,7 +785,7 @@ contains
     use arrays,only: dp,elem_nodes,node_field,&
          num_units,units,unit_field
     use diagnostics, only: enter_exit
-    use indices,only: nj_press,nu_pe
+    use indices,only: nj_aw_press,nu_pe
     implicit none
     real(dp) :: breath_vol,dt_vol,WOBe,WOBr,pptrans
     ! Local variables
@@ -805,7 +805,7 @@ contains
     do nunit=1,num_units
        ne=units(nunit)
        np1=elem_nodes(2,ne)
-       p_resis=p_resis+node_field(nj_press,1)-node_field(nj_press,np1)
+       p_resis=p_resis+node_field(nj_aw_press,1)-node_field(nj_aw_press,np1)
     enddo
     p_resis=p_resis/num_units
     ! vol in mm3 *1e-9=m3, pressure in Pa, hence *1d-9 = P.m3 (Joules)

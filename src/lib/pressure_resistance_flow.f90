@@ -1018,7 +1018,7 @@ subroutine map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_
       enddo !elems
       do np=1,num_nodes
         ny=depvar_at_node(np,0,1)
-        node_field(nj_press,np)=prq_solution(ny,1)
+        node_field(nj_bv_press,np)=prq_solution(ny,1)
       enddo
 
     call enter_exit(sub_name,2)
@@ -1040,7 +1040,7 @@ subroutine map_flow_to_terminals
       ne=units(nu)
       np=elem_nodes(2,ne)
       unit_field(nu_perf,nu)=elem_field(ne_Qdot,ne)
-      unit_field(nu_blood_press,nu)=node_field(nj_press,np)
+      unit_field(nu_blood_press,nu)=node_field(nj_bv_press,np)
     enddo
 
     call enter_exit(sub_name,2)
