@@ -7,19 +7,19 @@ contains
 !###################################################################################
   
 !*test_function:* just for testing the new module
-  subroutine test_function_c() bind(C, name="test_function_c")
+  subroutine initial_gasexchange_c() bind(C, name="initial_gasexchange_c")
   
-    use gas_exchange, only: test_function
+    use gas_exchange, only: initial_gasexchange
     implicit none
 
 
 #if defined _WIN32 && defined __INTEL_COMPILER
-    call so_test_function
+    call so_initial_gasexchange
 #else
-    call test_function
+    call initial_gasexchange
 #endif
 
-  end subroutine test_function_c
+  end subroutine initial_gasexchange_c
   
 end module gas_exchange_c
 

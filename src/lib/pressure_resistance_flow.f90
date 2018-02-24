@@ -446,7 +446,7 @@ subroutine calculate_resistance(viscosity,KOUNT)
        resistance = 8.d0*viscosity*elem_field(ne_length,ne)/ &
             (PI*elem_field(ne_radius,ne)**4) !laminar resistance
        ! element turbulent resistance (flow in bifurcating tubes)
-       !reynolds=DABS(elem_field(ne_flow,ne)*2.d0*density/ &
+       !reynolds=DABS(elem_field(ne_Qdot,ne)*2.d0*density/ &
          !   (PI*elem_field(ne_radius,ne)*viscosity))
        zeta = 1.0_dp!MAX(1.d0,dsqrt(2.d0*elem_field(ne_radius,ne)* &
             !reynolds/elem_field(ne_length,ne))*gamma)
@@ -1014,11 +1014,11 @@ subroutine map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_
     call enter_exit(sub_name,1)
       do  ne=1,num_elems
         ny=depvar_at_elem(1,1,ne)
-        elem_field(ne_flow,ne)=prq_solution(ny,1)
+        elem_field(ne_Qdot,ne)=prq_solution(ny,1)
       enddo !elems
       do np=1,num_nodes
         ny=depvar_at_node(np,0,1)
-        node_field(nj_press,np)=prq_solution(ny,1)
+        node_field(nj_bv_press,np)=prq_solution(ny,1)
       enddo
 
     call enter_exit(sub_name,2)
@@ -1039,8 +1039,8 @@ subroutine map_flow_to_terminals
     do nu=1,num_units
       ne=units(nu)
       np=elem_nodes(2,ne)
-      unit_field(nu_perf,nu)=elem_field(ne_flow,ne)
-      unit_field(nu_blood_press,nu)=node_field(nj_press,np)
+      unit_field(nu_perf,nu)=elem_field(ne_Qdot,ne)
+      unit_field(nu_blood_press,nu)=node_field(nj_bv_press,np)
     enddo
 
     call enter_exit(sub_name,2)

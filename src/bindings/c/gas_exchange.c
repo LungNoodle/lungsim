@@ -1,9 +1,9 @@
 
 #include "gas_exchange.h"
 
-void test_function();
+void initial_gasexchange_c();
 
-void test_function()
+void initial_gasexchange()
 {
-  test_function_c();
+	initial_gasexchange_c();
 }

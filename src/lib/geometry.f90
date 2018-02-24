@@ -29,6 +29,7 @@ module geometry
   public define_rad_from_geom
   public element_connectivity_1d
   public evaluate_ordering
+  public get_final_real
   public set_initial_volume
   public volume_of_mesh
 
@@ -1416,7 +1417,7 @@ contains
        rsign=1.0_dp
        ibeg=1
     endif
-    read (sub_string(ibeg:iend), '(D25.17)' ) rtemp !get real value
+    read (sub_string(ibeg:iend), * ) rtemp !get real value
     rtemp=rtemp*rsign !apply sign to number
 
   end subroutine get_final_real
