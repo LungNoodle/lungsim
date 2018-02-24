@@ -23,6 +23,7 @@ set(INTERFACE_SRCS
   ../interface/indices.i
   ../interface/imports.i
   ../interface/pressure_resistance_flow.i
+  ../interface/species_transport.i
   ../interface/ventilation.i
 
 )

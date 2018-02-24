@@ -12,6 +12,7 @@ set(C_FORTRAN_LIB_SRCS
     indices.f90
     imports.f90
     pressure_resistance_flow.f90
+    species_transport.f90
     utils.f90
     ventilation.f90
 )
@@ -26,6 +27,7 @@ set(C_C_LIB_SRCS
     indices.c
     imports.c
     pressure_resistance_flow.c
+    species_transport.c
     utils.c
     ventilation.c
 )
@@ -42,6 +44,7 @@ set(C_LIB_HDRS
   indices.h
   imports.h
   pressure_resistance_flow.h
+  species_transport.h
   utils.h
   ventilation.h
 

@@ -26,7 +26,8 @@ module indices
   integer :: num_nu,nu_vol,nu_comp,nu_Vdot0,nu_Vdot1, &
        nu_Vdot2,nu_dpdt,nu_pe,nu_vt,nu_air_press,nu_conc1,nu_vent,&
        nu_vd,nu_perf,nu_blood_press
-  character :: problem_type
+  !model type
+  character(len=60) :: model_type
 
 public num_ord,no_gen,no_hord,no_sord
 
@@ -42,7 +43,7 @@ public num_nu,nu_vol,nu_comp,nu_Vdot0,nu_Vdot1, &
        nu_conc1,nu_vent,nu_vd,&
        nu_perf,nu_blood_press
 
-public problem_type
+public model_type
 
 !Interfaces
 private
@@ -57,7 +58,9 @@ contains
     use diagnostics, only: enter_exit
 
     character(len=MAX_FILENAME_LEN),intent(in) :: PROBLEM_TYPE
+
     character(len=60) :: sub_name
+
     select case (PROBLEM_TYPE)
       case ('gas_exchange')
         print *, 'You are solving a gas exchange model, setting up indices'
@@ -75,7 +78,7 @@ contains
         print *, 'You are solving a ventilation model, setting up indices'
         call ventilation_indices
     end select
-
+    model_type=TRIM(PROBLEM_TYPE)
     call enter_exit(sub_name,2)
   end subroutine define_problem_type
 

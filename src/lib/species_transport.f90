@@ -27,21 +27,32 @@ contains
 !##############################################################################
 !
  subroutine initialise_transport()
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_TEST_FUNCTION: TEST_FUNCTION
-   use indices,only: ne_radius
+ !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT: TEST_INITIALISE_TRANSPORT
+   use indices
    use arrays, only: dp
    use diagnostics, only: enter_exit
 
    !local variables
-   integer :: other,stuff
 
    character(len=60) :: sub_name
 
    sub_name = 'initialise_transport'
    call enter_exit(sub_name,1)
 
-   write(*,*) ne_radius
-
+   select case (model_type)
+     case ('gas_exchange')
+       print *, 'You are solving a gas exchange model'
+       !Note that as V, Q are prerequisites something needs to be added here that checks
+       !these have been read in and if not sets up linear gradient based on some default parameters
+     case ('gas_mix')
+       print *, 'You are solving a gas mixing model'
+       !Note that as V is prerequisites something needs to be added here that checks
+       !these have been read in and if not sets up linear gradient based on some default parameters
+     case ('gas_transfer')
+       print *, 'You are solving a gas transfer model'
+       !Note that as V, Q are prerequisites something needs to be added here that checks
+       !these have been read in and if not sets up linear gradient based on some default parameters
+    end select
    call enter_exit(sub_name,2)
  end subroutine initialise_transport
 
