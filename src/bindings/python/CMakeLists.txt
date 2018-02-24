@@ -17,6 +17,7 @@ set(INTERFACE_SRCS
   ../interface/diagnostics.i
   ../interface/exports.i
   ../interface/filenames.i
+  ../interface/field_utilities.i
   ../interface/gas_exchange.i
   ../interface/gasmix.i
   ../interface/geometry.i
