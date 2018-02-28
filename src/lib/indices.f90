@@ -16,33 +16,57 @@ module indices
   ! indices for elem_ordrs
   integer :: num_ord=3,no_gen=1,no_hord=2,no_sord=3
   ! indices for node_fields
-  integer :: num_nj,nj_aw_press,nj_bv_press,nj_conc1
+  integer :: num_nj,nj_aw_press,nj_bv_press,nj_conc1,&
+     nj_conc2
   ! indices for elem_field
   integer ::num_ne,ne_radius,ne_length,ne_vol,&
       ne_resist,ne_t_resist,ne_Vdot,ne_Vdot0,ne_a_A,&
        ne_dvdt,ne_radius_in,ne_radius_in0,&
        ne_radius_out,ne_radius_out0,ne_group,ne_Qdot
   ! indices for unit_field
-  integer :: num_nu,nu_vol,nu_comp,nu_Vdot0,nu_Vdot1, &
+  integer :: num_nu,nu_vol,nu_comp,nu_conc2,nu_Vdot0,nu_Vdot1, &
        nu_Vdot2,nu_dpdt,nu_pe,nu_vt,nu_air_press,nu_conc1,nu_vent,&
        nu_vd,nu_perf,nu_blood_press
-  character :: problem_type
+  !indices for gas exchange field
+! indices for gasex_field
+  integer,parameter :: num_gx = 13
+  integer,parameter :: ng_p_alv_o2=1      ! index for alveolar partial pressure of O2
+  integer,parameter :: ng_p_alv_co2=2     ! index for alveolar partial pressure of CO2
+  integer,parameter :: ng_p_ven_o2=3      ! index for local venous partial pressure of O2
+  integer,parameter :: ng_p_ven_co2=4     ! index for local venous partial pressure of CO2
+  integer,parameter :: ng_p_cap_o2=5      ! index for local end capillary partial pressure of O2
+  integer,parameter :: ng_p_cap_co2=6     ! index for local end capillary partial pressure of CO2
+  integer,parameter :: ng_source_o2=7     ! index for source (flux) of O2
+  integer,parameter :: ng_source_co2=8    ! index for source (flux) of CO2
+  integer,parameter :: ng_Vc=9            ! index for unit's capillary blood volume
+  integer,parameter :: ng_sa=10           ! index for unit's capillary surface area
+  integer,parameter :: ng_tt=11           ! index for transit time in unit
+  integer,parameter :: ng_Qdot=12         ! index for unit proportion of cardiac output
+  integer,parameter :: ng_time=13         ! index for time elapsed for RBC in capillaries
+
+  !model type
+  character(len=60) :: model_type
 
 public num_ord,no_gen,no_hord,no_sord
 
-public num_nj,nj_aw_press,nj_bv_press, nj_conc1
+public num_nj,nj_aw_press,nj_bv_press, nj_conc1,nj_conc2
 
 public num_ne,ne_radius,ne_length,ne_vol,&
       ne_resist,ne_t_resist,ne_Vdot,ne_Vdot0,ne_a_A,&
       ne_dvdt,ne_radius_in,ne_radius_in0,ne_radius_out,&
       ne_radius_out0,ne_group,ne_Qdot
 
-public num_nu,nu_vol,nu_comp,nu_Vdot0,nu_Vdot1, &
+public num_nu,nu_vol,nu_comp, nu_conc2,nu_Vdot0,nu_Vdot1, &
        nu_Vdot2,nu_dpdt,nu_pe,nu_vt,nu_air_press,&
        nu_conc1,nu_vent,nu_vd,&
        nu_perf,nu_blood_press
 
-public problem_type
+public num_gx, ng_p_alv_o2,ng_p_alv_co2,ng_p_ven_o2,ng_p_ven_co2, &
+       ng_p_cap_o2, ng_p_cap_co2,ng_source_o2,ng_source_co2, &
+       ng_Vc, ng_sa, ng_tt, ng_Qdot, ng_time
+
+
+public model_type
 
 !Interfaces
 private
@@ -57,7 +81,9 @@ contains
     use diagnostics, only: enter_exit
 
     character(len=MAX_FILENAME_LEN),intent(in) :: PROBLEM_TYPE
+
     character(len=60) :: sub_name
+
     select case (PROBLEM_TYPE)
       case ('gas_exchange')
         print *, 'You are solving a gas exchange model, setting up indices'
@@ -75,7 +101,7 @@ contains
         print *, 'You are solving a ventilation model, setting up indices'
         call ventilation_indices
     end select
-
+    model_type=TRIM(PROBLEM_TYPE)
     call enter_exit(sub_name,2)
   end subroutine define_problem_type
 
@@ -91,7 +117,9 @@ contains
     call enter_exit(sub_name,1)
     ! indices for elem_ordrs. These dont usually change.
     ! indices for node_field
-    num_nj=1
+    num_nj=3
+    nj_conc1=2
+    nj_conc2=3
 
     ! indices for elem_field
     num_ne=9
@@ -103,13 +131,14 @@ contains
     ne_Qdot=6
 
     ! indices for unit_field
-    num_nu=6
+    num_nu=7
     nu_vol=1
     nu_comp=2
     nu_Vdot0=3
     nu_vd=4
-    nu_vent=5
-    nu_perf=6
+    nu_perf=5
+    nu_conc1=6
+    nu_conc2=7
 
 
     call enter_exit(sub_name,2)
