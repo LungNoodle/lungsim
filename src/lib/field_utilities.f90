@@ -51,7 +51,6 @@ contains
     elseif(VorQ.eq.'Q')then
       if(abs(elem_field(ne_Qdot,1)).gt.zero_tol)then
         ratio = inlet_flow/elem_field(ne_Qdot,1)
-        write(*,*) 'ratio', ratio
         unit_field(nu_perf,1:num_units) = unit_field(nu_perf,1:num_units)*ratio
         elem_field(ne_Qdot,1:num_elems) = elem_field(ne_Qdot,1:num_elems)*ratio
       else

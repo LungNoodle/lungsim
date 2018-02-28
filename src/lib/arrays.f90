@@ -31,6 +31,7 @@ module arrays
   real(dp),allocatable :: elem_field(:,:) !properties of elements
   real(dp),allocatable :: elem_direction(:,:)
   real(dp),allocatable :: node_xyz(:,:)
+  real(dp),allocatable :: gasex_field(:,:) !gasexchange specific fields
   real(dp),allocatable :: unit_field(:,:) !properties of elastic units
   real(dp),allocatable :: node_field(:,:)
 
@@ -67,7 +68,7 @@ module arrays
   public set_node_field_value, elem_field, num_elems, elem_nodes, node_xyz, nodes, elems, &
     num_nodes, units, num_units, unit_field, node_field, dp, elem_cnct, elem_ordrs, elem_direction, &
     elems_at_node, elem_symmetry, expansile, elem_units_below, maxgen,capillary_bf_parameters, &
-    zero_tol,loose_tol
+    zero_tol,loose_tol,gasex_field
 
 contains
   subroutine set_node_field_value(row, col, value)
