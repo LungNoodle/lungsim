@@ -29,7 +29,7 @@ module indices
        nu_vd,nu_perf,nu_blood_press
   !indices for gas exchange field
 ! indices for gasex_field
-  integer,parameter :: num_gx = 13
+  integer,parameter :: num_gx = 12
   integer,parameter :: ng_p_alv_o2=1      ! index for alveolar partial pressure of O2
   integer,parameter :: ng_p_alv_co2=2     ! index for alveolar partial pressure of CO2
   integer,parameter :: ng_p_ven_o2=3      ! index for local venous partial pressure of O2
@@ -41,8 +41,7 @@ module indices
   integer,parameter :: ng_Vc=9            ! index for unit's capillary blood volume
   integer,parameter :: ng_sa=10           ! index for unit's capillary surface area
   integer,parameter :: ng_tt=11           ! index for transit time in unit
-  integer,parameter :: ng_Qdot=12         ! index for unit proportion of cardiac output
-  integer,parameter :: ng_time=13         ! index for time elapsed for RBC in capillaries
+  integer,parameter :: ng_time=12         ! index for time elapsed for RBC in capillaries
 
   !model type
   character(len=60) :: model_type
@@ -63,7 +62,7 @@ public num_nu,nu_vol,nu_comp, nu_conc2,nu_Vdot0,nu_Vdot1, &
 
 public num_gx, ng_p_alv_o2,ng_p_alv_co2,ng_p_ven_o2,ng_p_ven_co2, &
        ng_p_cap_o2, ng_p_cap_co2,ng_source_o2,ng_source_co2, &
-       ng_Vc, ng_sa, ng_tt, ng_Qdot, ng_time
+       ng_Vc, ng_sa, ng_tt, ng_time
 
 
 public model_type

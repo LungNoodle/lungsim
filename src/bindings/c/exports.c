@@ -57,6 +57,14 @@ void export_terminal_perfusion(const char *EXNODEFILE, const char *name)
   export_terminal_perfusion_c(EXNODEFILE, &filename_len, name, &name_len);
 }
 
+void export_terminal_ssgexch(const char *EXNODEFILE, const char *name)
+{
+  int filename_len = strlen(EXNODEFILE);
+  int name_len = strlen(name);
+
+  export_terminal_ssgexch_c(EXNODEFILE, &filename_len, name, &name_len);
+}
+
 void export_node_geometry(const char *EXNODEFILE, const char *name)
 {
   int filename_len = strlen(EXNODEFILE);
