@@ -147,7 +147,7 @@ contains
     real(dp) :: c_art_co2,c_cap_co2,c_cap_o2,c_ven_co2,fun_o2, &
          fun_co2,fdash,p_cap_co2,p_cap_o2,p_art_co2_last, &
          p_art_o2_last,p_ven_co2_last,p_ven_o2_last,Q_total, &
-         target_c_ven_co2,target_c_ven_o2,v_q
+         target_c_ven_co2,target_c_ven_o2,v_q,p_alv_o2,p_alv_co2
 
     real(dp),parameter :: m = 0.02386_dp, tol = 1.0e-6_dp
     logical :: continue
@@ -197,6 +197,9 @@ contains
 !!! sum the content in arterial blood (flow weighted sum)
           c_art_co2 = c_art_co2 + elem_units_below(ne)* &
                (c_cap_co2*dabs(unit_field(nu_perf,nunit))) !flow-weighted
+!! sum the alveolar co2
+          p_alv_co2=p_alv_co2 + elem_units_below(ne)* &
+               (p_cap_co2*dabs(unit_field(nu_Vdot0,nunit))) !flow-weighted
 
        enddo !nunit
 !!! update the arterial content of CO2
@@ -204,6 +207,8 @@ contains
 !!! include the shunt fraction in total arterial CO2
        c_ven_co2 = m * p_ven_co2/(1+m*p_ven_co2)
        c_art_co2 = c_art_co2*(1-SHUNT_FRACTION)+c_ven_co2*SHUNT_FRACTION
+ !!  summed alveolar pco2
+       p_alv_co2=p_alv_co2/elem_field(ne_Vdot,1)
 
 !!! calculate the partial pressure of pulmonary arterial CO2:
        p_art_co2 = 1/(m*(1-c_art_co2)) ! initialise p_art_co2
@@ -251,6 +256,8 @@ contains
 
     write(*,'('' Steady-state P_art_CO2 ='',F6.1,'' mmHg,&
          & P_ven_CO2='',F6.1,'' mmHg'')') p_art_co2,p_ven_co2
+    write(*,'(''               P_alv_CO2 ='',F6.1,'' mmHg,&
+         &  P(A-a)CO2='',F6.1,'' mmHg'')') p_alv_co2,p_alv_co2-p_art_co2
 
 !!! Calculate steady state gas exchange for O2
     p_ven_o2_last = p_ven_o2
@@ -258,6 +265,7 @@ contains
     continue = .true.
     do while (continue)
        c_art_o2 = 0.0_dp
+       p_alv_o2=0.0_dp
        do nunit=1,num_units
           ne = units(nunit)
           p_cap_o2 = gasex_field(ng_p_cap_o2,nunit) !initialise
@@ -289,6 +297,9 @@ contains
 !!! sum the content in arterial blood (flow weighted sum)
           c_art_o2 = c_art_o2 + elem_units_below(ne)* &
                (c_cap_o2*dabs(unit_field(nu_perf,nunit))) !flow-weighted
+!! sum the alveolar o2
+          p_alv_o2=p_alv_o2 + elem_units_below(ne)* &
+               (p_cap_o2*dabs(unit_field(nu_Vdot0,nunit))) !flow-weighted
 
          ! write(*,*) 'V/Q=',v_q,' pO2=',p_cap_o2,c_cap_o2,c_art_o2
        enddo !nunit
@@ -300,6 +311,8 @@ contains
        c_art_o2 = c_art_o2*(1.0_dp-SHUNT_FRACTION)+c_ven_o2*SHUNT_FRACTION
 !!! calculate the partial pressure of pulmonary arterial O2:
        p_art_o2 = po2_from_content(c_art_o2,p_art_co2)
+!!  summed alveolar po2
+       p_alv_o2=p_alv_o2/elem_field(ne_Vdot,1)
 !!! find the p_ven_o2 for the new (target) content of venous O2
        target_c_ven_o2 = c_art_o2 - VO2/(elem_field(ne_Qdot,1)*(1+SHUNT_FRACTION))
        !mL(O2)/mL(blood)   mL/mL   [mm^3/s]/[mm^3/s]
@@ -328,6 +341,8 @@ contains
 
     write(*,'('' Steady-state  P_art_O2 ='',F6.1,'' mmHg,&
          &  P_ven_O2='',F6.1,'' mmHg'')') p_art_o2,p_ven_o2
+    write(*,'(''               P_alv_O2 ='',F6.1,'' mmHg,&
+         &  P(A-a)O2='',F6.1,'' mmHg'')') p_alv_o2,p_alv_o2-p_art_o2
 
     do nunit=1,num_units
        ne=units(nunit)
