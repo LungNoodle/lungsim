@@ -6,15 +6,19 @@ set(LIB_SRCS
   diagnostics.f90
   exports.f90
   filenames.f90
+  field_utilities.f90
+  gas_exchange.f90
   gasmix.f90
   geometry.f90
   indices.f90
+  imports.f90
   math_utilities.f90
   other_consts.f90
   pressure_resistance_flow.f90
   solve.f90
+  species_transport.f90
   ventilation.f90
-  gas_exchange.f90
+
 )
 
 set(AETHER_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules")

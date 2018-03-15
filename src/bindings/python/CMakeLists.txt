@@ -17,12 +17,16 @@ set(INTERFACE_SRCS
   ../interface/diagnostics.i
   ../interface/exports.i
   ../interface/filenames.i
+  ../interface/field_utilities.i
+  ../interface/gas_exchange.i
   ../interface/gasmix.i
   ../interface/geometry.i
   ../interface/indices.i
+  ../interface/imports.i
   ../interface/pressure_resistance_flow.i
+  ../interface/species_transport.i
   ../interface/ventilation.i
-  ../interface/gas_exchange.i
+
 )
 
 include_directories(${PYTHON_INCLUDE_DIRS} ${NUMPY_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/../c)

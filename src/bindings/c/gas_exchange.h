@@ -3,6 +3,5 @@
 
 #include "symbol_export.h"
 
-SHO_PUBLIC void test_function();
 
 #endif /* AETHER_GAS_EXCHANGE_H */

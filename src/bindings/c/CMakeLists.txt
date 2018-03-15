@@ -6,26 +6,32 @@ set(C_FORTRAN_LIB_SRCS
     diagnostics.f90
     exports.f90
     filenames.f90
+    field_utilities.f90
+    gas_exchange.f90
     gasmix.f90
     geometry.f90
     indices.f90
+    imports.f90
     pressure_resistance_flow.f90
+    species_transport.f90
     utils.f90
     ventilation.f90
-    gas_exchange.f90
 )
 set(C_C_LIB_SRCS
     arrays.c
     diagnostics.c
     exports.c
     filenames.c
+    field_utilities.c
+    gas_exchange.c
     gasmix.c
     geometry.c
     indices.c
+    imports.c
     pressure_resistance_flow.c
+    species_transport.c
     utils.c
     ventilation.c
-    gas_exchange.c
 )
 
 set(C_LIB_HDRS
@@ -34,13 +40,17 @@ set(C_LIB_HDRS
   diagnostics.h
   exports.h
   filenames.h
+  field_utilities.h
+  gas_exchange.h
   gasmix.h
   geometry.h
   indices.h
+  imports.h
   pressure_resistance_flow.h
+  species_transport.h
   utils.h
   ventilation.h
-  gas_exchange.h
+
 )
 
 add_library(aether_c_fortran STATIC ${C_FORTRAN_LIB_SRCS} $<TARGET_OBJECTS:aether_obj>)
