@@ -1,2 +1,2 @@
-https://github.com/VACUMM/sphinx-fortran@c114cf738f67ec193cd9868396cb901d23420c67
+git+https://github.com/VACUMM/sphinx-fortran@0487f37e923147e02daeae6806fffde4cbde978d
 numpy
