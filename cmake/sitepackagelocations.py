@@ -76,5 +76,5 @@ if sys.platform == "darwin":
                     pass
 
 
-map(lambda x: sys.stdout.write('%s\n' % x), site_packages)
-
+for site_package in site_packages:
+    sys.stdout.write('%s\n' % site_package)
