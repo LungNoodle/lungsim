@@ -48,7 +48,13 @@ set(CMAKE_SWIG_FLAGS ${PYTHONLIBS_SWIG_FLAGS})
 set(MODULE_TARGETS)
 foreach(SWIG_INTERFACE ${INTERFACE_SRCS})
   get_filename_component(MODULE_NAME ${SWIG_INTERFACE} NAME_WE)
-  swig_add_module(${MODULE_NAME} python ${SWIG_INTERFACE})
+  if (${CMAKE_VERSION} VERSION_LESS 3.8)
+    swig_add_module(${MODULE_NAME} python ${SWIG_INTERFACE})
+  else ()
+    swig_add_library(${MODULE_NAME}
+      LANGUAGE python
+      SOURCES ${SWIG_INTERFACE})
+  endif ()
   # The Python debug libraries on windows also require the Python release libraries
   # (this appears to be the case for the libraries built with Visual Studio 14 2015),
   # so we add the release libraries here for all platforms.  This probably means that
