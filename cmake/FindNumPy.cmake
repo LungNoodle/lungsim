@@ -39,6 +39,9 @@ if (PYTHON_EXECUTABLE)
       list(APPEND _NUMPY_LIB_PATHS "${d}/numpy/core")
     endforeach()
 
+    get_filename_component(NUMPY_ROOT_PATH ${NUMPY_PATH} DIRECTORY)
+    list(APPEND _NUMPY_LIB_PATHS ${NUMPY_ROOT_PATH})
+
     find_library (NUMPY_NPYMATH_LIBRARY npymath
       HINTS ${_NUMPY_LIB_PATHS}
       PATH_SUFFIXES lib)
