@@ -14,6 +14,14 @@ if(${PYTHONLIBS_MAJOR_VERSION} STREQUAL "3")
   set(PYTHONLIBS_SWIG_FLAGS -py3 -relativeimport)
 endif()
 
+if(WIN32)
+  set(SETUP_PY_OPERATING_SYSTEM_CLASSIFIER "Operating System :: Microsoft :: Windows")
+elseif(DARWIN)
+  set(SETUP_PY_OPERATING_SYSTEM_CLASSIFIER "Operating System :: MacOS :: MacOS X")
+else()
+  set(SETUP_PY_OPERATING_SYSTEM_CLASSIFIER "Operating System :: Unix")
+endif()
+
 set(INTERFACE_SRCS
   ../interface/arrays.i
   ../interface/diagnostics.i
@@ -126,5 +134,6 @@ install(TARGETS ${MODULE_TARGETS}
 install(FILES ${PYTHON_PACKAGE_INIT_FILE} ${PYTHON_MODULE_FILES} $<TARGET_FILE:aether> $<TARGET_FILE:aether_c>
   DESTINATION ${PYTHON_MODULE_INSTALL_PREFIX})
 
-install(FILES ${PYTHON_SETUP_PY_FILE_CONFIGURATION_DIR}/setup.py
+install(FILES ${PYTHON_SETUP_PY_FILE_CONFIGURATION_DIR}/setup.py ${Aether_SOURCE_DIR}/LICENCE.txt
+  ${Aether_SOURCE_DIR}/README.rst
   DESTINATION ${PYTHON_MODULE_INSTALL_PREFIX}/..)
