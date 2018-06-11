@@ -16,13 +16,13 @@ Requirements
 
 In order to build the Aether library there are some tools that are required:
 
-  * Compiler toolchain
-  * CMake
-  * SWIG (optional)
-  * Python (optional)
-  * Sphinx (optional)
-  
-    * sphinx-fortran
+* Compiler toolchain
+* CMake
+* SWIG (optional)
+* Python (optional)
+* Sphinx (optional)
+
+  * sphinx-fortran
 
 If you wish to build the Python bindings for the library then Python and SWIG become necessary requirements.  Sphinx is used to generate nicely formatted output for the documentation, you can still edit and read the documentation without Sphinx.  The 'docs' target in the build will generate the html version of the documentation using Sphinx, without Sphinx this target will not be available.
 
