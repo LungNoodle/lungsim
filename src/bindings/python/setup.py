@@ -12,6 +12,8 @@ License :: OSI Approved :: Apache Software License
 Programming Language :: Python
 Programming Language :: Python :: 2.7
 Programming Language :: Python :: 3.5
+Programming Language :: Python :: 3.6
+Programming Language :: Python :: 3.7
 Operating System :: Microsoft :: Windows
 Operating System :: Unix
 Operating System :: MacOS :: MacOS X
@@ -24,16 +26,16 @@ from setuptools import setup
 doclines = __doc__#.split("\n")
 
 setup(
-	name='aether',
-        version='@Aether_VERSION@',
-	author='Lung Group, Auckland Bioengineering Institute.',
-	author_email='h.sorby@auckland.ac.nz',
-	packages=['aether'],
-#	package_data={'aether': []},
-	platforms=['any'],
-	url='https://lung.bioeng.auckland.ac.nz/',
-	license='http://www.apache.org/licenses/LICENSE-2.0',
-	description='Aether library of routines for modelling the lung.',
-	classifiers = filter(None, classifiers.split("\n")),
-	long_description=doclines,
+    name='aether',
+    version='@Aether_VERSION@',
+    author='Lung Group, Auckland Bioengineering Institute.',
+    author_email='h.sorby@auckland.ac.nz',
+    packages=['aether'],
+#   package_data={'aether': []},
+    platforms=['any'],
+    url='https://lung.bioeng.auckland.ac.nz/',
+    license='http://www.apache.org/licenses/LICENSE-2.0',
+    description='Aether library of routines for modelling the lung.',
+    classifiers = filter(None, classifiers.split("\n")),
+    long_description=doclines,
 )
