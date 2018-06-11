@@ -27,7 +27,7 @@ contains
 !##############################################################################
 !
  subroutine initialise_transport()
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT: INITIALISE_TRANSPORT
+ !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT" :: INITIALISE_TRANSPORT
    use indices
    use arrays, only: dp
    use gas_exchange, only: initial_gasexchange
@@ -67,7 +67,7 @@ contains
 !##############################################################################
 !
  subroutine solve_transport()
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT: INITIALISE_TRANSPORT
+ !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT" :: INITIALISE_TRANSPORT
    use indices
    use arrays, only: dp
    use gas_exchange, only: steadystate_gasexchange
@@ -109,7 +109,7 @@ contains
 !###########################################################################################
 !
  subroutine allocate_memory_speciestrans()
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT: INITIALISE_TRANSPORT
+ !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT" :: INITIALISE_TRANSPORT
    use indices
    use arrays, only: dp,gasex_field,num_units
    use diagnostics, only: enter_exit
