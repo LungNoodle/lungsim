@@ -72,16 +72,6 @@ contains
     !pressure (at inlet and outlets)
     !flow (flow at inlet pressure at outlet).
 
-write(*,*) 'mesh_type',mesh_type
-
-write(*,*) 'bc_type',bc_type
-
-write(*,*) 'grav',grav_dirn,grav_factor
-
-write(*,*) 'bc',outlet_bc, inlet_bc
-
-
-
 vessel_type='elastic_g0_beta'
 mechanics_type='linear'
 
