@@ -41,4 +41,19 @@ contains
 
   end subroutine set_diagnostics_on_c
 
+  !!!######################################################################
+  subroutine get_diagnostics_on_c(state) bind(C, name="get_diagnostics_on_c")
+    use diagnostics, only: get_diagnostics_on
+    implicit none
+
+    logical :: state
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_get_diagnostics_on(state)
+#else
+    call get_diagnostics_on(state)
+#endif
+
+  end subroutine get_diagnostics_on_c
+
 end module diagnostics_c

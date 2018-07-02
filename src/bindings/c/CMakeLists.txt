@@ -50,7 +50,6 @@ set(C_LIB_HDRS
   species_transport.h
   utils.h
   ventilation.h
-
 )
 
 add_library(aether_c_fortran STATIC ${C_FORTRAN_LIB_SRCS} $<TARGET_OBJECTS:aether_obj>)
@@ -73,4 +72,9 @@ target_link_libraries(aether_c PUBLIC aether_c_fortran)
 
 add_custom_target(cbindings ALL)
 add_dependencies(cbindings aether_c)
+
+install(TARGETS aether_c aether_c_fortran
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib)
 

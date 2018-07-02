@@ -62,7 +62,7 @@ contains
 !##############################################################################
 !
  subroutine initial_gasexchange(initial_concentration,surface_area,V_cap)
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_TEST_FUNCTION: TEST_FUNCTION
+ !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIAL_GASEXCHANGE" :: INITIAL_GASEXCHANGE
    use indices
    use arrays, only: dp,elem_units_below,gasex_field,node_field,num_nodes,&
          num_units,unit_field
@@ -133,7 +133,7 @@ contains
  subroutine steadystate_gasexchange(c_art_o2,c_ven_o2,&
        p_art_co2,p_art_o2,p_i_o2,p_ven_co2,p_ven_o2,shunt_fraction,&
        VCO2,VO2)
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_STEADYSTATE_GASEXCHANGE: STEADYSTATE_GASEXCHANGE
+ !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_STEADYSTATE_GASEXCHANGE" :: STEADYSTATE_GASEXCHANGE
     use arrays,only: dp,elem_field,num_units,gasex_field,node_field,units,unit_field,&
          elem_units_below,elem_nodes
     use indices
@@ -151,9 +151,10 @@ contains
 
     real(dp),parameter :: m = 0.02386_dp, tol = 1.0e-6_dp
     logical :: continue
+    character(len=60) :: sub_name
 
-
-    call enter_exit('steadystate_gasexchange',1)
+    sub_name = 'steadystate_gasexchange'
+    call enter_exit(sub_name,1)
 
 
 !!! Calculate steady state gas exchange for CO2
@@ -359,7 +360,7 @@ contains
     unit_field(nu_conc2,1:num_units) = gasex_field(ng_p_alv_co2,1:num_units)/&
          (o2molvol*(press_atm-p_water)) ! from mmHg to mmol/mm^3
 
-    call enter_exit('steadystate_gasexchange',1)
+    call enter_exit(sub_name,2)
 
   end subroutine steadystate_gasexchange
 
