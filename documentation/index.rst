@@ -11,6 +11,21 @@ The first thing we need to do to get going using this code is to :doc:`build </b
 
 Thanks and enjoy!
 
+Quick Start
+===========
+
+If you have all the requirements for building the aether libraries and bindings then the following commands are a quick description on how to get setup and using the library, for further information or clarification read the full documentation::
+
+  git clone https://github.com/LungNoodle/lungsim.git
+  mkdir lungsim-build
+  cd lungsim-build
+  cmake ../lungsim
+  make
+  cd ..
+  virtualenv --system-site-packages venv_aether
+  source venv_aether/bin/activate
+  pip install -e lungsim-build/src/bindings/python
+
 Contents
 ========
 
