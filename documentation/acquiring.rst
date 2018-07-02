@@ -34,6 +34,9 @@ If git is not available you can install the package on an Ubuntu distribution wi
 
 Other distributions will have a similar command.
 
+Get the Source Code with Git
+============================
+
 With git installed we can acquire the codebase with the command::
 
   git clone https://github.com/LungNoodle/lungsim.git
