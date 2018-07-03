@@ -24,7 +24,7 @@ contains
 !###################################################################################
 !
 !*evaluate_PRQ:* Solves for pressure and flow in a rigid or compliant tree structure
-  subroutine evaluate_prq
+  subroutine evaluate_prq(mesh_type,grav_dirn,grav_factor,bc_type,inlet_bc,outlet_bc)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_PRQ" :: EVALUATE_PRQ
     use indices
     use capillaryflow,only: cap_flow_ladder
@@ -45,7 +45,7 @@ contains
     integer :: AllocateStatus
 
     real(dp), allocatable :: prq_solution(:,:),solver_solution(:)
-    real(dp) :: viscosity,density,inletbc,outletbc,grav_vect(3),gamma,total_resistance,ERR
+    real(dp) :: viscosity,density,inlet_bc,outlet_bc,inletbc,outletbc,grav_vect(3),gamma,total_resistance,ERR
     logical, allocatable :: FIX(:)
     logical :: ADD=.FALSE.,CONVERGED=.FALSE.
     character(len=60) :: sub_name,mesh_type,vessel_type,mechanics_type,bc_type
@@ -72,11 +72,8 @@ contains
     !pressure (at inlet and outlets)
     !flow (flow at inlet pressure at outlet).
 
-mesh_type='full_plus_ladder'
-!mesh_type='simple_tree'
 vessel_type='elastic_g0_beta'
 mechanics_type='linear'
-bc_type='pressure'
 
 if (vessel_type.eq.'rigid') then
     elasticity_parameters=0.0_dp
@@ -106,9 +103,6 @@ else
      call exit(0)
 endif
 
-grav_dirn=2
-grav_factor=-1.0_dp
-
 grav_vect=0.d0
 if (grav_dirn.eq.1) then
     grav_vect(1)=1.0_dp
@@ -123,8 +117,8 @@ endif
 grav_vect=grav_vect*grav_factor
 
 if(bc_type.eq.'pressure')then
-    inletbc=15.0_dp*133.0_dp!2266.0_dp
-    outletbc=5.0_dp*133.0_dp!666.7_dp
+    inletbc=inlet_bc
+    outletbc=outlet_bc
 elseif(bc_type.eq.'flow')then
     print  *, "ERROR: Flow boundary conditions not yet implemented"
      call exit(0)
