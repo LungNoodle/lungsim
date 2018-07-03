@@ -978,8 +978,10 @@ contains
      radius=10.0_dp**(log10(CONTROL_PARAM)*dble(elem_ordrs(nindex,ne)-n_max_ord)&
         +log10(START_RAD))
      elem_field(ne_radius,ne)=radius
-     elem_field(ne_radius_in,ne)=radius
-     elem_field(ne_radius_out,ne)=radius
+     if(ne_radius_in.gt.0)then
+        elem_field(ne_radius_in,ne)=radius
+        elem_field(ne_radius_out,ne)=radius
+     endif
     enddo
 
     call enter_exit(sub_name,2)
