@@ -1,7 +1,10 @@
 
 #include "filenames.h"
 
-#include "string.h"
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+
 
 void read_geometry_main_c();
 void read_geometry_evaluate_flow_c();
@@ -16,9 +19,6 @@ void read_geometry_evaluate_flow()
 {
   read_geometry_evaluate_flow_c();
 }
-
-#include <stdlib.h>
-#include <stdio.h>
 
 char *get_filename(const char *label)
 {

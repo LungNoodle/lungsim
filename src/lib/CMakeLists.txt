@@ -48,3 +48,7 @@ set_target_properties(aether PROPERTIES
 
 target_include_directories(aether PUBLIC "${AETHER_MODULE_DIRECTORY}")
 
+install(TARGETS aether
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib)
