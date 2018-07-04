@@ -128,6 +128,7 @@ contains
     ne_resist=4
     ne_Vdot=5
     ne_Qdot=6
+    ne_dvdt=7
 
     ! indices for unit_field
     num_nu=7
