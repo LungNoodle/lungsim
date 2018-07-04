@@ -105,14 +105,13 @@ if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
     add_definitions(-DIntel)
     if (WIN32)
         set(CMAKE_Fortran_FLAGS
-            "${CMAKE_Fortran_FLAGS_DEBUG} -Od -check:uninit -check:bounds -traceback -assume:realloc_lhs ${CMAKE_Fortran_FLAGS}"
+            "-check:uninit -check:bounds -traceback -assume:realloc_lhs ${CMAKE_Fortran_FLAGS}"
             )
     else (WIN32)
         set(CMAKE_Fortran_FLAGS
             "${CMAKE_Fortran_FLAGS_DEBUG} -O0 -check uninit -check bounds -check pointers -check stack -traceback -assume realloc_lhs ${CMAKE_Fortran_FLAGS}"
             )
     endif (WIN32)
-
 
 elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL GNU)
 

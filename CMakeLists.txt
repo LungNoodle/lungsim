@@ -25,11 +25,13 @@ set(AETHER_BUILD_SHARED ${BUILD_SHARED} CACHE BOOL "Build shared library (true) 
 set(BUILD_SHARED_LIBS ${AETHER_BUILD_SHARED} CACHE INTERNAL "Internalise BUILD_SHARED_LIBS, manipulate via AETHER_BUILD_SHARED" FORCE)
 
 # Set the build type Release, Debug plus more if you define them
-if(NOT BUILD_TYPE)
-  set(BUILD_TYPE Release)
+if (NOT CMAKE_CONFIGURATION_TYPES)
+  if(NOT BUILD_TYPE)
+    set(BUILD_TYPE Release)
+  endif()
+  set(AETHER_BUILD_TYPE ${BUILD_TYPE} CACHE STRING "Set the build type; [Release], Debug, Pedantic (GNU Fortran only)")
+  set(CMAKE_BUILD_TYPE ${AETHER_BUILD_TYPE} CACHE INTERNAL "Internalise CMAKE_BUILD_TYPE, manipulate via AETHER_BUILD_TYPE" FORCE)
 endif()
-set(AETHER_BUILD_TYPE ${BUILD_TYPE} CACHE STRING "Set the build type; [Release], Debug, Pedantic (GNU Fortran only)")
-set(CMAKE_BUILD_TYPE ${AETHER_BUILD_TYPE} CACHE INTERNAL "Internalise CMAKE_BUILD_TYPE, manipulate via AETHER_BUILD_TYPE" FORCE)
 
 # Set whether to build bindgins or not, may require SWIG
 option(AETHER_BUILD_BINDINGS "Build bindings for ${PROJECT}, may require SWIG" YES)

@@ -27,7 +27,7 @@ contains
 !##############################################################################
 !
  subroutine initialise_transport()
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT: INITIALISE_TRANSPORT
+ !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT" :: INITIALISE_TRANSPORT
    use indices
    use arrays, only: dp
    use gas_exchange, only: initial_gasexchange
@@ -67,7 +67,7 @@ contains
 !##############################################################################
 !
  subroutine solve_transport()
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT: INITIALISE_TRANSPORT
+ !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT" :: INITIALISE_TRANSPORT
    use indices
    use arrays, only: dp
    use gas_exchange, only: steadystate_gasexchange
@@ -99,7 +99,7 @@ contains
        p_ven_o2=40.0_dp
        call steadystate_gasexchange(c_art_o2,c_ven_o2,&
        p_art_co2,p_art_o2,149.0_dp,p_ven_co2,p_ven_o2,0.03_dp,&
-       0.8_dp*(240.0_dp*1.0e+3_dp/60.0_dp),240.0_dp*1.0e+3_dp/60.0_dp )
+       0.8_dp*(260.0_dp*1.0e+3_dp/60.0_dp),260.0_dp*1.0e+3_dp/60.0_dp )
 
     end select
    call enter_exit(sub_name,2)
@@ -109,7 +109,7 @@ contains
 !###########################################################################################
 !
  subroutine allocate_memory_speciestrans()
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT: INITIALISE_TRANSPORT
+ !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT" :: INITIALISE_TRANSPORT
    use indices
    use arrays, only: dp,gasex_field,num_units
    use diagnostics, only: enter_exit
