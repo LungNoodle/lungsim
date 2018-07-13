@@ -23,13 +23,18 @@ module geometry
   public add_matching_mesh
   public append_units
   public define_1d_elements
+  public define_elem_geometry_2d
   public define_mesh_geometry_test
   public define_node_geometry
+  public define_node_geometry_2d
+  public define_data_geometry
   public define_rad_from_file
   public define_rad_from_geom
   public element_connectivity_1d
+  public element_connectivity_2d
   public evaluate_ordering
   public get_final_real
+  public get_local_node_f
   public set_initial_volume
   public volume_of_mesh
 
@@ -401,7 +406,7 @@ contains
 !
 !###################################################################################
 !
-  !*define_1d_elements:* Reads in an element ipelem file to define a geometry
+  !*define_1d_elements:* Reads in an 1D element ipelem file to define a geometry
   subroutine define_1d_elements(ELEMFILE)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_1D_ELEMENTS" :: DEFINE_1D_ELEMENTS
 
@@ -517,6 +522,85 @@ contains
     call enter_exit(sub_name,2)
 
   END subroutine define_1d_elements
+
+
+!!!##################################################
+
+  subroutine define_elem_geometry_2d(ELEMFILE,sf_option)
+
+    ! Reads in 2D ipelem file.
+
+    use arrays,only: elems_2d,elem_nodes_2d,num_elems_2d,elem_versn_2d,node_versn_2d
+    use indices
+    !use diagnostics, only: enter_exit
+    implicit none 
+
+    character(len=*) :: ELEMFILE
+    character(len=4) :: sf_option
+    
+    !     Local Variables
+    integer :: ierror,ne,ne_global,nn,np,number_of_elements
+    character(len=132) :: ctemp1,readfile
+    
+    
+    readfile = trim(elemfile)//'.ipelem'
+    open(10, file=readfile, status='old')
+    
+    read_number_of_elements : do
+       read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+       if(index(ctemp1, "elements")> 0) then
+          call get_final_integer(ctemp1,number_of_elements)
+          exit read_number_of_elements
+       endif
+    end do read_number_of_elements
+
+    num_elems_2d=number_of_elements
+    if(.not.allocated(elems_2d)) allocate(elems_2d(num_elems_2d))
+    if(.not.allocated(elem_nodes_2d)) allocate(elem_nodes_2d(4,num_elems_2d))
+    if(.not.allocated(elem_versn_2d)) allocate(elem_versn_2d(4,num_elems_2d))
+    
+    ne = 0
+    
+    read_an_element : do 
+       !.......read element number
+       read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+       if(index(ctemp1, "Element")> 0) then
+          call get_final_integer(ctemp1,ne_global) !get element number
+          ne = ne + 1
+          elems_2d(ne) = ne_global
+          
+          read_element_nodes : do 
+             read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+             if(index(ctemp1, "global")> 0) then !found the correct line
+                call get_four_nodes(ne,ctemp1) !number of versions for node np
+                ! note that only the ne'th data of elem_nodes_2d is passed to 'get_four_nodes'
+                do nn=1,4
+                   np=elem_nodes_2d(nn,ne)
+                   if(node_versn_2d(np).gt.1)then
+                      read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !contains version# for njj=1
+                      read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !contains version# for njj=1
+                      read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !contains version# for njj=1
+                      call get_final_integer(ctemp1,elem_versn_2d(nn,ne)) !get version#
+                   else
+                      elem_versn_2d(nn,ne)= 1
+                   endif !nversions
+                enddo !nn
+                exit read_element_nodes
+             endif !index
+          end do read_element_nodes
+          
+          if(ne.ge.number_of_elements) exit read_an_element
+       endif
+       
+    end do read_an_element
+    
+    close(10)
+    
+    call element_connectivity_2d
+    call line_segments_for_2d_mesh(sf_option)
+    
+  end subroutine define_elem_geometry_2d
+
 !
 !###################################################################################
 !
@@ -779,6 +863,190 @@ contains
     call enter_exit(sub_name,2)
 
   END subroutine define_node_geometry
+
+!!!##################################################
+
+  subroutine define_node_geometry_2d(NODEFILE)
+  
+  !*define_node_geometry_2d:* Reads in an ipnode file to define surface nodes
+    use arrays,only: dp,nodes_2d,node_field,node_xyz_2d,num_nodes_2d,node_versn_2d
+    use diagnostics, only: enter_exit
+    use indices
+    use other_consts, only: MAX_FILENAME_LEN
+
+    character(len=*),intent(in) :: NODEFILE
+    !     Local Variables
+    integer :: i,ierror,np,np_global,&
+         num_versions,nv
+    integer,parameter :: num_derivs = 3
+    character(len=132) :: ctemp1,readfile
+    character(len=60) :: sub_name = 'define_node_geometry_2d'
+    
+    call enter_exit(sub_name,1)
+
+
+    open(10, file=nodefile, status='old')
+
+    !.....read in the total number of nodes. read each line until one is found
+    !.....that has the correct keyword (nodes). then return the integer that is
+    !.....at the end of the line
+    read_number_of_nodes : do !define a do loop name
+       read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !read a line into ctemp1
+        if(index(ctemp1, "nodes")> 0) then !keyword "nodes" is found in ctemp1
+          call get_final_integer(ctemp1,num_nodes_2d) !return the final integer
+          exit read_number_of_nodes !exit the named do loop
+        endif
+    end do read_number_of_nodes
+
+    write(*,*) 'Number of nodes are:',num_nodes_2d
+!!!allocate memory to arrays that require node number
+    if(.not.allocated(nodes_2d)) allocate(nodes_2d(num_nodes_2d))
+    if(.not.allocated(node_xyz_2d)) allocate(node_xyz_2d(4,10,16,num_nodes_2d))
+    if(.not.allocated(node_versn_2d)) allocate(node_versn_2d(num_nodes_2d))
+
+   
+    !.....read the coordinate, derivative, and version information for each node. 
+    np=0
+    read_a_node : do !define a do loop name
+       !.......read node number
+       read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+       if(index(ctemp1, "Node")> 0) then
+          call get_final_integer(ctemp1,np_global) !get node number
+
+          np=np+1
+          nodes_2d(np) = np_global
+          
+          !.......read coordinates
+          do i=1,3 ! for the x,y,z coordinates
+             num_versions = 0
+             read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+             if(index(ctemp1, "versions")> 0) call get_final_integer(ctemp1,num_versions)
+             node_versn_2d(np) = max(1,num_versions) !number of versions for node np
+             do nv=1,node_versn_2d(np)
+                if(num_versions > 1)then
+                   read(unit=10, fmt="(a)", iostat=ierror) ctemp1 ! "For version number..."
+                endif
+                !...........coordinate          
+                if(num_versions > 0) read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+                call get_final_real(ctemp1,node_xyz_2d(1,nv,i,np))
+                if(num_derivs.ge.1)then
+                   !..........derivative 1
+                   read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+                   call get_final_real(ctemp1,node_xyz_2d(2,nv,i,np))
+                endif
+                if(num_derivs.ge.2)then
+                   !..........derivative 2
+                   read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+                   call get_final_real(ctemp1,node_xyz_2d(3,nv,i,np))
+                endif
+                if(num_derivs.ge.3)then
+                   !...........derivative 1&2
+                   read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+                   call get_final_real(ctemp1,node_xyz_2d(4,nv,i,np))
+                endif
+                if(num_derivs.ge.4)then
+                   write(*,'(''This code is only valid for a surface geometry'')')
+                   read(*,*)
+                endif
+             end do !nv
+          end do !i
+       endif !index
+       if(np.ge.num_nodes_2d) exit read_a_node
+    end do read_a_node
+    
+    close(10)
+    write(*,*) 'Here is:',node_xyz_2d(1,1,1,2),nodes_2d(2) 
+    call enter_exit(sub_name,2)
+
+  end subroutine define_node_geometry_2d
+
+
+!!!##################################################
+
+  subroutine define_data_geometry(datafile)
+
+!!! read data points from a file
+    
+    use arrays,only: dp,data_xyz,data_weight,num_data
+    !use diagnostics, only: enter_exit
+    use indices
+    use other_consts, only: MAX_FILENAME_LEN   
+!!! dummy arguments
+    character(len=*) :: datafile
+!!! local variables
+    integer :: iend,ierror,length_string,ncount,nj,itemp
+    character(len=132) :: buffer,readfile
+    
+
+    !set the counted number of data points to zero
+    ncount = 0
+    
+    readfile = trim(datafile)//'.ipdata'
+    open(10, file=readfile, status='old')
+    read(unit=10, fmt="(a)", iostat=ierror) buffer
+
+!!! first run through to count the number of data points
+    read_line_to_count : do
+       read(unit=10, fmt="(a)", iostat=ierror) buffer
+       if(ierror<0) exit !ierror<0 means end of file
+       ncount = ncount + 1
+    end do read_line_to_count
+    num_data = ncount
+    close (10)
+    write(*,'('' Read'',I7,'' data points from file'')') num_data
+
+!!! allocate arrays now that we know the size required
+    if(allocated(data_xyz)) deallocate(data_xyz)
+    if(allocated(data_weight)) deallocate(data_weight)
+    allocate(data_xyz(3,num_data))
+    allocate(data_weight(3,num_data))
+
+!!! read the data point information
+    readfile = trim(datafile)//'.ipdata'
+    open(10, file=readfile, status='old')
+    read(unit=10, fmt="(a)", iostat=ierror) buffer
+
+    !set the counted number of data points to zero
+    ncount = 0
+    read_line_of_data : do
+       
+       ! read the data #; z; y; z; wd1; wd2; wd3 for each data point
+       read(unit=10, fmt="(a)", iostat=ierror) buffer
+       if(ierror<0) exit !ierror<0 means end of file
+       length_string = len_trim(buffer) !length of buffer, and removed trailing blanks
+       
+       ! read data number
+       buffer=adjustl(buffer) !remove leading blanks
+       iend=index(buffer," ",.false.)-1 !index returns location of first blank
+       if(length_string == 0) exit
+       ncount=ncount+1
+       read (buffer(1:iend), '(i6)') itemp
+       
+       do nj=1,3
+          ! read x,y,z coordinates
+          buffer = adjustl(buffer(iend+1:length_string)) !remove data number from string
+          buffer = adjustl(buffer) !remove leading blanks
+          length_string = len(buffer) !new length of buffer
+          iend=index(buffer," ",.false.)-1 !index returns location of first blank
+          read (buffer(1:iend), '(D25.17)') data_xyz(nj,ncount)
+       enddo !nj
+       
+       do nj=1,3
+          !        ! read weightings
+          !        buffer = adjustl(buffer(iend+1:length_string)) !remove data number from string
+          !        buffer = adjustl(buffer) !remove leading blanks
+          !        length_string = len(buffer) !new length of buffer
+          !        iend=index(buffer," ",.false.)-1 !index returns location of first blank
+          !        read (buffer(1:iend), '(D25.17)') data_weight(nj,ncount)
+          data_weight(nj,ncount)=1.0_dp
+       enddo !nj
+       
+    enddo read_line_of_data
+    
+    close(10)
+
+  end subroutine define_data_geometry
+
 !
 !###################################################################################
 !
@@ -1042,6 +1310,284 @@ contains
     call enter_exit(sub_name,2)
 
   END subroutine element_connectivity_1d
+
+
+!
+!###########################################################################
+!
+
+  subroutine element_connectivity_2d
+
+!!! calculates the connectivity of elements in each xi direction
+    use arrays,only: elem_cnct_2d,elem_nodes_2d,elems_at_node_2d,num_elems_2d,num_nodes_2d
+    use diagnostics, only: enter_exit
+    implicit none
+    !!! local variables
+    integer :: ne,ne2,nn,np,noelem2,np_list(4),np_list_2(4)
+    integer,parameter :: num_elem_nodes = 4
+    
+    if(.not.allocated(elem_cnct_2d)) allocate(elem_cnct_2d(-2:2,0:10,num_elems_2d))
+    if(.not.allocated(elems_at_node_2d)) allocate(elems_at_node_2d(num_nodes_2d,0:10))
+
+    ! calculate elems_at_node_2d array: stores the elements that nodes are in
+    
+    elems_at_node_2d = 0 !initialise all
+    
+    do ne = 1,num_elems_2d
+       do nn = 1,num_elem_nodes
+          np = elem_nodes_2d(nn,ne)
+          elems_at_node_2d(np,0) = elems_at_node_2d(np,0)+1
+          elems_at_node_2d(np,elems_at_node_2d(np,0)) = ne !element that np is in
+       enddo !nn
+    enddo !noelem
+    
+    ! calculate elem_cnct_2d array: stores the connectivity of all elements
+    
+    elem_cnct_2d = 0 !initialise all elem_cnct_2d
+    
+    do ne = 1,num_elems_2d ! for each of the 2d elements
+       np_list(1:4) = elem_nodes_2d(1:4,ne) ! the list of nodes in the element (including repeated)
+!!! check the elements attached to the 1st node
+       do noelem2 = 1,elems_at_node_2d(np_list(1),0) ! for each element attached to the 1st node
+          ne2 = elems_at_node_2d(np_list(1),noelem2) ! attached element number
+          if(ne2.ne.ne)then
+             np_list_2(1:4) = elem_nodes_2d(1:4,ne2) !list of nodes in attached element
+             if(np_list(2).ne.np_list(1))then ! only if first two nodes are not repeated
+                if(inlist(np_list(2),np_list_2))then
+                   elem_cnct_2d(-2,0,ne) = elem_cnct_2d(-2,0,ne)+1
+                   elem_cnct_2d(-2,elem_cnct_2d(-2,0,ne),ne) = ne2 
+                endif
+             endif
+             if(np_list(3).ne.np_list(1))then ! only if the two nodes are not repeated
+                if(inlist(np_list(3),np_list_2))then
+                   elem_cnct_2d(-1,0,ne) = elem_cnct_2d(-1,0,ne)+1
+                   elem_cnct_2d(-1,elem_cnct_2d(-1,0,ne),ne) = ne2 
+                endif
+             endif
+          endif
+       enddo
+!!! check the elements attached to the 4th node
+       do noelem2 = 1,elems_at_node_2d(np_list(4),0) ! for each element attached to the 4th node
+          ne2 = elems_at_node_2d(np_list(4),noelem2) ! attached element number
+          if(ne2.ne.ne)then
+             np_list_2(1:4) = elem_nodes_2d(1:4,ne2) !list of nodes in attached element
+             if(np_list(2).ne.np_list(4))then ! only if two nodes are not repeated
+                if(inlist(np_list(2),np_list_2))then
+                   elem_cnct_2d(2,0,ne) = elem_cnct_2d(2,0,ne)+1
+                   elem_cnct_2d(2,elem_cnct_2d(2,0,ne),ne) = ne2 
+                endif
+             endif
+             if(np_list(3).ne.np_list(4))then ! only if the two nodes are not repeated
+                if(inlist(np_list(3),np_list_2))then
+                   elem_cnct_2d(1,0,ne) = elem_cnct_2d(1,0,ne)+1
+                   elem_cnct_2d(1,elem_cnct_2d(1,0,ne),ne) = ne2 
+                endif
+             endif
+          endif
+       enddo !noelem2
+    enddo
+
+  end subroutine element_connectivity_2d
+
+
+!!! ##########################################################################      
+
+  subroutine line_segments_for_2d_mesh(sf_option)
+    use arrays,only: num_elems_2d,elem_lines_2d,elem_cnct_2d,num_lines_2d,lines_2d, &
+                     line_versn_2d,lines_in_elem,nodes_in_line,arclength,elem_nodes_2d, &
+                     elem_versn_2d,scale_factors_2d
+    use mesh_functions,only: calc_scale_factors_2d
+!!! sets up the line segment arrays for a 2d mesh
+    
+    character(len=4),intent(in) :: sf_option
+!!! local variables
+    integer :: ne,ne_adjacent,ni1,nj,nl,nl_adj,npn(2)
+    logical :: MAKE
+    logical :: based_on_elems = .true.
+    
+    if(.not.allocated(elem_lines_2d)) allocate(elem_lines_2d(4,num_elems_2d))
+    if(.not.allocated(scale_factors_2d)) allocate(scale_factors_2d(16,num_elems_2d))
+
+    elem_lines_2d=0
+    num_lines_2d = 0
+
+    if(based_on_elems)then
+!!! estimate number of lines, for allocating memory to arrays
+!!! before setting up arrays, count the number of lines required
+       do ne=1,num_elems_2d
+          MAKE=.FALSE.
+          if(elem_cnct_2d(-1,0,ne) == 0) MAKE=.TRUE. !exterior, make line
+          ne_adjacent=elem_cnct_2d(-1,1,ne)
+          if(ne_adjacent > 0)then
+             if(elem_lines_2d(4,ne_adjacent) == 0) MAKE=.TRUE.
+          endif
+          if(MAKE) num_lines_2d = num_lines_2d+1
+          MAKE=.FALSE.
+          if(elem_cnct_2d(-2,0,ne) == 0) MAKE=.TRUE. !exterior, make line
+          ne_adjacent=elem_cnct_2d(-2,1,ne)
+          if(ne_adjacent > 0)then
+             if(elem_lines_2d(2,ne_adjacent) == 0) MAKE=.TRUE.
+          endif
+          if(MAKE) num_lines_2d=num_lines_2d+1
+          num_lines_2d = num_lines_2d+2
+          elem_lines_2d(2,ne) = 1 ! at this stage just to tag it for conditional above
+          elem_lines_2d(4,ne) = 1 ! at this stage just to tag it for conditional above
+       enddo !ne
+       
+       elem_lines_2d = 0
+       
+       if(.not.allocated(lines_2d)) allocate(lines_2d(0:num_lines_2d))
+       if(.not.allocated(line_versn_2d)) allocate(line_versn_2d(2,3,num_lines_2d))
+       if(.not.allocated(lines_in_elem)) allocate(lines_in_elem(0:4,num_lines_2d))
+       if(.not.allocated(nodes_in_line)) allocate(nodes_in_line(3,0:3,num_lines_2d))
+       if(.not.allocated(arclength)) allocate(arclength(3,num_lines_2d)) 
+       lines_in_elem=0
+       lines_2d=0
+       nodes_in_line=0
+       line_versn_2d=0
+       num_lines_2d = 0 ! reset to zero for loop below
+       
+!!! Now run through the same as above, and set up the arrays
+       do ne=1,num_elems_2d
+          !check whether to make a line
+          MAKE=.FALSE.
+          if(elem_cnct_2d(-1,0,ne) == 0) MAKE=.TRUE. !exterior, make line
+          ne_adjacent=elem_cnct_2d(-1,1,ne)
+          if(ne_adjacent.gt.0)then
+             if(elem_lines_2d(4,ne_adjacent) == 0) MAKE=.TRUE.
+          endif
+          if(MAKE)then
+             num_lines_2d = num_lines_2d+1
+             lines_2d(num_lines_2d) = num_lines_2d !record a new line number
+             lines_in_elem(0,num_lines_2d) = lines_in_elem(0,num_lines_2d)+1
+             lines_in_elem(lines_in_elem(0,num_lines_2d),num_lines_2d) = ne !line num_lines_2d is in element ne
+             elem_lines_2d(3,ne) = num_lines_2d !num_lines_2d is global line # corresponding to local line 3 of ne
+             npn(1) = 1
+             npn(2) = 3
+             nodes_in_line(2,1,num_lines_2d)=elem_nodes_2d(1,ne) !records 1st node in line
+             nodes_in_line(3,1,num_lines_2d)=elem_nodes_2d(3,ne) !records 2nd node in line
+             nodes_in_line(1,0,num_lines_2d)=2 !Xi-direction of line segment num_lines_2d
+             do nj=1,3
+                nodes_in_line(1,nj,num_lines_2d)=4 !type of basis function (1 for linear,4 for cubicHermite)
+                do ni1=1,2
+                   line_versn_2d(ni1,nj,num_lines_2d)=elem_versn_2d(npn(ni1),ne)
+                enddo !n
+             enddo !nj
+          else !get adjacent element line number
+             !WARNING:: this only works if all Xi directions are consistent!!!!
+             ne_adjacent=elem_cnct_2d(-1,1,ne)
+             elem_lines_2d(3,ne)=elem_lines_2d(4,ne_adjacent)
+          endif
+          
+          !check whether to make a line
+          MAKE=.FALSE.
+          if(elem_cnct_2d(-2,0,ne) == 0) MAKE=.TRUE. !exterior, make line
+          ne_adjacent=elem_cnct_2d(-2,1,ne)
+          if(ne_adjacent.gt.0)then
+             if(elem_lines_2d(2,ne_adjacent) == 0) MAKE=.TRUE.
+          endif
+
+          if(MAKE)then
+             num_lines_2d=num_lines_2d+1
+             lines_2d(num_lines_2d)=num_lines_2d !record a new line number
+             lines_in_elem(0,num_lines_2d)=lines_in_elem(0,num_lines_2d)+1
+             lines_in_elem(lines_in_elem(0,num_lines_2d),num_lines_2d)=ne !line num_lines_2d is in element ne
+             elem_lines_2d(1,ne)=num_lines_2d !num_lines_2d is global line # corresponding to local line 1 of ne
+             npn(1)=1
+             npn(2)=2
+             nodes_in_line(2,1,num_lines_2d)=elem_nodes_2d(1,ne) !records 1st node in line
+             nodes_in_line(3,1,num_lines_2d)=elem_nodes_2d(2,ne) !records 2nd node in line
+             nodes_in_line(1,0,num_lines_2d)=1 !Xi-direction of line segment num_lines_2d
+             do nj=1,3
+                nodes_in_line(1,nj,num_lines_2d)=4 !type of basis function (1 for linear,4 for cubicHermite)
+                do ni1=1,2
+                   line_versn_2d(ni1,nj,num_lines_2d)=elem_versn_2d(npn(ni1),ne)
+                enddo !n
+             enddo !nj
+          else !get adjacent element line number
+             !WARNING:: this only works if all Xi directions are consistent!!!!
+             ne_adjacent = elem_cnct_2d(-2,1,ne)
+             do nl_adj = 1,4
+                nl = elem_lines_2d(nl_adj,ne_adjacent)
+                if(nl /= 0)then
+                   if(nodes_in_line(2,1,nl) == elem_nodes_2d(1,ne) .and. &
+                        nodes_in_line(3,1,nl) == elem_nodes_2d(2,ne))then
+                      elem_lines_2d(1,ne) = nl
+                   elseif(nodes_in_line(2,1,nl) == elem_nodes_2d(2,ne) .and. &
+                        nodes_in_line(3,1,nl) == elem_nodes_2d(1,ne))then
+                      elem_lines_2d(1,ne) = nl
+                   endif
+                endif
+             enddo
+!             elem_lines_2d(1,ne)=elem_lines_2d(2,ne_adjacent)
+          endif
+          
+          !*! new:       
+          MAKE=.TRUE.
+          ne_adjacent=elem_cnct_2d(1,1,ne)
+          if(ne_adjacent.gt.0)then
+             if(elem_lines_2d(3,ne_adjacent) /= 0) MAKE=.FALSE.
+          endif
+          
+          if(MAKE)then
+             num_lines_2d=num_lines_2d+1
+             lines_2d(num_lines_2d)=num_lines_2d !record a new line number
+             lines_in_elem(0,num_lines_2d)=lines_in_elem(0,num_lines_2d)+1
+             lines_in_elem(lines_in_elem(0,num_lines_2d),num_lines_2d)=ne !line num_lines_2d is in element ne
+             elem_lines_2d(4,ne)=num_lines_2d !num_lines_2d is global line # corresponding to local line 4 of ne
+             npn(1)=2
+             npn(2)=4
+             nodes_in_line(2,1,num_lines_2d)=elem_nodes_2d(2,ne) !records 1st node in line
+             nodes_in_line(3,1,num_lines_2d)=elem_nodes_2d(4,ne) !records 2nd node in line
+             nodes_in_line(1,0,num_lines_2d)=2 !Xi-direction of line segment num_lines_2d
+             do nj=1,3
+                nodes_in_line(1,nj,num_lines_2d)=4 !type of basis function (1 for linear,4 for cubicHermite)
+                do ni1=1,2
+                   line_versn_2d(ni1,nj,num_lines_2d)=elem_versn_2d(npn(ni1),ne)
+                enddo !n
+             enddo !nj
+          else !get adjacent element line number
+             !WARNING:: this only works if all Xi directions are consistent!!!!
+             ne_adjacent=elem_cnct_2d(1,1,ne)
+             elem_lines_2d(4,ne)=elem_lines_2d(3,ne_adjacent)
+          endif
+          
+          MAKE=.TRUE.
+          ne_adjacent=elem_cnct_2d(2,1,ne)
+          if(ne_adjacent.gt.0)then
+             if(elem_lines_2d(1,ne_adjacent) /= 0) MAKE=.FALSE.
+          endif
+          
+          if(MAKE)then
+             num_lines_2d = num_lines_2d+1
+             lines_2d(num_lines_2d) = num_lines_2d !record a new line number
+             lines_in_elem(0,num_lines_2d) = lines_in_elem(0,num_lines_2d)+1
+             lines_in_elem(lines_in_elem(0,num_lines_2d),num_lines_2d) = ne !line num_lines_2d is in element ne
+             elem_lines_2d(2,ne)=num_lines_2d !num_lines_2d is global line # corresponding to local line 2 of ne
+             npn(1) = 3
+             npn(2) = 4
+             nodes_in_line(2,1,num_lines_2d)=elem_nodes_2d(3,ne) !records 1st node in line
+             nodes_in_line(3,1,num_lines_2d)=elem_nodes_2d(4,ne) !records 2nd node in line
+             nodes_in_line(1,0,num_lines_2d)=1 !Xi-direction of line segment num_lines_2d
+             do nj=1,3
+                nodes_in_line(1,nj,num_lines_2d)=4 !type of basis function (1 for linear,4 for cubicHermite)
+                do ni1=1,2
+                   line_versn_2d(ni1,nj,num_lines_2d)=elem_versn_2d(npn(ni1),ne)
+                enddo !n
+             enddo !nj
+          else !get adjacent element line number
+             !WARNING:: this only works if all Xi directions are consistent!!!!
+             ne_adjacent=elem_cnct_2d(2,1,ne)
+             elem_lines_2d(2,ne)=elem_lines_2d(1,ne_adjacent)
+          endif
+          
+       enddo !ne
+    endif
+
+    call calc_scale_factors_2d(sf_option)
+    
+  end subroutine line_segments_for_2d_mesh
+
 
 !
 !###################################################################################
@@ -1486,6 +2032,54 @@ contains
 
   end subroutine get_local_node
 
+
+!!!###############################################################
+
+  function get_local_node_f(ndimension,np_global) result(get_local_node)
+    use arrays,only: num_nodes,num_nodes_2d,nodes,nodes_2d
+!!! dummy arguments
+    integer,intent(in) :: ndimension,np_global
+!!! local variables
+    integer :: np
+    integer :: get_local_node
+    logical :: found
+
+    found = .false.
+    np = 0
+
+    select case (ndimension)
+
+    case(1)
+       do while (.not.found)
+          np=np+1
+          if(np.gt.num_nodes) then
+             found = .true.
+             write(*,'('' Warning: local node not found for global node'',I6)') np_global
+          endif
+          if(np_global.eq.nodes(np))then
+             get_local_node = np
+             found = .true.
+          endif
+       enddo
+
+    case(2)
+       do while (.not.found)
+          np=np+1
+          if(np.gt.num_nodes_2d) then
+             found = .true.
+             write(*,'('' Warning: local node not found for global node'',I6)') np_global
+             read(*,*)
+          endif
+           if(np_global.eq.nodes_2d(np))then
+             get_local_node = np
+             found = .true.
+          endif
+       enddo
+
+    end select
+
+  end function get_local_node_f
+
 !
 !###################################################################################
 !
@@ -1515,9 +2109,35 @@ contains
 
   end subroutine get_final_integer
 
-!
+
+!!!##################################################
+
+  subroutine get_four_nodes(ne,string)
+    use arrays,only: elem_nodes_2d
+    !     Parameter List
+    integer, INTENT(IN) :: ne
+    character(len=132), INTENT(IN) :: string
+    integer :: ibeg,iend,i_ss_end,nn,np_global
+    character(len=40) :: sub_string
+    
+    iend=len(string)
+    ibeg=index(string,":")+1 !get location of first integer in string
+    sub_string = adjustl(string(ibeg:iend)) ! get the characters beyond : and remove the leading blanks
+    i_ss_end=len(sub_string) !get the end location of the sub-string
+    
+    ibeg=1
+    do nn=1,4
+       iend=index(sub_string," ") !get location of first blank in sub-string
+       read (sub_string(ibeg:iend-1), '(i7)' ) np_global
+       sub_string = adjustl(sub_string(iend:i_ss_end)) ! get chars beyond blank, remove leading blanks
+       elem_nodes_2d(nn,ne)=get_local_node_f(2,np_global)
+    enddo ! nn
+    
+  end subroutine get_four_nodes
+
+! 
 ! ##########################################################################      
-!
+! 
 
   function inlist(item,ilist)
 !!! dummy arguments
@@ -1533,8 +2153,8 @@ contains
 
   end function inlist
 
-!
+! 
 !###########################################################################################
-!
+! 
 end module geometry
 
