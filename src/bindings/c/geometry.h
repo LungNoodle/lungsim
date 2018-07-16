@@ -8,8 +8,11 @@ SHO_PUBLIC void add_mesh(const char *AIRWAY_MESHFILE);
 SHO_PUBLIC void add_matching_mesh();
 SHO_PUBLIC void append_units();
 SHO_PUBLIC void define_1d_elements(const char *ELEMFILE);
+SHO_PUBLIC void define_elem_geometry_2d(const char *ELEMFILE, const char *sf_option);
 SHO_PUBLIC void define_mesh_geometry_test();
 SHO_PUBLIC void define_node_geometry(const char *NODEFILE);
+SHO_PUBLIC void define_data_geometry(const char *DATAFILE);
+SHO_PUBLIC void define_node_geometry_2d(const char *NODEFILE);
 SHO_PUBLIC void define_rad_from_file(const char *FIELDFILE, const char *radius_type);
 SHO_PUBLIC void define_rad_from_geom(const char *ORDER_SYSTEM, double CONTROL_PARAM, const char *START_FROM,
                                      double START_RAD, const char *GROUP_TYPE, const char *GROUP_OPTIONS);

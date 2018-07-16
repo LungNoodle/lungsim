@@ -12,25 +12,43 @@ module arrays
 
   implicit none
 
-  integer :: num_elems,num_nodes,num_units,maxgen
+  integer :: num_elems,num_nodes,num_units,maxgen,num_elems_2d,num_nodes_2d,num_lines_2d,num_data
 
   integer, parameter :: dp=kind(0.d0) !  for double precision
   real(dp),parameter :: zero_tol = 1.0e-12_dp
   real(dp),parameter :: loose_tol = 1.0e-6_dp
 
   integer,allocatable :: nodes(:) !allocated in define_node_geometry
+  integer,allocatable :: nodes_2d(:) !allocated in get_local_node_2d
   integer,allocatable :: elems(:) !allocated in define_1d_elements
+  integer,allocatable :: node_versn_2d(:) !allocated in define_elem_geometry_2d
+  integer,allocatable :: elems_2d(:) !allocated in define_elem_geometry_2d
+  integer,allocatable :: elem_nodes_2d(:,:) !allocated in define_elem_geometry_2d
+  integer,allocatable :: elem_versn_2d(:,:) !allocated in define_elem_geometry_2d
   integer,allocatable :: elem_cnct(:,:,:)  !NXI(-ni:ni,1,ne)
+  integer,allocatable :: elem_cnct_2d(:,:,:) !allocated in define_elem_geometry_2d
+  integer,allocatable :: elem_lines_2d(:,:) !allocated in line_segments_for_2d_mesh
+  
+  integer,allocatable :: lines_2d(:) !allocated in line_segments_for_2d_mesh
+  integer,allocatable :: line_versn_2d(:,:,:) !allocated in line_segments_for_2d_mesh
+  integer,allocatable :: lines_in_elem(:,:) !allocated in line_segments_for_2d_mesh
+  integer,allocatable :: nodes_in_line(:,:,:) !allocated in line_segments_for_2d_mesh
+  integer,allocatable :: arclength(:,:) !allocated in line_segments_for_2d_mesh
   integer,allocatable :: elem_nodes(:,:)
   integer,allocatable :: elem_ordrs(:,:)
   integer,allocatable :: elem_symmetry(:)
   integer,allocatable :: elem_units_below(:)
   integer,allocatable :: elems_at_node(:,:)
+  integer,allocatable :: elems_at_node_2d(:,:) !allocated in define_elem_geometry_2d
   integer,allocatable :: units(:)
 
   real(dp),allocatable :: elem_field(:,:) !properties of elements
   real(dp),allocatable :: elem_direction(:,:)
   real(dp),allocatable :: node_xyz(:,:)
+  real(dp),allocatable :: scale_factors_2d(:,:) !allocated in line_segments_for_2d_mesh
+  real(dp),allocatable :: data_xyz(:,:)
+  real(dp),allocatable :: data_weight(:,:)
+  real(dp),allocatable :: node_xyz_2d(:,:,:,:)
   real(dp),allocatable :: gasex_field(:,:) !gasexchange specific fields
   real(dp),allocatable :: unit_field(:,:) !properties of elastic units
   real(dp),allocatable :: node_field(:,:)
@@ -65,10 +83,13 @@ module arrays
   real(dp) :: unit_before
 
   private
-  public set_node_field_value, elem_field, num_elems, elem_nodes, node_xyz, nodes, elems, &
-    num_nodes, units, num_units, unit_field, node_field, dp, elem_cnct, elem_ordrs, elem_direction, &
-    elems_at_node, elem_symmetry, expansile, elem_units_below, maxgen,capillary_bf_parameters, &
-    zero_tol,loose_tol,gasex_field
+  public set_node_field_value,elems_2d,elem_nodes_2d,node_versn_2d,&
+elem_versn_2d,elem_field,num_elems,num_nodes,units,num_units,unit_field,&
+node_field,dp,elem_nodes,node_xyz,nodes,elems,elem_cnct,elem_cnct_2d,elem_ordrs,&
+elem_direction,elems_at_node,elems_at_node_2d,elem_symmetry,expansile,elem_units_below,&
+maxgen,capillary_bf_parameters,zero_tol,loose_tol,gasex_field,num_nodes_2d,num_elems_2d,&
+elem_lines_2d,scale_factors_2d,lines_2d,line_versn_2d,lines_in_elem,nodes_in_line,arclength,&
+num_lines_2d,nodes_2d,node_xyz_2d,data_xyz,data_weight,num_data
 
 contains
   subroutine set_node_field_value(row, col, value)
