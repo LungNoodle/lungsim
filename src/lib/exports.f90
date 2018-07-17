@@ -129,12 +129,14 @@ contains
 
 !!!############################################################################
   
-  subroutine export_elem_geometry_2d(EXELEMFILE, name)
+  subroutine export_elem_geometry_2d(EXELEMFILE, name, offset_elem, offset_node)
 
     use arrays,only: num_lines_2d,lines_2d,elem_versn_2d,elem_nodes_2d,nodes_2d,scale_factors_2d, &
                      elem_lines_2d,num_elems_2d
+    use diagnostics,only: enter_exit
+
 !!! Parameters
-    !integer :: offset_elem,offset_node
+    integer :: offset_elem,offset_node
     character(len=*) :: EXELEMFILE
     character(len=*) :: name
     
@@ -143,9 +145,12 @@ contains
     character(len=1) :: char1
     character(len=200) :: exfile
     logical :: CHANGED
+    character(len=60) :: sub_name = 'export_node_geometry_2d'
+
+    call enter_exit(sub_name,1)
     
     exfile = trim(exelemfile)//'.exelem'
-    open(10, file=exfile, status='new')
+    open(10, file=exfile, status='replace')
     
     !**     write the group name
     write(10,'( '' Group name: '',a)') trim(name)
@@ -215,7 +220,7 @@ contains
           enddo !nj
        endif
        !**               write the element
-       WRITE(10,'(1X,''Element: '',I12,'' 0 0'' )') ne!+offset_elem
+       WRITE(10,'(1X,''Element: '',I12,'' 0 0'' )') ne+offset_elem
        !**                 write the faces
        WRITE(10,'(3X,''Faces: '' )')
 
@@ -227,7 +232,7 @@ contains
        !**               write the nodes
        WRITE(10,'(3X,''Nodes:'' )')
 !       WRITE(10,'(4X,16(1X,I12))') (elem_nodes_2d(nn,ne)+offset_node,nn=1,4)
-       WRITE(10,'(4X,16(1X,I12))') (nodes_2d(np_index(nn)),nn=1,numnodes_ex)
+       WRITE(10,'(4X,16(1X,I12))') (nodes_2d(np_index(nn))+offset_node,nn=1,numnodes_ex)
        !**                 write the scale factors
        WRITE(10,'(3X,''Scale factors:'' )')
        WRITE(10,'(4X,4(1X,E12.5))') (scale_factors_2d(nk,ne),nk=1,4) !node 1
@@ -236,6 +241,8 @@ contains
        WRITE(10,'(4X,4(1X,E12.5))') (scale_factors_2d(nk,ne),nk=13,16) !node 4
     enddo
     close(10)
+    call enter_exit(sub_name,2)
+
     
   end subroutine export_elem_geometry_2d
 
@@ -295,24 +302,26 @@ contains
 
 !!!########################################################################
 
-  subroutine export_node_geometry_2d(EXNODEFILE, name)
+  subroutine export_node_geometry_2d(EXNODEFILE, name, offset)
 
-    use arrays!,only: dp,nodes_2d,node_field,node_xyz_2d,num_nodes_2d,node_versn_2d
-    !use diagnostics, only: enter_exit
-    use indices
-    use other_consts, only: MAX_FILENAME_LEN    
-    !integer :: offset
+    use arrays!,only: nodes_2d,node_xyz_2d,num_nodes_2d,node_versn_2d
+    use diagnostics, only: enter_exit    
+    integer :: offset
     character(len=*) :: EXNODEFILE
     character(len=*) :: name
+    character(len=60) :: sub_name = 'export_node_geometry_2d'
+
     
     !     Local Variables
     integer :: nderiv,nversions,nj,nk,np,np_last,nv,VALUE_INDEX 
     logical :: FIRST_NODE
     character(len=200) :: exfile
+
+    call enter_exit(sub_name,1)
     
     if(num_nodes_2d.gt.0)then
        exfile = trim(exnodefile)//'.exnode'
-       open(10, file=exfile, status='new')
+       open(10, file=exfile, status='replace')
        !**     write the group name
        WRITE(10,'( '' Group name: '',A)') trim(name)
        
@@ -354,7 +363,7 @@ contains
              
           endif !FIRST_NODE
           !***      write the node
-          WRITE(10,'(1X,''Node: '',I12)') nodes_2d(NP)!+OFFSET
+          WRITE(10,'(1X,''Node: '',I12)') nodes_2d(NP)+OFFSET
           do nj=1,3
              if(node_versn_2d(NP).GT.0) then
                 do nv=1,node_versn_2d(np)
@@ -371,25 +380,30 @@ contains
     endif
     CLOSE(10)
 
+    call enter_exit(sub_name,2)
+
   end subroutine export_node_geometry_2d
 
 !!!####################################################################
 
-  subroutine export_data_geometry(EXDATAFILE, name)
+  subroutine export_data_geometry(EXDATAFILE, name, offset)
 
     use arrays, only: num_data,data_xyz
+    use diagnostics,only: enter_exit
 !!! dummy arguments
-    !integer :: offset
+    integer :: offset
     character(len=*) :: EXDATAFILE
     character(len=*) :: name
 !!! local variables
     integer,parameter :: num_coords = 3
     integer nd,nj
     character(len=200) :: exfile
-    
+    character(len=60) :: sub_name = 'export_data_geometry'    
+
+    call enter_exit(sub_name,1)
     
     exfile = trim(exdatafile)//'.exdata'
-    open(10, file = exfile, status = 'new')
+    open(10, file = exfile, status = 'replace')
     !**   write the group name
     write(10,'( '' Group name: '',A)') trim(name)
     write(10,'(1X,''#Fields=1'')')
@@ -399,10 +413,11 @@ contains
     write(10,'(1X,''  z.  Value index= 3, #Derivatives=0'')')
     
     do nd = 1,num_data
-       write(10,'(1X,''Node: '',I9)') nd
+       write(10,'(1X,''Node: '',I9)') nd + offset
        write(10,'(1X,3E13.5)')  (data_xyz(nj,nd),nj=1,num_coords)
     enddo !NOLIST
     close(10)
+    call enter_exit(sub_name,2)
     
   end subroutine export_data_geometry
 

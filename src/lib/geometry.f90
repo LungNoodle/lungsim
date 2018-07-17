@@ -532,7 +532,7 @@ contains
 
     use arrays,only: elems_2d,elem_nodes_2d,num_elems_2d,elem_versn_2d,node_versn_2d
     use indices
-    !use diagnostics, only: enter_exit
+    use diagnostics, only: enter_exit
     implicit none 
 
     character(len=*) :: ELEMFILE
@@ -541,10 +541,12 @@ contains
     !     Local Variables
     integer :: ierror,ne,ne_global,nn,np,number_of_elements
     character(len=132) :: ctemp1,readfile
+    character(len=60) :: sub_name = 'define_elem_geometry_2d'
     
+    call enter_exit(sub_name,1)
     
-    readfile = trim(elemfile)//'.ipelem'
-    open(10, file=readfile, status='old')
+    !readfile = trim(elemfile)//'.ipelem'
+    open(10, file=elemfile, status='old')
     
     read_number_of_elements : do
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1
@@ -598,6 +600,8 @@ contains
     
     call element_connectivity_2d
     call line_segments_for_2d_mesh(sf_option)
+
+    call enter_exit(sub_name,2)
     
   end subroutine define_elem_geometry_2d
 
@@ -898,7 +902,7 @@ contains
         endif
     end do read_number_of_nodes
 
-    write(*,*) 'Number of nodes are:',num_nodes_2d
+    !write(*,*) 'Number of nodes are:',num_nodes_2d
 !!!allocate memory to arrays that require node number
     if(.not.allocated(nodes_2d)) allocate(nodes_2d(num_nodes_2d))
     if(.not.allocated(node_xyz_2d)) allocate(node_xyz_2d(4,10,16,num_nodes_2d))
@@ -955,7 +959,7 @@ contains
     end do read_a_node
     
     close(10)
-    write(*,*) 'Here is:',node_xyz_2d(1,1,1,2),nodes_2d(2) 
+    !write(*,*) 'Here is:',node_xyz_2d(1,1,1,2),nodes_2d(2) 
     call enter_exit(sub_name,2)
 
   end subroutine define_node_geometry_2d
@@ -968,7 +972,7 @@ contains
 !!! read data points from a file
     
     use arrays,only: dp,data_xyz,data_weight,num_data
-    !use diagnostics, only: enter_exit
+    use diagnostics, only: enter_exit
     use indices
     use other_consts, only: MAX_FILENAME_LEN   
 !!! dummy arguments
@@ -976,13 +980,16 @@ contains
 !!! local variables
     integer :: iend,ierror,length_string,ncount,nj,itemp
     character(len=132) :: buffer,readfile
+    character(len=60) :: sub_name = 'define_data_geometry'
+
+    call enter_exit(sub_name,1)
     
 
     !set the counted number of data points to zero
     ncount = 0
     
-    readfile = trim(datafile)//'.ipdata'
-    open(10, file=readfile, status='old')
+    !readfile = trim(datafile)//'.ipdata'
+    open(10, file=datafile, status='old')
     read(unit=10, fmt="(a)", iostat=ierror) buffer
 
 !!! first run through to count the number of data points
@@ -1002,8 +1009,8 @@ contains
     allocate(data_weight(3,num_data))
 
 !!! read the data point information
-    readfile = trim(datafile)//'.ipdata'
-    open(10, file=readfile, status='old')
+    !readfile = trim(datafile)//'.ipdata'
+    open(10, file=datafile, status='old')
     read(unit=10, fmt="(a)", iostat=ierror) buffer
 
     !set the counted number of data points to zero
@@ -1044,12 +1051,13 @@ contains
     enddo read_line_of_data
     
     close(10)
+    call enter_exit(sub_name,2)
 
   end subroutine define_data_geometry
 
-!
+! 
 !###################################################################################
-!
+! 
   subroutine define_rad_from_file(FIELDFILE, radius_type_in)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_FILE" :: DEFINE_RAD_FROM_FILE
 
