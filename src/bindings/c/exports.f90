@@ -57,6 +57,33 @@ contains
   end subroutine export_1d_elem_geometry_c
 
 
+!!!############################################################################
+
+  subroutine export_elem_geometry_2d_c(EXELEMFILE, filename_len, name, name_len, offset_elem, offset_node)&
+ bind(C, name="export_elem_geometry_2d_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use exports, only: export_elem_geometry_2d
+    use other_consts, only: MAX_STRING_LEN, MAX_FILENAME_LEN
+    implicit none
+    integer,intent(in) :: filename_len, name_len, offset_elem, offset_node
+    type(c_ptr), value, intent(in) :: EXELEMFILE, name
+    character(len=MAX_FILENAME_LEN) :: filename_f
+    character(len=MAX_STRING_LEN) :: name_f
+
+    call strncpy(filename_f, EXELEMFILE, filename_len)
+    call strncpy(name_f, name, name_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_export_elem_geometry_2d(filename_f, name_f, offset_elem, offset_node)
+#else
+    call export_elem_geometry_2d(filename_f, name_f, offset_elem, offset_node)
+#endif
+
+  end subroutine export_elem_geometry_2d_c
+
+
 !!!##########################################################################
 
   subroutine export_node_geometry_c(EXNODEFILE, filename_len, name, name_len) bind(C, name="export_node_geometry_c")
@@ -83,6 +110,62 @@ contains
 
   end subroutine export_node_geometry_c
 
+
+!!!##########################################################################
+
+  subroutine export_node_geometry_2d_c(EXNODEFILE, filename_len, name, name_len, offset) bind(C, name="export_node_geometry_2d_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_STRING_LEN, MAX_FILENAME_LEN
+    use arrays,only: dp
+    use exports, only: export_node_geometry_2d
+    implicit none
+
+    integer,intent(in) :: filename_len, name_len
+    type(c_ptr), value, intent(in) :: EXNODEFILE, name
+    character(len=MAX_FILENAME_LEN) :: filename_f
+    character(len=MAX_STRING_LEN) :: name_f
+    integer,intent(in) :: offset
+
+
+    call strncpy(filename_f, EXNODEFILE, filename_len)
+    call strncpy(name_f, name, name_len)
+
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_export_node_geometry_2d(filename_f, name_f, offset)
+#else
+    call export_node_geometry_2d(filename_f, name_f, offset)
+#endif
+
+  end subroutine export_node_geometry_2d_c
+
+!!!##########################################################################
+
+  subroutine export_data_geometry_c(EXDATAFILE, filename_len, name, name_len, offset) bind(C, name="export_data_geometry_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_STRING_LEN, MAX_FILENAME_LEN
+    use exports, only: export_data_geometry
+    implicit none
+
+    integer,intent(in) :: filename_len, name_len, offset
+    type(c_ptr), value, intent(in) :: EXDATAFILE, name
+    character(len=MAX_FILENAME_LEN) :: filename_f
+    character(len=MAX_STRING_LEN) :: name_f
+
+    call strncpy(filename_f, EXDATAFILE, filename_len)
+    call strncpy(name_f, name, name_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_export_data_geometry(filename_f, name_f, offset)
+#else
+    call export_data_geometry(filename_f, name_f, offset)
+#endif
+
+  end subroutine export_data_geometry_c
 
 !!!########################################################################
 
