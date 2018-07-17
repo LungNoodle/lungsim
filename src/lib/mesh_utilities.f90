@@ -491,7 +491,6 @@ contains
     real(dp) :: POINT1(3),POINT2(3),POINT3(3)
     !     Local variables
     real(dp) :: ERR1(3),ERR2(3),LU,LV,U(3),V(3)
-    real(dp),parameter :: zero_tol = 1.0e-14_dp
     logical :: check_colinear_points
     
     
