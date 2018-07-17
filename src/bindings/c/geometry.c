@@ -7,8 +7,11 @@ void add_mesh_c(const char *AIRWAY_MESHFILE, int *filename_len);
 void add_matching_mesh_c();
 void append_units_c();
 void define_1d_elements_c(const char *ELEMFILE, int *filename_len);
+void define_elem_geometry_2d_c(const char *ELEMFILE, int *filename_len, const char *sf_option, int *sf_option_len);
 void define_mesh_geometry_test_c();
 void define_node_geometry_c(const char *NODEFILE, int *filename_len);
+void define_data_geometry_c(const char *DATAFILE, int *filename_len);
+void define_node_geometry_2d_c(const char *NODEFILE,int *filename_len);
 void define_rad_from_file_c(const char *FIELDFILE, int *filename_len, const char *radius_type, int *radius_type_len);
 void define_rad_from_geom_c(const char *order_system, int *order_system_len, double *control_param,
                             const char *start_from, int *start_from_len, double *start_rad,
@@ -40,6 +43,14 @@ void define_1d_elements(const char *ELEMFILE)
   define_1d_elements_c(ELEMFILE, &filename_len);
 }
 
+void define_elem_geometry_2d(const char *ELEMFILE, const char *sf_option)
+{
+  int filename_len = strlen(ELEMFILE);
+  int sf_option_len = strlen(sf_option);
+  define_elem_geometry_2d_c(ELEMFILE, &filename_len, sf_option, &sf_option_len);
+}
+
+
 void define_mesh_geometry_test()
 {
   define_mesh_geometry_test_c();
@@ -50,6 +61,21 @@ void define_node_geometry(const char *NODEFILE)
   int filename_len = strlen(NODEFILE);
   define_node_geometry_c(NODEFILE, &filename_len);
 }
+
+void define_data_geometry(const char *DATAFILE)
+{
+  int filename_len = strlen(DATAFILE);
+  define_data_geometry_c(DATAFILE, &filename_len);
+}
+
+
+void define_node_geometry_2d(const char *NODEFILE)
+{
+  int filename_len = strlen(NODEFILE);
+  define_node_geometry_2d_c(NODEFILE, &filename_len);
+}
+
+
 
 void define_rad_from_file(const char *FIELDFILE, const char *radius_type)
 {

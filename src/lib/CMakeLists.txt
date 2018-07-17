@@ -18,6 +18,7 @@ set(LIB_SRCS
   solve.f90
   species_transport.f90
   ventilation.f90
+  mesh_functions.f90
 
 )
 
