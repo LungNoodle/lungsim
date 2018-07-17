@@ -6,8 +6,9 @@ module mesh_utilities
 !!! Any function that is used by more than one module should appear in here. 
 !!! ALL subroutines and functions in this module are public.
 
-  use math_constants   !! pi 
-  use precision
+use other_consts
+use arrays, only: dp,zero_tol
+
   implicit none
 
   private
