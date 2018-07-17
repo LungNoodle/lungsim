@@ -82,6 +82,32 @@ contains
 #endif
 
   end subroutine define_1d_elements_c
+
+!
+!###################################################################################
+!
+  subroutine define_elem_geometry_2d_c(ELEMFILE, filename_len, SF_OPTION, sf_option_len) bind(C, name="define_elem_geometry_2d_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry, only: define_elem_geometry_2d
+    implicit none
+
+    integer,intent(in) :: filename_len, sf_option_len
+    type(c_ptr), value, intent(in) :: ELEMFILE, SF_OPTION
+    character(len=MAX_FILENAME_LEN) :: filename_f, sf_option_f
+
+    call strncpy(filename_f, ELEMFILE, filename_len)
+    call strncpy(sf_option_f, SF_OPTION, sf_option_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_define_elem_geometry_2d(filename_f,sf_option_f)
+#else
+    call define_elem_geometry_2d(filename_f,sf_option_f)
+#endif
+
+  end subroutine define_elem_geometry_2d_c
 !
 !###################################################################################
 !
@@ -121,6 +147,56 @@ contains
 #endif
 
   end subroutine define_node_geometry_c
+
+!
+!###################################################################################
+!
+  subroutine define_node_geometry_2d_c(NODEFILE, filename_len) bind(C, name="define_node_geometry_2d_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry, only: define_node_geometry_2d
+    implicit none
+
+    integer,intent(in) :: filename_len
+    type(c_ptr), value, intent(in) :: NODEFILE
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, NODEFILE, filename_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_define_node_geometry_2d(filename_f)
+#else
+    call define_node_geometry_2d(filename_f)
+#endif
+
+  end subroutine define_node_geometry_2d_c
+
+!
+!###################################################################################
+!
+  subroutine define_data_geometry_c(DATAFILE, filename_len) bind(C, name="define_data_geometry_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry, only: define_data_geometry
+    implicit none
+
+    integer,intent(in) :: filename_len
+    type(c_ptr), value, intent(in) :: DATAFILE
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, DATAFILE, filename_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_define_data_geometry(filename_f)
+#else
+    call define_data_geometry(filename_f)
+#endif
+
+  end subroutine define_data_geometry_c
 !
 !###################################################################################
 !
@@ -251,6 +327,21 @@ contains
 #endif
 
   end subroutine volume_of_mesh_c
+
+!
+!###################################################################################
+!
+  function get_local_node_f_c(ndimension,np_global) result(get_local_node) bind(C, name="get_local_node_f_c")
+    use arrays, only: dp
+    use geometry, only: get_local_node_f
+    implicit none
+    
+    integer :: ndimension,np_global
+    integer :: get_local_node
+    
+    get_local_node=get_local_node_f(ndimension,np_global)
+
+  end function get_local_node_f_c
 
 end module geometry_c
 

@@ -50,6 +50,7 @@ contains
   end subroutine set_diagnostics_on
 
   subroutine get_diagnostics_on(state)
+  !DEC$ ATTRIBUTES DLLEXPORT, ALIAS:"SO_GET_DIAGNOSTICS_ON":: GET_DIAGNOSTICS_ON
     implicit none
 
     logical :: state
