@@ -6,15 +6,14 @@ module mesh_utilities
 !!! Any function that is used by more than one module should appear in here. 
 !!! ALL subroutines and functions in this module are public.
 
-use other_consts
-use arrays, only: dp,zero_tol
-
+  use other_consts
+  use arrays, only: dp,zero_tol
   implicit none
 
   private
 
   public  area_between_three_points,area_between_two_vectors,calc_branch_direction,&
-       angle_btwn_vectors,calc_scale_factors_2d,check_colinear_points,cross_product,&
+       angle_btwn_points,angle_btwn_vectors,calc_scale_factors_2d,check_colinear_points,cross_product,&
        distance_between_points,make_plane_from_3points,mesh_a_x_eq_b,ph3,pl1,&
        point_internal_to_surface,scalar_product_3,scalar_triple_product,scale_mesh,&
        unit_norm_to_plane_two_vectors,unit_norm_to_three_points,unit_vector,&
@@ -39,6 +38,9 @@ contains
 
 !!! list of functions
 
+  ! angle_btwn_points
+  ! .... returns the angle between three points
+ 
   ! angle_btwn_vectors
   ! .... returns the angle between two vectors
  
@@ -462,6 +464,23 @@ contains
 
 !!!##################################################
   
+  function angle_btwn_points(A,B,C)
+    
+    !###    calculates the angle between three points
+    
+    real(dp),intent(in) :: A(3),B(3),C(3)
+
+    real(dp) :: U(3),V(3)
+    real(dp) :: angle_btwn_points
+
+    U = A - B
+    V = C - B
+    angle_btwn_points = angle_btwn_vectors(U,V)
+        
+  end function angle_btwn_points
+  
+!!!##################################################
+  
   function angle_btwn_vectors(U,V)
     
     !###    ANGLE calculates the angle between two vectors
@@ -472,10 +491,12 @@ contains
     
     N_U = unit_vector(U)
     N_V = unit_vector(V)
+!    write(*,*) n_u
+!    write(*,*) n_v
     ANGLE = scalar_product_3(N_U,N_V)
     ANGLE = max(-1.0_dp,ANGLE)
     ANGLE = min(1.0_dp,ANGLE)
-    ANGLE = cos(ANGLE)
+    ANGLE = acos(ANGLE)
     
     angle_btwn_vectors=ANGLE
     
@@ -491,6 +512,7 @@ contains
     real(dp) :: POINT1(3),POINT2(3),POINT3(3)
     !     Local variables
     real(dp) :: ERR1(3),ERR2(3),LU,LV,U(3),V(3)
+    real(dp),parameter :: zero_tol = 1.0e-14_dp
     logical :: check_colinear_points
     
     
@@ -701,17 +723,17 @@ contains
 
 !!!###############################################################
 
-  function point_internal_to_surface(triangles,point_xyz,vertex_xyz)
+  function point_internal_to_surface(num_vertices,triangles,point_xyz,vertex_xyz)
 !!! Cast a line in positive x-direction from each data point and 
 !!! then work out how many triangular elements it crosses. If even it is in the 
 !!! shape and if odd it is outside the shape
 
-    integer,intent(in) :: triangles(:,:)
+    integer,intent(in) :: num_vertices,triangles(:,:)
     real(dp),intent(in) :: point_xyz(3),vertex_xyz(:,:)
     logical :: point_internal_to_surface
 
 !!! Local Variables
-    integer :: ntri,num_triangles
+    integer :: i,ncrossed,ntri,num_triangles
     real(dp) :: area,area_triangle,cofm_surfaces(3),denominator,&
          norm_v(3),point(3),P1(3),P2(3),P3(3),u
     real(dp),parameter :: dist_tol = 1.0e-4_dp, user_tol = 1.0e-14_dp
@@ -719,14 +741,16 @@ contains
 
     num_triangles = count(triangles(:,:).ne.0)/3
 
-    cofm_surfaces = sum(vertex_xyz,dim=2)/size(vertex_xyz,dim=2)
+    forall (i=1:3) cofm_surfaces(i) = sum(vertex_xyz(i,1:num_vertices))/num_vertices
+!    write(*,*) 'cofm',cofm_surfaces
 
 ! check whether the line that joins the centre of mass of the surface mesh and the point
 ! in question crosses ANY face. If it does, then point not inside.
 
     cross_any = .false.
+    ncrossed = 0
 
-    do ntri=1,num_triangles
+    do ntri = 1,num_triangles
        P1(1:3) = vertex_xyz(1:3,triangles(1,ntri))
        P2(1:3) = vertex_xyz(1:3,triangles(2,ntri))
        P3(1:3) = vertex_xyz(1:3,triangles(3,ntri))
@@ -744,7 +768,10 @@ contains
              area = area_between_two_vectors(P1-point,P2-point)+ &
                   area_between_two_vectors(P1-point,P3-point)+area_between_two_vectors(P2-point,P3-point)
              area_triangle = area_between_two_vectors(P1-P2,P1-P3)
-             if(abs(area_triangle-area).lt.dist_tol) cross_any = .true.
+             if(abs(area_triangle-area).lt.dist_tol)then
+                cross_any = .true.
+                ncrossed = ncrossed + 1
+             endif
           endif
        endif
     enddo
@@ -752,7 +779,11 @@ contains
     if(.not.cross_any)then
        point_internal_to_surface = .true.
     else
-       point_internal_to_surface = .false.
+       if(ncrossed.eq.2)then
+          point_internal_to_surface = .true.
+       else
+          point_internal_to_surface = .false.
+       endif
     endif
 
   end function point_internal_to_surface
