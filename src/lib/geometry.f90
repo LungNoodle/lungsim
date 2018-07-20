@@ -38,6 +38,9 @@ module geometry
   public get_final_real
   public set_initial_volume
   public volume_of_mesh
+  public get_local_node_f
+  public get_final_integer
+  public get_four_nodes
 
 contains
 !

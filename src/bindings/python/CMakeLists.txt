@@ -26,6 +26,7 @@ set(INTERFACE_SRCS
   ../interface/pressure_resistance_flow.i
   ../interface/species_transport.i
   ../interface/ventilation.i
+  ../interface/surface_fitting.i
 
 )
 
