@@ -200,6 +200,39 @@ contains
 !
 !###################################################################################
 !
+  subroutine make_data_grid_c(surface_elems, spacing, to_export, filename, filename_len, groupname, groupname_len)&
+ bind(C, name="make_data_grid_c")
+    
+    use arrays,only: dp
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
+    use geometry, only: make_data_grid
+    implicit none
+
+    integer,intent(in) :: surface_elems(:)
+    real(dp),intent(in) :: spacing
+    logical,intent(in) :: to_export
+    integer,intent(in) :: filename_len, groupname_len
+    type(c_ptr), value, intent(in) :: filename, groupname
+    character(len=MAX_FILENAME_LEN) :: filename_f
+    character(len=MAX_STRING_LEN) :: groupname_f
+
+    call strncpy(filename_f, filename, filename_len)
+    call strncpy(groupname_f, groupname, groupname_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_make_data_grid(surface_elems, spacing, to_export, filename_f, groupname_f)
+#else
+    call make_data_grid(surface_elems, spacing, to_export, filename_f, groupname_f)
+#endif
+
+  end subroutine make_data_grid_c
+
+
+!
+!###################################################################################
+!
   subroutine define_rad_from_file_c(FIELDFILE, filename_len, radius_type, radius_type_len) bind(C, name="define_rad_from_file_c")
 
     use iso_c_binding, only: c_ptr

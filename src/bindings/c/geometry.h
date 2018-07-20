@@ -13,6 +13,7 @@ SHO_PUBLIC void define_mesh_geometry_test();
 SHO_PUBLIC void define_node_geometry(const char *NODEFILE);
 SHO_PUBLIC void define_node_geometry_2d(const char *NODEFILE);
 SHO_PUBLIC void define_data_geometry(const char *DATAFILE);
+SHO_PUBLIC void make_data_grid(int surface_elems, double spacing, int to_export, const char *filename, const char *groupname);
 SHO_PUBLIC void define_rad_from_file(const char *FIELDFILE, const char *radius_type);
 SHO_PUBLIC int get_local_node_f(const char *ndimenstion, const char *np_global);
 SHO_PUBLIC void define_rad_from_geom(const char *ORDER_SYSTEM, double CONTROL_PARAM, const char *START_FROM,

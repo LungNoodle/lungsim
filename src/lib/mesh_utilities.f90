@@ -1,4 +1,4 @@
-module mesh_functions
+module mesh_utilities
 
 !!! Subroutines and functions for general calculations. Not specific to any
 !!! particular application, although it is expected these will generally be used 
@@ -6,7 +6,9 @@ module mesh_functions
 !!! Any function that is used by more than one module should appear in here. 
 !!! ALL subroutines and functions in this module are public.
 
-  use other_consts   !! pi 
+use other_consts
+use arrays, only: dp,zero_tol
+
   implicit none
 
   private
@@ -67,7 +69,7 @@ contains
     
 !!! calculates the direction of element ne and stores in elem_direction    
     
-    use arrays,only: dp,elem_direction,elem_nodes,node_xyz
+    use arrays,only: elem_direction,elem_nodes,node_xyz
     
     integer,intent(in) :: ne
     
@@ -89,7 +91,7 @@ contains
 !!! calculates the arclengths and scale factors for 2d surface elements,
 !!! stores in scale_factors_2d
   
-    use arrays,only: dp,arclength,elem_lines_2d,elem_nodes_2d,lines_2d,lines_in_elem,&
+    use arrays,only: arclength,elem_lines_2d,elem_nodes_2d,lines_2d,lines_in_elem,&
          line_versn_2d,nodes_in_line,node_xyz_2d,num_elems_2d,num_lines_2d,scale_factors_2d
 
     character(len=4),intent(in) :: sf_option
@@ -263,7 +265,7 @@ contains
     !###    The coefficients represent aX + bY + cZ + d = 0
     !###    NORML(1)=a,NORML(2)=b,NORML(3)=c,NORML(4)=d
     
-    use arrays,only: dp
+    
     !     Parameter list
     integer :: NORMALTYPE
     real(dp) :: POINT1(3),POINT2(3),POINT3(3),NORML(4)
@@ -301,7 +303,7 @@ contains
 
   subroutine scale_mesh(scaling,type)
 
-    use arrays,only: dp,node_xyz,node_xyz_2d,scale_factors_2d
+    use arrays,only: node_xyz,node_xyz_2d,scale_factors_2d
 
     real(dp),intent(in) :: scaling
     character(len=2),intent(in) :: type
@@ -323,7 +325,7 @@ contains
   function area_between_two_vectors(vect_a,vect_b)
     
     !### 
-    use arrays,only: dp
+    
     real(dp),intent(in) :: vect_a(3),vect_b(3)
     real(dp) :: cross(3)
     real(dp) :: area_between_two_vectors
@@ -341,7 +343,7 @@ contains
   function area_between_three_points(point_a,point_b,point_c)
     
     !### 
-    use arrays,only: dp
+    
     real(dp),intent(in) :: point_a(3),point_b(3),point_c(3)
     real(dp) :: norm(3),vect_a(3),vect_b(3)
     real(dp) :: area_between_three_points
@@ -359,7 +361,7 @@ contains
 !!! ##########################################################################      
 
   function ph3(I,J,K,XI)
-    use arrays,only: dp
+    
 !!! dummy arguments
     integer :: I,I_J_K,J,K
     real(dp) :: XI
@@ -402,7 +404,7 @@ contains
 !!! ##########################################################################      
 
   function pl1(I,K,XI)
-    use arrays,only: dp
+    
 !!! dummy arguments
     integer :: I,I_K,K
     real(dp) :: XI
@@ -430,7 +432,7 @@ contains
 !!!##################################################
   
   function unit_norm_to_plane_two_vectors(vect_a,vect_b)
-    use arrays,only: dp
+    
     real(dp),intent(in) :: vect_a(3),vect_b(3)
     real(dp) :: magnitude,norm(3)
     real(dp) :: unit_norm_to_plane_two_vectors(3)
@@ -445,7 +447,7 @@ contains
 !!!##################################################
   
   function unit_norm_to_three_points(point_a,point_b,point_c)
-    use arrays,only: dp
+
     real(dp),intent(in) :: point_a(3),point_b(3),point_c(3)
     real(dp) :: magnitude,norm(3),vect_a(3),vect_b(3)
     real(dp) :: unit_norm_to_three_points(3)
@@ -461,7 +463,7 @@ contains
 !!!##################################################
   
   function angle_btwn_vectors(U,V)
-    use arrays,only: dp
+    
     !###    ANGLE calculates the angle between two vectors
     
     real(dp),intent(in) :: U(3),V(3)
@@ -482,14 +484,13 @@ contains
 !!!###############################################################
   
   function check_colinear_points(POINT1,POINT2,POINT3)
-    use arrays,only: dp
+    
     !###    check_colinear_points checks whether two vectors are colinear.
      
     !     Parameter list
     real(dp) :: POINT1(3),POINT2(3),POINT3(3)
     !     Local variables
     real(dp) :: ERR1(3),ERR2(3),LU,LV,U(3),V(3)
-    real(dp),parameter :: zero_tol = 1.0e-14_dp
     logical :: check_colinear_points
     
     
@@ -516,7 +517,7 @@ contains
 !!!###############################################################
   
   function cross_product(A,B)
-    use arrays,only: dp
+    
     !###  cross_product returns the vector cross product of A*B in C.
     
     !     Parameter List
@@ -533,7 +534,7 @@ contains
 !!!###############################################################
   
   function scalar_triple_product(A,B,C)
-    use arrays,only: dp
+    
     !###  scalar_triple_product returns A.(BxC)
     
     !     Parameter List
@@ -549,7 +550,7 @@ contains
 !!!###############################################################
   
   function distance_between_points(point1, point2)
-    use arrays,only: dp
+    
     !###    calculates the distance between two arbitrary points
     
     real(dp),intent(in) :: point1(3),point2(3)
@@ -567,7 +568,7 @@ contains
 !!!###############################################################
   
   function mesh_a_x_eq_b(MATRIX,VECTOR)
-    use arrays,only: dp
+    
     real(dp) :: MATRIX(3,3),VECTOR(3)
     !Local variables
     integer :: i,j,k,pivot_row
@@ -614,7 +615,7 @@ contains
 !!!##################################################
   
   function scalar_product_3(A,B)
-    use arrays,only: dp
+    
     !### calculates scalar product of two vectors A,B of length 3.
     
     real(dp),intent(in) :: A(*),B(*)
@@ -632,7 +633,7 @@ contains
 !!!###############################################################
   
   function unit_vector(A)
-    use arrays,only: dp
+    
     !###  Calculates the unit vector for an arbitrary 3x1 vector 
     
     real(dp),intent(in) :: A(*)
@@ -652,7 +653,7 @@ contains
 !!!##################################################
   
   function vector_length(A)
-    use arrays,only: dp
+    
     !###  Calculates the length of a 3x1 vector 
     
     real(dp),intent(in) :: A(*)
@@ -670,9 +671,10 @@ contains
 !!!###############################################################
 
   function volume_internal_to_surface(triangles,vertex_xyz)
-    use arrays,only: dp
+
     ! calculates the volume enclosed by a list of surface elements
 
+    use arrays,only: dp
     integer,intent(in) :: triangles(:,:)
     real(dp),intent(in) :: vertex_xyz(:,:)
     real(dp) :: volume_internal_to_surface
@@ -768,4 +770,4 @@ contains
 
 
 
-end module mesh_functions
+end module mesh_utilities
