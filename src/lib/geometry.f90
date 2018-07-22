@@ -1064,7 +1064,7 @@ contains
      !#This subroutine is called by make_data_grid subroutine.
      !#Application: to grow a grid in 2D surface.
      
-
+     use diagnostics,only: enter_exit
      use arrays,only: dp,num_elems_2d,elem_nodes_2d
      integer,intent(in) :: surface_elems(:)
      integer,allocatable :: triangle(:,:)
@@ -1075,7 +1075,9 @@ contains
      real(dp) :: X(3),xi(3)
      character(len=3) :: repeat
      logical :: four_nodes
-
+     character(len=60) :: sub_name = 'triangles_from_surface'
+     call enter_exit(sub_name,1)
+     
      if(.not.allocated(triangle)) allocate(triangle(3,2*num_elems_2d*ndiv**2))
      if(.not.allocated(vertex_xyz)) allocate(vertex_xyz(3,num_elems_2d*(ndiv+1)**2))
      triangle = 0
@@ -1183,6 +1185,8 @@ contains
      write(*,'('' Made'',I8,'' triangles to cover'',I6,'' surface elements'')') &
            num_triangles,num_elems_2d
 
+     call enter_exit(sub_name,2)
+  
   end subroutine triangles_from_surface
 
 ! 
@@ -1192,6 +1196,7 @@ contains
 
      use arrays,only: dp,data_xyz,data_weight,num_data
      use mesh_utilities,only: volume_internal_to_surface,point_internal_to_surface
+     use diagnostics,only: enter_exit
      ! Parameters
      integer,intent(in) :: surface_elems(:)
      real(dp),intent(in) :: spacing
@@ -1208,6 +1213,9 @@ contains
      logical :: internal
      character(len=1) :: char1
      character(len=100) :: writefile
+     character(len=60) :: sub_name = 'make_data_grid'
+
+     call enter_exit(sub_name,1)
 
      call triangles_from_surface(num_triangles,num_vertices,surface_elems,triangle,vertex_xyz)
 
@@ -1367,6 +1375,8 @@ contains
 
       deallocate(triangle)
       deallocate(vertex_xyz)
+
+      call enter_exit(sub_name,2)
 
       end subroutine make_data_grid
 ! 
