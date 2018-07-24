@@ -28,6 +28,7 @@ module geometry
   public define_node_geometry
   public define_node_geometry_2d
   public define_data_geometry
+  public group_elem_parent_term
   public define_rad_from_file
   public define_rad_from_geom
   public element_connectivity_1d
@@ -2364,6 +2365,103 @@ contains
 
   end subroutine get_local_node
 
+
+!
+!###################################################################################
+!
+!*group_elem_parent_term*
+   subroutine group_elem_parent_term(ne_parent)
+
+   use arrays,only: parentlist,num_elems,elem_cnct
+   use diagnostics,only: enter_exit
+
+   ! Parameters
+   integer,intent(in) :: ne_parent  ! Number of element that feed that specific area
+
+   ! Local Variables
+   integer :: ne,ne_count,noelem,num_parents
+   integer,allocatable :: templist(:)
+   character(len=60) :: sub_name='group_elem_parent_term'
+
+   call enter_exit(sub_name,1)
+
+   allocate(templist(num_elems))
+   if(.not.allocated(parentlist)) allocate(parentlist(num_elems))
+
+   !reset the list of parent elements to zero
+   call group_elem_by_parent(ne_parent,templist)
+
+   ne_count=count(templist.ne.0)
+   num_parents=0
+   parentlist=0
+
+   do noelem=1,ne_count
+     ne = templist(noelem)
+     if(elem_cnct(1,0,ne).eq.0)then
+        num_parents=num_parents+1
+        parentlist(num_parents)=ne
+     endif !elem_cnct
+   enddo !noelem
+   write(*,*) 'Number of elements:', num_elems
+   write(*,*) 'Elements distal to elem # 12 are:', parentlist
+   deallocate(templist)
+
+   call enter_exit(sub_name,2)
+
+   end subroutine group_elem_parent_term
+!
+!###################################################################################
+!
+!*group_elem_by_parent*
+   subroutine group_elem_by_parent(ne_parent,elemlist)
+
+   use arrays,only: elem_cnct
+   use diagnostics,only: enter_exit
+
+   ! Parameters
+   integer,intent(in) :: ne_parent  ! Number of element that feed that specific area
+   integer :: elemlist(:)
+
+   ! Local Variables
+   integer :: nt_bns,ne_count,num_nodes,m,n,ne0
+   integer,allocatable :: ne_old(:),ne_temp(:)
+   character(len=60) :: sub_name='group_elem_by_parent'
+
+   call enter_exit(sub_name,1)
+
+   elemlist = 0
+   allocate(ne_old(size(elemlist)))
+   allocate(ne_temp(size(elemlist)))
+
+   nt_bns=1
+   ne_old(1) = ne_parent
+   ne_count = 1
+   elemlist(ne_count)=ne_parent
+
+   do while(nt_bns.ne.0)
+     num_nodes=nt_bns
+     nt_bns=0
+     do m=1,num_nodes
+       ne0=ne_old(m) !parent global element number
+       do n=1,elem_cnct(1,0,ne0) !for each daughter branch
+         nt_bns=nt_bns+1
+         ne_temp(nt_bns)=elem_cnct(1,n,ne0)
+       enddo !n
+     enddo !m
+     do n=1,nt_bns
+       ne_old(n)=ne_temp(n) !updates list of previous generation element numbers
+       ne_count=ne_count+1
+       elemlist(ne_count)=ne_temp(n)
+     enddo !n
+   enddo !while
+
+   deallocate(ne_old)
+   deallocate(ne_temp)
+
+   call enter_exit(sub_name,2)
+
+   end subroutine group_elem_by_parent
+   
 
 !!!###############################################################
 

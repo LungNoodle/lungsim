@@ -233,6 +233,26 @@ contains
 !
 !###################################################################################
 !
+  subroutine group_elem_parent_term_c(ne_parent) bind(C, name="group_elem_parent_term_c")
+
+    use iso_c_binding, only: c_ptr
+    use geometry, only: group_elem_parent_term
+    implicit none
+
+    integer,intent(in) :: ne_parent
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_group_elem_parent_term(ne_parent)
+#else
+    call group_elem_parent_term(ne_parent)
+#endif
+
+  end subroutine group_elem_parent_term_c
+
+
+!
+!###################################################################################
+!
   subroutine define_rad_from_file_c(FIELDFILE, filename_len, radius_type, radius_type_len) bind(C, name="define_rad_from_file_c")
 
     use iso_c_binding, only: c_ptr
