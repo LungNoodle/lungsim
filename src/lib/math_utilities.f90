@@ -12,6 +12,7 @@ module math_utilities
   implicit none
   private
   public ax_cr,diagonal_pointer_cr,ilu_cr,lus_cr,mult_givens,rearrange_cr
+  public sort_integer_list,sort_real_list
 
 contains
 !
@@ -282,6 +283,112 @@ subroutine diagonal_pointer_cr ( n, ia, ja, ua )
 
     return
   end subroutine rearrange_cr
+
+!######################################################################
+  !
+  !*sort_integer_list:* sorts a list of integer values into a non-decreasing order.
+  ! sorts N integer IDATA values into a non-decreasing sequence using IHEAPSORT
+  ! (N>50) or ISHELLSORT (N>50) and then  removes all duplicates from the list. On
+  ! exit N contains the number of unique elements in the list.
+  !
+  subroutine sort_integer_list(N,IDATA)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SORT_INTEGER_LIST" :: SORT_INTEGER_LIST
+
+    use diagnostics, only: enter_exit
+    implicit none
+    integer :: IDATA(:),N
+
+    !Local Variables
+    integer :: count1,index,itemp,nolist
+    logical :: continue
+
+    character(len=60) :: sub_name
+
+    sub_name = 'sort_integer_list'
+    call enter_exit(sub_name,1)
+
+    !order the array non-decreasing
+    do nolist=2,N
+       count1=0
+       continue=.true.
+       do while(continue)
+          if(IDATA(nolist-count1).lt.IDATA(nolist-count1-1))then
+             itemp=IDATA(nolist-1)
+             IDATA(nolist-1)=IDATA(nolist)
+             IDATA(nolist)=itemp
+             count1=count1+1
+             if(nolist-count1-1.eq.0) continue=.false.
+          else
+             continue=.false.
+          endif
+       enddo !while
+    enddo !N
+
+    !eliminate duplicate entries
+    index=0
+    do nolist=2,N
+       if(IDATA(nolist).eq.IDATA(nolist-1)) then
+          index=index+1
+       else
+          IDATA(nolist-index)=IDATA(nolist)
+       endif
+    enddo !nolist
+
+    N=N-index
+
+    call enter_exit(sub_name,2)
+
+  end subroutine sort_integer_list
+
+!!!#########################################################################
+
+  !*sort_real_list:* sorts a list of real values into a non-decreasing order
+  ! using a bubble sort algorithm.
+
+  subroutine sort_real_list(n,RDATA,INDEX)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SORT_REAL_LIST" :: SORT_REAL_LIST
+     
+    use diagnostics, only: enter_exit
+    use arrays,only: dp
+    implicit none
+    integer :: INDEX(*),n
+    real(dp) :: RDATA(*)
+
+    !Local Variables
+    integer :: FLAG,i,ITEMP,j,k
+    real(dp) :: TEMP
+
+    character(len=60) :: sub_name
+
+    sub_name = 'sort_real_list'
+    call enter_exit(sub_name,1)
+
+    if(N.LE.1) then
+    else
+       FLAG=n
+       do i=1,n
+          k=FLAG-1
+          FLAG=0
+          do j=1,k
+             if(RDATA(j).gt.RDATA(j+1)) then
+                TEMP=RDATA(j)
+                RDATA(j)=RDATA(j+1)
+                RDATA(j+1)=TEMP
+                ITEMP=INDEX(j)
+                INDEX(j)=INDEX(j+1)
+                INDEX(j+1)=ITEMP
+                FLAG=j
+             endif
+          enddo
+          if(FLAG.eq.0) then
+             write(*,*) 'warning in rsort'
+          endif
+       enddo
+    endif
+
+    call enter_exit(sub_name,2)
+
+  end subroutine sort_real_list
 
 
 end module math_utilities

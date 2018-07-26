@@ -31,6 +31,7 @@ set(INTERFACE_SRCS
   ../interface/gas_exchange.i
   ../interface/gasmix.i
   ../interface/geometry.i
+  ../interface/growtree.i
   ../interface/indices.i
   ../interface/imports.i
   ../interface/pressure_resistance_flow.i
