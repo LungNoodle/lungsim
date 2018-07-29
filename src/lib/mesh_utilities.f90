@@ -6,8 +6,10 @@ module mesh_utilities
 !!! Any function that is used by more than one module should appear in here. 
 !!! ALL subroutines and functions in this module are public.
 
+
   use other_consts
   use arrays, only: dp,zero_tol
+
   implicit none
 
   private
@@ -40,7 +42,7 @@ contains
 
   ! angle_btwn_points
   ! .... returns the angle between three points
- 
+
   ! angle_btwn_vectors
   ! .... returns the angle between two vectors
  
@@ -464,6 +466,7 @@ contains
 
 !!!##################################################
   
+
   function angle_btwn_points(A,B,C)
     
     !###    calculates the angle between three points
@@ -480,7 +483,7 @@ contains
   end function angle_btwn_points
   
 !!!##################################################
-  
+
   function angle_btwn_vectors(U,V)
     
     !###    ANGLE calculates the angle between two vectors
@@ -491,13 +494,12 @@ contains
     
     N_U = unit_vector(U)
     N_V = unit_vector(V)
-!    write(*,*) n_u
-!    write(*,*) n_v
+
     ANGLE = scalar_product_3(N_U,N_V)
     ANGLE = max(-1.0_dp,ANGLE)
     ANGLE = min(1.0_dp,ANGLE)
     ANGLE = acos(ANGLE)
-    
+
     angle_btwn_vectors=ANGLE
     
   end function angle_btwn_vectors
@@ -512,7 +514,6 @@ contains
     real(dp) :: POINT1(3),POINT2(3),POINT3(3)
     !     Local variables
     real(dp) :: ERR1(3),ERR2(3),LU,LV,U(3),V(3)
-    real(dp),parameter :: zero_tol = 1.0e-14_dp
     logical :: check_colinear_points
     
     

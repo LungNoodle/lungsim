@@ -28,6 +28,7 @@ module geometry
   public define_node_geometry
   public define_node_geometry_2d
   public define_data_geometry
+  public group_elem_parent_term
   public define_rad_from_file
   public define_rad_from_geom
   public element_connectivity_1d
@@ -35,7 +36,11 @@ module geometry
   public evaluate_ordering
   public get_final_real
   public get_local_node_f
+  public inlist
+  public make_data_grid
+  public reallocate_node_elem_arrays
   public set_initial_volume
+  public triangles_from_surface
   public volume_of_mesh
 
 contains
@@ -1058,6 +1063,329 @@ contains
 ! 
 !###################################################################################
 ! 
+  subroutine triangles_from_surface(num_triangles,num_vertices,surface_elems,triangle,vertex_xyz)
+      
+     !#This subroutine is called by make_data_grid subroutine.
+     !#Application: to grow a grid in 2D surface.
+     
+     use diagnostics,only: enter_exit
+     use arrays,only: dp,num_elems_2d,elem_nodes_2d
+     integer,intent(in) :: surface_elems(:)
+     integer,allocatable :: triangle(:,:)
+     real(dp),allocatable :: vertex_xyz(:,:)
+     integer,parameter :: ndiv = 3
+     integer :: i,j,ne,num_surfaces,num_triangles,num_tri_vert,num_vertices
+     integer :: index1,index2,nmax_1,nmax_2,step_1,step_2,nvertex_row
+     real(dp) :: X(3),xi(3)
+     character(len=3) :: repeat
+     logical :: four_nodes
+     character(len=60) :: sub_name = 'triangles_from_surface'
+     call enter_exit(sub_name,1)
+     
+     if(.not.allocated(triangle)) allocate(triangle(3,2*num_elems_2d*ndiv**2))
+     if(.not.allocated(vertex_xyz)) allocate(vertex_xyz(3,num_elems_2d*(ndiv+1)**2))
+     triangle = 0
+     vertex_xyz = 0.0_dp
+     num_surfaces = count(surface_elems.ne.0)
+     num_triangles = 0
+     num_vertices = 0
+     num_tri_vert = 0 
+
+
+     do ne=1,num_elems_2d
+        four_nodes = .false.
+        repeat = '0_0'
+        if(elem_nodes_2d(1,ne).eq.elem_nodes_2d(2,ne)) repeat = '1_0'
+        if(elem_nodes_2d(1,ne).eq.elem_nodes_2d(3,ne)) repeat = '2_0'
+        if(elem_nodes_2d(2,ne).eq.elem_nodes_2d(4,ne)) repeat = '2_1'
+        if(elem_nodes_2d(3,ne).eq.elem_nodes_2d(4,ne)) repeat = '1_1'
+
+        select case(repeat)
+        case ('0_0')
+        
+           nmax_1 = ndiv+1 ! ndiv+1 vertices in xi1 direction
+           step_1 = 0      ! # of vertices in xi1 is constant
+           nmax_2 = ndiv+1 ! ndiv+1 vertices in xi2 direction
+           step_2 = 0      ! # of vertices in xi2 is constant
+           index1 = 1
+           index2 = 2
+           four_nodes = .true.
+
+        case ('1_0')
+               
+           nmax_1 = 1      ! start with 1 vertex in xi1 direction
+           step_1 = 1      ! increase # of vertices in xi1 with each step in xi2
+           nmax_2 = ndiv+1 ! ndiv+1 vertices in xi2 direction
+           step_2 = 0      ! # of vertices in xi2 is constant
+           index1 = 1
+           index2 = 2
+
+        case ('1_1')
+
+           nmax_1 = ndiv+1 ! start with ndiv+1 vertices in xi1 direction
+           step_1 = -1     ! decrease # of vertices in xi1 with each step in xi2
+           nmax_2 = ndiv+1 ! ndiv+1 vertices in xi2 direction
+           step_2 = 0      ! # of vertices in xi2 is constant
+           index1 = 1
+           index2 = 2
+
+        case ('2_0')
+
+           nmax_2 = ndiv+1 ! ndiv+1 vertices in xi1 direction
+           step_2 = 0      ! # of vertices in xi1 is constant
+           nmax_1 = 1      ! start with 1 vertex in xi2 direction
+           step_1 = 1      ! increase # of vertices in xi2 with each step in xi1          
+           index2 = 1
+           index1 = 2
+
+        case ('2_1')
+
+           nmax_2 = ndiv+1 ! ndiv+1 vertices in xi1 direction
+           step_2 = 0      ! # of vertices in xi1 is constant
+           nmax_1 = ndiv+1 ! start with ndiv+1 vertices in xi2 direction
+           step_1 = -1     ! decrease # of vertices in xi2 with each step in xi1
+           index2 = 1
+           index1 = 2
+        end select
+
+        xi(index2) = 0.0_dp
+        do i = 1,nmax_2
+           xi(index1) = 0.0_dp
+           do j = 1,nmax_1
+              num_vertices = num_vertices + 1
+              X = coord_at_xi(ne,xi,'hermite')
+              vertex_xyz(1:3,num_vertices) = X(1:3)
+              if(nmax_1.gt.1) xi(index1) = xi(index1) + 1.0_dp/(nmax_1-1)
+              if(i.gt.1.and.j.gt.1)then
+                 num_triangles = num_triangles + 1
+                 triangle(1,num_triangles) = num_vertices
+                 triangle(2,num_triangles) = num_vertices-1
+                 triangle(3,num_triangles) = nvertex_row+j-1
+                 if(four_nodes.or.(.not.four_nodes.and.j.lt.nmax_1).or.step_1.eq.-1)then
+                    num_triangles = num_triangles + 1
+                    triangle(1,num_triangles) = num_vertices
+                    triangle(2,num_triangles) = nvertex_row+j
+                    triangle(3,num_triangles) = nvertex_row+j-1
+                 endif
+                 if(step_1.eq.-1.and.j.eq.nmax_1)then
+                    num_triangles = num_triangles + 1
+                    triangle(1,num_triangles) = num_vertices
+                    triangle(2,num_triangles) = nvertex_row+j+1
+                    triangle(3,num_triangles) = nvertex_row+j
+                 endif
+              else if(step_1.eq.-1.and.i.eq.nmax_2.and.j.eq.1)then
+                      num_triangles = num_triangles + 1
+                      triangle(1,num_triangles) = num_vertices
+                      triangle(2,num_triangles) = num_vertices-1
+                      triangle(3,num_triangles) = num_vertices-2
+              endif
+           enddo !j
+           nvertex_row = num_vertices-nmax_1 !record first vertex # in previous row
+           if(nmax_2.gt.1) xi(index2) = xi(index2) + 1.0_dp/(nmax_2-1)
+           nmax_1 = nmax_1 + step_1
+       enddo !i
+     end do
+
+     write(*,'('' Made'',I8,'' triangles to cover'',I6,'' surface elements'')') &
+           num_triangles,num_elems_2d
+
+     call enter_exit(sub_name,2)
+  
+  end subroutine triangles_from_surface
+
+! 
+!###################################################################################
+! 
+  subroutine make_data_grid(surface_elems,spacing,to_export,filename,groupname)
+
+     use arrays,only: dp,data_xyz,data_weight,num_data
+     use mesh_utilities,only: volume_internal_to_surface,point_internal_to_surface
+     use diagnostics,only: enter_exit
+     ! Parameters
+     integer,intent(in) :: surface_elems(:)
+     real(dp),intent(in) :: spacing
+     logical,intent(in) :: to_export
+     character(len=*),intent(in) :: filename
+     character(len=*),intent(in) :: groupname
+
+     ! Local Variables
+     real(dp) :: max_bound(3),min_bound(3),scale_mesh,translate(3)
+     integer,allocatable :: triangle(:,:)
+     real(dp),allocatable :: data_temp(:,:),vertex_xyz(:,:)
+     real(dp) :: boxrange(3),cofm_surfaces(3),offset=-2.0_dp,point_xyz(3)
+     integer :: i,j,k,ne,nj,nline,nn,num_data_estimate,num_triangles,num_vertices
+     logical :: internal
+     character(len=1) :: char1
+     character(len=100) :: writefile
+     character(len=60) :: sub_name = 'make_data_grid'
+
+     call enter_exit(sub_name,1)
+
+     call triangles_from_surface(num_triangles,num_vertices,surface_elems,triangle,vertex_xyz)
+
+     if(offset.gt.0.0_dp)then
+   !!! generate within a scaled mesh, then return to original size afterwards
+   !!! this option is used when we don't want the seed points too close to the boundary
+       scale_mesh = 1.0_dp-(offset/100.0_dp)
+       cofm_surfaces = sum(vertex_xyz,dim=2)/size(vertex_xyz,dim=2)
+       translate = cofm_surfaces * (scale_mesh - 1.0_dp)
+       forall (i=1:num_vertices) vertex_xyz(1:3,i) = vertex_xyz(1:3,i)*scale_mesh + translate(1:3)
+     endif
+
+  !!! find the bounding coordinates for the surface mesh
+
+     min_bound = minval(vertex_xyz,2)
+     max_bound = maxval(vertex_xyz,2)
+     boxrange = max_bound - min_bound
+     num_data_estimate = int(dble((boxrange(1)/spacing+1.0_dp) * &
+                         (boxrange(2)/spacing+1.0_dp) * (boxrange(3))/spacing+1.0_dp) * &
+                         volume_internal_to_surface(triangle,vertex_xyz)/(boxrange(1)*boxrange(2)*boxrange(3)))
+
+
+  !!! allocate arrays based on estimated number of data points
+
+     if(allocated(data_xyz)) deallocate(data_xyz)
+       allocate(data_xyz(3,num_data_estimate))
+       i=0
+       num_data = 0
+       point_xyz = min_bound + 0.5_dp*spacing 
+       do while(point_xyz(3).le.max_bound(3)) ! for z direction
+          i=i+1
+          j=0 
+          do while(point_xyz(2).le.max_bound(2)) ! for y direction
+             j=j+1
+             k=0
+             internal = .true.
+             do while(point_xyz(1).le.max_bound(1)) ! for x direction
+                k=k+1
+                internal = point_internal_to_surface(num_vertices,triangle,point_xyz,vertex_xyz)
+                if(internal)then
+                  num_data = num_data+1
+                  if(num_data.le.num_data_estimate)then
+                     data_xyz(:,num_data) = point_xyz
+                  else
+                     num_data_estimate = num_data_estimate + 1000
+                     allocate(data_temp(3,num_data-1))
+                     data_temp = data_xyz ! copy to temporary array
+                     deallocate(data_xyz) !deallocate initially allocated memory
+                     allocate(data_xyz(3,num_data_estimate))
+                     data_xyz(:,1:num_data-1) = data_temp(:,1:num_data-1)
+                     deallocate(data_temp) !deallocate the temporary array
+
+                     write(*,'('' WARNING: number of data is'',I6,''; increased array size'')') num_data
+                     data_xyz(:,num_data) = point_xyz
+                  endif
+                endif
+                ! increment the location in x direction by 'spacing'
+                point_xyz(1) = point_xyz(1) + spacing
+             enddo
+             ! increment the location in y direction by 'spacing'
+             point_xyz(1) = min_bound(1) + 0.5_dp*spacing
+             point_xyz(2) = point_xyz(2) + spacing
+         enddo
+         ! increment the location in z direction by 'spacing'
+         point_xyz(1:2) = min_bound(1:2) + 0.5_dp*spacing
+         point_xyz(3) = point_xyz(3) + spacing
+      enddo
+
+      write(*,'('' Made'',I7,'' data points inside surface elements'')') num_data
+
+      if(allocated(data_weight)) deallocate(data_weight)
+         allocate(data_weight(3,num_data))
+         data_weight(:,1:num_data) = 1.0_dp
+      if(offset .gt. 0.0_dp)then
+         !!! return the triangles to their original size and location
+         forall (i=1:3) vertex_xyz(1:3,i) = (vertex_xyz(1:3,i) - translate(1:3))/scale_mesh
+      endif
+
+      if(to_export)then
+         !!! export vertices as nodes
+         writefile = trim(filename)//'.exnode'
+         open(10, file = writefile, status='replace')
+         !**    write the group name
+         write(10,'( '' Group name: '',A)') trim(groupname)
+         !*** Exporting Geometry
+         !*** Write the field information
+         write(10,'( '' #Fields=1'' )')
+         write(10,'('' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
+         do nj=1,3
+            if(nj.eq.1) write(10,'(2X,''x.  '')',advance="no")
+            if(nj.eq.2) write(10,'(2X,''y.  '')',advance="no")
+            if(nj.eq.3) write(10,'(2X,''z.  '')',advance="no")
+            write(10,'(''Value index='',I2,'', #Derivatives='',I1)',advance="no") nj,0
+            write(10,'()')
+         enddo
+         do i = 1,num_vertices
+           !***    write the node
+           write(10,'(1X,''Node: '',I12)') i
+           write(10,'(2x,3(f12.6))') vertex_xyz(:,i)
+         enddo
+         close(10)
+
+      !!! export the triangles as surface elements
+      writefile = trim(filename)//'.exelem'
+      open(10, file=writefile, status='replace')
+      !**     write the group name
+      write(10,'( '' Group name: '',a10)') groupname
+      !**     write the lines
+      write(10,'( '' Shape. Dimension=1'' )')
+      nline=0
+      do ne = 1,num_triangles
+        write(10,'( '' Element: 0 0 '',I5)') nline+1
+        write(10,'( '' Element: 0 0 '',I5)') nline+2
+        write(10,'( '' Element: 0 0 '',I5)') nline+3
+        nline=nline+3
+      enddo !ne
+
+      !**        write the elements
+      write(10,'( '' Shape. Dimension=2, line*line'' )')
+      write(10,'( '' #Scale factor sets=1'' )')
+      write(10,'( '' l.Lagrange*l.Lagrange, #Scale factors=4'' )')
+      write(10,'( '' #Nodes= '',I2 )') 4
+      write(10,'( '' #Fields=1'' )')
+      write(10,'( '' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
+
+      do nj=1,3
+        if(nj==1) char1='x'; if(nj==2) char1='y'; if(nj==3) char1='z';
+        write(10,'(''  '',A2,''. l.Lagrange*l.Lagrange, no modify, standard node based.'')') char1
+        write(10,'( ''   #Nodes=4'')')
+        do nn=1,4
+          write(10,'(''   '',I1,''. #Values=1'')') nn
+          write(10,'(''     Value indices: '',I4)') 1
+          write(10,'(''     Scale factor indices: '',I4)') nn
+        enddo !nn
+      enddo !nj
+
+      nline=0
+      do ne=1,num_triangles
+        !**         write the element
+        write(10,'(1X,''Element: '',I12,'' 0 0'' )') ne
+        !**          write the faces
+        WRITE(10,'(3X,''Faces: '' )')
+        WRITE(10,'(5X,''0 0'',I6)') nline+1
+        WRITE(10,'(5X,''0 0'',I6)') nline+2
+        WRITE(10,'(5X,''0 0'',I6)') nline+3
+        WRITE(10,'(5X,''0 0'',I6)') 0
+        nline=nline+3
+        !**          write the nodes
+        write(10,'(3X,''Nodes:'' )')
+        write(10,'(4X,4(1X,I12))') triangle(:,ne),triangle(3,ne)
+        !**          write the scale factors
+        write(10,'(3X,''Scale factors:'' )')
+        write(10,'(4X,4(1X,E12.5))') 1.0_dp,1.0_dp,1.0_dp,1.0_dp
+      enddo
+      close(10)
+      endif
+
+      deallocate(triangle)
+      deallocate(vertex_xyz)
+
+      call enter_exit(sub_name,2)
+
+      end subroutine make_data_grid
+! 
+!###################################################################################
+! 
   subroutine define_rad_from_file(FIELDFILE, radius_type_in)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_FILE" :: DEFINE_RAD_FROM_FILE
 
@@ -1404,7 +1732,7 @@ contains
     use arrays,only: num_elems_2d,elem_lines_2d,elem_cnct_2d,num_lines_2d,lines_2d, &
                      line_versn_2d,lines_in_elem,nodes_in_line,arclength,elem_nodes_2d, &
                      elem_versn_2d,scale_factors_2d
-    use mesh_functions,only: calc_scale_factors_2d
+    use mesh_utilities,only: calc_scale_factors_2d
 !!! sets up the line segment arrays for a 2d mesh
     
     character(len=4),intent(in) :: sf_option
@@ -1822,134 +2150,6 @@ contains
   end subroutine volume_of_mesh
 
 !
-!#####################################################################
-!
-!*reallocate_node_elem_arrays:* Reallocates the size of arrays when modifying geometries
-  subroutine reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
-    use arrays,only: dp,elems,elem_cnct,elem_direction,elem_field,&
-         elem_ordrs,elem_nodes,&
-         elem_symmetry,elem_units_below,elems_at_node,expansile,&
-         nodes,node_field,node_xyz,num_elems,num_nodes
-    use indices
-    use diagnostics, only: enter_exit
-    implicit none
-
-!!! Parameters
-    integer,intent(in) :: num_elems_new,num_nodes_new
-
-!!! Local variables
-    integer,allocatable :: nodelem_temp(:),enodes_temp(:,:),enodes_temp2(:,:,:)
-    real(dp),allocatable :: xyz_temp(:,:),rnodes_temp(:,:)
-    logical,allocatable :: exp_temp(:)
-    character(len=60) :: sub_name
-
-    sub_name = 'reallocate_node_elem_arrays'
-    call enter_exit(sub_name,1)
-
-    allocate(nodelem_temp(num_nodes))
-    nodelem_temp = nodes ! copy to temporary array
-    deallocate(nodes) !deallocate initially allocated memory
-    allocate(nodes(num_nodes_new))
-    nodes(1:num_nodes)=nodelem_temp(1:num_nodes)
-    deallocate(nodelem_temp) !deallocate the temporary array
-
-    allocate(xyz_temp(3,num_nodes))
-    xyz_temp=node_xyz
-    deallocate(node_xyz)
-    allocate(node_xyz(3,num_nodes_new))
-    node_xyz(1:3,1:num_nodes)=xyz_temp(1:3,1:num_nodes)
-
-    allocate(nodelem_temp(num_elems))
-    nodelem_temp = elems ! copy to temporary array
-    deallocate(elems) !deallocate initially allocated memory
-    allocate(elems(num_elems_new))
-    elems(1:num_elems)=nodelem_temp(1:num_elems)
-    deallocate(nodelem_temp) !deallocate the temporary array
-
-    allocate(enodes_temp(2,num_elems))
-    enodes_temp=elem_nodes
-    deallocate(elem_nodes)
-    allocate(elem_nodes(2,num_elems_new))
-    elem_nodes(1:2,1:num_elems)=enodes_temp(1:2,1:num_elems)
-    deallocate(enodes_temp)
-
-    allocate(rnodes_temp(num_ne,num_elems))
-    rnodes_temp=elem_field
-    deallocate(elem_field)
-    allocate(elem_field(num_ne,num_elems_new))
-    elem_field(1:num_ne,1:num_elems)=rnodes_temp(1:num_ne,1:num_elems)
-    deallocate(rnodes_temp)
-    elem_field(1:num_ne,num_elems+1:num_elems_new) = 0.0_dp
-
-    allocate(rnodes_temp(3,num_elems))
-    rnodes_temp=elem_direction
-    deallocate(elem_direction)
-    allocate(elem_direction(3,num_elems_new))
-    elem_direction(1:3,1:num_elems)=rnodes_temp(1:3,1:num_elems)
-    deallocate(rnodes_temp)
-    elem_direction(1:3,num_elems+1:num_elems_new) = 0.0_dp
-
-    allocate(rnodes_temp(num_nj,num_nodes))
-    rnodes_temp=node_field
-    deallocate(node_field)
-    allocate(node_field(num_nj,num_nodes_new))
-    node_field(1:num_nj,1:num_nodes)=rnodes_temp(1:num_nj,1:num_nodes)
-    deallocate(rnodes_temp)
-    node_field(1:num_nj,num_nodes+1:num_nodes_new)=0.0_dp
-
-    allocate(nodelem_temp(num_elems))
-    nodelem_temp = elem_symmetry ! copy to temporary array
-    deallocate(elem_symmetry) !deallocate initially allocated memory
-    allocate(elem_symmetry(num_elems_new))
-    elem_symmetry(1:num_elems)=nodelem_temp(1:num_elems)
-    deallocate(nodelem_temp) !deallocate the temporary array
-    elem_symmetry(num_elems+1:num_elems_new)=1
-
-    allocate(enodes_temp2(-1:1,0:2,0:num_elems))
-    enodes_temp2=elem_cnct
-    deallocate(elem_cnct)
-    allocate(elem_cnct(-1:1,0:2,0:num_elems_new))
-    elem_cnct(-1:1,0:2,0:num_elems)=enodes_temp2(-1:1,0:2,0:num_elems)
-    deallocate(enodes_temp2)
-    elem_cnct(-1:1,0:2,num_elems+1:num_elems_new) = 0
-
-    allocate(enodes_temp(num_ord,num_elems))
-    enodes_temp=elem_ordrs
-    deallocate(elem_ordrs)
-    allocate(elem_ordrs(num_ord,num_elems_new))
-    elem_ordrs(1:num_ord,1:num_elems)=enodes_temp(1:num_ord,1:num_elems)
-    deallocate(enodes_temp)
-    elem_ordrs(1:num_ord,num_elems+1:num_elems_new) = 0
-
-    allocate(nodelem_temp(num_elems))
-    nodelem_temp=elem_units_below
-    deallocate(elem_units_below)
-    allocate(elem_units_below(num_elems_new))
-    elem_units_below(1:num_elems)=nodelem_temp(1:num_elems)
-    deallocate(nodelem_temp)
-    elem_units_below(num_elems+1:num_elems_new)=0
-
-    allocate(enodes_temp(num_nodes,0:3))
-    enodes_temp=elems_at_node
-    deallocate(elems_at_node)
-    allocate(elems_at_node(num_nodes_new,0:3))
-    elems_at_node(1:num_nodes,0:3)=enodes_temp(1:num_nodes,0:3)
-    deallocate(enodes_temp)
-    elems_at_node(num_nodes+1:num_nodes_new,0:3)=0
-
-    allocate(exp_temp(num_elems))
-    exp_temp = expansile
-    deallocate(expansile)
-    allocate(expansile(num_elems_new))
-    expansile(1:num_elems)=exp_temp(1:num_elems)
-    deallocate(exp_temp)
-    expansile(num_elems+1:num_elems_new)=.false.
-
-    call enter_exit(sub_name,2)
-
-  end subroutine reallocate_node_elem_arrays
-
-!
 !###################################################################################
 !
 !>get_final_real
@@ -2039,6 +2239,229 @@ contains
     return
 
   end subroutine get_local_node
+
+
+!
+!###################################################################################
+!
+!*group_elem_parent_term*
+   subroutine group_elem_parent_term(ne_parent)
+
+   use arrays,only: parentlist,num_elems,elem_cnct
+   use diagnostics,only: enter_exit
+
+   ! Parameters
+   integer,intent(in) :: ne_parent  ! Number of element that feed that specific area
+
+   ! Local Variables
+   integer :: ne,ne_count,noelem,num_parents
+   integer,allocatable :: templist(:)
+   character(len=60) :: sub_name='group_elem_parent_term'
+
+   call enter_exit(sub_name,1)
+
+   allocate(templist(num_elems))
+   if(.not.allocated(parentlist)) allocate(parentlist(num_elems))
+
+   !reset the list of parent elements to zero
+   call group_elem_by_parent(ne_parent,templist)
+
+   ne_count=count(templist.ne.0)
+   num_parents=0
+   parentlist=0
+
+   do noelem=1,ne_count
+     ne = templist(noelem)
+     if(elem_cnct(1,0,ne).eq.0)then
+        num_parents=num_parents+1
+        parentlist(num_parents)=ne
+     endif !elem_cnct
+   enddo !noelem
+   write(*,*) 'Elements distal to elem #12 are:', parentlist
+   deallocate(templist)
+
+   call enter_exit(sub_name,2)
+
+   end subroutine group_elem_parent_term
+!
+!###################################################################################
+!
+!*group_elem_by_parent*
+   subroutine group_elem_by_parent(ne_parent,elemlist)
+
+   use arrays,only: elem_cnct
+   use diagnostics,only: enter_exit
+
+   ! Parameters
+   integer,intent(in) :: ne_parent  ! Number of element that feed that specific area
+   integer :: elemlist(:)
+
+   ! Local Variables
+   integer :: nt_bns,ne_count,num_nodes,m,n,ne0
+   integer,allocatable :: ne_old(:),ne_temp(:)
+   character(len=60) :: sub_name='group_elem_by_parent'
+
+   call enter_exit(sub_name,1)
+
+   elemlist = 0
+   allocate(ne_old(size(elemlist)))
+   allocate(ne_temp(size(elemlist)))
+
+   nt_bns=1
+   ne_old(1) = ne_parent
+   ne_count = 1
+   elemlist(ne_count)=ne_parent
+
+   do while(nt_bns.ne.0)
+     num_nodes=nt_bns
+     nt_bns=0
+     do m=1,num_nodes
+       ne0=ne_old(m) !parent global element number
+       do n=1,elem_cnct(1,0,ne0) !for each daughter branch
+         nt_bns=nt_bns+1
+         ne_temp(nt_bns)=elem_cnct(1,n,ne0)
+       enddo !n
+     enddo !m
+     do n=1,nt_bns
+       ne_old(n)=ne_temp(n) !updates list of previous generation element numbers
+       ne_count=ne_count+1
+       elemlist(ne_count)=ne_temp(n)
+     enddo !n
+   enddo !while
+
+   deallocate(ne_old)
+   deallocate(ne_temp)
+
+   call enter_exit(sub_name,2)
+
+   end subroutine group_elem_by_parent
+
+!
+!###################################################################################
+!
+   
+  subroutine reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
+    
+    use arrays,only: num_nodes,nodes,num_elems,elem_nodes,elem_symmetry,node_field,&
+elem_direction,elems_at_node,expansile,elem_cnct,elem_field,elem_ordrs,dp,node_xyz,elems
+    use indices,only:num_ne,num_nj,num_ord
+    use diagnostics,only: enter_exit
+
+    integer,intent(in) :: num_elems_new,num_nodes_new
+    integer,allocatable :: nodelem_temp(:),enodes_temp(:,:),enodes_temp2(:,:,:)
+    real(dp),allocatable :: xyz_temp(:,:),rnodes_temp(:,:)
+    logical,allocatable :: exp_temp(:)
+    character(len=60) :: sub_name
+    
+    ! ###########################################################################
+    
+    sub_name = 'reallocate_node_elem_arrays'
+    call enter_exit(sub_name,1)
+    
+    allocate(nodelem_temp(num_nodes))
+    nodelem_temp = nodes ! copy to temporary array
+    deallocate(nodes) !deallocate initially allocated memory
+    allocate(nodes(num_nodes_new))
+    nodes(1:num_nodes)=nodelem_temp(1:num_nodes)
+    deallocate(nodelem_temp) !deallocate the temporary array
+    !write(*,*) 'number of nodes:',num_nodes,num_nodes_new    
+    allocate(xyz_temp(3,num_nodes))
+    xyz_temp=node_xyz
+    deallocate(node_xyz)
+    allocate(node_xyz(3,num_nodes_new))
+    node_xyz(1:3,1:num_nodes)=xyz_temp(1:3,1:num_nodes)
+    
+    allocate(nodelem_temp(num_elems))
+    nodelem_temp = elems ! copy to temporary array
+    deallocate(elems) !deallocate initially allocated memory
+    allocate(elems(num_elems_new))
+    elems(1:num_elems)=nodelem_temp(1:num_elems)
+    deallocate(nodelem_temp) !deallocate the temporary array
+    !write(*,*) 'number of elems:',num_elems,num_elems_new
+    allocate(enodes_temp(2,num_elems))
+    enodes_temp=elem_nodes
+    deallocate(elem_nodes)
+    allocate(elem_nodes(2,num_elems_new))
+    elem_nodes(1:2,1:num_elems)=enodes_temp(1:2,1:num_elems)
+    deallocate(enodes_temp)
+    !write(*,*) 'elem field:', elem_field
+    !allocate(rnodes_temp(num_ne,num_elems))
+    !rnodes_temp=elem_field
+    !write(*,*) '1st', num_ne
+    !deallocate(elem_field)
+    !write(*,*) '2nd'
+    !allocate(elem_field(num_ne,num_elems_new))
+    !elem_field(1:num_ne,1:num_elems)=rnodes_temp(1:num_ne,1:num_elems)
+    !deallocate(rnodes_temp)
+    !elem_field(1:num_ne,num_elems+1:num_elems_new) = 0.0_dp
+    
+    allocate(rnodes_temp(3,num_elems))
+    rnodes_temp=elem_direction
+    deallocate(elem_direction)
+    allocate(elem_direction(3,num_elems_new))
+    elem_direction(1:3,1:num_elems)=rnodes_temp(1:3,1:num_elems)
+    deallocate(rnodes_temp)
+    elem_direction(1:3,num_elems+1:num_elems_new) = 0.0_dp
+
+    allocate(rnodes_temp(num_nj,num_nodes))
+    rnodes_temp=node_field
+    deallocate(node_field)
+    allocate(node_field(num_nj,num_nodes_new))
+    node_field(1:num_nj,1:num_nodes)=rnodes_temp(1:num_nj,1:num_nodes)
+    deallocate(rnodes_temp)
+    node_field(1:num_nj,num_nodes+1:num_nodes_new)=0.0_dp
+
+    allocate(nodelem_temp(num_elems))
+    nodelem_temp = elem_symmetry ! copy to temporary array
+    deallocate(elem_symmetry) !deallocate initially allocated memory
+    allocate(elem_symmetry(num_elems_new))
+    elem_symmetry(1:num_elems)=nodelem_temp(1:num_elems)
+    deallocate(nodelem_temp) !deallocate the temporary array
+    elem_symmetry(num_elems+1:num_elems_new)=1
+    
+    allocate(enodes_temp2(-1:1,0:2,0:num_elems))
+    enodes_temp2=elem_cnct
+    deallocate(elem_cnct)
+    allocate(elem_cnct(-1:1,0:2,0:num_elems_new))
+    elem_cnct(-1:1,0:2,0:num_elems)=enodes_temp2(-1:1,0:2,0:num_elems)
+    deallocate(enodes_temp2)
+    elem_cnct(-1:1,0:2,num_elems+1:num_elems_new) = 0
+    
+    allocate(enodes_temp(num_ord,num_elems))
+    enodes_temp=elem_ordrs
+    deallocate(elem_ordrs)
+    allocate(elem_ordrs(num_ord,num_elems_new))
+    elem_ordrs(1:num_ord,1:num_elems)=enodes_temp(1:num_ord,1:num_elems)
+    deallocate(enodes_temp)
+    elem_ordrs(1:num_ord,num_elems+1:num_elems_new) = 0
+    
+!    allocate(nodelem_temp(num_elems))
+!    nodelem_temp=elem_units_below
+!    deallocate(elem_units_below)
+!    allocate(elem_units_below(num_elems_new))
+!    elem_units_below(1:num_elems)=nodelem_temp(1:num_elems)
+!    deallocate(nodelem_temp)
+!    elem_units_below(num_elems+1:num_elems_new)=0
+    
+    allocate(enodes_temp(num_nodes,0:3))
+    enodes_temp=elems_at_node
+    deallocate(elems_at_node)
+    allocate(elems_at_node(num_nodes_new,0:3))
+    elems_at_node(1:num_nodes,0:3)=enodes_temp(1:num_nodes,0:3)
+    deallocate(enodes_temp)
+    elems_at_node(num_nodes+1:num_nodes_new,0:3)=0
+    
+    allocate(exp_temp(num_elems))
+    exp_temp = expansile
+    deallocate(expansile)
+    allocate(expansile(num_elems_new))
+    expansile(1:num_elems)=exp_temp(1:num_elems)
+    deallocate(exp_temp)
+    expansile(num_elems+1:num_elems_new)=.false.
+
+    call enter_exit(sub_name,2)
+    
+  end subroutine reallocate_node_elem_arrays
 
 
 !!!###############################################################
@@ -2160,6 +2583,64 @@ contains
     enddo
 
   end function inlist
+! 
+!###########################################################################################
+! 
+  function coord_at_xi(ne,xi,basis)
+
+    use arrays,only: dp,node_xyz_2d,elem_nodes_2d,elem_versn_2d
+    ! Parameters
+    integer,intent(in) :: ne
+    real(dp),intent(in) :: xi(:)
+    character(len=*),intent(in) :: basis
+
+    ! Local Variables
+    integer :: nn,nv
+    real(dp) :: phi(4),phi_10(2),phi_11(2),phi_20(2),phi_21(2),x(4,3,4)
+    real(dp) :: coord_at_xi(3)
+
+    select case (basis)
+      case('linear')
+         forall (nn=1:4) x(1,1:3,nn) = node_xyz_2d(1,1,1:3,elem_nodes_2d(nn,ne))
+         phi(1) = (1.0_dp - xi(1))*(1.0_dp - xi(2))
+         phi(2) = xi(1)*(1.0_dp - xi(2))
+         phi(3) = (1.0_dp - xi(1))*xi(2)
+         phi(4) = xi(1)*xi(2)
+
+         coord_at_xi(1:3) = phi(1)*x(1,1:3,1)+phi(2)*x(1,1:3,2)+phi(3)*x(1,1:3,3)+phi(4)*x(1,1:3,4)
+
+      case('hermite')
+         do nn=1,4
+           nv = elem_versn_2d(nn,ne)
+           x(1:4,1:3,nn) = node_xyz_2d(1:4,nv,1:3,elem_nodes_2d(nn,ne))
+         enddo
+         phi_10(1) = (2.0_dp*xi(1)-3.0_dp)*xi(1)*xi(1)+1.0_dp  ! 2xi^3-3xi^2+1
+         phi_10(2) = (2.0_dp*xi(2)-3.0_dp)*xi(2)*xi(2)+1.0_dp  ! 2xi^3-3xi^2+1
+         phi_20(1) = xi(1)*xi(1)*(3.0_dp-2.0_dp*xi(1))         ! -2xi^3+3xi^2
+         phi_20(2) = xi(2)*xi(2)*(3.0_dp-2.0_dp*xi(2))         ! -2xi^3+3xi^2
+         phi_11(1) = ((xi(1)-2.0_dp)*xi(1)+1.0_dp)*xi(1)       ! xi^3-2xi^2+xi
+         phi_11(2) = ((xi(2)-2.0_dp)*xi(2)+1.0_dp)*xi(2)       ! xi^3-2xi^2+xi
+         phi_21(1) = xi(1)*xi(1)*(xi(1)-1.0_dp)                ! xi^3-xi^2
+         phi_21(2) = xi(2)*xi(2)*(xi(2)-1.0_dp)                ! xi^3-xi^2
+         coord_at_xi(1:3) = phi_10(1)*phi_10(2)*x(1,1:3,1) &
+                            + phi_20(1)*phi_10(2)*x(1,1:3,2) &
+                            + phi_10(1)*phi_20(2)*x(1,1:3,3) &
+                            + phi_20(1)*phi_20(2)*x(1,1:3,4) &
+                            + phi_11(1)*phi_10(2)*x(2,1:3,1) &
+                            + phi_21(1)*phi_10(2)*x(2,1:3,2) &
+                            + phi_11(1)*phi_20(2)*x(2,1:3,3) &
+                            + phi_21(1)*phi_20(2)*x(2,1:3,4) &
+                            + phi_10(1)*phi_11(2)*x(3,1:3,1) &
+                            + phi_20(1)*phi_11(2)*x(3,1:3,2) &
+                            + phi_10(1)*phi_21(2)*x(3,1:3,3) &
+                            + phi_20(1)*phi_21(2)*x(3,1:3,4) &
+                            + phi_11(1)*phi_11(2)*x(4,1:3,1) &
+                            + phi_21(1)*phi_11(2)*x(4,1:3,2) &
+                            + phi_11(1)*phi_21(2)*x(4,1:3,3) &
+                            + phi_21(1)*phi_21(2)*x(4,1:3,4)
+     end select
+
+  end function coord_at_xi
 
 ! 
 !###########################################################################################

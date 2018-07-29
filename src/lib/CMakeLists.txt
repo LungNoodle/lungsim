@@ -10,10 +10,11 @@ set(LIB_SRCS
   gas_exchange.f90
   gasmix.f90
   geometry.f90
+  growtree.f90
   indices.f90
   imports.f90
   math_utilities.f90
-  mesh_functions.f90
+  mesh_utilities.f90
   other_consts.f90
   pressure_resistance_flow.f90
   solve.f90

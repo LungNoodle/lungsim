@@ -23,6 +23,7 @@ module arrays
   integer,allocatable :: node_versn_2d(:) !allocated in define_node_geometry_2d
   integer,allocatable :: elems(:) !allocated in define_1d_elements
   integer,allocatable :: lines_2d(:)
+  integer,allocatable :: parentlist(:)
   integer,allocatable :: line_versn_2d(:,:,:)
   integer,allocatable :: lines_in_elem(:,:)
   integer,allocatable :: nodes_in_line(:,:,:)
@@ -89,7 +90,7 @@ module arrays
          elem_units_below, maxgen,capillary_bf_parameters, zero_tol,loose_tol,gasex_field, &
          num_lines_2d, lines_2d, line_versn_2d, lines_in_elem, nodes_in_line, elems_2d, &
          elem_cnct_2d, elem_nodes_2d, elem_versn_2d, elem_lines_2d, elems_at_node_2d, arclength, &
-         scale_factors_2d
+         scale_factors_2d, parentlist
 
 contains
   subroutine set_node_field_value(row, col, value)
