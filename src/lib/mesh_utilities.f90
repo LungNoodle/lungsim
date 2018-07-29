@@ -6,15 +6,16 @@ module mesh_utilities
 !!! Any function that is used by more than one module should appear in here. 
 !!! ALL subroutines and functions in this module are public.
 
-use other_consts
-use arrays, only: dp,zero_tol
+
+  use other_consts
+  use arrays, only: dp,zero_tol
 
   implicit none
 
   private
 
   public  area_between_three_points,area_between_two_vectors,calc_branch_direction,&
-       angle_btwn_vectors,calc_scale_factors_2d,check_colinear_points,cross_product,&
+       angle_btwn_points,angle_btwn_vectors,calc_scale_factors_2d,check_colinear_points,cross_product,&
        distance_between_points,make_plane_from_3points,mesh_a_x_eq_b,ph3,pl1,&
        point_internal_to_surface,scalar_product_3,scalar_triple_product,scale_mesh,&
        unit_norm_to_plane_two_vectors,unit_norm_to_three_points,unit_vector,&
@@ -38,6 +39,9 @@ contains
   ! ..... multiply mesh (coordinates and derivatives) by a constant
 
 !!! list of functions
+
+  ! angle_btwn_points
+  ! .... returns the angle between three points
 
   ! angle_btwn_vectors
   ! .... returns the angle between two vectors
@@ -462,6 +466,24 @@ contains
 
 !!!##################################################
   
+
+  function angle_btwn_points(A,B,C)
+    
+    !###    calculates the angle between three points
+    
+    real(dp),intent(in) :: A(3),B(3),C(3)
+
+    real(dp) :: U(3),V(3)
+    real(dp) :: angle_btwn_points
+
+    U = A - B
+    V = C - B
+    angle_btwn_points = angle_btwn_vectors(U,V)
+        
+  end function angle_btwn_points
+  
+!!!##################################################
+
   function angle_btwn_vectors(U,V)
     
     !###    ANGLE calculates the angle between two vectors
@@ -472,11 +494,12 @@ contains
     
     N_U = unit_vector(U)
     N_V = unit_vector(V)
+
     ANGLE = scalar_product_3(N_U,N_V)
     ANGLE = max(-1.0_dp,ANGLE)
     ANGLE = min(1.0_dp,ANGLE)
-    ANGLE = cos(ANGLE)
-    
+    ANGLE = acos(ANGLE)
+
     angle_btwn_vectors=ANGLE
     
   end function angle_btwn_vectors
@@ -674,7 +697,6 @@ contains
 
     ! calculates the volume enclosed by a list of surface elements
 
-    use arrays,only: dp
     integer,intent(in) :: triangles(:,:)
     real(dp),intent(in) :: vertex_xyz(:,:)
     real(dp) :: volume_internal_to_surface
@@ -707,7 +729,6 @@ contains
 !!! then work out how many triangular elements it crosses. If even it is in the 
 !!! shape and if odd it is outside the shape
 
-    use arrays,only: dp
     integer,intent(in) :: num_vertices,triangles(:,:)
     real(dp),intent(in) :: point_xyz(3),vertex_xyz(:,:)
     logical :: point_internal_to_surface

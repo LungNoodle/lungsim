@@ -8,11 +8,14 @@ module math_utilities
 !*Full Description:*
 !
 !
+  use arrays, only: dp
+  use diagnostics, only: enter_exit
 
   implicit none
   private
   public ax_cr,diagonal_pointer_cr,ilu_cr,lus_cr,mult_givens,rearrange_cr
-  public sort_integer_list,sort_real_list
+  public sort_integer_list
+  public sort_real_list
 
 contains
 !
@@ -284,7 +287,9 @@ subroutine diagonal_pointer_cr ( n, ia, ja, ua )
     return
   end subroutine rearrange_cr
 
+
 !######################################################################
+
   !
   !*sort_integer_list:* sorts a list of integer values into a non-decreasing order.
   ! sorts N integer IDATA values into a non-decreasing sequence using IHEAPSORT
@@ -293,9 +298,6 @@ subroutine diagonal_pointer_cr ( n, ia, ja, ua )
   !
   subroutine sort_integer_list(N,IDATA)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SORT_INTEGER_LIST" :: SORT_INTEGER_LIST
-
-    use diagnostics, only: enter_exit
-    implicit none
     integer :: IDATA(:),N
 
     !Local Variables
@@ -341,16 +343,12 @@ subroutine diagonal_pointer_cr ( n, ia, ja, ua )
   end subroutine sort_integer_list
 
 !!!#########################################################################
-
   !*sort_real_list:* sorts a list of real values into a non-decreasing order
   ! using a bubble sort algorithm.
 
   subroutine sort_real_list(n,RDATA,INDEX)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SORT_REAL_LIST" :: SORT_REAL_LIST
-     
-    use diagnostics, only: enter_exit
-    use arrays,only: dp
-    implicit none
+
     integer :: INDEX(*),n
     real(dp) :: RDATA(*)
 
