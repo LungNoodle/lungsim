@@ -99,7 +99,7 @@ int get_local_node_f(const char *ndimension, const char *np_global)
 {
   int dimension_len = strlen(ndimension);
   int np_global_len = strlen(np_global);
-  get_local_node_f_c(ndimension, &dimension_len, np_global, &np_global_len);
+  return get_local_node_f_c(ndimension, &dimension_len, np_global, &np_global_len);
 }
 
 void define_rad_from_geom(const char *order_system, double control_param, const char *start_from,
