@@ -19,8 +19,8 @@ class GeometryTestCase(unittest.TestCase):
     def test_read_square(self):
         set_diagnostics_on(False)
         define_node_geometry_2d(os.path.join(resources_dir, 'square.ipnode'))
-        value = check_node_xyz_2d(1, 1, 10)
-        self.assertEqual(10, value)
+        value = check_node_xyz_2d(1, 1)
+        self.assertEqual(100, value)
 
 
 if __name__ == '__main__':
