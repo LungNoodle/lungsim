@@ -5,3 +5,4 @@ add_subdirectory(pFUnit-3.2.9)
 include("${CMAKE_CURRENT_BINARY_DIR}/pFUnit-3.2.9/pFUnitConfig.cmake")
 
 add_subdirectory(lib)
+add_subdirectory(bindings)

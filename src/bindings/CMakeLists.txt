@@ -7,7 +7,6 @@ mark_as_advanced(SWIG_EXECUTABLE)
 if(SWIG_FOUND)
   option(AETHER_BUILD_PYTHON_BINDINGS "Build Python bindings for ${PROJECT_NAME}" YES)
 
-
   if(AETHER_BUILD_PYTHON_BINDINGS)
     find_package(PythonInterp)
     find_package(PythonLibs)
