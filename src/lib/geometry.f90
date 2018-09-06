@@ -462,15 +462,17 @@ contains
     allocate(elem_field(num_ne,num_elems))
     if(allocated(elem_direction)) deallocate(elem_direction)
     allocate(elem_direction(3,num_elems))
-    if(allocated(expansile)) deallocate(expansile)
-    allocate(expansile(num_elems))
+    if(model_type.eq.'gas_mix')then
+      if(allocated(expansile)) deallocate(expansile)
+      allocate(expansile(num_elems))
+    endif
 
 !!! initialise element arrays
     elems=0
     elem_nodes=0
     elem_symmetry = 1
     elem_field = 0.0_dp
-    expansile = .false.
+    if(model_type.eq.'gas_mix')expansile = .false.
 
     ne=0
 
@@ -2277,7 +2279,7 @@ contains
         parentlist(num_parents)=ne
      endif !elem_cnct
    enddo !noelem
-   write(*,*) 'Elements distal to elem #12 are:', parentlist
+
    deallocate(templist)
 
    call enter_exit(sub_name,2)
@@ -2343,7 +2345,7 @@ contains
 !
 !#####################################################################
 !
-!*reallocate_node_elem_arrays:* Reallocates the size of arrays when modifying geometries
+!*reallocate_node_elem_arrays:* Reallocates the size of geometric arrays when modifying geometries
   subroutine reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
     use arrays,only: dp,elems,elem_cnct,elem_direction,elem_field,&
          elem_ordrs,elem_nodes,&
@@ -2392,13 +2394,15 @@ contains
     elem_nodes(1:2,1:num_elems)=enodes_temp(1:2,1:num_elems)
     deallocate(enodes_temp)
 
-    allocate(rnodes_temp(num_ne,num_elems))
-    rnodes_temp=elem_field
-    deallocate(elem_field)
-    allocate(elem_field(num_ne,num_elems_new))
-    elem_field(1:num_ne,1:num_elems)=rnodes_temp(1:num_ne,1:num_elems)
-    deallocate(rnodes_temp)
-    elem_field(1:num_ne,num_elems+1:num_elems_new) = 0.0_dp
+    if(allocated(elem_field).and.num_ne.gt.0)then
+        allocate(rnodes_temp(num_ne,num_elems))
+        rnodes_temp=elem_field
+        deallocate(elem_field)
+        allocate(elem_field(num_ne,num_elems_new))
+        elem_field(1:num_ne,1:num_elems)=rnodes_temp(1:num_ne,1:num_elems)
+        deallocate(rnodes_temp)
+        elem_field(1:num_ne,num_elems+1:num_elems_new) = 0.0_dp
+    endif
 
     allocate(rnodes_temp(3,num_elems))
     rnodes_temp=elem_direction
@@ -2408,13 +2412,15 @@ contains
     deallocate(rnodes_temp)
     elem_direction(1:3,num_elems+1:num_elems_new) = 0.0_dp
 
-    allocate(rnodes_temp(num_nj,num_nodes))
-    rnodes_temp=node_field
-    deallocate(node_field)
-    allocate(node_field(num_nj,num_nodes_new))
-    node_field(1:num_nj,1:num_nodes)=rnodes_temp(1:num_nj,1:num_nodes)
-    deallocate(rnodes_temp)
-    node_field(1:num_nj,num_nodes+1:num_nodes_new)=0.0_dp
+    if(allocated(node_field).and.num_nj.gt.0)then
+      allocate(rnodes_temp(num_nj,num_nodes))
+      rnodes_temp=node_field
+      deallocate(node_field)
+      allocate(node_field(num_nj,num_nodes_new))
+      node_field(1:num_nj,1:num_nodes)=rnodes_temp(1:num_nj,1:num_nodes)
+      deallocate(rnodes_temp)
+      node_field(1:num_nj,num_nodes+1:num_nodes_new)=0.0_dp
+    endif
 
     allocate(nodelem_temp(num_elems))
     nodelem_temp = elem_symmetry ! copy to temporary array
@@ -2440,13 +2446,15 @@ contains
     deallocate(enodes_temp)
     elem_ordrs(1:num_ord,num_elems+1:num_elems_new) = 0
 
-    allocate(nodelem_temp(num_elems))
-    nodelem_temp=elem_units_below
-    deallocate(elem_units_below)
-    allocate(elem_units_below(num_elems_new))
-    elem_units_below(1:num_elems)=nodelem_temp(1:num_elems)
-    deallocate(nodelem_temp)
-    elem_units_below(num_elems+1:num_elems_new)=0
+    if(allocated(elem_units_below).and.num_nu.gt.0)then
+      allocate(nodelem_temp(num_elems))
+      nodelem_temp=elem_units_below
+      deallocate(elem_units_below)
+      allocate(elem_units_below(num_elems_new))
+      elem_units_below(1:num_elems)=nodelem_temp(1:num_elems)
+      deallocate(nodelem_temp)
+      elem_units_below(num_elems+1:num_elems_new)=0
+    endif
 
     allocate(enodes_temp(num_nodes,0:3))
     enodes_temp=elems_at_node
@@ -2456,13 +2464,15 @@ contains
     deallocate(enodes_temp)
     elems_at_node(num_nodes+1:num_nodes_new,0:3)=0
 
-    allocate(exp_temp(num_elems))
-    exp_temp = expansile
-    deallocate(expansile)
-    allocate(expansile(num_elems_new))
-    expansile(1:num_elems)=exp_temp(1:num_elems)
-    deallocate(exp_temp)
-    expansile(num_elems+1:num_elems_new)=.false.
+    if(model_type.eq.'gas_mix')then
+      allocate(exp_temp(num_elems))
+      exp_temp = expansile
+      deallocate(expansile)
+      allocate(expansile(num_elems_new))
+      expansile(1:num_elems)=exp_temp(1:num_elems)
+      deallocate(exp_temp)
+      expansile(num_elems+1:num_elems_new)=.false.
+    endif
 
     call enter_exit(sub_name,2)
 
