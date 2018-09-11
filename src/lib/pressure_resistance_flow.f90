@@ -19,7 +19,7 @@ module pressure_resistance_flow
 
   !Interfaces
   private
-  public evaluate_prq
+  public evaluate_prq,calculate_ppl
 contains
 !###################################################################################
 !
