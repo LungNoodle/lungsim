@@ -49,6 +49,7 @@ mark_as_advanced(AETHER_INSTALL_PREFIX)
 # defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+
 # All the source files for the library and bindings are located under this directory.
 add_subdirectory(src)
 
@@ -57,6 +58,7 @@ enable_testing()
 
 # All the tests for the library are located under this directory.
 add_subdirectory(tests)
+
 
 set(ADDITIONAL_GENERATED_FILES)
 if(SPHINX_FOUND)

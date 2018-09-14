@@ -226,7 +226,7 @@ contains
     call enter_exit(sub_name,1)
     !Ultimately offset should be an input argument
     offset(1)=0.0_dp
-    offset(2)=1e-6_dp
+    offset(2)=0.0_dp
     offset(3)=0.0_dp
 
 
@@ -284,10 +284,10 @@ contains
           elem_nodes(2,ne)=np_map(elem_nodes(1,ne_m))
           elem_cnct(-1,0,ne)=elem_cnct(1,0,ne_m)
           elem_cnct(1,0,ne)=elem_cnct(-1,0,ne_m)
-          do n=1,elem_cnct(1,0,ne)
+          do n=1,elem_cnct(-1,0,ne)
             elem_cnct(-1,n,ne)=elem_cnct(1,n,ne_m)+ne0
           enddo
-          do n=1,elem_cnct(-1,0,ne)
+          do n=1,elem_cnct(1,0,ne)
             elem_cnct(1,n,ne)=elem_cnct(-1,n,ne_m)+ne0
           enddo
         endif

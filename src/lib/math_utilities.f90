@@ -13,15 +13,13 @@ module math_utilities
 
   implicit none
   private
+
   public ax_cr,diagonal_pointer_cr,ilu_cr,lus_cr,mult_givens,rearrange_cr,bessel_complex
   public sort_integer_list
   public sort_real_list
 
-contains
 
-! 
-!############################################################
-! 
+contains
 
 subroutine bessel_complex(z,bessel0,bessel1)
   use other_consts,only: PI
@@ -139,6 +137,7 @@ subroutine bessel_complex(z,bessel0,bessel1)
   endif
 
 end subroutine bessel_complex
+
 
 !
 !###########################################################################

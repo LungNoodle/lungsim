@@ -16,7 +16,7 @@ module indices
   ! indices for elem_ordrs
   integer :: num_ord=3,no_gen=1,no_hord=2,no_sord=3
   ! indices for node_fields
-  integer :: num_nj,nj_aw_press,nj_bv_press,nj_press,nj_conc1,&
+  integer :: num_nj,nj_aw_press,nj_bv_press,nj_conc1,&
      nj_conc2
   ! indices for elem_field
   integer ::num_ne,ne_radius,ne_length,ne_vol,&
@@ -48,7 +48,7 @@ module indices
 
 public num_ord,no_gen,no_hord,no_sord
 
-public num_nj,nj_aw_press,nj_bv_press,nj_press,nj_conc1,nj_conc2
+public num_nj,nj_aw_press,nj_bv_press,nj_conc1,nj_conc2
 
 public num_ne,ne_radius,ne_length,ne_vol,&
       ne_resist,ne_t_resist,ne_flow,ne_flow0,ne_Vdot,ne_Vdot0,ne_a_A,&
@@ -69,7 +69,8 @@ public model_type
 
 !Interfaces
 private
-public define_problem_type,ventilation_indices, perfusion_indices, get_ne_radius, get_nj_conc1
+public define_problem_type,ventilation_indices, perfusion_indices, get_ne_radius, get_nj_conc1, &
+       growing_indices
 
 contains
 
@@ -279,6 +280,7 @@ contains
     ne_radius_in0=5!unstrained radius into an element
     ne_radius_out0=6!unstrained radius out of an element
     ne_flow=7
+    ne_resist=8
     ne_Qdot=7 !flow in an element
     ne_resist=8 !resistance of a blood vessel
     ne_group=9!Groups vessels into arteries (field=0), capillaries (field=1) and veins(field=2)

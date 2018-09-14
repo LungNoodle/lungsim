@@ -57,18 +57,18 @@ module arrays
 
   type capillary_bf_parameters
     integer :: num_symm_gen=9 !no units
-    real(dp) :: total_cap_area=0.63000e+02_dp !m
+    real(dp) :: total_cap_area=0.63000e02_dp !m
     real(dp) :: Palv=0.0_dp!Pa
     real(dp) :: H0=0.35000e-05_dp !m
-    real(dp) :: K_cap=0.12000e+02_dp
-    real(dp) :: F_cap=0.18000e+01_dp
-    real(dp) :: F_sheet=0.10400e+00_dp
-    real(dp) :: sigma_cap=0.43637e+03_dp !Pa
+    real(dp) :: K_cap=0.12000e02_dp
+    real(dp) :: F_cap=0.18000e01_dp
+    real(dp) :: F_sheet=0.10400e00_dp
+    real(dp) :: sigma_cap=0.43637e03_dp !Pa
     real(dp) :: mu_c=0.19200e-02_dp !Pa.s
-    real(dp) :: alpha_a=2.33e-08_dp !/Pa
-    real(dp) :: alpha_v=2.33e-08_dp !/Pa
-    real(dp) :: F_rec=0.64630e+00_dp
-    real(dp) :: sigma_rec=0.22300e+04_dp
+    real(dp) :: alpha_a=2.33e-08_dp !m/Pa
+    real(dp) :: alpha_v=2.33e-08_dp !m/Pa
+    real(dp) :: F_rec=0.64630e00_dp
+    real(dp) :: sigma_rec=0.22300e04_dp
     real(dp) :: L_c=0.11880e-02_dp !m
     real(dp) :: Plb_c=0.0_dp !Pa
     real(dp) :: Pub_c=3138.24_dp !Pa
@@ -78,7 +78,6 @@ module arrays
     real(dp) :: R_art_terminal=0.10000e-04_dp !m
     real(dp) :: R_vein_terminal=0.90000e-05!m
   end type capillary_bf_parameters
-
 
   type admittance_param
     character (len=20) :: admittance_type
@@ -115,6 +114,7 @@ module arrays
   real(dp) :: unit_before
 
   private
+
   public set_node_field_value, elem_field, num_elems, num_elems_2d, elem_nodes, node_xyz, &
          nodes,nodes_2d, elems, num_nodes, num_nodes_2d, num_data, data_xyz, data_weight, &
          node_xyz_2d, node_versn_2d, units, num_units, unit_field, node_field, dp, &
@@ -122,7 +122,8 @@ module arrays
          elem_units_below, maxgen,capillary_bf_parameters, zero_tol,loose_tol,gasex_field, &
          num_lines_2d, lines_2d, line_versn_2d, lines_in_elem, nodes_in_line, elems_2d, &
          elem_cnct_2d, elem_nodes_2d, elem_versn_2d, elem_lines_2d, elems_at_node_2d, arclength, &
-         scale_factors_2d, parentlist, all_admit_param, fluid_properties, elasticity_param
+         scale_factors_2d, parentlist, fluid_properties, elasticity_vessels, admittance_param, &
+         elasticity_param, all_admit_param
 
 contains
   subroutine set_node_field_value(row, col, value)
