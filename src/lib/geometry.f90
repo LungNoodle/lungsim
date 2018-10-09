@@ -534,6 +534,7 @@ contains
 !!!##################################################
 
   subroutine define_elem_geometry_2d(ELEMFILE,sf_option)
+      !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_ELEM_GEOMETRY_2D" :: DEFINE_ELEM_GEOMETRY_2D
 
     ! Reads in 2D ipelem file.
 
@@ -878,6 +879,7 @@ contains
 !!!##################################################
 
   subroutine define_node_geometry_2d(NODEFILE)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY_2D" :: DEFINE_NODE_GEOMETRY_2D
   
   !*define_node_geometry_2d:* Reads in an ipnode file to define surface nodes
     use arrays,only: dp,nodes_2d,node_field,node_xyz_2d,num_nodes_2d,node_versn_2d
@@ -975,6 +977,8 @@ contains
 !!!##################################################
 
   subroutine define_data_geometry(datafile)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_DATA_GEOMETRY" :: DEFINE_DATA_GEOMETRY
+
 
 !!! read data points from a file
     
@@ -1199,6 +1203,7 @@ contains
 !###################################################################################
 ! 
   subroutine make_data_grid(surface_elems,spacing,to_export,filename,groupname)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_MAKE_DATA_GRID" :: MAKE_DATA_GRID
 
      use arrays,only: dp,data_xyz,data_weight,num_data
      use mesh_utilities,only: volume_internal_to_surface,point_internal_to_surface
@@ -2248,6 +2253,7 @@ contains
 !
 !*group_elem_parent_term*
    subroutine group_elem_parent_term(ne_parent)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_ELEM_PARENT_TERM" :: GROUP_ELEM_PARENT_TERM
 
    use arrays,only: parentlist,num_elems,elem_cnct
    use diagnostics,only: enter_exit

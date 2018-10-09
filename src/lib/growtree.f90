@@ -129,7 +129,7 @@ contains
   !
   subroutine branch_to_cofm(map_seed_to_elem,nen,np1,COFM,branch_fraction,length_limit,&
     length_parent,shortest_length,candidate_xyz,make_branch)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_BRANCH_TO_COFM" :: BRANCH_TO_COFM"
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_BRANCH_TO_COFM" :: BRANCH_TO_COFM
 
     use diagnostics, only: enter_exit
     implicit none
