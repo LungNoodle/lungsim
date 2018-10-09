@@ -130,6 +130,7 @@ contains
 !!!############################################################################
   
   subroutine export_elem_geometry_2d(EXELEMFILE, name, offset_elem, offset_node)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_ELEM_GEOMETRY_2D" :: EXPORT_ELEM_GEOMETRY_2D
 
     use arrays,only: num_lines_2d,lines_2d,elem_versn_2d,elem_nodes_2d,nodes_2d,scale_factors_2d, &
                      elem_lines_2d,num_elems_2d
@@ -303,6 +304,7 @@ contains
 !!!########################################################################
 
   subroutine export_node_geometry_2d(EXNODEFILE, name, offset)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_GEOMETRY_2D" :: EXPORT_NODE_GEOMETRY_2D
 
     use arrays!,only: nodes_2d,node_xyz_2d,num_nodes_2d,node_versn_2d
     use diagnostics, only: enter_exit    
@@ -387,7 +389,8 @@ contains
 !!!####################################################################
 
   subroutine export_data_geometry(EXDATAFILE, name, offset)
-
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_DATA_GEOMETRY" :: EXPORT_DATA_GEOMETRY
+  
     use arrays, only: num_data,data_xyz
     use diagnostics,only: enter_exit
 !!! dummy arguments
