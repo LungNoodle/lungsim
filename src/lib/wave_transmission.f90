@@ -178,7 +178,7 @@ subroutine evaluate_wave_transmission(n_time,heartrate,a0,no_freq,a,b,n_adparams
 
   !!Determine steady component of flow
   if(a0.eq.0.0_dp)then !Using steady flow solution at inlet as a0
-    steady_flow=elem_field(ne_flow,1)!ASSUMING FIRST ELEMENT
+    steady_flow=elem_field(ne_Qdot,1)!ASSUMING FIRST ELEMENT
   else!otherwise input a0 is used
     steady_flow=a0
   endif
@@ -268,7 +268,7 @@ subroutine evaluate_wave_transmission(n_time,heartrate,a0,no_freq,a,b,n_adparams
    dt=(end_time-start_time)/n_time
    time=start_time
    !consider first pressure and flow into the vessel (at x=0)
-   open(fid, file = 'incident_pressure.txt',action='write')
+   open(fid, file = 'incident_pressure.txt', action='write')
    open(fid2, file = 'incident_flow.txt',action='write')
    open(fid3, file = 'total_pressure.txt',action='write')
    open(fid4, file = 'total_flow.txt',action='write')
@@ -309,10 +309,10 @@ subroutine evaluate_wave_transmission(n_time,heartrate,a0,no_freq,a,b,n_adparams
      enddo
       np=elem_nodes(2,ne)
    write(fid,fmt=*) ne, forward_pressure+node_field(nj_bv_press,np)
-   write(fid2,fmt=*) ne, forward_flow+elem_field(ne_flow,ne)
+   write(fid2,fmt=*) ne, forward_flow+elem_field(ne_Qdot,ne)
 
    write(fid3,fmt=*) ne, forward_pressure+reflected_pressure !node_field(nj_bv_press,np)
-   write(fid4,fmt=*) ne, forward_flow-reflected_flow !elem_field(ne_flow,ne)
+   write(fid4,fmt=*) ne, forward_flow-reflected_flow !elem_field(ne_Qdot,ne)
    !   elem_field(ne_length,ne),abs(p_factor(1,ne))*a(1),&
         !abs(reflect(1,ne)),abs(char_admit(1,ne)),node_xyz(2,ne)
 
@@ -710,7 +710,7 @@ subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,
     ne1=elem_cnct(1,1,ne)
     P1=node_field(nj_bv_press,elem_nodes(2,ne0)) !pressure at start node of capillary element
     P2=node_field(nj_bv_press,elem_nodes(1,ne1))
-    Q01=elem_field(ne_flow,ne0) !flow in element upstream of capillary element !mm^3/s
+    Q01=elem_field(ne_Qdot,ne0) !flow in element upstream of capillary element !mm^3/s
     Rin=elem_field(ne_radius_out0,ne0)!radius of upstream element
     Rout=elem_field(ne_radius_out0,ne1) !radius of downstream element
     x_cap=node_xyz(1,elem_nodes(1,ne))

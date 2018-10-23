@@ -283,7 +283,7 @@ contains
               '(I6,X,3(F9.2,X),I6,X,4(F8.2,X),4(F8.5,X),&
          2(F10.2,X),3(F8.4,X),I6,X,2(F10.5,X),2(F8.4,X),&
          (F10.2,X))')&
-         elem_cnct(-1,1,ne),x,y,z,gen,Pin,Pin_sheet,Pout_sheet,Pout,Qtot*1.d9,&
+         ne,x,y,z,gen,Pin,Pin_sheet,Pout_sheet,Pout,Qtot*1.d9,&
          Qgen*1.d9,Q_c*1.d9,(Hart-Hven)*1.d6,SHEET_RES/1000.d0**3.d0,&
          Rtot/1000.d0**3.d0,RBC_tt,Hart*1.d6,Hven*1.d6,zone,&
          (Hart/2.d0+Hven/2.d0)*area_new*1.d9*(2.d0**gen),&
@@ -306,7 +306,7 @@ contains
          WRITE(10,&
         '(I6,X,3(F9.2,X),I6,X,4(F8.2,X),4(F8.5,X),&
         2(F10.2,X),3(F8.4,X),I6,X,2(F10.5,X),3(F8.4,X))')&
-         elem_cnct(-1,1,ne),x,y,z,gen,Pin,Pin_sheet,Pout_sheet,Pout,Qtot*1.d9,&
+         ne,x,y,z,gen,Pin,Pin_sheet,Pout_sheet,Pout,Qtot*1.d9,&
          Qgen*1.d9,Q_c*1.d9,(Hart-Hven)*1.d6,SHEET_RES/1000.d0**3.d0,&
          Rtot/1000.d0**3.d0,RBC_tt,Hart*1.d6,Hven*1.d6,zone,&
          R_upstream,R_downstream,&
@@ -888,7 +888,7 @@ subroutine cap_specific_parameters(ne,Ppl,alpha_c,area_scale,length_scale,l_a,ra
 !...  Stepping down linearly with each generation from the larger vessels to (4e-3Pa.s) to his estimate at 30% hematocrit
 !...  (1.92e-3Pa.s). (Biomechanics: Circulation)
       DO i=1,cap_param%num_symm_gen
-         mu_app(i)=(3.360e-3_dp-(i-1)*(3.36e-3_dp-1.92e-3_dp)/(cap_param%num_symm_gen-1));
+         mu_app(i)=(4.0e-3_dp-(i-1)*(4.0e-3_dp-1.92e-3_dp)/(cap_param%num_symm_gen-1));
       ENDDO
 
       stretch=1.0_dp

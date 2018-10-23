@@ -72,11 +72,6 @@ contains
     !pressure (at inlet and outlets)
     !flow (flow at inlet pressure at outlet).
 
-
-!vessel_type='elastic_g0_beta'
-
-!mesh_type='full_plus_ladder'
-!mesh_type='simple_tree'
 vessel_type='elastic_alpha'
 
 mechanics_type='linear'
@@ -109,10 +104,6 @@ else
      call exit(0)
 endif
 
-
-!grav_dirn=2
-!grav_factor=1.0_dp
-
 grav_vect=0.d0
 if (grav_dirn.eq.1) then
     grav_vect(1)=1.0_dp
@@ -129,9 +120,6 @@ grav_vect=grav_vect*grav_factor
 if(bc_type.eq.'pressure')then
     inletbc=inlet_bc
     outletbc=outlet_bc
-    !inletbc=2038.0_dp!15.0_dp*133.0_dp!2266.0_dp
-    !outletbc=5.0_dp*133.0_dp!666.7_dp
-
 elseif(bc_type.eq.'flow')then
     print  *, "ERROR: Flow boundary conditions not yet implemented"
      call exit(0)

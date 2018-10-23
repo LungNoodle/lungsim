@@ -226,7 +226,7 @@ contains
     call enter_exit(sub_name,1)
     !Ultimately offset should be an input argument
     offset(1)=0.0_dp
-    offset(2)=0.0_dp
+    offset(2)=1e-6_dp
     offset(3)=0.0_dp
 
 

@@ -20,7 +20,7 @@ module indices
      nj_conc2
   ! indices for elem_field
   integer ::num_ne,ne_radius,ne_length,ne_vol,&
-      ne_resist,ne_t_resist,ne_flow,ne_flow0,ne_Vdot,ne_Vdot0,ne_a_A,&
+      ne_resist,ne_t_resist,ne_Vdot,ne_Vdot0,ne_a_A,&
        ne_dvdt,ne_radius_in,ne_radius_in0,&
        ne_radius_out,ne_radius_out0,ne_group,ne_Qdot
   ! indices for unit_field
@@ -51,7 +51,7 @@ public num_ord,no_gen,no_hord,no_sord
 public num_nj,nj_aw_press,nj_bv_press,nj_conc1,nj_conc2
 
 public num_ne,ne_radius,ne_length,ne_vol,&
-      ne_resist,ne_t_resist,ne_flow,ne_flow0,ne_Vdot,ne_Vdot0,ne_a_A,&
+      ne_resist,ne_t_resist,ne_Vdot,ne_Vdot0,ne_a_A,&
       ne_dvdt,ne_radius_in,ne_radius_in0,ne_radius_out,&
       ne_radius_out0,ne_group,ne_Qdot
 
@@ -211,8 +211,6 @@ contains
     ne_vol=3 !volume
     ne_resist=4 !resistance of airway
     ne_t_resist=5
-    ne_flow=6
-    ne_flow0=7
     ne_Vdot=6 !Air flow, current time step
     ne_Vdot0=7 !air flow, last timestep
     ne_dvdt=8
@@ -279,8 +277,6 @@ contains
     ne_length=4!length of an elevent
     ne_radius_in0=5!unstrained radius into an element
     ne_radius_out0=6!unstrained radius out of an element
-    ne_flow=7
-    ne_resist=8
     ne_Qdot=7 !flow in an element
     ne_resist=8 !resistance of a blood vessel
     ne_group=9!Groups vessels into arteries (field=0), capillaries (field=1) and veins(field=2)
