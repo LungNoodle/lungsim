@@ -99,7 +99,7 @@ contains
        p_ven_o2=40.0_dp
        call steadystate_gasexchange(c_art_o2,c_ven_o2,&
        p_art_co2,p_art_o2,149.0_dp,p_ven_co2,p_ven_o2,0.03_dp,&
-       0.8_dp*(240.0_dp*1.0e+3_dp/60.0_dp),240.0_dp*1.0e+3_dp/60.0_dp )
+       0.8_dp*(260.0_dp*1.0e+3_dp/60.0_dp),260.0_dp*1.0e+3_dp/60.0_dp )
 
     end select
    call enter_exit(sub_name,2)

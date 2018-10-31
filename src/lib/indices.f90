@@ -99,6 +99,9 @@ contains
       case ('ventilation')
         print *, 'You are solving a ventilation model, setting up indices'
         call ventilation_indices
+      case('grow_tree')
+        print *, 'You are solving a growing problem, setting up indices'
+        call growing_indices
     end select
     model_type=TRIM(PROBLEM_TYPE)
     call enter_exit(sub_name,2)
@@ -128,6 +131,7 @@ contains
     ne_resist=4
     ne_Vdot=5
     ne_Qdot=6
+    ne_dvdt=7
 
     ! indices for unit_field
     num_nu=7
@@ -223,6 +227,30 @@ contains
     nu_vent=10
     call enter_exit(sub_name,2)
   end subroutine ventilation_indices
+!
+!########################################################################
+!
+!> Growing indices
+  subroutine growing_indices
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROWING_INDICES" :: GROWING_INDICES
+
+    use diagnostics, only: enter_exit
+    implicit none
+    character(len=60) :: sub_name
+
+    sub_name = 'growing_indices'
+    call enter_exit(sub_name,1)
+    ! indices for elem_ordrs. These dont usually change.
+    ! indices for node_field
+    num_nj=0 !number of nodal fields
+    ! indices for elem_field
+    num_ne=2 !number of element fields
+    ne_radius=1 !radius of airway
+    ne_length=2 !length of airway
+    ! indices for unit_field
+    num_nu=0
+    call enter_exit(sub_name,2)
+  end subroutine growing_indices
 !
 !######################################################################
 !

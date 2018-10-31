@@ -10,6 +10,7 @@ set(C_FORTRAN_LIB_SRCS
     gas_exchange.f90
     gasmix.f90
     geometry.f90
+    growtree.f90
     indices.f90
     imports.f90
     pressure_resistance_flow.f90
@@ -26,6 +27,7 @@ set(C_C_LIB_SRCS
     gas_exchange.c
     gasmix.c
     geometry.c
+    growtree.c
     indices.c
     imports.c
     pressure_resistance_flow.c
@@ -44,6 +46,7 @@ set(C_LIB_HDRS
   gas_exchange.h
   gasmix.h
   geometry.h
+  growtree.h
   indices.h
   imports.h
   pressure_resistance_flow.h
