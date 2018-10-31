@@ -916,7 +916,7 @@ contains
   subroutine define_rad_from_geom(ORDER_SYSTEM, CONTROL_PARAM, START_FROM, START_RAD, group_type_in, group_option_in)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_GEOM" :: DEFINE_RAD_FROM_GEOM
     use arrays,only: dp,num_elems,elem_field,elem_ordrs,maxgen,elem_cnct
-    use indices
+    use indices,only: ne_radius, ne_radius_in, ne_radius_out, no_sord, no_hord
     use diagnostics, only: enter_exit
     implicit none
    character(LEN=100), intent(in) :: ORDER_SYSTEM,START_FROM
@@ -965,7 +965,7 @@ contains
 
     !Strahler and Horsfield ordering system
     if(ORDER_SYSTEM(1:5).EQ.'strah')THEN
-      nindex=no_sord !for Strahler ordering
+      nindex = no_sord !for Strahler ordering
     else if(ORDER_SYSTEM(1:5).eq.'horsf')then
       nindex = no_hord !for Horsfield ordering
     endif
@@ -1052,9 +1052,10 @@ contains
     use arrays,only: elem_cnct,elem_nodes,elem_ordrs,elem_symmetry,&
          elems_at_node,num_elems,num_nodes,maxgen
     use diagnostics, only: enter_exit
+    use indices, only: num_ord
     implicit none
 
-    integer :: INLETS,ne,ne0,ne2,noelem2,np,np2, &
+    integer :: INLETS,ne,ne0,ne2,noelem2,np,np2,nn, &
          num_attach,n_children,n_generation, &
          n_horsfield,OUTLETS,STRAHLER,STRAHLER_ADD,temp1
     LOGICAL :: DISCONNECT,DUPLICATE
@@ -1064,6 +1065,13 @@ contains
 
     !Calculate generations, Horsfield orders, Strahler orders
     !.....Calculate branch generations
+
+    ! Initialise memory to zero.
+    do nn=1,num_ord
+      do ne=1,num_elems
+        elem_ordrs(nn,ne) = 0
+      enddo
+    enddo
 
     maxgen=1
     DO ne=1,num_elems
@@ -1095,7 +1103,9 @@ contains
           DO noelem2=1,n_children !for all daughters
              ne2=elem_cnct(1,noelem2,ne) !global element # of daughter
              temp1=elem_ordrs(2,ne2) !Horsfield order of daughter
-             IF(temp1.GT.n_horsfield) n_horsfield=temp1
+             IF(temp1.GT.n_horsfield)then
+               n_horsfield=temp1
+             endif
              IF(elem_ordrs(3,ne2).LT.STRAHLER)THEN
                 STRAHLER_ADD=0
              ELSE IF(elem_ordrs(3,ne2).GT.STRAHLER)THEN
@@ -1107,6 +1117,7 @@ contains
        ELSE IF(n_children.EQ.1)THEN
           ne2=elem_cnct(1,1,ne) !local element # of daughter
           n_horsfield=elem_ordrs(2,ne2)+(elem_symmetry(ne)-1)
+
           STRAHLER_ADD=elem_ordrs(3,ne2)+(elem_symmetry(ne)-1)
        ENDIF !elem_cnct
        elem_ordrs(2,ne)=n_horsfield !store the Horsfield order
@@ -1211,9 +1222,9 @@ contains
        unit_field(nu_vol,nunit) = unit_field(nu_vol,nunit)*factor_adjust
     enddo
 
-    write(*,'('' Number of elements is'',I5)') num_elems
-    write(*,'('' Initial volume is'',F6.2,'' L'')') total_volume/1.0e+6_dp
-    write(*,'('' Deadspace volume is'',F6.1,'' mL'')') volume_of_tree/1.0e+3_dp
+    write(*,'('' Number of elements is '',I5)') num_elems
+    write(*,'('' Initial volume is '',F6.2,'' L'')') total_volume/1.0e+6_dp
+    write(*,'('' Deadspace volume is '',F6.1,'' mL'')') volume_of_tree/1.0e+3_dp
 
     call enter_exit(sub_name,2)
 
