@@ -594,7 +594,7 @@ subroutine initialise_solution(pressure_in,pressure_out,cardiac_output,mesh_dof,
 !local variables
     integer :: nn,ne,np,n_depvar
     character(len=60) :: sub_name
-   sub_name = 'intialise_solution'
+    sub_name = 'intialise_solution'
     call enter_exit(sub_name,1)
     do ne=1,num_elems
        !ne=elems(noelem)
