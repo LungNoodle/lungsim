@@ -37,9 +37,7 @@ set(INTERFACE_SRCS
   ../interface/pressure_resistance_flow.i
   ../interface/species_transport.i
   ../interface/ventilation.i
-
 )
-
 include_directories(${PYTHON_INCLUDE_DIRS} ${NUMPY_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/../c)
 
 if(MSVC)
@@ -123,8 +121,12 @@ endif ()
 add_custom_target(pybindings ALL)
 add_dependencies(pybindings ${MODULE_TARGETS})
 # Create the Python __init__.py file.
-add_custom_command( TARGET pybindings POST_BUILD
+add_custom_command(TARGET pybindings POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E touch ${PYTHON_PACKAGE_INIT_FILE})
+if (MSVC)
+  add_custom_command(TARGET ${MODULE_TARGETS} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:aether_c> ${PYTHON_PACKAGE_DIR})
+endif  ()
 
 set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "${ADDITIONAL_GENERATED_FILES}")
 
@@ -132,7 +134,7 @@ install(TARGETS ${MODULE_TARGETS}
   RUNTIME DESTINATION ${PYTHON_MODULE_INSTALL_PREFIX}
   LIBRARY DESTINATION ${PYTHON_MODULE_INSTALL_PREFIX})
 
-install(FILES ${PYTHON_PACKAGE_INIT_FILE} ${PYTHON_MODULE_FILES} $<TARGET_FILE:aether> $<TARGET_FILE:aether_c>
+install(FILES ${PYTHON_PACKAGE_INIT_FILE} ${PYTHON_MODULE_FILES} $<TARGET_FILE:aether_c>
   DESTINATION ${PYTHON_MODULE_INSTALL_PREFIX})
 
 install(FILES ${PYTHON_SETUP_PY_FILE_CONFIGURATION_DIR}/setup.py ${Aether_SOURCE_DIR}/LICENCE.txt
