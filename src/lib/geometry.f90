@@ -462,15 +462,17 @@ contains
     allocate(elem_field(num_ne,num_elems))
     if(allocated(elem_direction)) deallocate(elem_direction)
     allocate(elem_direction(3,num_elems))
-    if(allocated(expansile)) deallocate(expansile)
-    allocate(expansile(num_elems))
+    if(model_type.eq.'gas_mix')then
+      if(allocated(expansile)) deallocate(expansile)
+      allocate(expansile(num_elems))
+    endif
 
 !!! initialise element arrays
     elems=0
     elem_nodes=0
     elem_symmetry = 1
     elem_field = 0.0_dp
-    expansile = .false.
+    if(model_type.eq.'gas_mix')expansile = .false.
 
     ne=0
 
@@ -532,6 +534,7 @@ contains
 !!!##################################################
 
   subroutine define_elem_geometry_2d(ELEMFILE,sf_option)
+      !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_ELEM_GEOMETRY_2D" :: DEFINE_ELEM_GEOMETRY_2D
 
     ! Reads in 2D ipelem file.
 
@@ -876,6 +879,7 @@ contains
 !!!##################################################
 
   subroutine define_node_geometry_2d(NODEFILE)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY_2D" :: DEFINE_NODE_GEOMETRY_2D
   
   !*define_node_geometry_2d:* Reads in an ipnode file to define surface nodes
     use arrays,only: dp,nodes_2d,node_field,node_xyz_2d,num_nodes_2d,node_versn_2d
@@ -973,6 +977,8 @@ contains
 !!!##################################################
 
   subroutine define_data_geometry(datafile)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_DATA_GEOMETRY" :: DEFINE_DATA_GEOMETRY
+
 
 !!! read data points from a file
     
@@ -1197,6 +1203,7 @@ contains
 !###################################################################################
 ! 
   subroutine make_data_grid(surface_elems,spacing,to_export,filename,groupname)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_MAKE_DATA_GRID" :: MAKE_DATA_GRID
 
      use arrays,only: dp,data_xyz,data_weight,num_data
      use mesh_utilities,only: volume_internal_to_surface,point_internal_to_surface
@@ -1520,7 +1527,7 @@ contains
   subroutine define_rad_from_geom(ORDER_SYSTEM, CONTROL_PARAM, START_FROM, START_RAD, group_type_in, group_option_in)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_GEOM" :: DEFINE_RAD_FROM_GEOM
     use arrays,only: dp,num_elems,elem_field,elem_ordrs,maxgen,elem_cnct
-    use indices
+    use indices,only: ne_radius, ne_radius_in, ne_radius_out, no_sord, no_hord
     use diagnostics, only: enter_exit
     implicit none
    character(LEN=100), intent(in) :: ORDER_SYSTEM,START_FROM
@@ -1569,7 +1576,7 @@ contains
 
     !Strahler and Horsfield ordering system
     if(ORDER_SYSTEM(1:5).EQ.'strah')THEN
-      nindex=no_sord !for Strahler ordering
+      nindex = no_sord !for Strahler ordering
     else if(ORDER_SYSTEM(1:5).eq.'horsf')then
       nindex = no_hord !for Horsfield ordering
     endif
@@ -1934,9 +1941,10 @@ contains
     use arrays,only: elem_cnct,elem_nodes,elem_ordrs,elem_symmetry,&
          elems_at_node,num_elems,num_nodes,maxgen
     use diagnostics, only: enter_exit
+    use indices, only: num_ord
     implicit none
 
-    integer :: INLETS,ne,ne0,ne2,noelem2,np,np2, &
+    integer :: INLETS,ne,ne0,ne2,noelem2,np,np2,nn, &
          num_attach,n_children,n_generation, &
          n_horsfield,OUTLETS,STRAHLER,STRAHLER_ADD,temp1
     LOGICAL :: DISCONNECT,DUPLICATE
@@ -1946,6 +1954,13 @@ contains
 
     !Calculate generations, Horsfield orders, Strahler orders
     !.....Calculate branch generations
+
+    ! Initialise memory to zero.
+    do nn=1,num_ord
+      do ne=1,num_elems
+        elem_ordrs(nn,ne) = 0
+      enddo
+    enddo
 
     maxgen=1
     DO ne=1,num_elems
@@ -1977,7 +1992,9 @@ contains
           DO noelem2=1,n_children !for all daughters
              ne2=elem_cnct(1,noelem2,ne) !global element # of daughter
              temp1=elem_ordrs(2,ne2) !Horsfield order of daughter
-             IF(temp1.GT.n_horsfield) n_horsfield=temp1
+             IF(temp1.GT.n_horsfield)then
+               n_horsfield=temp1
+             endif
              IF(elem_ordrs(3,ne2).LT.STRAHLER)THEN
                 STRAHLER_ADD=0
              ELSE IF(elem_ordrs(3,ne2).GT.STRAHLER)THEN
@@ -1989,6 +2006,7 @@ contains
        ELSE IF(n_children.EQ.1)THEN
           ne2=elem_cnct(1,1,ne) !local element # of daughter
           n_horsfield=elem_ordrs(2,ne2)+(elem_symmetry(ne)-1)
+
           STRAHLER_ADD=elem_ordrs(3,ne2)+(elem_symmetry(ne)-1)
        ENDIF !elem_cnct
        elem_ordrs(2,ne)=n_horsfield !store the Horsfield order
@@ -2093,9 +2111,9 @@ contains
        unit_field(nu_vol,nunit) = unit_field(nu_vol,nunit)*factor_adjust
     enddo
 
-    write(*,'('' Number of elements is'',I5)') num_elems
-    write(*,'('' Initial volume is'',F6.2,'' L'')') total_volume/1.0e+6_dp
-    write(*,'('' Deadspace volume is'',F6.1,'' mL'')') volume_of_tree/1.0e+3_dp
+    write(*,'('' Number of elements is '',I5)') num_elems
+    write(*,'('' Initial volume is '',F6.2,'' L'')') total_volume/1.0e+6_dp
+    write(*,'('' Deadspace volume is '',F6.1,'' mL'')') volume_of_tree/1.0e+3_dp
 
     call enter_exit(sub_name,2)
 
@@ -2246,6 +2264,7 @@ contains
 !
 !*group_elem_parent_term*
    subroutine group_elem_parent_term(ne_parent)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_ELEM_PARENT_TERM" :: GROUP_ELEM_PARENT_TERM
 
    use arrays,only: parentlist,num_elems,elem_cnct
    use diagnostics,only: enter_exit
@@ -2277,7 +2296,7 @@ contains
         parentlist(num_parents)=ne
      endif !elem_cnct
    enddo !noelem
-   write(*,*) 'Elements distal to elem #12 are:', parentlist
+
    deallocate(templist)
 
    call enter_exit(sub_name,2)
@@ -2340,61 +2359,68 @@ contains
 !###################################################################################
 !
    
+!
+!#####################################################################
+!
+!*reallocate_node_elem_arrays:* Reallocates the size of geometric arrays when modifying geometries
   subroutine reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
-    
-    use arrays,only: num_nodes,nodes,num_elems,elem_nodes,elem_symmetry,node_field,&
-elem_direction,elems_at_node,expansile,elem_cnct,elem_field,elem_ordrs,dp,node_xyz,elems
-    use indices,only:num_ne,num_nj,num_ord
-    use diagnostics,only: enter_exit
+    use arrays,only: dp,elems,elem_cnct,elem_direction,elem_field,&
+         elem_ordrs,elem_nodes,&
+         elem_symmetry,elem_units_below,elems_at_node,expansile,&
+         nodes,node_field,node_xyz,num_elems,num_nodes
+    use indices
+    use diagnostics, only: enter_exit
+    implicit none
 
+!!! Parameters
     integer,intent(in) :: num_elems_new,num_nodes_new
+
+!!! Local variables
     integer,allocatable :: nodelem_temp(:),enodes_temp(:,:),enodes_temp2(:,:,:)
     real(dp),allocatable :: xyz_temp(:,:),rnodes_temp(:,:)
     logical,allocatable :: exp_temp(:)
     character(len=60) :: sub_name
-    
-    ! ###########################################################################
-    
+
     sub_name = 'reallocate_node_elem_arrays'
     call enter_exit(sub_name,1)
-    
+
     allocate(nodelem_temp(num_nodes))
     nodelem_temp = nodes ! copy to temporary array
     deallocate(nodes) !deallocate initially allocated memory
     allocate(nodes(num_nodes_new))
     nodes(1:num_nodes)=nodelem_temp(1:num_nodes)
     deallocate(nodelem_temp) !deallocate the temporary array
-    !write(*,*) 'number of nodes:',num_nodes,num_nodes_new    
+
     allocate(xyz_temp(3,num_nodes))
     xyz_temp=node_xyz
     deallocate(node_xyz)
     allocate(node_xyz(3,num_nodes_new))
     node_xyz(1:3,1:num_nodes)=xyz_temp(1:3,1:num_nodes)
-    
+
     allocate(nodelem_temp(num_elems))
     nodelem_temp = elems ! copy to temporary array
     deallocate(elems) !deallocate initially allocated memory
     allocate(elems(num_elems_new))
     elems(1:num_elems)=nodelem_temp(1:num_elems)
     deallocate(nodelem_temp) !deallocate the temporary array
-    !write(*,*) 'number of elems:',num_elems,num_elems_new
+
     allocate(enodes_temp(2,num_elems))
     enodes_temp=elem_nodes
     deallocate(elem_nodes)
     allocate(elem_nodes(2,num_elems_new))
     elem_nodes(1:2,1:num_elems)=enodes_temp(1:2,1:num_elems)
     deallocate(enodes_temp)
-    !write(*,*) 'elem field:', elem_field
-    !allocate(rnodes_temp(num_ne,num_elems))
-    !rnodes_temp=elem_field
-    !write(*,*) '1st', num_ne
-    !deallocate(elem_field)
-    !write(*,*) '2nd'
-    !allocate(elem_field(num_ne,num_elems_new))
-    !elem_field(1:num_ne,1:num_elems)=rnodes_temp(1:num_ne,1:num_elems)
-    !deallocate(rnodes_temp)
-    !elem_field(1:num_ne,num_elems+1:num_elems_new) = 0.0_dp
-    
+
+    if(allocated(elem_field).and.num_ne.gt.0)then
+        allocate(rnodes_temp(num_ne,num_elems))
+        rnodes_temp=elem_field
+        deallocate(elem_field)
+        allocate(elem_field(num_ne,num_elems_new))
+        elem_field(1:num_ne,1:num_elems)=rnodes_temp(1:num_ne,1:num_elems)
+        deallocate(rnodes_temp)
+        elem_field(1:num_ne,num_elems+1:num_elems_new) = 0.0_dp
+    endif
+
     allocate(rnodes_temp(3,num_elems))
     rnodes_temp=elem_direction
     deallocate(elem_direction)
@@ -2403,13 +2429,15 @@ elem_direction,elems_at_node,expansile,elem_cnct,elem_field,elem_ordrs,dp,node_x
     deallocate(rnodes_temp)
     elem_direction(1:3,num_elems+1:num_elems_new) = 0.0_dp
 
-    allocate(rnodes_temp(num_nj,num_nodes))
-    rnodes_temp=node_field
-    deallocate(node_field)
-    allocate(node_field(num_nj,num_nodes_new))
-    node_field(1:num_nj,1:num_nodes)=rnodes_temp(1:num_nj,1:num_nodes)
-    deallocate(rnodes_temp)
-    node_field(1:num_nj,num_nodes+1:num_nodes_new)=0.0_dp
+    if(allocated(node_field).and.num_nj.gt.0)then
+      allocate(rnodes_temp(num_nj,num_nodes))
+      rnodes_temp=node_field
+      deallocate(node_field)
+      allocate(node_field(num_nj,num_nodes_new))
+      node_field(1:num_nj,1:num_nodes)=rnodes_temp(1:num_nj,1:num_nodes)
+      deallocate(rnodes_temp)
+      node_field(1:num_nj,num_nodes+1:num_nodes_new)=0.0_dp
+    endif
 
     allocate(nodelem_temp(num_elems))
     nodelem_temp = elem_symmetry ! copy to temporary array
@@ -2418,7 +2446,7 @@ elem_direction,elems_at_node,expansile,elem_cnct,elem_field,elem_ordrs,dp,node_x
     elem_symmetry(1:num_elems)=nodelem_temp(1:num_elems)
     deallocate(nodelem_temp) !deallocate the temporary array
     elem_symmetry(num_elems+1:num_elems_new)=1
-    
+
     allocate(enodes_temp2(-1:1,0:2,0:num_elems))
     enodes_temp2=elem_cnct
     deallocate(elem_cnct)
@@ -2426,7 +2454,7 @@ elem_direction,elems_at_node,expansile,elem_cnct,elem_field,elem_ordrs,dp,node_x
     elem_cnct(-1:1,0:2,0:num_elems)=enodes_temp2(-1:1,0:2,0:num_elems)
     deallocate(enodes_temp2)
     elem_cnct(-1:1,0:2,num_elems+1:num_elems_new) = 0
-    
+
     allocate(enodes_temp(num_ord,num_elems))
     enodes_temp=elem_ordrs
     deallocate(elem_ordrs)
@@ -2434,15 +2462,17 @@ elem_direction,elems_at_node,expansile,elem_cnct,elem_field,elem_ordrs,dp,node_x
     elem_ordrs(1:num_ord,1:num_elems)=enodes_temp(1:num_ord,1:num_elems)
     deallocate(enodes_temp)
     elem_ordrs(1:num_ord,num_elems+1:num_elems_new) = 0
-    
-!    allocate(nodelem_temp(num_elems))
-!    nodelem_temp=elem_units_below
-!    deallocate(elem_units_below)
-!    allocate(elem_units_below(num_elems_new))
-!    elem_units_below(1:num_elems)=nodelem_temp(1:num_elems)
-!    deallocate(nodelem_temp)
-!    elem_units_below(num_elems+1:num_elems_new)=0
-    
+
+    if(allocated(elem_units_below).and.num_nu.gt.0)then
+      allocate(nodelem_temp(num_elems))
+      nodelem_temp=elem_units_below
+      deallocate(elem_units_below)
+      allocate(elem_units_below(num_elems_new))
+      elem_units_below(1:num_elems)=nodelem_temp(1:num_elems)
+      deallocate(nodelem_temp)
+      elem_units_below(num_elems+1:num_elems_new)=0
+    endif
+
     allocate(enodes_temp(num_nodes,0:3))
     enodes_temp=elems_at_node
     deallocate(elems_at_node)
@@ -2450,19 +2480,20 @@ elem_direction,elems_at_node,expansile,elem_cnct,elem_field,elem_ordrs,dp,node_x
     elems_at_node(1:num_nodes,0:3)=enodes_temp(1:num_nodes,0:3)
     deallocate(enodes_temp)
     elems_at_node(num_nodes+1:num_nodes_new,0:3)=0
-    
-    allocate(exp_temp(num_elems))
-    exp_temp = expansile
-    deallocate(expansile)
-    allocate(expansile(num_elems_new))
-    expansile(1:num_elems)=exp_temp(1:num_elems)
-    deallocate(exp_temp)
-    expansile(num_elems+1:num_elems_new)=.false.
+
+    if(model_type.eq.'gas_mix')then
+      allocate(exp_temp(num_elems))
+      exp_temp = expansile
+      deallocate(expansile)
+      allocate(expansile(num_elems_new))
+      expansile(1:num_elems)=exp_temp(1:num_elems)
+      deallocate(exp_temp)
+      expansile(num_elems+1:num_elems_new)=.false.
+    endif
 
     call enter_exit(sub_name,2)
-    
-  end subroutine reallocate_node_elem_arrays
 
+  end subroutine reallocate_node_elem_arrays
 
 !!!###############################################################
 
