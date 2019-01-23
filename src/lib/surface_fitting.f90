@@ -1407,6 +1407,7 @@ contains
                    co2=cony(noy2,ny2,2) !coup coeff col mapping
                    !                     i.e. var_no1=a*var_ny1+b*var_ny2
                    nzz=no1+(no2-1)*NOT_1
+                   write(*,*) 'nzz',nzz
                    if(nzz.NE.0) GKK(nzz)=GKK(nzz)+GK(nz)*co1*co2
                 enddo !noy2
              endif
@@ -1416,7 +1417,10 @@ contains
     
     !-------------- solve reduced system of linear equations ---------------
     !Commented out since subroutines called further are temporarily unavailable
-    !call solve_linear_system(NOT_1,NOT_1,NOT_2,num_depvar,GKK,GRR,incr_soln,FIRST_A)
+    write(*,*) NOT_1,NOT_2, num_depvar, size(GKK), GKK(1:10), size(GRR), GRR(1:10)
+    write(*,*) size(incr_soln), incr_soln(1:10)
+   !pause
+    !call direct_solver(NOT_1,NOT_1,NOT_2,num_depvar,GKK,GRR,incr_soln,FIRST_A)
     
     do no1=1,NOT_2 ! for each unknown
        do nyo1=1,nyno(0,no1,2)

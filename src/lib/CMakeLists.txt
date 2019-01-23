@@ -1,3 +1,4 @@
+project(aether Fortran C)
 
 # The list of all source files that are required to build the library
 set(LIB_SRCS
@@ -20,6 +21,7 @@ set(LIB_SRCS
   ventilation.f90
   mesh_functions.f90
   surface_fitting.f90
+  c_fortran_cgssv.c
 
 )
 
@@ -49,4 +51,10 @@ set_target_properties(aether PROPERTIES
   VISIBILITY_INLINES_HIDDEN 1)
 
 target_include_directories(aether PUBLIC "${AETHER_MODULE_DIRECTORY}")
+
+
+message(STATUS "Including directory")
+find_package(superlu REQUIRED PATHS "/Users/acla148/opencmiss/install/cmake")
+target_include_directories(aether PUBLIC "/Users/acla148/opencmiss/install/include/superlu")
+target_link_libraries(aether PUBLIC superlu)
 
