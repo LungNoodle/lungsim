@@ -72,7 +72,7 @@ contains
     !pressure (at inlet and outlets)
     !flow (flow at inlet pressure at outlet).
 
-vessel_type='elastic_alpha'
+vessel_type='elastic_g0_beta'
 
 mechanics_type='linear'
 
