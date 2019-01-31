@@ -279,6 +279,7 @@ contains
         length_scale,recruited)
            num_sheet=num_sheet+2**gen
            Qgen=Q_c*2.d0**i
+         open(10, file='micro_flow_ladder.out', status='replace')
          WRITE(10,&
               '(I6,X,3(F9.2,X),I6,X,4(F8.2,X),4(F8.5,X),&
          2(F10.2,X),3(F8.4,X),I6,X,2(F10.5,X),2(F8.4,X),&
@@ -326,6 +327,7 @@ contains
 !... General output
 ! ne=1  |  x=2  |  y=3  |  z=4  | Pin=5 Pa |Pout=6 Pa | Qtot=7 mm^3/s |sum Qsheet=8 mm^3 /s|
 ! Rtot=9 Pa/mm^3 | Blood_vol=10 mm^3| sheet_area= 11 mm^2 | ave_TT=12 s |ave_H=13 um |Ppl=14 Pa
+         open(20, file='micro_flow_unit.out', status='replace')
           WRITE(20,&
         '(I6,X,5(F9.2,X),2(F8.5,X),F10.2,X,F8.4,X,F10.4,X,F10.3,X,F8.4,X,F9.4,X)') &
          ne,x,y,z,Pin,Pout,Q01_mthrees*1.d9,Qtot*1.d9,Rtot/1000.d0**3.d0,&
@@ -346,7 +348,8 @@ contains
     deallocate (Q_sheet, STAT = AllocateStatus)
     deallocate (mu_app, STAT = AllocateStatus)
 
-
+    close(10)
+    close(20)
     call enter_exit(sub_name,2)
 
   end subroutine evaluate_ladder

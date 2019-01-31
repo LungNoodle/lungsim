@@ -24,7 +24,7 @@ contains
 !###################################################################################
 !
 !*evaluate_PRQ:* Solves for pressure and flow in a rigid or compliant tree structure
-  subroutine evaluate_prq(mesh_type,grav_dirn,grav_factor,bc_type,inlet_bc,outlet_bc)
+  subroutine evaluate_prq(mesh_type,vessel_type,grav_dirn,grav_factor,bc_type,inlet_bc,outlet_bc)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_PRQ" :: EVALUATE_PRQ
     use indices
     use capillaryflow,only: cap_flow_ladder
@@ -72,7 +72,6 @@ contains
     !pressure (at inlet and outlets)
     !flow (flow at inlet pressure at outlet).
 
-vessel_type='elastic_g0_beta'
 
 mechanics_type='linear'
 
