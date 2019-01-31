@@ -19,7 +19,7 @@ module pressure_resistance_flow
 
   !Interfaces
   private
-  public evaluate_prq
+  public evaluate_prq,calculate_ppl
 contains
 !###################################################################################
 !
@@ -73,6 +73,7 @@ contains
     !flow (flow at inlet pressure at outlet).
 
 vessel_type='elastic_g0_beta'
+
 mechanics_type='linear'
 
 if (vessel_type.eq.'rigid') then
@@ -310,6 +311,29 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     call map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof)
     !NEED TO UPDATE TERMINAL SOLUTION HERE. LOOP THO' UNITS AND TAKE FLOW AND PRESSURE AT TERMINALS
     call map_flow_to_terminals
+    !EXPORT LADDER SOLUTION
+    if(mesh_type.eq.'full_plus_ladder')then
+      do ne=1,num_elems
+        if(elem_field(ne_group,ne).eq.1.0_dp)then!(elem_field(ne_group,ne)-1.0_dp).lt.TOLERANCE)then
+          ne0=elem_cnct(-1,1,ne)!upstream element number
+          ne1=elem_cnct(1,1,ne)
+          P1=prq_solution(depvar_at_node(elem_nodes(2,ne0),0,1),1) !pressure at start node of capillary element
+          P2=prq_solution(depvar_at_node(elem_nodes(1,ne1),0,1),1)!pressure at end node of capillary element
+          Q01=prq_solution(depvar_at_elem(1,1,ne0),1) !flow in element upstream of capillary element !mm^3/s
+          Rin=elem_field(ne_radius_out0,ne0)!radius of upstream element
+          Rout=elem_field(ne_radius_out0,ne1) !radius of downstream element
+          x_cap=node_xyz(1,elem_nodes(1,ne))
+          y_cap=node_xyz(2,elem_nodes(1,ne))
+          z_cap=node_xyz(3,elem_nodes(1,ne))
+          call calculate_ppl(elem_nodes(1,ne),grav_vect,mechanics_parameters,Ppl)
+          Lin=elem_field(ne_length,ne0)
+          Lout=elem_field(ne_length,ne1)
+          call cap_flow_ladder(ne,LPM_R,Lin,Lout,P1,P2,&
+            Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,&
+            .TRUE.)
+        endif
+      enddo
+    endif
 
     deallocate (mesh_from_depvar, STAT = AllocateStatus)
     deallocate (depvar_at_elem, STAT = AllocateStatus)
