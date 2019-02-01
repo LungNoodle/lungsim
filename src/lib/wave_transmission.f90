@@ -499,25 +499,25 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scal
   real(dp) :: R0,Ppl,Ptm,Rg_in,Rg_out
   character(len=60) :: sub_name
 
-  !do ne=1,num_elems
-  !  do nn=1,2
-  !    if(nn.eq.1) np=elem_nodes(1,ne)
-  !    if(nn.eq.2) np=elem_nodes(2,ne)
-  !    call calculate_ppl(np,grav_vect,mechanics_parameters,Ppl)
-  !    Ptm=Ppl     ! Pa
-  !    if(nn.eq.1)R0=elem_field(ne_radius_in0,ne)
-  !    if(nn.eq.2)R0=elem_field(ne_radius_out0,ne)
-  !    if(admit_param%admittance_type.eq.'duan_zamir')then!alpha controls elasticity
-  !     if(nn.eq.1)Rg_in=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
-  !     if(nn.eq.2)Rg_out=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
-  !    else!Hooke type elasticity
-  !       h=elast_param%elasticity_parameters(2)*R0
-  !      if(nn.eq.1) Rg_in=R0+3.0_dp*R0**2*Ptm/(4.0_dp*elast_param%elasticity_parameters(1)*h)
-  !      if(nn.eq.2) Rg_out=R0+3.0_dp*R0**2*Ptm/(4.0_dp*elast_param%elasticity_parameters(1)*h)
-  !    endif
-  !   enddo
-  !   elem_field(ne_radius_out0,ne)=(Rg_in-Rg_out)/2.0_dp
-  !enddo
+  do ne=1,num_elems
+    do nn=1,2
+      if(nn.eq.1) np=elem_nodes(1,ne)
+      if(nn.eq.2) np=elem_nodes(2,ne)
+      call calculate_ppl(np,grav_vect,mechanics_parameters,Ppl)
+      Ptm=Ppl     ! Pa
+      if(nn.eq.1)R0=elem_field(ne_radius_in0,ne)
+      if(nn.eq.2)R0=elem_field(ne_radius_out0,ne)
+      if(admit_param%admittance_type.eq.'duan_zamir')then!alpha controls elasticity
+       if(nn.eq.1)Rg_in=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
+       if(nn.eq.2)Rg_out=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
+      else!Hooke type elasticity
+         h=elast_param%elasticity_parameters(2)*R0
+        if(nn.eq.1) Rg_in=R0+3.0_dp*R0**2*Ptm/(4.0_dp*elast_param%elasticity_parameters(1)*h)
+        if(nn.eq.2) Rg_out=R0+3.0_dp*R0**2*Ptm/(4.0_dp*elast_param%elasticity_parameters(1)*h)
+      endif
+     enddo
+     elem_field(ne_radius_out,ne)=(Rg_in-Rg_out)/2.0_dp
+  enddo
 
   sub_name = 'characteristic_admittance'
   call enter_exit(sub_name,1)
@@ -525,35 +525,35 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scal
   h_bar=elast_param%elasticity_parameters(2)!this is a fraction of the radius so is unitless
   do ne=1,num_elems
     if(admit_param%admittance_type.eq.'lachase_standard')then
-      h=h_bar*elem_field(ne_radius_out0,ne)
+      h=h_bar*elem_field(ne_radius_out,ne)
       C=3.0_dp*PI*elem_field(ne_radius_out0,ne)**3*elem_field(ne_length,ne)/(2.0_dp*h*E)
       L=density*elem_field(ne_length,ne)/(4*PI*elem_field(ne_radius_out0,ne)**2)
       R=8.0_dp*viscosity*elem_field(ne_length,ne)/ &
-          (PI*elem_field(ne_radius_out0,ne)**4) !laminar resistance
+          (PI*elem_field(ne_radius_out,ne)**4) !laminar resistance
       G=0.0_dp
     elseif(admit_param%admittance_type.eq.'lachase_modified')then
-      h=h_bar*elem_field(ne_radius_out0,ne)
-      C=3.0_dp*PI*elem_field(ne_radius_out0,ne)**3/(2.0_dp*h*E)!
+      h=h_bar*elem_field(ne_radius_out,ne)
+      C=3.0_dp*PI*elem_field(ne_radius_out,ne)**3/(2.0_dp*h*E)!
       L=9.0_dp*density&
-         /(4.0_dp*PI*elem_field(ne_radius_out0,ne)**2)!per unit length
+         /(4.0_dp*PI*elem_field(ne_radius_out,ne)**2)!per unit length
       R=81.0_dp*viscosity/ &
-           (8.0_dp*PI*elem_field(ne_radius_out0,ne)**4) !laminar resistance per unit length
+           (8.0_dp*PI*elem_field(ne_radius_out,ne)**4) !laminar resistance per unit length
       G=0.0_dp
     elseif(admit_param%admittance_type.eq.'zhu_chesler')then
-      h=h_bar*elem_field(ne_radius_out0,ne)
-      C=3.0_dp*PI*elem_field(ne_radius_out0,ne)**3*elem_field(ne_length,ne)/(2.0_dp*h*E)
-      L=9.0_dp*density*elem_field(ne_length,ne)/(4.0_dp*PI*elem_field(ne_radius_out0,ne)**2)
+      h=h_bar*elem_field(ne_radius_out,ne)
+      C=3.0_dp*PI*elem_field(ne_radius_out,ne)**3*elem_field(ne_length,ne)/(2.0_dp*h*E)
+      L=9.0_dp*density*elem_field(ne_length,ne)/(4.0_dp*PI*elem_field(ne_radius_out,ne)**2)
       R=8.0_dp*viscosity*elem_field(ne_length,ne)/ &
-            (PI*elem_field(ne_radius_out0,ne)**4) !laminar resistance
+            (PI*elem_field(ne_radius_out,ne)**4) !laminar resistance
       G=0.0_dp
     elseif(admit_param%admittance_type.eq.'duan_zamir')then
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale!q/s
-       wolmer=(elem_field(ne_radius_out0,ne))*sqrt(omega*density/viscosity)
+       wolmer=(elem_field(ne_radius_out,ne))*sqrt(omega*density/viscosity)
        call bessel_complex(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp),bessel0,bessel1)
        f10=2*bessel1/(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp)*bessel0)!no units
        wavespeed=sqrt(1.0_dp/(2*density*elast_param%elasticity_parameters(1)))*sqrt(1-f10)! !mm/s
-       char_admit(nf,ne)=PI*(elem_field(ne_radius_out0,ne))**2/(density*wavespeed/(1-f10))*sqrt(1-f10)!mm3/Pa
+       char_admit(nf,ne)=PI*(elem_field(ne_radius_out,ne))**2/(density*wavespeed/(1-f10))*sqrt(1-f10)!mm3/Pa
        prop_const(nf,ne)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed)!1/mm
      enddo
     else !Unrecognised admittance model
