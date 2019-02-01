@@ -28,13 +28,15 @@ contains
 !
 !##############################################################################
 !
-subroutine evaluate_wave_transmission(n_time,heartrate,a0,no_freq,a,b,n_adparams,admittance_param,&
-  n_model,model_definition)
+subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
+    n_time,heartrate,a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition)
 !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_WAVE_TRANSMISSION: EVALUATE_WAVE_PROPAGATION
   use indices
   use arrays, only: dp,all_admit_param,num_elems,elem_field,fluid_properties,elasticity_param,num_units,&
     units,node_xyz,elem_cnct,elem_nodes,node_field
   use diagnostics, only: enter_exit
+
+
 
   integer, intent(in) :: n_time
   real(dp), intent(in) :: heartrate
@@ -46,6 +48,7 @@ subroutine evaluate_wave_transmission(n_time,heartrate,a0,no_freq,a,b,n_adparams
   real(dp), intent(in) :: admittance_param(n_adparams)
   integer, intent(in) :: n_model
   real(dp), intent(in) :: model_definition(n_model)
+  integer, intent(in) :: grav_dirn
 
   type(all_admit_param) :: admit_param
   type(fluid_properties) :: fluid
@@ -68,7 +71,7 @@ subroutine evaluate_wave_transmission(n_time,heartrate,a0,no_freq,a,b,n_adparams
   integer :: min_art,max_art,min_ven,max_ven,min_cap,max_cap,ne,nu,nt,nf,np
   character(len=30) :: tree_direction,mechanics_type
   real(dp) start_time,end_time,dt,time,omega
-  real(dp) grav_vect(3), grav_dirn,grav_factor,mechanics_parameters(2)
+  real(dp) grav_vect(3),grav_factor,mechanics_parameters(2)
   integer :: AllocateStatus,fid=10,fid2=20,fid3=30,fid4=40,fid5=50
   character(len=60) :: sub_name
 
@@ -161,13 +164,11 @@ subroutine evaluate_wave_transmission(n_time,heartrate,a0,no_freq,a,b,n_adparams
      call exit(0)
   endif
 
-  grav_dirn=2
-  grav_factor=1.0_dp
   grav_vect=0.d0
   if (grav_dirn.eq.1) then
      grav_vect(1)=1.0_dp
   elseif (grav_dirn.eq.2) then
-      grav_vect(2)=1.0_dp
+    grav_vect(2)=1.0_dp
   elseif (grav_dirn.eq.3) then
     grav_vect(3)=1.0_dp
   else
@@ -236,9 +237,13 @@ subroutine evaluate_wave_transmission(n_time,heartrate,a0,no_freq,a,b,n_adparams
    tree_direction='converging'
    call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
        min_ven,max_ven,tree_direction)
+   write(*,*) 'have calculated venous admittance'
+   pause
    !cap admittance
    call capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
      min_cap,max_cap,elast_param,mechanics_parameters,grav_vect)
+     write(*,*) 'have calculated capillary admittance'
+   pause
    !art admittance
    tree_direction='diverging'
    call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
@@ -250,6 +255,9 @@ subroutine evaluate_wave_transmission(n_time,heartrate,a0,no_freq,a,b,n_adparams
      call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
        min_art,max_art,tree_direction)
    endif
+
+   write(*,*) 'have calculated all admittance'
+   pause
    !calculate pressure drop through arterial tree (note to do veins too need to implement this concept thro' whole ladder model)
    !Also need to implement in reverse for veins
    call pressure_factor(no_freq,p_factor,reflect,prop_const,harmonic_scale,min_art,max_art)
@@ -448,6 +456,7 @@ subroutine boundary_admittance(no_freq,eff_admit,char_admit,admit_param,harmonic
             if(elem_cnct(1,0,ne).eq.0)then
               !temporarily store in eff_admit
               eff_admit(nf,ne)=char_admit(nf,ne)
+              write(*,*) 'making my terminal here',eff_admit(1,ne)
             endif
           enddo
         endif
@@ -490,29 +499,25 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scal
   real(dp) :: R0,Ppl,Ptm,Rg_in,Rg_out
   character(len=60) :: sub_name
 
-  write(*,*) 'update unstrained radius to account for gravity - effectively applying a gravity boundary condition'
-  write(*,*) grav_vect, mechanics_parameters
-
-  do ne=1,num_elems
-    do nn=1,2
-      if(nn.eq.1) np=elem_nodes(1,ne)
-      if(nn.eq.2) np=elem_nodes(2,ne)
-      call calculate_ppl(np,grav_vect,mechanics_parameters,Ppl)
-      Ptm=Ppl     ! Pa
-      if(nn.eq.1)R0=elem_field(ne_radius_in0,ne)
-      if(nn.eq.2)R0=elem_field(ne_radius_out0,ne)
-      if(admit_param%admittance_type.eq.'duan_zamir')then!alpha controls elasticity
-       if(nn.eq.1)Rg_in=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
-       if(nn.eq.2)Rg_out=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
-      else!Hooke type elasticity
-         h=elast_param%elasticity_parameters(2)*R0
-        if(nn.eq.1) Rg_in=R0+3.0_dp*R0**2*Ptm/(4.0_dp*elast_param%elasticity_parameters(1)*h)
-        if(nn.eq.2) Rg_out=R0+3.0_dp*R0**2*Ptm/(4.0_dp*elast_param%elasticity_parameters(1)*h)
-      endif
-     enddo
-     elem_field(ne_radius_out0,ne)=(Rg_in-Rg_out)/2.0_dp
-     write(*,*) ne, R0, Rg_in,Rg_out,Ppl
-  enddo
+  !do ne=1,num_elems
+  !  do nn=1,2
+  !    if(nn.eq.1) np=elem_nodes(1,ne)
+  !    if(nn.eq.2) np=elem_nodes(2,ne)
+  !    call calculate_ppl(np,grav_vect,mechanics_parameters,Ppl)
+  !    Ptm=Ppl     ! Pa
+  !    if(nn.eq.1)R0=elem_field(ne_radius_in0,ne)
+  !    if(nn.eq.2)R0=elem_field(ne_radius_out0,ne)
+  !    if(admit_param%admittance_type.eq.'duan_zamir')then!alpha controls elasticity
+  !     if(nn.eq.1)Rg_in=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
+  !     if(nn.eq.2)Rg_out=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
+  !    else!Hooke type elasticity
+  !       h=elast_param%elasticity_parameters(2)*R0
+  !      if(nn.eq.1) Rg_in=R0+3.0_dp*R0**2*Ptm/(4.0_dp*elast_param%elasticity_parameters(1)*h)
+  !      if(nn.eq.2) Rg_out=R0+3.0_dp*R0**2*Ptm/(4.0_dp*elast_param%elasticity_parameters(1)*h)
+  !    endif
+  !   enddo
+  !   elem_field(ne_radius_out0,ne)=(Rg_in-Rg_out)/2.0_dp
+  !enddo
 
   sub_name = 'characteristic_admittance'
   call enter_exit(sub_name,1)
@@ -564,6 +569,7 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scal
         prop_const(nf,ne)=sqrt((G+cmplx(0.0_dp,1.0_dp,8)*omega*C)*(R+cmplx(0.0_dp,1.0_dp,8)*omega*L))!1/mm
       enddo!nf
     endif
+    write(*,*) 'in char admit', ne, char_admit(1,ne), prop_const(1,ne), elem_field(ne_group,ne)
   enddo!ne
 
   call enter_exit(sub_name,2)
@@ -596,16 +602,22 @@ subroutine tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmo
     call enter_exit(sub_name,1)
     reflect(:,:)=cmplx(0.0_dp,0.0_dp,8)
 
+    write(*,*) 'in admittance',tree_direction
+    pause
+
     if(tree_direction.eq.'diverging')then
       do nf=1,no_freq
         omega=nf*2*PI*harmonic_scale
         do ne=max_elem,min_elem,-1!step backward through elements
           daughter_admit=cmplx(0.0_dp,0.0_dp,8)!
+          write(*,*) ne,elem_cnct(1,0,ne)
           do num2=1,elem_cnct(1,0,ne)!will only do stuff to non-terminals will add one daughter if no branching
              ne2=elem_cnct(1,num2,ne)!for each downstream element
+             write(*,*) ne,ne2
+             pause
              daughter_admit=daughter_admit+eff_admit(nf,ne2)!sum of two child elements
           enddo
-          if(elem_cnct(1,0,ne).gt.0)then !not a terminal
+          if(elem_cnct(1,0,ne).gt.0)then !not a terminal as it has a downstream
             reflect(nf,ne)=(char_admit(nf,ne)-daughter_admit)/&
               (char_admit(nf,ne)+daughter_admit)!double checked
             eff_admit(nf,ne)=char_admit(nf,ne)*(1&
@@ -629,9 +641,11 @@ subroutine tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmo
         do ne=min_elem,max_elem!step forward through elements
           daughter_admit=cmplx(0.0_dp,0.0_dp,8)!
           sister_admit=cmplx(0.0_dp,0.0_dp,8)!
+          write(*,*) 'working out the connectiviity downstream', ne,elem_cnct(1,0,ne)
           do num2=1,elem_cnct(1,0,ne)!will only do stuff to non-terminals
              ne2=elem_cnct(1,num2,ne)!for each downstream element
              daughter_admit=daughter_admit+eff_admit(nf,ne2)!sum of two child elements
+             write(*,*) 'daughter', ne,ne2,daughter_admit
              do num3=1,elem_cnct(-1,0,ne2)!sisters
                ne3=elem_cnct(-1,num3,ne2)!for each upstream element of the daughter
                if(ne3.ne.ne)then
@@ -641,6 +655,7 @@ subroutine tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmo
                    exp(-1.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne))
                    a=exp(-1.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne))
                    b=exp(-1.0_dp*prop_const(nf,ne3)*elem_field(ne_length,ne3))
+               write(*,*) 'sister',ne,ne3,sister_admit
                endif
              enddo
           enddo
@@ -665,6 +680,8 @@ subroutine tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmo
          enddo!ne
       enddo!nf
     endif
+
+    pause
 
   call enter_exit(sub_name,2)
 end subroutine tree_admittance
@@ -707,7 +724,7 @@ subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,
 
   do ne=min_elem,max_elem
     ne0=elem_cnct(-1,1,ne)!upstream element number
-    ne1=elem_cnct(1,1,ne)
+    ne1=elem_cnct(1,1,ne) !downstream element number
     P1=node_field(nj_bv_press,elem_nodes(2,ne0)) !pressure at start node of capillary element
     P2=node_field(nj_bv_press,elem_nodes(1,ne1))
     Q01=elem_field(ne_Qdot,ne0) !flow in element upstream of capillary element !mm^3/s
@@ -723,6 +740,10 @@ subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,
     do i=1,no_freq
       eff_admit_downstream(i)=eff_admit(i,ne1)
     enddo
+    write(*,*) 'capillary admittance',ne,eff_admit(1,ne), eff_admit_downstream(1),ne1,ne0
+    write(*,*) Lin,Lout,P1,P2,&
+                        Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param
+    pause
     call cap_flow_admit(ne,eff_admit(:,ne),eff_admit_downstream,Lin,Lout,P1,P2,&
                         Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param)
    enddo!ne

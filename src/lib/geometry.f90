@@ -271,7 +271,7 @@ contains
         if(.NOT.REVERSE)then
           elem_nodes(1,ne)=np_map(elem_nodes(1,ne_m))
           elem_nodes(2,ne)=np_map(elem_nodes(2,ne_m))
-          elem_cnct(1,0,ne)=elem_cnct(1,0,ne_m)
+          elem_cnct(1,0,ne)=elem_cnct(1,0,ne_m)!The numberdownstream are the number downstream
           elem_cnct(-1,0,ne)=elem_cnct(-1,0,ne_m)
           do n=1,elem_cnct(1,0,ne)
             elem_cnct(1,n,ne)=elem_cnct(1,n,ne_m)+ne0
@@ -282,13 +282,13 @@ contains
         else
           elem_nodes(1,ne)=np_map(elem_nodes(2,ne_m))
           elem_nodes(2,ne)=np_map(elem_nodes(1,ne_m))
-          elem_cnct(-1,0,ne)=elem_cnct(1,0,ne_m)
-          elem_cnct(1,0,ne)=elem_cnct(-1,0,ne_m)
+          elem_cnct(-1,0,ne)=elem_cnct(1,0,ne_m) !The number upstream are the number downstream
+          elem_cnct(1,0,ne)=elem_cnct(-1,0,ne_m)!The number downstream are the number upstream
           do n=1,elem_cnct(1,0,ne)
-            elem_cnct(-1,n,ne)=elem_cnct(1,n,ne_m)+ne0
+            elem_cnct(1,n,ne)=elem_cnct(-1,n,ne_m)+ne0
           enddo
           do n=1,elem_cnct(-1,0,ne)
-            elem_cnct(1,n,ne)=elem_cnct(-1,n,ne_m)+ne0
+            elem_cnct(-1,n,ne)=elem_cnct(1,n,ne_m)+ne0
           enddo
         endif
         !if worrying about regions and versions do it here

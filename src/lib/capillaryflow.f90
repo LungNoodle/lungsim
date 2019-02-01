@@ -263,8 +263,6 @@ contains
 !
        IF(OUTPUT_PERFUSION)THEN
 !###  GET SOLUTIONS TO WRITE TO FILE
-        open(10, file='micro_flow_ladder.out', status='replace')
-        open(20, file='micro_flow_unit.out', status='replace')
         TOTAL_CAP_VOL=0.d0
         TOTAL_SHEET_SA=0.d0
         TT_TOTAL=0.d0
@@ -348,8 +346,7 @@ contains
     deallocate (Q_sheet, STAT = AllocateStatus)
     deallocate (mu_app, STAT = AllocateStatus)
 
-    close(10)
-    close(20)
+
     call enter_exit(sub_name,2)
 
   end subroutine evaluate_ladder
@@ -1063,6 +1060,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      enddo
 
 !!...   CAPILLARY ELEMENT (arteriole + venule + capillary)
+     write(*,*) 'calling cap flow sheet', Q_c, Pin, Pout,ne,gen
      CALL CAP_FLOW_SHEET(ne,SHEET_RES,Q_c,Hart,Hven,RBC_TT, &
        zone,Pin,Pout,area,area_new,alpha_c,area_scale,&
        length_scale,recruited)

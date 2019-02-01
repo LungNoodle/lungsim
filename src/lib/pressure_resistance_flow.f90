@@ -312,6 +312,8 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     call map_flow_to_terminals
     !EXPORT LADDER SOLUTION
     if(mesh_type.eq.'full_plus_ladder')then
+      open(10, file='micro_flow_ladder.out', status='replace')
+      open(20, file='micro_flow_unit.out', status='replace')
       do ne=1,num_elems
         if(elem_field(ne_group,ne).eq.1.0_dp)then!(elem_field(ne_group,ne)-1.0_dp).lt.TOLERANCE)then
           ne0=elem_cnct(-1,1,ne)!upstream element number
@@ -332,6 +334,8 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
             .TRUE.)
         endif
       enddo
+      close(10)
+      close(20)
     endif
 
     deallocate (mesh_from_depvar, STAT = AllocateStatus)
