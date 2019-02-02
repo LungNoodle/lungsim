@@ -183,7 +183,6 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   else!otherwise input a0 is used
     steady_flow=a0
   endif
-
   !! SET UP PARAMETERS DEFINING COMPLIANCE MODEL
   harmonic_scale=heartrate/60.0_dp !frequency of first harmonic (Hz)
   !!ALLOCATE MEMORY
@@ -198,13 +197,13 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   allocate (p_factor(1:no_freq,num_elems), STAT = AllocateStatus)
   if (AllocateStatus /= 0) STOP "*** Not enough memory for p_factor array ***"
   allocate (forward_pressure(n_time), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for p_factor array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for forward_p array ***"
   allocate (reflected_pressure(n_time), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for p_factor array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for reflected_p array ***"
     allocate (forward_flow(n_time), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for p_factor array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for forward_q array ***"
   allocate (reflected_flow(n_time), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for p_factor array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for reflected_q array ***"
 
   !initialise admittance
   char_admit=0.0_dp
@@ -218,117 +217,111 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
     density,viscosity,elast_param,mesh_type)
 
 
-  ! calculate effective admittance through the tree
-   if(mesh_type.eq.'full_plus_ladder')then
-     min_art=1
-     ne=1
-     do while(elem_field(ne_group,ne).eq.0.0_dp)
-       max_art=ne
-       ne=ne+1
-     enddo
-     min_ven=ne
-     do while(elem_field(ne_group,ne).eq.2.0_dp)
-       max_ven=ne
-       ne=ne+1
-     enddo
-     min_cap=ne
-     max_cap=num_elems
-   !vein admittance
-   tree_direction='converging'
-   call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
-       min_ven,max_ven,tree_direction)
-   write(*,*) 'have calculated venous admittance'
-   pause
-   !cap admittance
-   call capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
-     min_cap,max_cap,elast_param,mechanics_parameters,grav_vect)
-     write(*,*) 'have calculated capillary admittance'
-   pause
-   !art admittance
-   tree_direction='diverging'
-   call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
-       min_art,max_art,tree_direction)
-   else!Assume simple tree
-     tree_direction='diverging'
-     min_art=1
-     max_art=num_elems
-     call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
-       min_art,max_art,tree_direction)
-   endif
+    ! calculate effective admittance through the tree
+    if(mesh_type.eq.'full_plus_ladder')then
+        min_art=1
+        ne=1
+        do while(elem_field(ne_group,ne).eq.0.0_dp)
+            max_art=ne
+            ne=ne+1
+        enddo
+        min_ven=ne
+        do while(elem_field(ne_group,ne).eq.2.0_dp)
+            max_ven=ne
+            ne=ne+1
+        enddo
+        min_cap=ne
+        max_cap=num_elems
 
-   write(*,*) 'have calculated all admittance'
-   pause
-   !calculate pressure drop through arterial tree (note to do veins too need to implement this concept thro' whole ladder model)
-   !Also need to implement in reverse for veins
-   call pressure_factor(no_freq,p_factor,reflect,prop_const,harmonic_scale,min_art,max_art)
-   !n_time,heartrate,a0,no_freq,a,b
-  open(fid5, file = 'inputimpedance.txt',action='write')
-   write(fid5,fmt=*) 'input impedance:'
-   do nf=1,no_freq
-   omega=nf*harmonic_scale
-     write(fid5,fmt=*) omega,abs(eff_admit(nf,1)),&
-       atan2(imagpart(eff_admit(nf,1)),realpart(eff_admit(nf,1)))
-   enddo
-  close(fid5)
+        !vein admittance
+        tree_direction='converging'
+        call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
+            min_ven,max_ven,tree_direction)
+!        !cap admittance
+        call capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
+            min_cap,max_cap,elast_param,mechanics_parameters,grav_vect)!
+        !art admittance
+        tree_direction='diverging'
+        call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
+            min_art,max_art,tree_direction)
+    else!Assume simple tree
+        tree_direction='diverging'
+        min_art=1
+        max_art=num_elems
+        call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
+            min_art,max_art,tree_direction)
+    endif
 
-   start_time=0.0_dp
-   end_time=60.0_dp/heartrate
-   dt=(end_time-start_time)/n_time
-   time=start_time
-   !consider first pressure and flow into the vessel (at x=0)
-   open(fid, file = 'incident_pressure.txt', action='write')
-   open(fid2, file = 'incident_flow.txt',action='write')
-   open(fid3, file = 'total_pressure.txt',action='write')
-   open(fid4, file = 'total_flow.txt',action='write')
-   do nu =1,num_units
-     ne=units(nu)
-     forward_pressure=0.0_dp
-     reflected_pressure=0.0_dp
-     forward_flow=0.0_dp
-     reflected_flow=0.0_dp
-     do nt=1,n_time
-       do nf=1,no_freq
-         omega=2*pi*nf*harmonic_scale
-         forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
-         atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne))))
+!
+!    !calculate pressure drop through arterial tree (note to do veins too need to implement this concept thro' whole ladder model)
+!    !Also need to implement in reverse for veins
+    call pressure_factor(no_freq,p_factor,reflect,prop_const,harmonic_scale,min_art,max_art)
+    open(fid5, file = 'inputimpedance.txt',action='write')
+    write(fid5,fmt=*) 'input impedance:'
+    do nf=1,no_freq
+        omega=nf*harmonic_scale
+        write(fid5,fmt=*) omega,abs(eff_admit(nf,1)),&
+            atan2(imagpart(eff_admit(nf,1)),realpart(eff_admit(nf,1)))
+    enddo
+    close(fid5)
 
-         reflected_pressure(nt)=reflected_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*&
-         abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*realpart(prop_const(nf,ne)))*&
-         cos(omega*time+b(nf)+&
-         atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne)))+&
-         (-2*elem_field(ne_length,ne))*imagpart(prop_const(nf,ne))+&
-         atan2(imagpart(reflect(nf,ne)),realpart(reflect(nf,ne))))
+    start_time=0.0_dp
+    end_time=60.0_dp/heartrate
+    dt=(end_time-start_time)/n_time
+    time=start_time
+    !consider first pressure and flow into the vessel (at x=0)
+    open(fid, file = 'incident_pressure.txt', action='write')
+    open(fid2, file = 'incident_flow.txt',action='write')
+    open(fid3, file = 'total_pressure.txt',action='write')
+    open(fid4, file = 'total_flow.txt',action='write')
+    do nu =1,num_units
+        ne=units(nu)
+        forward_pressure=0.0_dp
+        reflected_pressure=0.0_dp
+        forward_flow=0.0_dp
+        reflected_flow=0.0_dp
+        do nt=1,n_time
+            do nf=1,no_freq
+                omega=2*pi*nf*harmonic_scale
+                forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
+                    atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne))))
 
-         forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
-         cos(omega*time+b(nf)+&
-         atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne)))+&
-         atan2(imagpart(char_admit(nf,ne)),realpart(char_admit(nf,ne))))
+                reflected_pressure(nt)=reflected_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*&
+                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*realpart(prop_const(nf,ne)))*&
+                    cos(omega*time+b(nf)+&
+                    atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne)))+&
+                    (-2*elem_field(ne_length,ne))*imagpart(prop_const(nf,ne))+&
+                    atan2(imagpart(reflect(nf,ne)),realpart(reflect(nf,ne))))
 
-         reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
-         abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*realpart(prop_const(nf,ne)))*&
-         cos(omega*time+b(nf)+&
-         atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne)))+&
-         (-2*elem_field(ne_length,ne))*imagpart(prop_const(nf,ne))+&
-         atan2(imagpart(reflect(nf,ne)),realpart(reflect(nf,ne)))+&
-         atan2(imagpart(char_admit(nf,ne)),realpart(char_admit(nf,ne))))
+                forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
+                    cos(omega*time+b(nf)+&
+                    atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne)))+&
+                    atan2(imagpart(char_admit(nf,ne)),realpart(char_admit(nf,ne))))
 
-       enddo
-       time=time+dt
-     enddo
-      np=elem_nodes(2,ne)
-   write(fid,fmt=*) ne, forward_pressure+node_field(nj_bv_press,np)
-   write(fid2,fmt=*) ne, forward_flow+elem_field(ne_Qdot,ne)
+                reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
+                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*realpart(prop_const(nf,ne)))*&
+                    cos(omega*time+b(nf)+&
+                    atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne)))+&
+                    (-2*elem_field(ne_length,ne))*imagpart(prop_const(nf,ne))+&
+                    atan2(imagpart(reflect(nf,ne)),realpart(reflect(nf,ne)))+&
+                    atan2(imagpart(char_admit(nf,ne)),realpart(char_admit(nf,ne))))
 
-   write(fid3,fmt=*) ne, forward_pressure+reflected_pressure !node_field(nj_bv_press,np)
-   write(fid4,fmt=*) ne, forward_flow-reflected_flow !elem_field(ne_Qdot,ne)
-   !   elem_field(ne_length,ne),abs(p_factor(1,ne))*a(1),&
-        !abs(reflect(1,ne)),abs(char_admit(1,ne)),node_xyz(2,ne)
+            enddo
+            time=time+dt
+        enddo
+        np=elem_nodes(2,ne)
+        write(fid,fmt=*) ne, forward_pressure+node_field(nj_bv_press,np)
+        write(fid2,fmt=*) ne, forward_flow+elem_field(ne_Qdot,ne)
 
-   enddo
-   close(fid)
-   close(fid2)
-   close(fid3)
-   close(fid4)
+        write(fid3,fmt=*) ne, forward_pressure+reflected_pressure + node_field(nj_bv_press,np)
+        write(fid4,fmt=*) ne, forward_flow-reflected_flow + elem_field(ne_Qdot,ne)
+
+
+    enddo
+    close(fid)
+    close(fid2)
+    close(fid3)
+    close(fid4)
 
 
   !!DEALLOCATE MEMORY
@@ -456,7 +449,6 @@ subroutine boundary_admittance(no_freq,eff_admit,char_admit,admit_param,harmonic
             if(elem_cnct(1,0,ne).eq.0)then
               !temporarily store in eff_admit
               eff_admit(nf,ne)=char_admit(nf,ne)
-              write(*,*) 'making my terminal here',eff_admit(1,ne)
             endif
           enddo
         endif
@@ -498,6 +490,8 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scal
   integer :: exit_status=0
   real(dp) :: R0,Ppl,Ptm,Rg_in,Rg_out
   character(len=60) :: sub_name
+  sub_name = 'characteristic_admittance'
+  call enter_exit(sub_name,1)
 
   do ne=1,num_elems
     do nn=1,2
@@ -516,18 +510,18 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scal
         if(nn.eq.2) Rg_out=R0+3.0_dp*R0**2*Ptm/(4.0_dp*elast_param%elasticity_parameters(1)*h)
       endif
      enddo
-     elem_field(ne_radius_out,ne)=(Rg_in-Rg_out)/2.0_dp
+     elem_field(ne_radius_out,ne)=(Rg_in+Rg_out)/2.0_dp
+
   enddo
 
-  sub_name = 'characteristic_admittance'
-  call enter_exit(sub_name,1)
+
   E=elast_param%elasticity_parameters(1) !Pa
   h_bar=elast_param%elasticity_parameters(2)!this is a fraction of the radius so is unitless
   do ne=1,num_elems
     if(admit_param%admittance_type.eq.'lachase_standard')then
       h=h_bar*elem_field(ne_radius_out,ne)
-      C=3.0_dp*PI*elem_field(ne_radius_out0,ne)**3*elem_field(ne_length,ne)/(2.0_dp*h*E)
-      L=density*elem_field(ne_length,ne)/(4*PI*elem_field(ne_radius_out0,ne)**2)
+      C=3.0_dp*PI*elem_field(ne_radius_out,ne)**3*elem_field(ne_length,ne)/(2.0_dp*h*E)
+      L=density*elem_field(ne_length,ne)/(4*PI*elem_field(ne_radius_out,ne)**2)
       R=8.0_dp*viscosity*elem_field(ne_length,ne)/ &
           (PI*elem_field(ne_radius_out,ne)**4) !laminar resistance
       G=0.0_dp
@@ -569,7 +563,6 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scal
         prop_const(nf,ne)=sqrt((G+cmplx(0.0_dp,1.0_dp,8)*omega*C)*(R+cmplx(0.0_dp,1.0_dp,8)*omega*L))!1/mm
       enddo!nf
     endif
-    write(*,*) 'in char admit', ne, char_admit(1,ne), prop_const(1,ne), elem_field(ne_group,ne)
   enddo!ne
 
   call enter_exit(sub_name,2)
@@ -602,86 +595,75 @@ subroutine tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmo
     call enter_exit(sub_name,1)
     reflect(:,:)=cmplx(0.0_dp,0.0_dp,8)
 
-    write(*,*) 'in admittance',tree_direction
-    pause
-
     if(tree_direction.eq.'diverging')then
-      do nf=1,no_freq
-        omega=nf*2*PI*harmonic_scale
-        do ne=max_elem,min_elem,-1!step backward through elements
-          daughter_admit=cmplx(0.0_dp,0.0_dp,8)!
-          write(*,*) ne,elem_cnct(1,0,ne)
-          do num2=1,elem_cnct(1,0,ne)!will only do stuff to non-terminals will add one daughter if no branching
-             ne2=elem_cnct(1,num2,ne)!for each downstream element
-             write(*,*) ne,ne2
-             pause
-             daughter_admit=daughter_admit+eff_admit(nf,ne2)!sum of two child elements
-          enddo
-          if(elem_cnct(1,0,ne).gt.0)then !not a terminal as it has a downstream
-            reflect(nf,ne)=(char_admit(nf,ne)-daughter_admit)/&
-              (char_admit(nf,ne)+daughter_admit)!double checked
-            eff_admit(nf,ne)=char_admit(nf,ne)*(1&
-              -reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))/&
-              (1+reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))
-           else!a terminal
-             daughter_admit=eff_admit(nf,ne) !a boundary condition is applied here
-           reflect(nf,ne)=(char_admit(nf,ne)-daughter_admit)/&
-            (char_admit(nf,ne)+daughter_admit)
-            !now we overwrite the effective admittance of the terminal to include reflection from the daughter.
-           eff_admit(nf,ne)=char_admit(nf,ne)*(1&
-            -reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))/&
-            (1&
-            +reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))
-          endif
-        enddo!ne
-      enddo!nf
+        do nf=1,no_freq
+            omega=nf*2*PI*harmonic_scale
+            do ne=max_elem,min_elem,-1!step backward through elements
+                daughter_admit=cmplx(0.0_dp,0.0_dp,8)!
+
+                do num2=1,elem_cnct(1,0,ne)!will only do stuff to non-terminals will add one daughter if no branching
+                    ne2=elem_cnct(1,num2,ne)!for each downstream element
+                    daughter_admit=daughter_admit+eff_admit(nf,ne2)!sum of two child elements
+                enddo
+                if(elem_cnct(1,0,ne).gt.0)then !not a terminal as it has a downstream
+                    reflect(nf,ne)=(char_admit(nf,ne)-daughter_admit)/&
+                        (char_admit(nf,ne)+daughter_admit)!double checked
+                    eff_admit(nf,ne)=char_admit(nf,ne)*(1&
+                        -reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))/&
+                        (1+reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))
+                else!a terminal
+                    daughter_admit=eff_admit(nf,ne) !a boundary condition is applied here
+                    reflect(nf,ne)=(char_admit(nf,ne)-daughter_admit)/&
+                        (char_admit(nf,ne)+daughter_admit)
+                     !now we overwrite the effective admittance of the terminal to include reflection from the daughter.
+                    eff_admit(nf,ne)=char_admit(nf,ne)*(1&
+                        -reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))/&
+                        (1&
+                        +reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))
+                endif
+            enddo!ne
+        enddo!nf
     elseif(tree_direction.eq.'converging')then
-      do nf=1,no_freq
-        omega=nf*2*PI*harmonic_scale
-        do ne=min_elem,max_elem!step forward through elements
-          daughter_admit=cmplx(0.0_dp,0.0_dp,8)!
-          sister_admit=cmplx(0.0_dp,0.0_dp,8)!
-          write(*,*) 'working out the connectiviity downstream', ne,elem_cnct(1,0,ne)
-          do num2=1,elem_cnct(1,0,ne)!will only do stuff to non-terminals
-             ne2=elem_cnct(1,num2,ne)!for each downstream element
-             daughter_admit=daughter_admit+eff_admit(nf,ne2)!sum of two child elements
-             write(*,*) 'daughter', ne,ne2,daughter_admit
-             do num3=1,elem_cnct(-1,0,ne2)!sisters
-               ne3=elem_cnct(-1,num3,ne2)!for each upstream element of the daughter
-               if(ne3.ne.ne)then
-                  ne_sist=ne3
-                  sister_admit=sister_admit+char_admit(nf,ne3)
-                  sister_current=exp(-1.0_dp*prop_const(nf,ne3)*elem_field(ne_length,ne3))/&
-                   exp(-1.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne))
-                   a=exp(-1.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne))
-                   b=exp(-1.0_dp*prop_const(nf,ne3)*elem_field(ne_length,ne3))
-               write(*,*) 'sister',ne,ne3,sister_admit
-               endif
-             enddo
-          enddo
-          m1=1.0_dp+2.0_dp*(b/a)*((2*a*b-a**2-1)*char_admit(nf,ne)+&
-            (a**2-1)*sister_admit+(a**2-1)*daughter_admit)/((1-b**2)*char_admit(nf,ne)+&
-            (1+b**2-2*a*b)*sister_admit+(1-b**2)*daughter_admit)
-          if(elem_cnct(1,0,ne).gt.0)then !not a terminal
-            reflect(nf,ne)=(char_admit(nf,ne)-m1*sister_admit-daughter_admit)/&
-              (char_admit(nf,ne)+daughter_admit+sister_admit)!ARC- to check
-            eff_admit(nf,ne)=char_admit(nf,ne)*(1&
-              -reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))/&
-              (1+reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))
-
-          else!a terminal
-            daughter_admit=eff_admit(nf,ne) !a boundary condition is applied here
-             reflect(nf,ne)=(char_admit(nf,ne)-daughter_admit)/&
-              (char_admit(nf,ne)+daughter_admit)
-            eff_admit(nf,ne)=char_admit(nf,ne)*(1&
-              -reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))/&
-              (1+reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))
-          endif
-         enddo!ne
-      enddo!nf
+        do nf=1,no_freq
+            omega=nf*2*PI*harmonic_scale
+            do ne=min_elem,max_elem!step forward through elements
+                daughter_admit=cmplx(0.0_dp,0.0_dp,8)!
+                sister_admit=cmplx(0.0_dp,0.0_dp,8)!
+                do num2=1,elem_cnct(1,0,ne)!will only do stuff to non-terminals
+                    ne2=elem_cnct(1,num2,ne)!for each downstream element
+                    daughter_admit=daughter_admit+eff_admit(nf,ne2)!sum of two child elements
+                    do num3=1,elem_cnct(-1,0,ne2)!sisters
+                        ne3=elem_cnct(-1,num3,ne2)!for each upstream element of the daughter
+                        if(ne3.ne.ne)then
+                            ne_sist=ne3
+                            sister_admit=sister_admit+char_admit(nf,ne3)
+                            sister_current=exp(-1.0_dp*prop_const(nf,ne3)*elem_field(ne_length,ne3))/&
+                                exp(-1.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne))
+                            a=exp(-1.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne))
+                            b=exp(-1.0_dp*prop_const(nf,ne3)*elem_field(ne_length,ne3))
+                        endif
+                    enddo
+                enddo
+                m1=1.0_dp+2.0_dp*(b/a)*((2*a*b-a**2-1)*char_admit(nf,ne)+&
+                    (a**2-1)*sister_admit+(a**2-1)*daughter_admit)/((1-b**2)*char_admit(nf,ne)+&
+                    (1+b**2-2*a*b)*sister_admit+(1-b**2)*daughter_admit)
+                if(elem_cnct(1,0,ne).gt.0)then !not a terminal
+                    reflect(nf,ne)=(char_admit(nf,ne)-m1*sister_admit-daughter_admit)/&
+                        (char_admit(nf,ne)+daughter_admit+sister_admit)!ARC- to check
+                    eff_admit(nf,ne)=char_admit(nf,ne)*(1&
+                        -reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))/&
+                        (1+reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))
+                else!a terminal
+                    daughter_admit=eff_admit(nf,ne) !a boundary condition is applied here
+                    reflect(nf,ne)=(char_admit(nf,ne)-daughter_admit)/&
+                        (char_admit(nf,ne)+daughter_admit)
+                    eff_admit(nf,ne)=char_admit(nf,ne)*(1&
+                        -reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))/&
+                        (1+reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))
+                endif
+            enddo!ne
+        enddo!nf
     endif
-
-    pause
 
   call enter_exit(sub_name,2)
 end subroutine tree_admittance
@@ -740,10 +722,6 @@ subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,
     do i=1,no_freq
       eff_admit_downstream(i)=eff_admit(i,ne1)
     enddo
-    write(*,*) 'capillary admittance',ne,eff_admit(1,ne), eff_admit_downstream(1),ne1,ne0
-    write(*,*) Lin,Lout,P1,P2,&
-                        Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param
-    pause
     call cap_flow_admit(ne,eff_admit(:,ne),eff_admit_downstream,Lin,Lout,P1,P2,&
                         Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param)
    enddo!ne

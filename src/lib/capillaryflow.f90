@@ -917,7 +917,8 @@ end subroutine cap_specific_parameters
 !
 subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param)
-  use arrays, only: dp,capillary_bf_parameters,elasticity_param
+  use arrays, only: dp,capillary_bf_parameters,elasticity_param,num_units
+  use solve, only: pmgmres_ilu_cr
   use other_consts, only:PI
   use diagnostics, only: enter_exit
   use arrays, only:dp,capillary_bf_parameters,fluid_properties
@@ -936,13 +937,30 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   type(fluid_properties) :: fp
   integer :: ngen
   real(dp) :: alpha_c,area_scale,length_scale
-  real(dp), allocatable :: l_a(:),rad_a(:),l_v(:),rad_v(:),mu_app(:)
   real(dp) :: radupdate,P_exta,P_extv,R_art1,R_ven1,R_art2,R_ven2,Q01_mthrees,Pin,Pout
   integer :: gen
   real(dp) :: SHEET_RES,Q_c,Hart,Hven,RBC_TT,area,area_new,recruited,omega
   integer :: zone,nf
   complex(dp) :: bessel0,bessel1,f10,Gamma_sheet
   real(dp) :: wolmer,wavespeed
+  integer :: i,iter,j,num_sheet
+  integer, allocatable :: SparseCol(:)
+  integer, allocatable ::SparseRow(:)
+  real(dp) :: ErrorEstimate,Pin_SHEET,Pout_SHEET
+  real(dp), allocatable :: Pressure(:)
+  real(dp) ::  Qtot,Qgen
+  real(dp),allocatable :: Q_sheet(:)
+  real(dp),allocatable :: RHS(:)
+  real(dp) :: Rtot
+  real(dp),allocatable :: Solution(:)
+  real(dp),allocatable :: SolutionLast(:)
+  real(dp),allocatable :: SparseVal(:)
+  real(dp) :: TOTAL_CAP_VOL,TOTAL_SHEET_H,TOTAL_SHEET_SA,&
+         TT_TOTAL,R_upstream,R_downstream
+  real(dp),allocatable :: l_a(:),rad_a(:),l_v(:),rad_v(:),mu_app(:)
+  integer :: MatrixSize,NonZeros,submatrixsize
+  real(dp) :: sheet_number
+  integer SOLVER_FLAG
 
   complex(dp), allocatable :: cap_admit(:,:)
   complex(dp), allocatable :: tube_admit(:,:)
@@ -959,36 +977,160 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
 
   sub_name = 'cap_flow_admit'
   call enter_exit(sub_name,1)
+
+  !     Number of non-zero entries in solution matrix.
+  NonZeros=3
+  do i=2,cap_param%num_symm_gen
+      NonZeros=NonZeros+4*i+10
+  enddo
+  !     The size of the solution matrix (number of unknown pressures and flows)
+  MatrixSize=5*cap_param%num_symm_gen-3
+  !!     The number of unknown pressures
+  submatrixsize=4*cap_param%num_symm_gen-4
   ngen=cap_param%num_symm_gen
+
+  !...  ---INITIALISATION
+  !...  The input Q01 gives us an estimate for flow into the acinus from the large
+  !...  vessel model.
+  !...  This is in mm^3/s and needs to be converted to m^3/s to use in calculating
+  !...  arteriole and venule resistance
+  Q01_mthrees=Q01/1.d9 !mm3/s->m3/s
+  Pin = P1
+  Pout = P2
+  !     Sheet area (unscaled):
+  !...  We define a sheet area for input into the capillary model.
+  !...  This area is at full inflation and will be scaled within CAP_FLOW_SHEET
+  !...  Area of an individual sheet
+  sheet_number=0
+  DO i=1,cap_param%num_symm_gen
+      sheet_number=sheet_number+2.d0**i
+  ENDDO
+  area=cap_param%total_cap_area/(sheet_number*num_units) !m^2
+  ngen=cap_param%num_symm_gen
+  !1. need to resolve the micro-unit flow to get correct pressure and flow in each unit
+  allocate (Pressure(submatrixsize), STAT = AllocateStatus)
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array Press ***"
+  allocate (SparseCol(NonZeros), STAT = AllocateStatus)
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array SparseCol***"
+  allocate (SparseVal(NonZeros), STAT = AllocateStatus)
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array  SParseVal***"
+  allocate (SparseRow(MatrixSize+1), STAT = AllocateStatus)
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array SparseRow ***"
+  allocate (Solution(MatrixSize), STAT = AllocateStatus)
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array Solution ***"
+  allocate (SolutionLast(MatrixSize), STAT = AllocateStatus)
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array SolutionLast***"
+  allocate (RHS(MatrixSize), STAT = AllocateStatus)
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array RHS***"
   allocate (l_a(ngen), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array l_a***"
   allocate (rad_a(ngen), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array rad_a***"
   allocate (l_v(ngen), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array l_v ***"
   allocate (rad_v(ngen), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array rad_v ***"
+  allocate (Q_Sheet(ngen), STAT = AllocateStatus)
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array Q_sheet***"
   allocate (mu_app(ngen), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array mu_app***"
+
+  Pressure=0.0_dp
+  SparseCol=0
+  SparseRow=0
+  SparseVal=0.0_dp
+  Solution=0.0_dp
+  SolutionLast=0.0_dp
+
+  !!...  Initial guess for pressure distribution lets say all arterial pressures are the same
+  !!...  and all the venous pressures are the same solution appears independent of this.
+  DO i=1,cap_param%num_symm_gen-1
+      Pressure(4*i-3)=1000.0_dp ! Pa
+      Pressure(4*i-2)=1000.0_dp
+      Pressure(4*i-1)=100.0_dp
+      Pressure(4*i)=100.0_dp
+  ENDDO
+
+
+  !###  INITIAL SOLUTION GUESS
+  DO i=1,submatrixsize
+      solution(i)=Pressure(i)
+  ENDDO
+  DO i=submatrixsize+1,matrixSize-1
+      solution(i)=Q01_mthrees/2**cap_param%num_symm_gen
+  ENDDO
+  Solution(Matrixsize)=Q01_mthrees
+  !###  INITIALISE SOLUTIONLAST
+  DO j=1,MatrixSize
+      SolutionLast(j)=Solution(j)
+  ENDDO
+
+  !### INPUT TO THE LADDER MODEL THAT IS INDEPENDENT OF ITERATION
+  CALL LADDERSOL_MATRIX(NonZeros,MatrixSize,submatrixsize,&
+      SparseCol,SparseRow,SparseVal,RHS,Pin,Pout)
+
+  CALL cap_specific_parameters(ne,Ppl,alpha_c,area_scale,length_scale,l_a,rad_a,l_v,rad_v,ngen,&
+      mu_app,Rin,Rout,Lin,Lout)
+  !### ITERATIVE LOOP
+  iter=0
+  ErrorEstimate=1.d10
+  DO WHILE(ErrorEstimate.GT.1.0d-9.AND.iter.LT.100)
+      iter=iter+1
+      !...  CALCULATE RESISTANCE GIVEN CURRENT PRESSURE AND FLOW - THEN UPDATE
+      !...  SparseVal- THese are the only elements of the solution matrix that need
+      !.... iteratively updating
+
+      CALL POPULATE_MATRIX_LADDER(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
+          area_scale,length_scale,mu_app,Ppl,Pin,Pout,Pressure,&
+          Q01_mthrees,Q_sheet,SparseVal,l_a,rad_a,l_v,rad_v)
+
+
+      call pmgmres_ilu_cr(MatrixSize, NonZeros, SparseRow, SparseCol, SparseVal, &
+          Solution, RHS, 500, 500,1.d-5,1.d-4,SOLVER_FLAG)
+
+
+      DO j=1,submatrixsize
+          Pressure(j)=Solution(j)
+      ENDDO
+      Q01_mthrees=Solution(MatrixSize)
+      !     Estimating Error in solution
+      ErrorEstimate=0.d0
+      DO i=1,MatrixSize
+          ErrorEstimate=ErrorEstimate+&
+              DABS((Solution(i)-SolutionLast(i))**2.d0&
+              /Solution(i)**2.d0)
+          SolutionLast(i)=Solution(i)
+      ENDDO
+      ErrorEstimate=ErrorEstimate/MatrixSize
+
+  ENDDO
+
+  Qtot=0
+  Do i=1,cap_param%num_symm_gen
+     Qtot=Qtot+Q_sheet(i)*2.d0**i
+  ENDDO
+
+  deallocate (SparseCol, STAT = AllocateStatus)
+  deallocate (SparseRow, STAT = AllocateStatus)
+  deallocate (SparseRow, STAT = AllocateStatus)
+  deallocate (Solution, STAT = AllocateStatus)
+  deallocate (SolutionLast, STAT = AllocateStatus)
+  deallocate (RHS, STAT = AllocateStatus)
+
   allocate (cap_admit(ngen,no_freq), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for cap_admit ***"
   allocate(tube_admit(4*ngen,no_freq), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for tube_admit ***"
   allocate (cap_eff_admit(ngen,no_freq), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for cap_eff_admit ***"
   allocate(tube_eff_admit(4*ngen,no_freq), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for tube_eff_admit ***"
   allocate(prop_const(4*ngen,no_freq), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for prop_const ***"
   allocate(prop_const_cap(ngen,no_freq), STAT = AllocateStatus)
-  if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for prop_const_cap ***"
 
-  Pin=P1
-  Pout=P2
-  Q01_mthrees=Q01/1.0e9_dp
 
-  call cap_specific_parameters(ne,Ppl,alpha_c,area_scale,length_scale,l_a,rad_a,l_v,rad_v,ngen,&
-    mu_app,Rin,Rout,Lin,Lout)
 
   cap_admit=cmplx(0.0_dp,0.0_dp,8) !initialise
   tube_admit=cmplx(0.0_dp,0.0_dp,8) !initialise
@@ -997,11 +1139,11 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   prop_const=cmplx(0.0_dp,0.0_dp,8) !initialise
   prop_const_cap=cmplx(0.0_dp,0.0_dp,8) !initialise
 
+
   radupdate=0.d0
   do gen=1,cap_param%num_symm_gen-1
-    Q01_mthrees=Q01_mthrees/2.0_dp
+    Q01_mthrees=Qtot/2.0_dp
 !!...    FIRST HALF OF ARTERIOLE
-!!...    Update radius of arteriole based on inlet pressure
     if(rad_a(gen).LT.100.d-6) then
       P_exta=cap_param%Palv ! From Yen Alveolar pressure dominates vessels <200um diam
     else
@@ -1060,11 +1202,9 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      enddo
 
 !!...   CAPILLARY ELEMENT (arteriole + venule + capillary)
-     write(*,*) 'calling cap flow sheet', Q_c, Pin, Pout,ne,gen
-     CALL CAP_FLOW_SHEET(ne,SHEET_RES,Q_c,Hart,Hven,RBC_TT, &
-       zone,Pin,Pout,area,area_new,alpha_c,area_scale,&
-       length_scale,recruited)
-       Q01_mthrees=Q01_mthrees-Q_c
+     Q01_mthrees=Q01_mthrees-Q_sheet(gen)
+     Hart=cap_param%H0+alpha_c*(Pressure(4*gen-3)-cap_param%Palv)
+     Hven=cap_param%H0+alpha_c*(Pressure(4*gen-1)-cap_param%Palv)
      do nf=1,no_freq
       omega=nf*2*PI*harmonic_scale
      Gamma_sheet=sqrt(omega*Hart**3*cap_param%L_c**2*alpha_c/&
@@ -1125,9 +1265,10 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      enddo
   enddo
   !!...   CAPILLARY ELEMENT (arteriole + venule + capillary)  at terminal
-  CALL CAP_FLOW_SHEET(ne,SHEET_RES,Q_c,Hart,Hven,RBC_TT, &
-       zone,Pin,Pout,area,area_new,alpha_c,area_scale,&
-       length_scale,recruited) !pa.s./pa/m3
+    Pin_sheet=Pressure(4*cap_param%num_symm_gen-6) !%pressure into final capillary sheets
+    Pout_sheet=Pressure(4*cap_param%num_symm_gen-4) !%pressure out of final capillary sheets
+    Hart=cap_param%H0+alpha_c*(Pin_sheet-cap_param%Palv)
+    Hven=cap_param%H0+alpha_c*(Pout_sheet-cap_param%Palv)
     do nf=1,no_freq
      omega=nf*2*PI*harmonic_scale
      Gamma_sheet=sqrt(omega*Hart**3*cap_param%L_c**2*alpha_c/&
@@ -1234,17 +1375,18 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      admit(nf)=tube_eff_admit(1,nf)!tube_eff_admit(1,nf) !!effective daughter admittance of first arteriole
    enddo
 
-
-  deallocate(l_a)
-  deallocate(rad_a)
-  deallocate(l_v)
-  deallocate(rad_v)
-  deallocate(mu_app)
   deallocate(cap_admit)
   deallocate(tube_admit)
   deallocate(cap_eff_admit)
   deallocate(tube_eff_admit)
   deallocate(prop_const)
+  deallocate (Pressure, STAT = AllocateStatus)
+  deallocate (l_a, STAT = AllocateStatus)
+  deallocate (l_v, STAT = AllocateStatus)
+  deallocate (rad_a, STAT = AllocateStatus)
+  deallocate (rad_v, STAT = AllocateStatus)
+  deallocate (Q_sheet, STAT = AllocateStatus)
+  deallocate (mu_app, STAT = AllocateStatus)
 
 
   call enter_exit(sub_name,2)
