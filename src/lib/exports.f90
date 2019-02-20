@@ -11,7 +11,7 @@
 !> This module handles all export functions
 module exports
   implicit none
-
+ 
   private
   public export_1d_elem_geometry,export_elem_geometry_2d,export_node_geometry,export_node_geometry_2d,&
        export_node_field,export_elem_field,export_terminal_solution,export_terminal_perfusion,&
@@ -70,6 +70,39 @@ contains
 
 !!!############################################################################
 
+subroutine export_data_geometry(EXDATAFILE, name)
+
+    use arrays, only: num_data,data_xyz
+!!! dummy arguments
+    !integer :: offset
+    character(len=*) :: EXDATAFILE
+    character(len=*) :: name
+!!! local variables
+    integer,parameter :: num_coords = 3
+    integer nd,nj
+    character(len=200) :: exfile
+    
+    
+    exfile = trim(exdatafile)//'.exdata'
+    open(10, file = exfile, status = 'new')
+    !**   write the group name
+    write(10,'( '' Group name: '',A)') trim(name)
+    write(10,'(1X,''#Fields=1'')')
+    write(10,'(1X,''1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
+    write(10,'(1X,''  x.  Value index= 1, #Derivatives=0'')')
+    write(10,'(1X,''  y.  Value index= 2, #Derivatives=0'')')
+    write(10,'(1X,''  z.  Value index= 3, #Derivatives=0'')')
+    
+    do nd = 1,num_data
+       write(10,'(1X,''Node: '',I9)') nd
+       write(10,'(1X,3E13.5)')  (data_xyz(nj,nd),nj=1,num_coords)
+    enddo !NOLIST
+    close(10)
+    
+  end subroutine export_data_geometry
+
+!!!########################################################################
+
   subroutine export_1d_elem_geometry(EXELEMFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_1D_ELEM_GEOMETRY" :: EXPORT_1D_ELEM_GEOMETRY
 
@@ -126,6 +159,118 @@ contains
 
   end subroutine export_1d_elem_geometry
 
+!!!########################################################################
+
+ subroutine export_elem_geometry_2d(EXELEMFILE, name, offset_elem, offset_node)
+
+    use arrays ,only: num_lines_2d,lines_2d,elem_versn_2d,elem_nodes_2d,nodes_2d,scale_factors_2d,&
+                     elem_lines_2d,num_elems_2d
+
+!!! Parameters
+    integer :: offset_elem,offset_node
+    character(len=*) :: EXELEMFILE
+    character(len=*) :: name
+    
+!!! Local Variables
+    integer :: ne,nj,nk,nl,nn,nn_index(4),np_index(4),numnodes_ex,nvv(4)
+    character(len=1) :: char1
+    character(len=200) :: exfile
+    logical :: CHANGED
+    
+    exfile = trim(exelemfile)//'.exelem'
+    open(10, file=exfile, status='replace')
+    
+    !**     write the group name
+    write(10,'( '' Group name: '',a)') trim(name)
+    
+    !**         write the lines
+    if(num_lines_2d.GT.0) then
+       WRITE(10,'( '' Shape.  Dimension=1'' )')
+       do nl=1,num_lines_2d
+          WRITE(10,'( '' Element: 0 0 '',I5)') lines_2d(nl)
+       enddo !nl
+    endif
+    
+    !**         write the elements
+    WRITE(10,'( '' Shape.  Dimension=2'' )')
+    
+    CHANGED=.TRUE. !initialise to force output of element information
+    
+    nvv=0
+    
+    do ne=1,num_elems_2d
+       if(nvv(1)==elem_versn_2d(1,ne) .AND. nvv(2)==elem_versn_2d(2,ne) .AND. &
+            nvv(3)==elem_versn_2d(3,ne) .AND. nvv(4)==elem_versn_2d(4,ne)) then
+          CHANGED=.FALSE.
+       else
+          CHANGED=.TRUE.
+       endif
+       
+       forall (nn=1:4) nvv(nn)=elem_versn_2d(nn,ne)
+       numnodes_ex = 4
+       forall (nn=1:4) nn_index(nn) = nn
+       np_index(1:4) = elem_nodes_2d(1:4,ne)
+!       if(elem_nodes_2d(1,ne).eq.elem_nodes_2d(2,ne))then
+!          numnodes_ex = 3
+!          forall (nn=2:4) nn_index(nn) = nn-1
+!          np_index(2) = np_index(3)
+!          np_index(3) = np_index(4)
+!       elseif(elem_nodes_2d(1,ne).eq.elem_nodes_2d(3,ne))then
+!          numnodes_ex = 3
+!          nn_index(3) = 1
+!          nn_index(4) = 3
+!          np_index(3) = np_index(4)
+!       elseif(elem_nodes_2d(2,ne).eq.elem_nodes_2d(4,ne))then
+!          numnodes_ex = 3
+!          nn_index(4) = 2
+!       elseif(elem_nodes_2d(3,ne).eq.elem_nodes_2d(4,ne))then
+!          numnodes_ex = 3
+!          nn_index(4) = 3
+!       endif
+       
+       if(CHANGED)then
+          WRITE(10,'( '' #Scale factor sets=1'' )')
+          WRITE(10,'( ''   c.Hermite*c.Hermite, #Scale factors=16'' )')
+          WRITE(10,'( '' #Nodes= '',I2 )') numnodes_ex
+          WRITE(10,'( '' #Fields= 1'' )')
+          WRITE(10,'( '' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
+          
+          do nj=1,3
+             if(nj==1) char1='x'; if(nj==2) char1='y'; if(nj==3) char1='z';
+             WRITE(10,'(''  '',A2,''.  c.Hermite*c.Hermite, no modify, standard node based.'')') char1
+             WRITE(10,'( ''     #Nodes= 4'')')
+             do nn=1,4
+                WRITE(10,'(''      '',I1,''.  #Values=4'')') nn_index(nn)
+                WRITE(10,'(''       Value indices:       '',4I4)') 4*(nvv(nn)-1)+1, &
+                     4*(nvv(nn)-1)+2,4*(nvv(nn)-1)+3,4*(nvv(nn)-1)+4
+                WRITE(10,'(''       Scale factor indices:'',4I4)') 4*nn-3,4*nn-2,4*nn-1,4*nn
+             enddo !nn
+          enddo !nj
+       endif
+       !**               write the element
+       WRITE(10,'(1X,''Element: '',I12,'' 0 0'' )') ne+offset_elem
+       !**                 write the faces
+       WRITE(10,'(3X,''Faces: '' )')
+
+       WRITE(10,'(5X,''0 0'',I6)')  elem_lines_2d(3,ne)
+       WRITE(10,'(5X,''0 0'',I6)')  elem_lines_2d(4,ne)
+       WRITE(10,'(5X,''0 0'',I6)')  elem_lines_2d(1,ne)
+       WRITE(10,'(5X,''0 0'',I6)')  elem_lines_2d(2,ne)
+
+       !**               write the nodes
+       WRITE(10,'(3X,''Nodes:'' )')
+!       WRITE(10,'(4X,16(1X,I12))') (elem_nodes_2d(nn,ne)+offset_node,nn=1,4)
+       WRITE(10,'(4X,16(1X,I12))') (nodes_2d(np_index(nn))+offset_node,nn=1,numnodes_ex)
+       !**                 write the scale factors
+       WRITE(10,'(3X,''Scale factors:'' )')
+       WRITE(10,'(4X,4(1X,E12.5))') (scale_factors_2d(nk,ne),nk=1,4) !node 1
+       WRITE(10,'(4X,4(1X,E12.5))') (scale_factors_2d(nk,ne),nk=5,8) !node 2
+       WRITE(10,'(4X,4(1X,E12.5))') (scale_factors_2d(nk,ne),nk=9,12) !node 3
+       WRITE(10,'(4X,4(1X,E12.5))') (scale_factors_2d(nk,ne),nk=13,16) !node 4
+    enddo
+    close(10)
+    
+  end subroutine export_elem_geometry_2d
 
 !!!############################################################################
   
@@ -300,6 +445,86 @@ contains
     close(10)
 
   end subroutine export_node_geometry
+!
+!!!########################################################################
+!
+
+  subroutine export_node_geometry_2d(EXNODEFILE, name, offset)
+
+    use arrays!,only: dp,nodes_2d,node_field,node_xyz_2d,num_nodes_2d,node_versn_2d
+    !use diagnostics, only: enter_exit
+    use indices
+    use other_consts, only: MAX_FILENAME_LEN    
+    integer :: offset
+    character(len=*) :: EXNODEFILE
+    character(len=*) :: name
+    
+    !     Local Variables
+    integer :: nderiv,nversions,nj,nk,np,np_last,nv,VALUE_INDEX 
+    logical :: FIRST_NODE
+    character(len=200) :: exfile
+    
+    if(num_nodes_2d.gt.0)then
+       exfile = trim(exnodefile)//'.exnode'
+       open(10, file=exfile, status='replace')
+       !**     write the group name
+       WRITE(10,'( '' Group name: '',A)') trim(name)
+       
+       FIRST_NODE=.TRUE.
+       np_last=1
+       !*** Exporting Geometry
+       do np=1,num_nodes_2d
+          if(np.gt.1) np_last = np-1
+          nderiv = 3
+          nversions=node_versn_2d(np)
+          !*** Write the field information
+          VALUE_INDEX=1
+          if(FIRST_NODE.OR.node_versn_2d(np).NE.node_versn_2d(np_last))then
+             write(10,'( '' #Fields=1'' )')
+             write(10,'('' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')') 
+             do nj=1,3
+                if(nj.eq.1) write(10,'(2X,''x.  '')',advance="no")
+                if(nj.eq.2) write(10,'(2X,''y.  '')',advance="no")
+                if(nj.eq.3) write(10,'(2X,''z.  '')',advance="no")
+                if(VALUE_INDEX<10)then
+                   write(10,'(''Value index='',I1,'', #Derivatives='',I1)',advance="no") VALUE_INDEX,NDERIV
+                else
+                   write(10,'(''Value index='',I2,'', #Derivatives='',I1)',advance="no") VALUE_INDEX,NDERIV
+                endif
+                if(nderiv.GE.1) write(10,'('' (d/ds1'')',advance="no")
+                if(nderiv.GE.2) write(10,'('',d/ds2'')',advance="no")
+                if(nderiv.GE.3) write(10,'('',d2/ds1ds2'')',advance="no")
+
+                if(NVERSIONS.gt.1)then
+                   write(10,'(''),#Versions='',I2)') NVERSIONS
+                else if(NDERIV.gt.0)then
+                   write(10,'('')'')')
+                else
+                   write(10,'()')
+                endif
+                
+                VALUE_INDEX=VALUE_INDEX+MAX(4*node_versn_2d(np),1)
+             enddo
+             
+          endif !FIRST_NODE
+          !***      write the node
+          WRITE(10,'(1X,''Node: '',I12)') nodes_2d(NP)+offset
+          do nj=1,3
+             if(node_versn_2d(NP).GT.0) then
+                do nv=1,node_versn_2d(np)
+                   WRITE(10,'(2X,4(1X,F12.6))') &
+                        (node_xyz_2d(nk,nv,nj,NP),nk=1,4)
+                enddo
+             else
+                WRITE(10,'(3X,I1)') 0
+             endif
+          enddo !njj2
+          FIRST_NODE=.FALSE.
+          np_last=np
+       enddo !nolist (np)
+    endif
+    CLOSE(10)
+
 
 !!!########################################################################
 
