@@ -55,3 +55,14 @@ install(TARGETS aether
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
+
+find_package(BLAS)
+
+target_link_libraries(aether ${BLAS_LIBRARIES})
+target_include_directories(aether ${BLAS_INCLUDE_DIR})
+
+
+find_package(SuperLU)
+
+target_link_libraries(aether ${SUPERLU_LIBRARIES})
+target_include_directories(aether ${SUPERLU_INCLUDES})
