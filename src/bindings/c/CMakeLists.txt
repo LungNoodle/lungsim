@@ -17,7 +17,6 @@ set(C_FORTRAN_LIB_SRCS
     species_transport.f90
     utils.f90
     ventilation.f90
-    wave_transmission.f90
 )
 set(C_C_LIB_SRCS
     arrays.c
@@ -35,7 +34,6 @@ set(C_C_LIB_SRCS
     species_transport.c
     utils.c
     ventilation.c
-    wave_transmission.c
 )
 
 set(C_LIB_HDRS
@@ -55,7 +53,6 @@ set(C_LIB_HDRS
   species_transport.h
   utils.h
   ventilation.h
-  wave_transmission.h
 )
 
 add_library(aether_c_fortran STATIC ${C_FORTRAN_LIB_SRCS} $<TARGET_OBJECTS:aether_obj>)
