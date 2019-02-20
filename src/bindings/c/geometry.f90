@@ -1,5 +1,12 @@
 module geometry_c
-  implicit none
+  use arrays
+  use diagnostics
+  use indices
+  !use mesh_functions
+  !use precision ! sets dp for precision
+  !use math_constants !pi  
+
+implicit none
   private
 
 contains
@@ -87,7 +94,6 @@ contains
 !###################################################################################
 !
   subroutine define_elem_geometry_2d_c(ELEMFILE, filename_len, SF_OPTION, sf_option_len) bind(C, name="define_elem_geometry_2d_c")
-
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
     use other_consts, only: MAX_FILENAME_LEN
@@ -253,6 +259,60 @@ contains
 !
 !###################################################################################
 !
+  subroutine define_data_geometry_c(DATAFILE, filename_len) bind(C, name="define_data_geometry_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry, only: define_data_geometry
+    implicit none
+
+    integer,intent(in) :: filename_len
+    type(c_ptr), value, intent(in) :: DATAFILE
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, DATAFILE, filename_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_define_data_geometry(filename_f)
+#else
+    call define_data_geometry(filename_f)
+#endif
+
+  end subroutine define_data_geometry_c
+
+!
+!###################################################################################
+!
+  subroutine define_node_geometry_2d_c(NODEFILE, filename_len) bind(C, name="define_node_geometry_2d_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry, only: define_node_geometry_2d
+    implicit none
+
+    integer,intent(in) :: filename_len
+    type(c_ptr), value, intent(in) :: NODEFILE
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, NODEFILE, filename_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_define_node_geometry_2d(filename_f)
+#else
+    call define_node_geometry_2d(filename_f)
+#endif
+
+  end subroutine define_node_geometry_2d_c
+!
+
+!
+
+
+!###################################################################################
+!
+
   subroutine define_rad_from_file_c(FIELDFILE, filename_len, radius_type, radius_type_len) bind(C, name="define_rad_from_file_c")
 
     use iso_c_binding, only: c_ptr
@@ -381,9 +441,7 @@ contains
 
   end subroutine volume_of_mesh_c
 
-!
-!###################################################################################
-!
+
   function get_local_node_f_c(ndimension,np_global) result(get_local_node) bind(C, name="get_local_node_f_c")
     use arrays, only: dp
     use geometry, only: get_local_node_f
@@ -396,5 +454,7 @@ contains
 
   end function get_local_node_f_c
 
+
 end module geometry_c
+
 
