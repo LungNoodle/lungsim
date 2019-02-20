@@ -48,7 +48,7 @@ module indices
 
 public num_ord,no_gen,no_hord,no_sord
 
-public num_nj,nj_aw_press,nj_bv_press, nj_conc1,nj_conc2
+public num_nj,nj_aw_press,nj_bv_press,nj_conc1,nj_conc2
 
 public num_ne,ne_radius,ne_length,ne_vol,&
       ne_resist,ne_t_resist,ne_Vdot,ne_Vdot0,ne_a_A,&
@@ -69,7 +69,8 @@ public model_type
 
 !Interfaces
 private
-public define_problem_type,ventilation_indices, perfusion_indices, get_ne_radius, get_nj_conc1
+public define_problem_type,ventilation_indices, perfusion_indices, get_ne_radius, get_nj_conc1, &
+       growing_indices
 
 contains
 
@@ -83,6 +84,8 @@ contains
 
     character(len=60) :: sub_name
 
+    sub_name = 'define_problem_type'
+    call enter_exit(sub_name,1)
     select case (PROBLEM_TYPE)
       case ('gas_exchange')
         print *, 'You are solving a gas exchange model, setting up indices'
@@ -99,6 +102,9 @@ contains
       case ('ventilation')
         print *, 'You are solving a ventilation model, setting up indices'
         call ventilation_indices
+      case('grow_tree')
+        print *, 'You are solving a growing problem, setting up indices'
+        call growing_indices
     end select
     model_type=TRIM(PROBLEM_TYPE)
     call enter_exit(sub_name,2)
@@ -128,6 +134,7 @@ contains
     ne_resist=4
     ne_Vdot=5
     ne_Qdot=6
+    ne_dvdt=7
 
     ! indices for unit_field
     num_nu=7
@@ -223,6 +230,30 @@ contains
     nu_vent=10
     call enter_exit(sub_name,2)
   end subroutine ventilation_indices
+!
+!########################################################################
+!
+!> Growing indices
+  subroutine growing_indices
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROWING_INDICES" :: GROWING_INDICES
+
+    use diagnostics, only: enter_exit
+    implicit none
+    character(len=60) :: sub_name
+
+    sub_name = 'growing_indices'
+    call enter_exit(sub_name,1)
+    ! indices for elem_ordrs. These dont usually change.
+    ! indices for node_field
+    num_nj=0 !number of nodal fields
+    ! indices for elem_field
+    num_ne=2 !number of element fields
+    ne_radius=1 !radius of airway
+    ne_length=2 !length of airway
+    ! indices for unit_field
+    num_nu=0
+    call enter_exit(sub_name,2)
+  end subroutine growing_indices
 !
 !######################################################################
 !

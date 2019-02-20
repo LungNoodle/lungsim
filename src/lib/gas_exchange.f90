@@ -62,7 +62,7 @@ contains
 !##############################################################################
 !
  subroutine initial_gasexchange(initial_concentration,surface_area,V_cap)
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_TEST_FUNCTION: TEST_FUNCTION
+ !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIAL_GASEXCHANGE" :: INITIAL_GASEXCHANGE
    use indices
    use arrays, only: dp,elem_units_below,gasex_field,node_field,num_nodes,&
          num_units,unit_field
@@ -133,7 +133,7 @@ contains
  subroutine steadystate_gasexchange(c_art_o2,c_ven_o2,&
        p_art_co2,p_art_o2,p_i_o2,p_ven_co2,p_ven_o2,shunt_fraction,&
        VCO2,VO2)
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_STEADYSTATE_GASEXCHANGE: STEADYSTATE_GASEXCHANGE
+ !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_STEADYSTATE_GASEXCHANGE" :: STEADYSTATE_GASEXCHANGE
     use arrays,only: dp,elem_field,num_units,gasex_field,node_field,units,unit_field,&
          elem_units_below,elem_nodes
     use indices
@@ -146,14 +146,15 @@ contains
     integer :: counter,k,ne,np,nunit
     real(dp) :: c_art_co2,c_cap_co2,c_cap_o2,c_ven_co2,fun_o2, &
          fun_co2,fdash,p_cap_co2,p_cap_o2,p_art_co2_last, &
-         p_art_o2_last,p_ven_co2_last,p_ven_o2_last,Q_total, &
+         p_art_o2_last,p_ven_co2_last,p_ven_o2_last,Q_total,V_total, &
          target_c_ven_co2,target_c_ven_o2,v_q,p_alv_o2,p_alv_co2
 
     real(dp),parameter :: m = 0.02386_dp, tol = 1.0e-6_dp
     logical :: continue
+    character(len=60) :: sub_name
 
-
-    call enter_exit('steadystate_gasexchange',1)
+    sub_name = 'steadystate_gasexchange'
+    call enter_exit(sub_name,1)
 
 
 !!! Calculate steady state gas exchange for CO2
@@ -162,6 +163,7 @@ contains
     continue = .true.
     do while(continue)
        Q_total = 0.0_dp        ! sum the blood flows; should be same as cardiac output!
+       V_total = 0.0_dp        !sum the ventilations
        c_art_co2 = 0.0_dp      ! initialise the content in arterial blood
        do nunit = 1,num_units  ! for each elastic/gas exchange unit
           ne = units(nunit)    ! terminal element number
@@ -183,6 +185,7 @@ contains
           endif
 
           Q_total = Q_total + elem_units_below(ne) * dabs(unit_field(nu_perf,nunit)) !mm3/s
+          V_total = V_total + elem_units_below(ne) * dabs(unit_field(nu_Vdot0,nunit))
 
 
 !!! including a limitation that p_cap_co2 cannot be less than zero
@@ -233,7 +236,7 @@ contains
           fun_co2 = m*p_ven_co2/(1+m*p_ven_co2)-target_c_ven_co2
        enddo !while
 !!! now have updated values for p_art_co2 and p_ven_co2
-!       write(*,'('' Interim PPs:'',4(f8.3))') p_art_o2,p_ven_o2,p_art_co2,p_ven_co2
+       write(*,'('' Interim PPs:'',4(f8.3))') p_art_o2,p_ven_o2,p_art_co2,p_ven_co2
 !!! check whether p_ven_co2 and p_art_co2 have converged
        if(counter.gt.1)then
           if(abs(p_ven_co2-p_ven_co2_last)/p_ven_co2_last.lt.tol.and. &
@@ -254,6 +257,8 @@ contains
     enddo !while continue
 !    read(*,*)
 
+    write(*,'('' Total blood flow ='',F10.1,'' mm3/s,&
+         & alveolar ventilation='',F10.1,'' mm3/s'')') Q_total,V_total
     write(*,'('' Steady-state P_art_CO2 ='',F6.1,'' mmHg,&
          & P_ven_CO2='',F6.1,'' mmHg'')') p_art_co2,p_ven_co2
     write(*,'(''               P_alv_CO2 ='',F6.1,'' mmHg,&
@@ -359,7 +364,7 @@ contains
     unit_field(nu_conc2,1:num_units) = gasex_field(ng_p_alv_co2,1:num_units)/&
          (o2molvol*(press_atm-p_water)) ! from mmHg to mmol/mm^3
 
-    call enter_exit('steadystate_gasexchange',1)
+    call enter_exit(sub_name,2)
 
   end subroutine steadystate_gasexchange
 

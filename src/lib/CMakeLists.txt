@@ -11,18 +11,17 @@ set(LIB_SRCS
   gas_exchange.f90
   gasmix.f90
   geometry.f90
+  growtree.f90
   indices.f90
   imports.f90
   math_utilities.f90
+  mesh_utilities.f90
   other_consts.f90
   pressure_resistance_flow.f90
   solve.f90
   species_transport.f90
   ventilation.f90
-  mesh_functions.f90
-  surface_fitting.f90
-  c_fortran_cgssv.c
-
+  wave_transmission.f90
 )
 
 set(AETHER_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules")
@@ -34,6 +33,7 @@ set_target_properties(aether_obj PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 if (MSVC)
+  target_compile_options(aether_obj PRIVATE /heap-arrays0)
   # Visual Studio requires a dummy file as it will not build a library from only objects.
   set(dummy_file "${CMAKE_CURRENT_BINARY_DIR}/dummy.f90")
   file(WRITE ${dummy_file} "module dummy
@@ -52,9 +52,8 @@ set_target_properties(aether PROPERTIES
 
 target_include_directories(aether PUBLIC "${AETHER_MODULE_DIRECTORY}")
 
-
-message(STATUS "Including directory")
-find_package(superlu REQUIRED PATHS "/Users/acla148/opencmiss/install/cmake")
-target_include_directories(aether PUBLIC "/Users/acla148/opencmiss/install/include/superlu")
-target_link_libraries(aether PUBLIC superlu)
+install(TARGETS aether
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib)
 

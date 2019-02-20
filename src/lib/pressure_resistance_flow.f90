@@ -19,12 +19,12 @@ module pressure_resistance_flow
 
   !Interfaces
   private
-  public evaluate_prq
+  public evaluate_prq,calculate_ppl
 contains
 !###################################################################################
 !
 !*evaluate_PRQ:* Solves for pressure and flow in a rigid or compliant tree structure
-  subroutine evaluate_prq
+  subroutine evaluate_prq(mesh_type,vessel_type,grav_dirn,grav_factor,bc_type,inlet_bc,outlet_bc)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_PRQ" :: EVALUATE_PRQ
     use indices
     use capillaryflow,only: cap_flow_ladder
@@ -45,7 +45,7 @@ contains
     integer :: AllocateStatus
 
     real(dp), allocatable :: prq_solution(:,:),solver_solution(:)
-    real(dp) :: viscosity,density,inletbc,outletbc,grav_vect(3),gamma,total_resistance,ERR
+    real(dp) :: viscosity,density,inlet_bc,outlet_bc,inletbc,outletbc,grav_vect(3),gamma,total_resistance,ERR
     logical, allocatable :: FIX(:)
     logical :: ADD=.FALSE.,CONVERGED=.FALSE.
     character(len=60) :: sub_name,mesh_type,vessel_type,mechanics_type,bc_type
@@ -72,11 +72,8 @@ contains
     !pressure (at inlet and outlets)
     !flow (flow at inlet pressure at outlet).
 
-mesh_type='full_plus_ladder'
-!mesh_type='simple_tree'
-vessel_type='elastic_g0_beta'
+
 mechanics_type='linear'
-bc_type='pressure'
 
 if (vessel_type.eq.'rigid') then
     elasticity_parameters=0.0_dp
@@ -106,9 +103,6 @@ else
      call exit(0)
 endif
 
-grav_dirn=2
-grav_factor=-1.0_dp
-
 grav_vect=0.d0
 if (grav_dirn.eq.1) then
     grav_vect(1)=1.0_dp
@@ -123,8 +117,8 @@ endif
 grav_vect=grav_vect*grav_factor
 
 if(bc_type.eq.'pressure')then
-    inletbc=15.0_dp*133.0_dp!2266.0_dp
-    outletbc=5.0_dp*133.0_dp!666.7_dp
+    inletbc=inlet_bc
+    outletbc=outlet_bc
 elseif(bc_type.eq.'flow')then
     print  *, "ERROR: Flow boundary conditions not yet implemented"
      call exit(0)
@@ -316,6 +310,33 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     call map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof)
     !NEED TO UPDATE TERMINAL SOLUTION HERE. LOOP THO' UNITS AND TAKE FLOW AND PRESSURE AT TERMINALS
     call map_flow_to_terminals
+    !EXPORT LADDER SOLUTION
+    if(mesh_type.eq.'full_plus_ladder')then
+      open(10, file='micro_flow_ladder.out', status='replace')
+      open(20, file='micro_flow_unit.out', status='replace')
+      do ne=1,num_elems
+        if(elem_field(ne_group,ne).eq.1.0_dp)then!(elem_field(ne_group,ne)-1.0_dp).lt.TOLERANCE)then
+          ne0=elem_cnct(-1,1,ne)!upstream element number
+          ne1=elem_cnct(1,1,ne)
+          P1=prq_solution(depvar_at_node(elem_nodes(2,ne0),0,1),1) !pressure at start node of capillary element
+          P2=prq_solution(depvar_at_node(elem_nodes(1,ne1),0,1),1)!pressure at end node of capillary element
+          Q01=prq_solution(depvar_at_elem(1,1,ne0),1) !flow in element upstream of capillary element !mm^3/s
+          Rin=elem_field(ne_radius_out0,ne0)!radius of upstream element
+          Rout=elem_field(ne_radius_out0,ne1) !radius of downstream element
+          x_cap=node_xyz(1,elem_nodes(1,ne))
+          y_cap=node_xyz(2,elem_nodes(1,ne))
+          z_cap=node_xyz(3,elem_nodes(1,ne))
+          call calculate_ppl(elem_nodes(1,ne),grav_vect,mechanics_parameters,Ppl)
+          Lin=elem_field(ne_length,ne0)
+          Lout=elem_field(ne_length,ne1)
+          call cap_flow_ladder(ne,LPM_R,Lin,Lout,P1,P2,&
+            Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,&
+            .TRUE.)
+        endif
+      enddo
+      close(10)
+      close(20)
+    endif
 
     deallocate (mesh_from_depvar, STAT = AllocateStatus)
     deallocate (depvar_at_elem, STAT = AllocateStatus)
@@ -600,7 +621,7 @@ subroutine initialise_solution(pressure_in,pressure_out,cardiac_output,mesh_dof,
 !local variables
     integer :: nn,ne,np,n_depvar
     character(len=60) :: sub_name
-   sub_name = 'intialise_solution'
+    sub_name = 'intialise_solution'
     call enter_exit(sub_name,1)
     do ne=1,num_elems
        !ne=elems(noelem)

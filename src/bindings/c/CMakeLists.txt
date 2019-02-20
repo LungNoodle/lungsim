@@ -10,13 +10,14 @@ set(C_FORTRAN_LIB_SRCS
     gas_exchange.f90
     gasmix.f90
     geometry.f90
+    growtree.f90
     indices.f90
     imports.f90
     pressure_resistance_flow.f90
     species_transport.f90
     utils.f90
     ventilation.f90
-    surface_fitting.f90
+    wave_transmission.f90
 )
 set(C_C_LIB_SRCS
     arrays.c
@@ -27,13 +28,14 @@ set(C_C_LIB_SRCS
     gas_exchange.c
     gasmix.c
     geometry.c
+    growtree.c
     indices.c
     imports.c
     pressure_resistance_flow.c
     species_transport.c
     utils.c
     ventilation.c
-    surface_fitting.c
+    wave_transmission.c
 )
 
 set(C_LIB_HDRS
@@ -46,13 +48,14 @@ set(C_LIB_HDRS
   gas_exchange.h
   gasmix.h
   geometry.h
+  growtree.h
   indices.h
   imports.h
   pressure_resistance_flow.h
   species_transport.h
   utils.h
   ventilation.h
-  surface_fitting.h
+  wave_transmission.h
 )
 
 add_library(aether_c_fortran STATIC ${C_FORTRAN_LIB_SRCS} $<TARGET_OBJECTS:aether_obj>)
@@ -75,4 +78,9 @@ target_link_libraries(aether_c PUBLIC aether_c_fortran)
 
 add_custom_target(cbindings ALL)
 add_dependencies(cbindings aether_c)
+
+install(TARGETS aether_c aether_c_fortran
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib)
 

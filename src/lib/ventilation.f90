@@ -260,7 +260,7 @@ contains
              call update_unit_dpdt(dt) ! update dP/dt at the terminal units
           enddo !converged
 
-          call update_unit_volume(dt,Tinsp) ! Update tissue unit volumes, and unit tidal volumes
+          call update_unit_volume(dt,Tinsp,Texpn) ! Update tissue unit volumes, and unit tidal volumes
           call volume_of_mesh(now_vol,volume_tree) !calculate the mesh volume, store in 'now_vol'
           call update_elem_field  !update element lengths, volumes, resistances
           call tissue_compliance(chest_wall_compliance,undef) !update the unit compliances, uses 'undef' as input
@@ -613,14 +613,14 @@ contains
 
 !!!###################################################################################
 
-  subroutine update_unit_volume(dt,Tinsp)
+  subroutine update_unit_volume(dt,Tinsp, Texpn)
     use arrays,only: dp,elem_field,elem_nodes,num_units,&
          units,unit_field
     use diagnostics, only: enter_exit
     use indices,only: ne_Vdot,nu_vol,nu_vt,nu_vent
     implicit none
 
-    real(dp),intent(in) :: dt,Tinsp
+    real(dp),intent(in) :: dt,Tinsp,Texpn
     integer :: ne,np,nunit
 
     character(len=60) :: sub_name
@@ -639,7 +639,7 @@ contains
        if(elem_field(ne_Vdot,1).gt.0.0_dp)then  !only store inspired volume
           unit_field(nu_vt,nunit)=unit_field(nu_vt,nunit)+dt* &
                elem_field(ne_Vdot,ne)
-        unit_field(nu_vent,nunit)=unit_field(nu_vt,nunit)/TInsp
+        unit_field(nu_vent,nunit)=unit_field(nu_vt,nunit)/(TInsp+Texpn) ! volume  per secondto alvolus
        endif
     enddo !nunit
 
