@@ -10,10 +10,8 @@ void export_1d_elem_geometry_c(const char *EXELEMFILE, int *EXELEMFILE_LEN, cons
 void export_elem_geometry_2d_c(const char *EXELEMFILE, int *EXELEMFILE_LEN, const char *name, int *name_len, int *offset_elem, int *offset_node);
 void export_node_field_c(int *nj_field, const char *EXNODEFIELD, int *EXNODEFIELD_LEN,
                          const char *name, int *name_len, const char *field_name, int *field_name_len);
-void export_elem_geometry_2d_c(const char *EXELEMFILE, int *EXELEMFILE_LEN, const char *name, int *name_len, int *offset_elem, int *offset_node);
 void export_terminal_solution_c(const char *EXNODEFILE, int *EXNODEFILE_LEN, const char *name, int *name_len);
 void export_terminal_perfusion_c(const char *EXNODEFILE, int *EXNODEFILE_LEN, const char *name, int *name_len);
-void export_data_geometry_c(const char *EXDATAFILE, int *EXDATAFILE_LEN, const char *name, int *name_len);
 void export_node_geometry_c(const char *EXNODEFILE, int *EXNODEFILE_LEN, const char *name, int *name_len);
 void export_node_geometry_2d_c(const char *EXNODEFILE, int *EXNODEFILE_LEN, const char *name, int *name_len, int *offset);
 void export_data_geometry_c(const char *EXDATAFILE, int *EXDATAFILE_LEN, const char *name, int *name_len, int *offset);
@@ -70,14 +68,6 @@ void export_terminal_perfusion(const char *EXNODEFILE, const char *name)
   export_terminal_perfusion_c(EXNODEFILE, &filename_len, name, &name_len);
 }
 
-void export_data_geometry(const char *EXDATAFILE, const char *name)
-{
-  int filename_len = strlen(EXDATAFILE);
-  int name_len = strlen(name);
-
-  export_data_geometry_c(EXDATAFILE, &filename_len, name, &name_len);
-}
-
 void export_terminal_ssgexch(const char *EXNODEFILE, const char *name)
 {
   int filename_len = strlen(EXNODEFILE);
@@ -109,7 +99,6 @@ void export_data_geometry(const char *EXDATAFILE, const char *name, int offset)
 
   export_data_geometry_c(EXDATAFILE, &filename_len, name, &name_len, &offset);
 }
-
 
 void export_elem_field(const char *EXELEMFIELD, const char *name, const char *field_name)
 {

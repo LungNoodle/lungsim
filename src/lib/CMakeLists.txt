@@ -1,4 +1,3 @@
-project(aether Fortran C)
 
 # The list of all source files that are required to build the library
 set(LIB_SRCS
@@ -21,7 +20,7 @@ set(LIB_SRCS
   solve.f90
   species_transport.f90
   ventilation.f90
-  wave_transmission.f90
+
 )
 
 set(AETHER_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules")
@@ -56,4 +55,3 @@ install(TARGETS aether
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
-
