@@ -1,3 +1,4 @@
+
 module geometry
 !*Brief Description:* This module handles all geometry read/write/generation.
 !
@@ -271,7 +272,7 @@ contains
         if(.NOT.REVERSE)then
           elem_nodes(1,ne)=np_map(elem_nodes(1,ne_m))
           elem_nodes(2,ne)=np_map(elem_nodes(2,ne_m))
-          elem_cnct(1,0,ne)=elem_cnct(1,0,ne_m)
+          elem_cnct(1,0,ne)=elem_cnct(1,0,ne_m)!The numberdownstream are the number downstream
           elem_cnct(-1,0,ne)=elem_cnct(-1,0,ne_m)
           do n=1,elem_cnct(1,0,ne)
             elem_cnct(1,n,ne)=elem_cnct(1,n,ne_m)+ne0
@@ -282,13 +283,13 @@ contains
         else
           elem_nodes(1,ne)=np_map(elem_nodes(2,ne_m))
           elem_nodes(2,ne)=np_map(elem_nodes(1,ne_m))
-          elem_cnct(-1,0,ne)=elem_cnct(1,0,ne_m)
-          elem_cnct(1,0,ne)=elem_cnct(-1,0,ne_m)
+          elem_cnct(-1,0,ne)=elem_cnct(1,0,ne_m) !The number upstream are the number downstream
+          elem_cnct(1,0,ne)=elem_cnct(-1,0,ne_m)!The number downstream are the number upstream
           do n=1,elem_cnct(1,0,ne)
-            elem_cnct(-1,n,ne)=elem_cnct(1,n,ne_m)+ne0
+            elem_cnct(1,n,ne)=elem_cnct(-1,n,ne_m)+ne0
           enddo
           do n=1,elem_cnct(-1,0,ne)
-            elem_cnct(1,n,ne)=elem_cnct(-1,n,ne_m)+ne0
+            elem_cnct(-1,n,ne)=elem_cnct(1,n,ne_m)+ne0
           enddo
         endif
         !if worrying about regions and versions do it here
@@ -1332,9 +1333,9 @@ contains
       !!! export the triangles as surface elements
       writefile = trim(filename)//'.exelem'
       open(10, file=writefile, status='replace')
-      !**     write the group name
+      !**     write the group name
       write(10,'( '' Group name: '',a10)') groupname
-      !**     write the lines
+      !**     write the lines
       write(10,'( '' Shape. Dimension=1'' )')
       nline=0
       do ne = 1,num_triangles
@@ -1354,7 +1355,7 @@ contains
 
       do nj=1,3
         if(nj==1) char1='x'; if(nj==2) char1='y'; if(nj==3) char1='z';
-        write(10,'(''  '',A2,''. l.Lagrange*l.Lagrange, no modify, standard node based.'')') char1
+        write(10,'(''  '',A2,''. l.Lagrange*l.Lagrange, no modify, standard node based.'')') char1
         write(10,'( ''   #Nodes=4'')')
         do nn=1,4
           write(10,'(''   '',I1,''. #Values=1'')') nn
@@ -2677,4 +2678,3 @@ contains
 !###########################################################################################
 ! 
 end module geometry
-
