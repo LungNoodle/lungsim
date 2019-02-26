@@ -20,7 +20,7 @@ set(LIB_SRCS
   solve.f90
   species_transport.f90
   ventilation.f90
-
+  wave_transmission.f90
 )
 
 set(AETHER_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules")
