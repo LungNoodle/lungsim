@@ -38,13 +38,11 @@ module geometry
   public evaluate_ordering
   public get_final_real
   public get_local_node_f
-  public inlist
   public make_data_grid
   public reallocate_node_elem_arrays
   public set_initial_volume
   public triangles_from_surface
   public volume_of_mesh
-  public get_local_node_f
   public get_final_integer
   public get_four_nodes
 
@@ -618,181 +616,7 @@ contains
     
   end subroutine define_elem_geometry_2d
 
-!
-!###################################################################################
-!
-
- subroutine define_elem_geometry_2d(ELEMFILE,sf_option)
-
-    use arrays,only: elems_2d,elem_nodes_2d,num_elems_2d,elem_versn_2d,node_versn_2d
-    !use diagnostics, only: enter_exit
-    implicit none
-
-
-     
-    character(len=*) :: ELEMFILE
-    character(len=4) :: sf_option
-
-    
-    !     Local Variables
-    integer :: ierror,ne,ne_global,nn,np,number_of_elements
-    character(len=132) :: ctemp1,readfile
-
-   
-    readfile = trim(elemfile)//'.ipelem'
-    open(10, file=readfile, status='old')
-    
-    read_number_of_elements : do
-       read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-       if(index(ctemp1, "elements")> 0) then
-          call get_final_integer(ctemp1,number_of_elements)
-          exit read_number_of_elements
-       endif
-    end do read_number_of_elements
-
-    num_elems_2d=number_of_elements
-    if(allocated(elems_2d)) deallocate(elems_2d)
-    allocate(elems_2d(num_elems_2d))
-    if(allocated(elem_nodes_2d)) deallocate(elem_nodes_2d)
-    allocate(elem_nodes_2d(4,num_elems_2d))
-    if(allocated(elem_versn_2d)) deallocate(elem_versn_2d)
-    allocate(elem_versn_2d(4,num_elems_2d))
-
-    ne = 0
-    
-    read_an_element : do 
-       !.......read element number
-       read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-       if(index(ctemp1, "Element")> 0) then
-          call get_final_integer(ctemp1,ne_global) !get element number
-          ne = ne + 1
-          elems_2d(ne) = ne_global
-          read_element_nodes : do 
-             read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-             if(index(ctemp1, "global")> 0) then !found the correct line
-		call get_four_nodes(ne,ctemp1) !number of versions for node np
-                ! note that only the ne'th data of elem_nodes_2d is passed to 'get_four_nodes'
-		do nn=1,4
-                   np=elem_nodes_2d(nn,ne)
-                   if(node_versn_2d(np).gt.1)then
-                      read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !contains version# for njj=1
-                      read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !contains version# for njj=1
-                      read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !contains version# for njj=1
-                      call get_final_integer(ctemp1,elem_versn_2d(nn,ne)) !get version#
- 		      
-                   else
-                      elem_versn_2d(nn,ne)= 1
-                   endif !nversions
-                enddo !nn
-                exit read_element_nodes
-             endif !index
-          end do read_element_nodes
-          if(ne.ge.number_of_elements) exit read_an_element
-       endif
-       
-    end do read_an_element
-
-    close(10)
-    
-    call element_connectivity_2d
-    call line_segments_for_2d_mesh(sf_option)
-  
-   
-  end subroutine define_elem_geometry_2d
-
-
-
 !!!###############################################################
-
-subroutine define_data_geometry(DATAFILE)
-
-!!! read data points from a file
-    
-    use arrays,only: dp,data_xyz,data_weight,num_data
-    !use diagnostics, only: enter_exit
-    use indices
-    use other_consts, only: MAX_FILENAME_LEN   
-!!! dummy arguments
-    character(len=*) :: DATAFILE
-!!! local variables
-    integer :: iend,ierror,length_string,ncount,nj,itemp
-    character(len=132) :: buffer,readfile
-    
-
-    !set the counted number of data points to zero
-    ncount = 0
-    
-    readfile = trim(DATAFILE)//'.ipdata'
-    open(10, file=readfile, status='old')
-    read(unit=10, fmt="(a)", iostat=ierror) buffer
-
-!!! first run through to count the number of data points
-    read_line_to_count : do
-       read(unit=10, fmt="(a)", iostat=ierror) buffer
-       if(ierror<0) exit !ierror<0 means end of file
-       ncount = ncount + 1
-    end do read_line_to_count
-    num_data = ncount
-    close (10)
-    write(*,'('' Read'',I7,'' data points from file'')') num_data
-
-!!! allocate arrays now that we know the size required
-    if(allocated(data_xyz)) deallocate(data_xyz)
-    if(allocated(data_weight)) deallocate(data_weight)
-    allocate(data_xyz(3,num_data))
-    allocate(data_weight(3,num_data))
-
-!!! read the data point information
-    readfile = trim(DATAFILE)//'.ipdata'
-    open(10, file=readfile, status='old')
-    read(unit=10, fmt="(a)", iostat=ierror) buffer
-
-    !set the counted number of data points to zero
-    ncount = 0
-    read_line_of_data : do
-       
-       ! read the data #; z; y; z; wd1; wd2; wd3 for each data point
-       read(unit=10, fmt="(a)", iostat=ierror) buffer
-       if(ierror<0) exit !ierror<0 means end of file
-       length_string = len_trim(buffer) !length of buffer, and removed trailing blanks
-       
-       ! read data number
-       buffer=adjustl(buffer) !remove leading blanks
-       iend=index(buffer," ",.false.)-1 !index returns location of first blank
-       if(length_string == 0) exit
-       ncount=ncount+1
-       read (buffer(1:iend), '(i6)') itemp
-       
-       do nj=1,3
-          ! read x,y,z coordinates
-          buffer = adjustl(buffer(iend+1:length_string)) !remove data number from string
-          buffer = adjustl(buffer) !remove leading blanks
-          length_string = len(buffer) !new length of buffer
-          iend=index(buffer," ",.false.)-1 !index returns location of first blank
-          read (buffer(1:iend), '(D25.17)') data_xyz(nj,ncount)
-       enddo !nj
-       
-       do nj=1,3
-          !        ! read weightings
-          !        buffer = adjustl(buffer(iend+1:length_string)) !remove data number from string
-          !        buffer = adjustl(buffer) !remove leading blanks
-          !        length_string = len(buffer) !new length of buffer
-          !        iend=index(buffer," ",.false.)-1 !index returns location of first blank
-          !        read (buffer(1:iend), '(D25.17)') data_weight(nj,ncount)
-          data_weight(nj,ncount)=1.0_dp
-       enddo !nj
-       
-    enddo read_line_of_data
-    
-    close(10)
-
-  end subroutine define_data_geometry
-
-!
-!###################################################################################
-!!!###############################################################
-
-
 
 !*define_mesh_geometry_test:*
   subroutine define_mesh_geometry_test()
@@ -1509,9 +1333,9 @@ subroutine define_data_geometry(DATAFILE)
       !!! export the triangles as surface elements
       writefile = trim(filename)//'.exelem'
       open(10, file=writefile, status='replace')
-      !**     write the group name
+      !**     write the group name
       write(10,'( '' Group name: '',a10)') groupname
-      !**     write the lines
+      !**     write the lines
       write(10,'( '' Shape. Dimension=1'' )')
       nline=0
       do ne = 1,num_triangles
@@ -1531,7 +1355,7 @@ subroutine define_data_geometry(DATAFILE)
 
       do nj=1,3
         if(nj==1) char1='x'; if(nj==2) char1='y'; if(nj==3) char1='z';
-        write(10,'(''  '',A2,''. l.Lagrange*l.Lagrange, no modify, standard node based.'')') char1
+        write(10,'(''  '',A2,''. l.Lagrange*l.Lagrange, no modify, standard node based.'')') char1
         write(10,'( ''   #Nodes=4'')')
         do nn=1,4
           write(10,'(''   '',I1,''. #Values=1'')') nn

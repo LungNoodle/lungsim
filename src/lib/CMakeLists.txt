@@ -57,14 +57,8 @@ install(TARGETS aether
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
 
-find_package(BLAS)
-
-target_link_libraries(aether ${BLAS_LIBRARIES})
-target_include_directories(aether ${BLAS_INCLUDE_DIR})
-
-
+# Our version for FindSuperLU creates an imported target for us to use.
 find_package(SuperLU)
 
-target_link_libraries(aether ${SUPERLU_LIBRARIES})
-target_include_directories(aether ${SUPERLU_INCLUDES})
+target_link_libraries(aether PUBLIC superlu)
 

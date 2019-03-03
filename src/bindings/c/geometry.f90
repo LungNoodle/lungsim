@@ -157,55 +157,6 @@ contains
 !
 !###################################################################################
 !
-  subroutine define_node_geometry_2d_c(NODEFILE, filename_len) bind(C, name="define_node_geometry_2d_c")
-
-    use iso_c_binding, only: c_ptr
-    use utils_c, only: strncpy
-    use other_consts, only: MAX_FILENAME_LEN
-    use geometry, only: define_node_geometry_2d
-    implicit none
-
-    integer,intent(in) :: filename_len
-    type(c_ptr), value, intent(in) :: NODEFILE
-    character(len=MAX_FILENAME_LEN) :: filename_f
-
-    call strncpy(filename_f, NODEFILE, filename_len)
-
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_define_node_geometry_2d(filename_f)
-#else
-    call define_node_geometry_2d(filename_f)
-#endif
-
-  end subroutine define_node_geometry_2d_c
-
-!
-!###################################################################################
-!
-  subroutine define_data_geometry_c(DATAFILE, filename_len) bind(C, name="define_data_geometry_c")
-
-    use iso_c_binding, only: c_ptr
-    use utils_c, only: strncpy
-    use other_consts, only: MAX_FILENAME_LEN
-    use geometry, only: define_data_geometry
-    implicit none
-
-    integer,intent(in) :: filename_len
-    type(c_ptr), value, intent(in) :: DATAFILE
-    character(len=MAX_FILENAME_LEN) :: filename_f
-
-    call strncpy(filename_f, DATAFILE, filename_len)
-
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_define_data_geometry(filename_f)
-#else
-    call define_data_geometry(filename_f)
-#endif
-
-  end subroutine define_data_geometry_c
-!
-!###################################################################################
-!
   subroutine make_data_grid_c(surface_elems, spacing, to_export, filename, filename_len, groupname, groupname_len)&
  bind(C, name="make_data_grid_c")
     
@@ -235,7 +186,6 @@ contains
 
   end subroutine make_data_grid_c
 
-
 !
 !###################################################################################
 !
@@ -254,7 +204,6 @@ contains
 #endif
 
   end subroutine group_elem_parent_term_c
-
 
 !
 !###################################################################################
@@ -305,11 +254,8 @@ contains
 #endif
 
   end subroutine define_node_geometry_2d_c
-!
 
 !
-
-
 !###################################################################################
 !
 
