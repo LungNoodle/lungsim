@@ -8,7 +8,6 @@ module imports
 !*Full Description:*
 !
 !
-  use other_consts
   implicit none
 
   !Module parameters
@@ -111,7 +110,7 @@ contains
 !
 !>*import_exelemfield:* This subroutine reads in the content of an exelem field file (1 field)
  subroutine import_exelemfield(FLOWFILE,field_no)
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_IMPORT_VENTILATION" :: IMPORT_VENTILATION
+ !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_IMPORT_EXELEMFIELD" :: IMPORT_EXELEMFIELD
    use arrays,only: dp,elem_field,num_elems,num_units,units,unit_field,zero_tol,elem_cnct
    use geometry,only: get_final_real
    use indices
