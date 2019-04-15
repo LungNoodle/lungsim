@@ -24,14 +24,6 @@ set(LIB_SRCS
   wave_transmission.f90
 )
 
-set(AETHER_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules")
-
-# Create an object library so we can use the objects in two different libraries
-add_library(aether_obj OBJECT ${LIB_SRCS})
-set_target_properties(aether_obj PROPERTIES
-  Fortran_MODULE_DIRECTORY "${AETHER_MODULE_DIRECTORY}"
-  POSITION_INDEPENDENT_CODE TRUE)
-
 if (MSVC)
   target_compile_options(aether_obj PRIVATE /heap-arrays0)
   # Visual Studio requires a dummy file as it will not build a library from only objects.
@@ -42,8 +34,23 @@ contains
 end module dummy\n")
 endif ()
 
-# Create the aether fortran library
-add_library(aether $<TARGET_OBJECTS:aether_obj> ${dummy_file})
+set(AETHER_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules")
+
+# Create an object library so we can use the objects in two different libraries
+add_library(aether_obj OBJECT ${LIB_SRCS})
+set_target_properties(aether_obj PROPERTIES
+  Fortran_MODULE_DIRECTORY "${AETHER_MODULE_DIRECTORY}"
+  POSITION_INDEPENDENT_CODE TRUE)
+
+# Create an object library for the SuperLU C Fortran cgssv file.
+add_library(aether_superlu_obj OBJECT c_fortran_cgssv.c)
+# Our object library only needs the include directory information carried by the 'superlu' target
+target_link_libraries(aether_superlu_obj PRIVATE superlu)
+
+# Create the aether library from the object libraries.
+add_library(aether $<TARGET_OBJECTS:aether_obj> $<TARGET_OBJECTS:aether_superlu_obj> ${dummy_file})
+# The aether library actually needs to link against the SuperLU libraryes.
+target_link_libraries(aether PUBLIC superlu)
 
 set_target_properties(aether PROPERTIES
   Fortran_VISIBILITY_PRESET hidden
@@ -56,9 +63,4 @@ install(TARGETS aether
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
-
-# Our version for FindSuperLU creates an imported target for us to use.
-find_package(SuperLU)
-
-target_link_libraries(aether PUBLIC superlu)
 

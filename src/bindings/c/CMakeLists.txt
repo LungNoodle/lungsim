@@ -64,7 +64,7 @@ set_target_properties(aether_c_fortran PROPERTIES
     Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules"
     FOLDER bindings/c)
 target_include_directories(aether_c_fortran PRIVATE $<TARGET_PROPERTY:aether_obj,Fortran_MODULE_DIRECTORY>)
-add_library(aether_c SHARED ${C_C_LIB_SRCS} ${C_LIB_HDRS}) #  Aether to be replaced with whatever the final name of the code is
+add_library(aether_c SHARED ${C_C_LIB_SRCS} ${C_LIB_HDRS} $<TARGET_OBJECTS:aether_superlu_obj>)
 set_target_properties(aether_c PROPERTIES
     FOLDER bindings/c
     C_VISIBILITY_PRESET hidden
@@ -74,7 +74,7 @@ set_target_properties(aether_c PROPERTIES
 if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     set_source_files_properties(${C_FORTRAN_LIB_SRCS} PROPERTIES COMPILE_FLAGS -cpp)
 endif ()
-target_link_libraries(aether_c PUBLIC aether_c_fortran)
+target_link_libraries(aether_c PUBLIC aether_c_fortran superlu)
 
 add_custom_target(cbindings ALL)
 add_dependencies(cbindings aether_c)
