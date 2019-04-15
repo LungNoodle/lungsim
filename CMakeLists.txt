@@ -3,6 +3,12 @@
 cmake_minimum_required(VERSION 3.2)
 project(Aether VERSION 0.1.0 LANGUAGES Fortran C CXX)
 
+# Policy settings
+
+if (POLICY CMP0078)
+  cmake_policy(SET CMP0078 OLD)
+endif ()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Required for creating documentation from restructured text files
