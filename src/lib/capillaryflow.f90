@@ -752,6 +752,9 @@ end subroutine populate_matrix_ladder
     C=area_new/(4.d0*cap_param%mu_c*cap_param%K_cap*cap_param%f_cap*L_new**2*alpha_c)
 
     !###  Determine what zone we are in and calculate flow and TT
+
+
+
     IF((P_a-cap_param%Palv).LT.cap_param%Plb_c)THEN
        !...   ZONE 1:
        !...   Arteriole and venous pressure both less than alveolar pressure - the
@@ -761,6 +764,12 @@ end subroutine populate_matrix_ladder
        Hven=0.d0
        Q_c=0.d0
        RBC_tt=0.d0 !TEMPORARY
+
+
+
+
+
+
     ELSEIF((P_a-cap_param%Palv).LE.cap_param%Pub_c.AND.(P_v-cap_param%Palv).LE.cap_param%Plb_c)THEN
        !...    ZONE 2:
        zone=2
@@ -799,6 +808,9 @@ end subroutine populate_matrix_ladder
             (Hmax_art**3.d0-Hven**3.d0))
     ELSEIF((P_a-cap_param%Palv).GT.cap_param%Pub_c.AND.(P_v-cap_param%Palv).GT.cap_param%Pub_c)THEN
        zone=4 !!!tmp should = 3
+write(*,*) 'parameters are: ', P_a , cap_param%Palv, cap_param%Pub_c, P_v, cap_param%Plb_c
+
+pause
        Hart=Hmax_art
        Hven=Hmax_ven
        Q_c=4.d0*C*alpha_c*Hart**3.d0*(P_a-P_v)

@@ -790,7 +790,7 @@ contains
   ! tree into a closed surface.
   !
   subroutine grow_tree(parent_ne,surface_elems,angle_max,angle_min,&
-       branch_fraction,length_limit,shortest_length,rotation_limit)
+       branch_fraction,length_limit,shortest_length,rotation_limit,to_export,filename)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
 
     use diagnostics, only: enter_exit
@@ -804,6 +804,8 @@ contains
     real(dp),intent(in) :: length_limit             ! minimum length of a generated branch (shorter == terminal)
     real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
     real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
+    logical,intent(in) :: to_export                 ! option to export terminal element mapping to datapoints
+    character(len=*),intent(in) :: filename
 
     !Local variables
     integer,allocatable :: local_parent(:)          ! stores current generation of local parent elements 
@@ -812,6 +814,7 @@ contains
     integer,allocatable :: map_seed_to_space(:)     ! records initial elem associated w. data points (the 'space')
     integer,allocatable :: num_seeds_from_elem(:)   ! records # of seeds currently grouped with an elem
     integer,allocatable :: triangle(:,:)
+    character(len=100) :: writefile
 
     integer :: i,j,kount,M,N,nd,nd_min,ne,ne_grnd_parent,ne_parent,ne_stem,&
          noelem_parent,np,np_start,np_prnt_start,np_grnd_start,num_seeds_in_space,num_next_parents, &
@@ -829,6 +832,15 @@ contains
 
     sub_name = 'grow_tree'
     call enter_exit(sub_name,1)
+
+
+    if(to_export)then
+       !!! export vertices as nodes
+       writefile = trim(filename)//'.txt'
+       open(40, file = writefile, status='replace')
+       write(40,'('' Data point number          Terminal element number'')')
+       
+
 
     call triangles_from_surface(num_triangles,num_vertices,surface_elems,triangle,vertex_xyz)
 
@@ -855,6 +867,7 @@ contains
     NUM_SEEDS_FROM_ELEM = 0
     num_next_parents = num_parents
     
+
 !!! Calculate the initial grouping of data points with terminal elements
 !!! this defines the 'space' with which each seed is associated
 !!! For a single parent, all seed points will initially be mapped to
@@ -880,6 +893,12 @@ contains
 !!! growing is done into 'spaces', where each 'space' is the initial grouping of seed
 !!! points with the closest terminal branch. This grouping can be manipulated to take into account
 !!! the size of the initial terminal branches. e.g. smaller diameter --> smaller set of seeds
+
+    if(to_export)then
+      !!! export vertices as nodes
+      writefile = trim(filename)//'.txt'
+      open(10, file = writefile, status='replace')
+      write(10,'('' Data point number          Terminal element number'')')
     do noelem_parent = 1,num_parents
        ne_stem = parentlist(noelem_parent) ! the 'stem' parent element for the 'space'
        map_seed_to_elem = 0 ! initialise the seed mapping array
@@ -931,7 +950,7 @@ contains
                    call branch_to_cofm(map_seed_to_elem,ne,np_start,&
                         COFM,branch_fraction,length_limit,length_parent,shortest_length,&
                         candidate_xyz,make_branch)
-                   node_xyz(1:3,np) = candidate_xyz(1:3) ! the new node location is as returned by 'branch_to_cofm'
+                   node_xyz(1:3,np) = candidate_xyz(1:3) ! the new node location is as returned by 'branch_to_cofm' 
                    call calc_branch_direction(ne) ! calculate direction of the new branch
                    elem_field(ne_length,ne) = distance_between_points(node_xyz(1,np_start),node_xyz(1,np))
                    ! Check whether this is a new parent branch or a terminal branch
@@ -978,8 +997,14 @@ contains
                          local_parent_temp(num_next_parents) = 0
                          num_next_parents = num_next_parents-1 ! decrement the number of next parents
                          num_terminal = num_terminal+1
-                         nd_min = closest_seed_to_node_in_group(map_seed_to_elem,ne,np) ! closest seed point
+                         nd_min = closest_seed_to_node_in_group(map_seed_to_elem,ne,np) ! closest seed point                         
                          map_seed_to_elem(nd_min) = 0 ! remove seed point from list
+                         map_seed_to_space(nd_min) = ne ! recording element number
+
+                         if(to_export) then
+                         write(40,*) nd_min,ne
+                         endif
+
                       endif
                    endif !.not.internal
 
@@ -1019,6 +1044,11 @@ contains
                          num_terminal = num_terminal+1
                          nd_min = closest_seed_to_node_in_group(map_seed_to_elem,ne-1,np-1) ! closest seed point
                          map_seed_to_elem(nd_min) = 0 ! remove seed point from list
+                         map_seed_to_space(nd_min) = ne ! recording element number
+
+                         if(to_export) then
+                         write(40,*) nd_min,ne
+                         endif
                       endif
                    endif ! .not.internal
 
@@ -1051,11 +1081,15 @@ contains
           ! Regroup the seed points with the closest current parent 
           call group_seeds_with_branch(map_seed_to_elem,num_next_parents,num_seeds_from_elem,&
                num_terminal,local_parent,DISTANCE_LIMIT,.FALSE.)
+
        enddo ! while still parent branches
 
        write(*,'(I7,I8,I9)') ne_parent,num_seeds_in_space,num_terminal
 
     enddo ! for each initial parent
+    endif
+    close(40)
+   
     
 !!! set new total numbers of nodes and elements
     num_nodes=np !highest node # in nr
@@ -1075,7 +1109,7 @@ contains
     deallocate(num_seeds_from_elem)
     
     call enter_exit(sub_name,2)
-
+endif
   end subroutine grow_tree
 
   

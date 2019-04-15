@@ -1303,7 +1303,7 @@ contains
       if(to_export)then
          !!! export vertices as nodes
          writefile = trim(filename)//'.exnode'
-         open(10, file = writefile, status='replace')
+         open(10, file = writefile)
          !**    write the group name
          write(10,'( '' Group name: '',A)') trim(groupname)
          !*** Exporting Geometry
@@ -2279,6 +2279,8 @@ contains
         parentlist(num_parents)=ne
      endif !elem_cnct
    enddo !noelem
+
+   !write(*,*) 'elems', parentlist
 
    deallocate(templist)
 
