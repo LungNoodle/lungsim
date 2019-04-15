@@ -21,9 +21,232 @@ module capillaryflow
 
   !Interfaces
   private
-  public cap_flow_ladder,cap_flow_admit
+  public cap_flow_ladder,cap_flow_admit,calc_cap_imped
   
 contains
+
+!
+!################################################################
+!
+
+subroutine calc_cap_imped(ha,hv,omega)
+! Calculating the impedance through this subroutine. Callable through Python. Bindings created.
+! Used by wave transmission model to solve the time dependent capillary sheet impedance.
+!    Inputs:
+!           1- ha: Non-dimentional sheet height at arterial side of the capillary
+!           2- hv: Non-dimentional sheet height at venous side of the capillary
+!           3- omega: Dimensionless oscillatory frequency
+!    Output:
+!           1- As of now it will print out the constants from Fung's paper (Pulmonary microvascular impedance-1972) 
+
+implicit none
+
+
+INCLUDE 'slu_cdefs.h'
+! Parameters:
+real(8), intent(in) :: ha,hv,omega
+
+! Local Variables:
+integer ( kind = 8 ), parameter :: N_nodes = 25
+integer ( kind = 8 ) n,ldb
+integer ( kind = 4 ) iopt, info
+real(8),  allocatable :: sparseval(:)
+integer(8), allocatable :: sparsecol(:), sparserow(:)
+real(8) :: stiff1(2*N_nodes+2,2*N_nodes+2), stiff2(2*N_nodes+2,2*N_nodes+2)
+real(8) :: RHS1(2*N_nodes+2), RHS2(2*N_nodes+2)
+integer ( kind = 8 ) nrhs
+real ( kind = 8 ) b(2*N_nodes+2)
+integer ( kind = 4 ) i
+integer ( kind = 4 ) factors(8)
+integer(8) :: NonZeros
+
+n = N_Nodes*2 + 2
+do i=1,n  !initialising the answer
+   b(i)= 1.0E+00
+end do
+call matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
+call sparsel(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
+!
+!  Factor the matrix.
+!
+  iopt = 1
+  call c_fortran_cgssv ( iopt, n, NonZeros, nrhs, sparseval, sparsecol, &
+    sparserow, b, ldb, factors, info )
+
+  if ( info /= 0 ) then
+    write ( *, '(a)' ) ' '
+    write ( *, '(a)' ) '  Factorization failed'
+    write ( *, '(a,i4)' ) '  INFO = ', info
+    stop 1
+  end if
+
+  write ( *, '(a)' ) '  Factorization succeeded.'
+!
+!  Solve the factored system.
+!
+  !iopt = 2
+  !call c_fortran_cgssv ( iopt, n, ncc, nrhs, acc, icc, &
+   ! ccc, b, ldb, factors, info )
+
+!  if ( info /= 0 ) then
+ !   write ( *, '(a)' ) ' '
+  !  write ( *, '(a)' ) 'C_SAMPLE - Fatal error!'
+   ! write ( *, '(a)' ) '  Backsolve failed'
+    !write ( *, '(a,i4)' ) '  INFO = ', info
+    !stop 1
+  !end if
+
+  !write ( *, '(a)' ) ' '
+  !write ( *, '(a)' ) '  Computed solution:'
+  !write ( *, '(a)' ) ' '
+  !do i = 1, n
+  !  write ( *, '(2x,g14.6,2x,g14.6)' ) b(i)
+  !end do
+
+
+end subroutine calc_cap_imped
+!
+!###################################################################################
+!
+
+subroutine matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
+implicit none
+
+! Parameters:
+integer(8), intent(in) :: N_nodes
+real(8), intent(in) :: ha,hv,omega
+real(8), intent(out) :: stiff1(2*N_nodes+2,2*N_nodes+2), stiff2(2*N_nodes+2,2*N_nodes+2) ! matrix to solve for capillary sheet
+real(8), intent(out) :: RHS1(2*N_nodes+2), RHS2(2*N_nodes+2)
+
+! Local Variables
+real(8) :: rep
+real(8) :: dx
+real(8) :: x(N_nodes+1), h(N_nodes+1)
+integer(8) :: i ! Matrix row
+
+stiff1 = 0 !!! initialise stiff1 matrix
+stiff2 = 0 !!! initialise stiff2 matrix
+RHS1 = 0 !!! initialise RHS matrix
+rep = ha**4 - hv**4
+dx = 1.0/(N_nodes - 1.0)  !!! defining delta(x) interval
+
+
+do i=1,N_nodes+1
+    x(i)=(i-1.0)/(N_nodes-1.0)
+    h(i)=(ha**4 - rep*x(i))**(0.75)
+enddo  !!! x and h^3 array created for x values
+
+    do i = 1,N_nodes+1 !Creating the first stiffness matrix for first fundamental solution + Right hand side
+              if (i .eq. N_nodes+1) then
+                            stiff1(i,i) = h(i) / (2*dx)
+                            stiff1(i, i-2) = -h(i-2) / (2*dx)
+                            stiff1(i+N_nodes+1,i+N_nodes+1) = h(i)
+                            stiff1(i+N_nodes+1,i+N_nodes-1) = -h(i-2)
+                            RHS1(i) = -1.0
+              else if (i .eq. N_nodes) then
+                            stiff1(i,i) = 1.0
+                            stiff1(i+N_nodes+1,i+N_nodes+1) = 1.0
+              else
+                            stiff1(i,i+2) = h(i+2) / (dx**2)
+                            stiff1(i,i+1) = -2.0*h(i+1) / (dx**2)
+                            stiff1(i,i) = h(i) / (dx**2)
+                            stiff1(i+N_nodes+1,i+N_nodes+3) = h(i+2) / (dx**2)
+                            stiff1(i+N_nodes+1,i+N_nodes+2) = -2.0*h(i+1) / (dx**2)
+                            stiff1(i+N_nodes+1,i+N_nodes+1) = h(i) / (dx**2)
+                            stiff1(i,N_nodes+i+1) = omega
+                            stiff1(i+N_nodes+1,i) = -1.0 * omega
+              end if
+    enddo ! End loop for stiff1
+ 
+ RHS2 = 0 !!! Reseting right hand side for the next stiffness matrix
+ x = 0 !!! Reseting x array for the next stiffness matrix
+ h = 0 !!! Reseting h^3 values for the next stiffness matrix
+ 
+ do i=0,N_nodes
+    x(i+1)=(i-1.0)/(N_nodes-1.0)
+    h(i+1)=(ha**4 - rep*x(i+1))**(0.75)
+enddo  !!! x and h^3 array created for x values
+
+
+    do i=1,N_nodes+1
+            if (i .eq. 1) then
+               stiff2(i,i) = -1.0* h(i) / (2*dx)
+               stiff2(i,i+2) = h(i+2) / (2*dx)
+               stiff2(i+N_nodes+1,i+N_nodes+1) = -1.0 * h(i)
+               stiff2(i+N_nodes+1,i+N_nodes+3) = h(i+2)
+               RHS2(i) = -1.0
+            else if (i .eq. 2) then
+               stiff2(i,i) = 1.0
+               stiff2(i+N_nodes+1,i+N_nodes+1) = 1.0
+            else
+               stiff2(i,i-2) = h(i-2) / (dx**2)
+               stiff2(i,i-1) = -2.0*h(i-1) / (dx**2)
+               stiff2(i,i) = h(i) / (dx**2)
+               stiff2(i+N_nodes+1,i+N_nodes-1) = h(i-2) / (dx**2)
+               stiff2(i+N_nodes+1,i+N_nodes) = -2.0*h(i-1) / (dx**2)
+               stiff2(i+N_nodes+1,i+N_nodes+1) = h(i) / (dx**2)
+               stiff2(i,N_nodes+i+1) = omega
+               stiff2(i+N_nodes+1,i) = -1.0 * omega
+            end if
+    enddo
+    
+    end subroutine matrix
+
+!
+!###################################################################################
+!
+
+subroutine sparsel(k,nn,sparsecol,sparserow,sparseval,NonZeros)
+! This subroutine forms the sparse representation of matrix K with compressed row storage
+
+implicit none
+
+real(8),  intent(in):: k(2*nn+2,2*nn+2)
+real(8),  allocatable, intent(out) :: sparseval(:)
+integer(8), allocatable, intent(out) :: sparsecol(:), sparserow(:)
+integer(8), intent(in) :: nn
+integer(8), intent(out) :: NonZeros
+integer(8) :: i, j, counter
+allocate(sparserow(2*nn+3))
+NonZeros = 0
+!~ sparsecol = 0
+sparserow = 1
+do i = 1,2*nn+2 !going through columns of k
+     do j = 1,2*nn+2 !going through rows of k
+          if (k(i,j) .NE. 0.0) then
+          NonZeros = NonZeros + 1
+          end if         
+     enddo
+ enddo
+ write(*,*) 'Number of NonZero components in stiffness matrix: ' , NonZeros
+ allocate(sparsecol(NonZeros))
+ allocate(sparseval(NonZeros))
+ 
+ sparsecol = 0
+ sparseval = 0
+ 
+ counter=0
+ do i = 1,2*nn+2 !going through columns of k
+     do j = 1,2*nn+2 !going through rows of k
+          if (k(i,j).NE.0) then
+            counter = counter + 1
+            sparseval(counter)=k(i,j)
+            sparsecol(counter)=j
+          end if
+     enddo ! do j
+     if (counter.EQ.0.0) then
+         sparserow(i+1) = 0
+    else
+        sparserow(i+1) = counter + 1
+     end if
+ enddo ! do i
+ !write(*,*) 'sparserow= ',sparserow
+ !write(*,*) 'sparseval= ',sparseval
+ !write(*,*) 'sparsecol= ', sparsecol
+ 
+end subroutine sparsel
+
+
 !
 !###################################################################################
 !
