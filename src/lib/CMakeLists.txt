@@ -1,3 +1,4 @@
+project(aether Fortran C)
 
 # The list of all source files that are required to build the library
 set(LIB_SRCS
@@ -21,7 +22,6 @@ set(LIB_SRCS
   species_transport.f90
   ventilation.f90
   wave_transmission.f90
-
 )
 
 set(AETHER_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules")
@@ -33,6 +33,7 @@ set_target_properties(aether_obj PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 if (MSVC)
+  target_compile_options(aether_obj PRIVATE /heap-arrays0)
   # Visual Studio requires a dummy file as it will not build a library from only objects.
   set(dummy_file "${CMAKE_CURRENT_BINARY_DIR}/dummy.f90")
   file(WRITE ${dummy_file} "module dummy
@@ -55,3 +56,9 @@ install(TARGETS aether
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
+
+# Our version for FindSuperLU creates an imported target for us to use.
+find_package(SuperLU)
+
+target_link_libraries(aether PUBLIC superlu)
+

@@ -24,7 +24,7 @@ contains
 !###################################################################################
 !
 !*evaluate_PRQ:* Solves for pressure and flow in a rigid or compliant tree structure
-  subroutine evaluate_prq(mesh_type,grav_dirn,grav_factor,bc_type,inlet_bc,outlet_bc)
+  subroutine evaluate_prq(mesh_type,vessel_type,grav_dirn,grav_factor,bc_type,inlet_bc,outlet_bc)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_PRQ" :: EVALUATE_PRQ
     use indices
     use capillaryflow,only: cap_flow_ladder
@@ -72,7 +72,6 @@ contains
     !pressure (at inlet and outlets)
     !flow (flow at inlet pressure at outlet).
 
-vessel_type='elastic_g0_beta'
 
 mechanics_type='linear'
 
@@ -313,6 +312,8 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     call map_flow_to_terminals
     !EXPORT LADDER SOLUTION
     if(mesh_type.eq.'full_plus_ladder')then
+      open(10, file='micro_flow_ladder.out', status='replace')
+      open(20, file='micro_flow_unit.out', status='replace')
       do ne=1,num_elems
         if(elem_field(ne_group,ne).eq.1.0_dp)then!(elem_field(ne_group,ne)-1.0_dp).lt.TOLERANCE)then
           ne0=elem_cnct(-1,1,ne)!upstream element number
@@ -333,6 +334,8 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
             .TRUE.)
         endif
       enddo
+      close(10)
+      close(20)
     endif
 
     deallocate (mesh_from_depvar, STAT = AllocateStatus)
@@ -618,7 +621,7 @@ subroutine initialise_solution(pressure_in,pressure_out,cardiac_output,mesh_dof,
 !local variables
     integer :: nn,ne,np,n_depvar
     character(len=60) :: sub_name
-   sub_name = 'intialise_solution'
+    sub_name = 'intialise_solution'
     call enter_exit(sub_name,1)
     do ne=1,num_elems
        !ne=elems(noelem)

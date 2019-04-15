@@ -84,6 +84,8 @@ contains
 
     character(len=60) :: sub_name
 
+    sub_name = 'define_problem_type'
+    call enter_exit(sub_name,1)
     select case (PROBLEM_TYPE)
       case ('gas_exchange')
         print *, 'You are solving a gas exchange model, setting up indices'

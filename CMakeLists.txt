@@ -33,7 +33,7 @@ if (NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE ${AETHER_BUILD_TYPE} CACHE INTERNAL "Internalise CMAKE_BUILD_TYPE, manipulate via AETHER_BUILD_TYPE" FORCE)
 endif()
 
-# Set whether to build bindgins or not, may require SWIG
+# Set whether to build bindings or not, may require SWIG
 option(AETHER_BUILD_BINDINGS "Build bindings for ${PROJECT}, may require SWIG" YES)
 
 # Set base install location
@@ -58,6 +58,7 @@ enable_testing()
 # All the tests for the library are located under this directory.
 add_subdirectory(tests)
 
+# If Sphinx was found we can add some targets for building the documentation.
 set(ADDITIONAL_GENERATED_FILES)
 if(SPHINX_FOUND)
   if(NOT DEFINED SPHINX_THEME)
@@ -77,6 +78,7 @@ if(SPHINX_FOUND)
   # Sphinx source directory
   set(SPHINX_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/documentation")
 
+  # Add a target 'docs' that will build the documentation inside the build directory on the local computer.
   add_custom_target(docs
     ${SPHINX_EXECUTABLE}
       -q -b html
@@ -86,9 +88,9 @@ if(SPHINX_FOUND)
     WORKING_DIRECTORY "${SPHINX_SOURCE_DIR}"
     COMMENT "Building HTML documentation with Sphinx")
 
+  # Remove Sphinx generated files when the 'clean' target is used.
   list(APPEND ADDITIONAL_GENERATED_FILES html _doctrees)
 
 endif()
 
 set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "${ADDITIONAL_GENERATED_FILES}")
-

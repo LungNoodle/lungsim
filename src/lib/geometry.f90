@@ -9,6 +9,7 @@ module geometry
 !
 !This module handles all geometry read/write/generation.
   use other_consts
+  !use mesh_functions
   implicit none
 
   !Module parameters
@@ -33,15 +34,17 @@ module geometry
   public define_rad_from_geom
   public element_connectivity_1d
   public element_connectivity_2d
+  public inlist
   public evaluate_ordering
   public get_final_real
   public get_local_node_f
-  public inlist
   public make_data_grid
   public reallocate_node_elem_arrays
   public set_initial_volume
   public triangles_from_surface
   public volume_of_mesh
+  public get_final_integer
+  public get_four_nodes
 
 contains
 !
@@ -271,7 +274,7 @@ contains
         if(.NOT.REVERSE)then
           elem_nodes(1,ne)=np_map(elem_nodes(1,ne_m))
           elem_nodes(2,ne)=np_map(elem_nodes(2,ne_m))
-          elem_cnct(1,0,ne)=elem_cnct(1,0,ne_m)
+          elem_cnct(1,0,ne)=elem_cnct(1,0,ne_m)!The numberdownstream are the number downstream
           elem_cnct(-1,0,ne)=elem_cnct(-1,0,ne_m)
           do n=1,elem_cnct(1,0,ne)
             elem_cnct(1,n,ne)=elem_cnct(1,n,ne_m)+ne0
@@ -282,13 +285,13 @@ contains
         else
           elem_nodes(1,ne)=np_map(elem_nodes(2,ne_m))
           elem_nodes(2,ne)=np_map(elem_nodes(1,ne_m))
-          elem_cnct(-1,0,ne)=elem_cnct(1,0,ne_m)
-          elem_cnct(1,0,ne)=elem_cnct(-1,0,ne_m)
+          elem_cnct(-1,0,ne)=elem_cnct(1,0,ne_m) !The number upstream are the number downstream
+          elem_cnct(1,0,ne)=elem_cnct(-1,0,ne_m)!The number downstream are the number upstream
           do n=1,elem_cnct(1,0,ne)
-            elem_cnct(-1,n,ne)=elem_cnct(1,n,ne_m)+ne0
+            elem_cnct(1,n,ne)=elem_cnct(-1,n,ne_m)+ne0
           enddo
           do n=1,elem_cnct(-1,0,ne)
-            elem_cnct(1,n,ne)=elem_cnct(-1,n,ne_m)+ne0
+            elem_cnct(-1,n,ne)=elem_cnct(1,n,ne_m)+ne0
           enddo
         endif
         !if worrying about regions and versions do it here
@@ -534,6 +537,7 @@ contains
 !!!##################################################
 
   subroutine define_elem_geometry_2d(ELEMFILE,sf_option)
+      !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_ELEM_GEOMETRY_2D" :: DEFINE_ELEM_GEOMETRY_2D
 
     ! Reads in 2D ipelem file.
 
@@ -612,9 +616,8 @@ contains
     
   end subroutine define_elem_geometry_2d
 
-!
-!###################################################################################
-!
+!!!###############################################################
+
 !*define_mesh_geometry_test:*
   subroutine define_mesh_geometry_test()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_MESH_GEOMETRY_TEST" :: DEFINE_MESH_GEOMETRY_TEST
@@ -878,6 +881,7 @@ contains
 !!!##################################################
 
   subroutine define_node_geometry_2d(NODEFILE)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY_2D" :: DEFINE_NODE_GEOMETRY_2D
   
   !*define_node_geometry_2d:* Reads in an ipnode file to define surface nodes
     use arrays,only: dp,nodes_2d,node_field,node_xyz_2d,num_nodes_2d,node_versn_2d
@@ -895,7 +899,6 @@ contains
     
     call enter_exit(sub_name,1)
 
-
     open(10, file=nodefile, status='old')
 
     !.....read in the total number of nodes. read each line until one is found
@@ -910,6 +913,7 @@ contains
     end do read_number_of_nodes
 
     !write(*,*) 'Number of nodes are:',num_nodes_2d
+
 !!!allocate memory to arrays that require node number
     if(.not.allocated(nodes_2d)) allocate(nodes_2d(num_nodes_2d))
     if(.not.allocated(node_xyz_2d)) allocate(node_xyz_2d(4,10,16,num_nodes_2d))
@@ -975,6 +979,8 @@ contains
 !!!##################################################
 
   subroutine define_data_geometry(datafile)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_DATA_GEOMETRY" :: DEFINE_DATA_GEOMETRY
+
 
 !!! read data points from a file
     
@@ -1061,8 +1067,7 @@ contains
     call enter_exit(sub_name,2)
 
   end subroutine define_data_geometry
-
-! 
+!
 !###################################################################################
 ! 
   subroutine triangles_from_surface(num_triangles,num_vertices,surface_elems,triangle,vertex_xyz)
@@ -1199,6 +1204,7 @@ contains
 !###################################################################################
 ! 
   subroutine make_data_grid(surface_elems,spacing,to_export,filename,groupname)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_MAKE_DATA_GRID" :: MAKE_DATA_GRID
 
      use arrays,only: dp,data_xyz,data_weight,num_data
      use mesh_utilities,only: volume_internal_to_surface,point_internal_to_surface
@@ -1327,9 +1333,9 @@ contains
       !!! export the triangles as surface elements
       writefile = trim(filename)//'.exelem'
       open(10, file=writefile, status='replace')
-      !**     write the group name
+      !**     write the group name
       write(10,'( '' Group name: '',a10)') groupname
-      !**     write the lines
+      !**     write the lines
       write(10,'( '' Shape. Dimension=1'' )')
       nline=0
       do ne = 1,num_triangles
@@ -1349,7 +1355,7 @@ contains
 
       do nj=1,3
         if(nj==1) char1='x'; if(nj==2) char1='y'; if(nj==3) char1='z';
-        write(10,'(''  '',A2,''. l.Lagrange*l.Lagrange, no modify, standard node based.'')') char1
+        write(10,'(''  '',A2,''. l.Lagrange*l.Lagrange, no modify, standard node based.'')') char1
         write(10,'( ''   #Nodes=4'')')
         do nn=1,4
           write(10,'(''   '',I1,''. #Values=1'')') nn
@@ -1522,7 +1528,7 @@ contains
   subroutine define_rad_from_geom(ORDER_SYSTEM, CONTROL_PARAM, START_FROM, START_RAD, group_type_in, group_option_in)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_GEOM" :: DEFINE_RAD_FROM_GEOM
     use arrays,only: dp,num_elems,elem_field,elem_ordrs,maxgen,elem_cnct
-    use indices
+    use indices,only: ne_radius, ne_radius_in, ne_radius_out, no_sord, no_hord
     use diagnostics, only: enter_exit
     implicit none
    character(LEN=100), intent(in) :: ORDER_SYSTEM,START_FROM
@@ -1571,7 +1577,7 @@ contains
 
     !Strahler and Horsfield ordering system
     if(ORDER_SYSTEM(1:5).EQ.'strah')THEN
-      nindex=no_sord !for Strahler ordering
+      nindex = no_sord !for Strahler ordering
     else if(ORDER_SYSTEM(1:5).eq.'horsf')then
       nindex = no_hord !for Horsfield ordering
     endif
@@ -1936,9 +1942,10 @@ contains
     use arrays,only: elem_cnct,elem_nodes,elem_ordrs,elem_symmetry,&
          elems_at_node,num_elems,num_nodes,maxgen
     use diagnostics, only: enter_exit
+    use indices, only: num_ord
     implicit none
 
-    integer :: INLETS,ne,ne0,ne2,noelem2,np,np2, &
+    integer :: INLETS,ne,ne0,ne2,noelem2,np,np2,nn, &
          num_attach,n_children,n_generation, &
          n_horsfield,OUTLETS,STRAHLER,STRAHLER_ADD,temp1
     LOGICAL :: DISCONNECT,DUPLICATE
@@ -1948,6 +1955,13 @@ contains
 
     !Calculate generations, Horsfield orders, Strahler orders
     !.....Calculate branch generations
+
+    ! Initialise memory to zero.
+    do nn=1,num_ord
+      do ne=1,num_elems
+        elem_ordrs(nn,ne) = 0
+      enddo
+    enddo
 
     maxgen=1
     DO ne=1,num_elems
@@ -1979,7 +1993,9 @@ contains
           DO noelem2=1,n_children !for all daughters
              ne2=elem_cnct(1,noelem2,ne) !global element # of daughter
              temp1=elem_ordrs(2,ne2) !Horsfield order of daughter
-             IF(temp1.GT.n_horsfield) n_horsfield=temp1
+             IF(temp1.GT.n_horsfield)then
+               n_horsfield=temp1
+             endif
              IF(elem_ordrs(3,ne2).LT.STRAHLER)THEN
                 STRAHLER_ADD=0
              ELSE IF(elem_ordrs(3,ne2).GT.STRAHLER)THEN
@@ -1991,6 +2007,7 @@ contains
        ELSE IF(n_children.EQ.1)THEN
           ne2=elem_cnct(1,1,ne) !local element # of daughter
           n_horsfield=elem_ordrs(2,ne2)+(elem_symmetry(ne)-1)
+
           STRAHLER_ADD=elem_ordrs(3,ne2)+(elem_symmetry(ne)-1)
        ENDIF !elem_cnct
        elem_ordrs(2,ne)=n_horsfield !store the Horsfield order
@@ -2095,9 +2112,9 @@ contains
        unit_field(nu_vol,nunit) = unit_field(nu_vol,nunit)*factor_adjust
     enddo
 
-    write(*,'('' Number of elements is'',I5)') num_elems
-    write(*,'('' Initial volume is'',F6.2,'' L'')') total_volume/1.0e+6_dp
-    write(*,'('' Deadspace volume is'',F6.1,'' mL'')') volume_of_tree/1.0e+3_dp
+    write(*,'('' Number of elements is '',I5)') num_elems
+    write(*,'('' Initial volume is '',F6.2,'' L'')') total_volume/1.0e+6_dp
+    write(*,'('' Deadspace volume is '',F6.1,'' mL'')') volume_of_tree/1.0e+3_dp
 
     call enter_exit(sub_name,2)
 
@@ -2248,6 +2265,7 @@ contains
 !
 !*group_elem_parent_term*
    subroutine group_elem_parent_term(ne_parent)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_ELEM_PARENT_TERM" :: GROUP_ELEM_PARENT_TERM
 
    use arrays,only: parentlist,num_elems,elem_cnct
    use diagnostics,only: enter_exit
@@ -2523,9 +2541,10 @@ contains
 
     end select
 
+
   end function get_local_node_f
 
-!
+
 !###################################################################################
 !
 !*get_final_integer*
@@ -2555,6 +2574,7 @@ contains
   end subroutine get_final_integer
 
 
+
 !!!##################################################
 
   subroutine get_four_nodes(ne,string)
@@ -2565,6 +2585,7 @@ contains
     integer :: ibeg,iend,i_ss_end,nn,np_global
     character(len=40) :: sub_string
     
+
     iend=len(string)
     ibeg=index(string,":")+1 !get location of first integer in string
     sub_string = adjustl(string(ibeg:iend)) ! get the characters beyond : and remove the leading blanks
@@ -2581,6 +2602,7 @@ contains
   end subroutine get_four_nodes
 
 ! 
+
 ! ##########################################################################      
 ! 
 
