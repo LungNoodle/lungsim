@@ -45,7 +45,12 @@ set_target_properties(aether_obj PROPERTIES
 # Create an object library for the SuperLU C Fortran cgssv file.
 add_library(aether_superlu_obj OBJECT c_fortran_cgssv.c)
 # Our object library only needs the include directory information carried by the 'superlu' target
-target_link_libraries(aether_superlu_obj PRIVATE superlu)
+if (CMAKE_VERSION VERSION_LESS "3.12")
+  target_include_directories(aether_superlu_obj PRIVATE $<TARGET_PROPERTY:superlu,INTERFACE_INCLUDE_DIRECTORIES>)
+else ()
+  target_link_libraries(aether_superlu_obj PRIVATE superlu)
+endif ()
+set_property(TARGET aether_superlu_obj PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 # Create the aether library from the object libraries.
 add_library(aether $<TARGET_OBJECTS:aether_obj> $<TARGET_OBJECTS:aether_superlu_obj> ${dummy_file})

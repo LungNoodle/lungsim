@@ -134,7 +134,7 @@ if(SUPERLU_FOUND)
 
     add_library(superlu UNKNOWN IMPORTED)
     if (TARGET blas)
-      target_link_libraries(superlu INTERFACE blas)
+      append_link_library(superlu blas)
     endif ()
     set_target_properties(superlu PROPERTIES
       IMPORTED_LOCATION_${_CURRENT_BUILD_TYPE} ${_FIRST_LIB}
