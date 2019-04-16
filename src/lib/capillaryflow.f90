@@ -41,8 +41,6 @@ subroutine calc_cap_imped(ha,hv,omega)
 
 implicit none
 
-
-INCLUDE 'slu_cdefs.h'
 ! Parameters:
 real(8), intent(in) :: ha,hv,omega
 
@@ -1033,7 +1031,6 @@ end subroutine populate_matrix_ladder
        zone=4 !!!tmp should = 3
 write(*,*) 'parameters are: ', P_a , cap_param%Palv, cap_param%Pub_c, P_v, cap_param%Plb_c
 
-pause
        Hart=Hmax_art
        Hven=Hmax_ven
        Q_c=4.d0*C*alpha_c*Hart**3.d0*(P_a-P_v)

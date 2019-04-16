@@ -1,6 +1,7 @@
 
 # Umfpack lib usually requires linking to a blas library.
-# It is up to the user of this module to find a BLAS and link to it.
+
+find_package(BLAS)
 
 if (SUPERLU_INCLUDES AND SUPERLU_LIBRARIES)
   set(SUPERLU_FIND_QUIETLY TRUE)
@@ -132,6 +133,9 @@ if(SUPERLU_FOUND)
     endif()
 
     add_library(superlu UNKNOWN IMPORTED)
+    if (TARGET blas)
+      target_link_libraries(superlu INTERFACE blas)
+    endif ()
     set_target_properties(superlu PROPERTIES
       IMPORTED_LOCATION_${_CURRENT_BUILD_TYPE} ${_FIRST_LIB}
       IMPORTED_CONFIGURATIONS ${_CURRENT_BUILD_TYPE}
