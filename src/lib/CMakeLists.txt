@@ -42,8 +42,12 @@ set_target_properties(aether_obj PROPERTIES
   Fortran_MODULE_DIRECTORY "${AETHER_MODULE_DIRECTORY}"
   POSITION_INDEPENDENT_CODE TRUE)
 
+set(SUPERLU_FORTRAN_SRCS
+  c_fortran_dgssv.c
+  c_fortran_cgssv.c
+)
 # Create an object library for the SuperLU C Fortran cgssv file.
-add_library(aether_superlu_obj OBJECT c_fortran_cgssv.c)
+add_library(aether_superlu_obj OBJECT ${SUPERLU_FORTRAN_SRCS})
 # Our object library only needs the include directory information carried by the 'superlu' target
 if (CMAKE_VERSION VERSION_LESS "3.12")
   target_include_directories(aether_superlu_obj PRIVATE $<TARGET_PROPERTY:superlu,INTERFACE_INCLUDE_DIRECTORIES>)

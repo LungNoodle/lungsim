@@ -30,7 +30,7 @@ contains
 !
 
 subroutine calc_cap_imped(ha,hv,omega)
-! Calculating the impedance through this subroutine. Callable through Python. Bindings created.
+! Calculating the impedance through this subroutine.
 ! Used by wave transmission model to solve the time dependent capillary sheet impedance.
 !    Inputs:
 !           1- ha: Non-dimentional sheet height at arterial side of the capillary
@@ -39,37 +39,40 @@ subroutine calc_cap_imped(ha,hv,omega)
 !    Output:
 !           1- As of now it will print out the constants from Fung's paper (Pulmonary microvascular impedance-1972) 
 
-implicit none
+
+use arrays, only:dp
 
 ! Parameters:
-real(8), intent(in) :: ha,hv,omega
+real(dp), intent(in) :: ha,hv,omega
 
 ! Local Variables:
-integer ( kind = 8 ), parameter :: N_nodes = 25
-integer ( kind = 8 ) n,ldb
-integer ( kind = 4 ) iopt, info
-real(8),  allocatable :: sparseval(:)
-integer(8), allocatable :: sparsecol(:), sparserow(:)
-real(8) :: stiff1(2*N_nodes+2,2*N_nodes+2), stiff2(2*N_nodes+2,2*N_nodes+2)
-real(8) :: RHS1(2*N_nodes+2), RHS2(2*N_nodes+2)
-integer ( kind = 8 ) nrhs
-real ( kind = 8 ) b(2*N_nodes+2)
-integer ( kind = 4 ) i
-integer ( kind = 4 ) factors(8)
-integer(8) :: NonZeros
+integer, parameter :: N_nodes = 2000
+integer :: n,ldb
+integer :: iopt, info
+real(dp),  allocatable :: sparseval(:)
+integer, allocatable :: sparsecol(:), sparserow(:)
+real(dp) :: stiff1(2*N_nodes+2,2*N_nodes+2), stiff2(2*N_nodes+2,2*N_nodes+2)
+real(dp) :: RHS1(2*N_nodes+2), RHS2(2*N_nodes+2)
+integer :: nrhs
+real(dp) :: b(2*N_nodes+2)
+integer :: i
+integer :: factors(8)
+integer :: NonZeros
 
 n = N_Nodes*2 + 2
-do i=1,n  !initialising the answer
-   b(i)= 1.0E+00
-end do
-call matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
-call sparsel(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
+call Matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
+!call Mat_to_CSR(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
+call Mat_to_CC(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
+ nrhs = 1
+  ldb = n
+
+
 !
 !  Factor the matrix.
 !
   iopt = 1
-  call c_fortran_cgssv ( iopt, n, NonZeros, nrhs, sparseval, sparsecol, &
-    sparserow, b, ldb, factors, info )
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS1, ldb, factors, info )
 
   if ( info /= 0 ) then
     write ( *, '(a)' ) ' '
@@ -77,50 +80,133 @@ call sparsel(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
     write ( *, '(a,i4)' ) '  INFO = ', info
     stop 1
   end if
-
   write ( *, '(a)' ) '  Factorization succeeded.'
+
 !
 !  Solve the factored system.
 !
-  !iopt = 2
-  !call c_fortran_cgssv ( iopt, n, ncc, nrhs, acc, icc, &
-   ! ccc, b, ldb, factors, info )
+  iopt = 2
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS1, ldb, factors, info )
 
-!  if ( info /= 0 ) then
- !   write ( *, '(a)' ) ' '
-  !  write ( *, '(a)' ) 'C_SAMPLE - Fatal error!'
-   ! write ( *, '(a)' ) '  Backsolve failed'
-    !write ( *, '(a,i4)' ) '  INFO = ', info
-    !stop 1
-  !end if
+  if ( info /= 0 ) then
+    write ( *, '(a)' ) ' '
+    write ( *, '(a)' ) 'C_SAMPLE - Fatal error!'
+    write ( *, '(a)' ) '  Backsolve failed'
+    write ( *, '(a,i4)' ) '  INFO = ', info
+    stop 1
+  end if
 
-  !write ( *, '(a)' ) ' '
-  !write ( *, '(a)' ) '  Computed solution:'
-  !write ( *, '(a)' ) ' '
-  !do i = 1, n
-  !  write ( *, '(2x,g14.6,2x,g14.6)' ) b(i)
-  !end do
+  write ( *, '(a)' ) ' '
+  write ( *, '(a)' ) '  Computed solution:'
+  write ( *, '(a)' ) ' '
 
+write (*,*) 'C_1 = ',RHS1(1),'+ i(',RHS1(N_Nodes+2),')'
+
+!
+!  Free memory.
+!
+  iopt = 3
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS1, ldb, factors, info )
+!
+!  Terminate.
+!
+  write ( *, '(a)' ) ' '
+  write ( *, '(a)' ) 'D_SAMPLE:'
+  write ( *, '(a)' ) '  Normal end of execution.'
+  write ( *, '(a)' ) ''
+!  do i = 1, n
+!    write ( *, '(2x,g14.6,2x,g14.6)' ) RHS1(i)
+!  end do
+
+call Mat_to_CC(stiff2,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
+ nrhs = 1
+  ldb = n
+
+!
+!  Factor the matrix.
+!
+  iopt = 1
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS2, ldb, factors, info )
+
+  if ( info /= 0 ) then
+    write ( *, '(a)' ) ' '
+    write ( *, '(a)' ) '  Factorization failed'
+    write ( *, '(a,i4)' ) '  INFO = ', info
+    stop 1
+  end if
+  write ( *, '(a)' ) '  Factorization succeeded.'
+
+!
+!  Solve the factored system.
+!
+  iopt = 2
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS2, ldb, factors, info )
+
+  if ( info /= 0 ) then
+    write ( *, '(a)' ) ' '
+    write ( *, '(a)' ) 'C_SAMPLE - Fatal error!'
+    write ( *, '(a)' ) '  Backsolve failed'
+    write ( *, '(a,i4)' ) '  INFO = ', info
+    stop 1
+  end if
+
+  write ( *, '(a)' ) ' '
+  write ( *, '(a)' ) '  Computed solution:'
+  write ( *, '(a)' ) ' '
+
+write (*,*) 'C_3 = ',RHS2(N_Nodes+1),'+ i(',RHS2(2*N_Nodes+2),')'
+
+!
+!  Free memory.
+!
+  iopt = 3
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS1, ldb, factors, info )
+!
+!  Terminate.
+!
+  write ( *, '(a)' ) ' '
+  write ( *, '(a)' ) 'D_SAMPLE:'
+  write ( *, '(a)' ) '  Normal end of execution.'
+  write ( *, '(a)' ) ''
+
+
+pause
 
 end subroutine calc_cap_imped
 !
 !###################################################################################
 !
 
-subroutine matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
-implicit none
+subroutine Matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
+! This subroutine will create the stiffness matrices and Right hand sides (RHS) for 2 sets of fundamental solutions.
+! These matrices is the output of Finite Difference solution of system of ODEs for capillary sheet heights.
+!Inputs:
+!           1- ha: Non-dimentional sheet height at arterial side of the capillary
+!           2- hv: Non-dimentional sheet height at venous side of the capillary
+!           3- omega: Dimensionless oscillatory frequency
+!           4- N_nodes: The number of nodes in the 1D domain. You can get a better approximation if you increase the number of nodes.
+!Outputs:
+!           1- Stiff1&2: Stiffness matrices based on different sets of fundamental solutions.
+!           2- RHS1&2: Right hand side matrix satisfying the BCs.
+
+use arrays, only:dp
 
 ! Parameters:
-integer(8), intent(in) :: N_nodes
-real(8), intent(in) :: ha,hv,omega
-real(8), intent(out) :: stiff1(2*N_nodes+2,2*N_nodes+2), stiff2(2*N_nodes+2,2*N_nodes+2) ! matrix to solve for capillary sheet
-real(8), intent(out) :: RHS1(2*N_nodes+2), RHS2(2*N_nodes+2)
+integer, intent(in) :: N_nodes
+real(dp), intent(in) :: ha,hv,omega
+real(dp), intent(out) :: stiff1(2*N_nodes+2,2*N_nodes+2), stiff2(2*N_nodes+2,2*N_nodes+2) ! Capillary Sheet Stiffness matrices
+real(dp), intent(out) :: RHS1(2*N_nodes+2), RHS2(2*N_nodes+2)
 
 ! Local Variables
-real(8) :: rep
-real(8) :: dx
-real(8) :: x(N_nodes+1), h(N_nodes+1)
-integer(8) :: i ! Matrix row
+real(dp) :: rep
+real(dp) :: dx
+real(dp) :: x(N_nodes+1), h(N_nodes+1)
+integer :: i ! Matrix row
 
 stiff1 = 0 !!! initialise stiff1 matrix
 stiff2 = 0 !!! initialise stiff2 matrix
@@ -188,27 +274,40 @@ enddo  !!! x and h^3 array created for x values
             end if
     enddo
     
-    end subroutine matrix
+    end subroutine Matrix
 
 !
 !###################################################################################
 !
 
-subroutine sparsel(k,nn,sparsecol,sparserow,sparseval,NonZeros)
-! This subroutine forms the sparse representation of matrix K with compressed row storage
+subroutine Mat_to_CC(k,nn,sparsecol,sparserow,sparseval,NonZeros)
+! This subroutine forms the sparse representation of matrix K in Compressed Column(CC) format.
+! INPUT/OUTPUT(s):
+!                - K ====> Stiffness Matrix for Capillary passed from matrix subroutine. (It should be a square matrix)
+!                - nn ====> Number of Nodes for the 1D capillary domain. Will be hard coded.
+!                - SparseVal ====> An array formed with NonZero values stored in of size(# NonZeros)
+!                - SparseRow ====> An array formed with the Row number of each NonZero in matrix of size(# NonZeros)
+!                - SparseCol ====> An array formed with values to represent row storage. Includes the index numbers of start of each column (Size of array = MatrixSize + 1)
 
-implicit none
 
-real(8),  intent(in):: k(2*nn+2,2*nn+2)
-real(8),  allocatable, intent(out) :: sparseval(:)
-integer(8), allocatable, intent(out) :: sparsecol(:), sparserow(:)
-integer(8), intent(in) :: nn
-integer(8), intent(out) :: NonZeros
-integer(8) :: i, j, counter
-allocate(sparserow(2*nn+3))
-NonZeros = 0
-!~ sparsecol = 0
-sparserow = 1
+
+use arrays, only:dp
+
+!Parameters:
+real(dp),  intent(in):: k(2*nn+2,2*nn+2)
+real(dp),  allocatable, intent(out) :: sparseval(:)
+integer, allocatable, intent(out) :: sparsecol(:), sparserow(:)
+integer, intent(in) :: nn
+integer, intent(out) :: NonZeros
+!Local Variables:
+integer :: i, j, counter
+
+
+allocate(sparsecol(2*nn+3)) !allocation of sparsecol
+NonZeros = 0 !Initialisation for NonZeros
+sparsecol = 1 !SparseCol initialisation
+
+! Counting the number of NonZeros in K matrix
 do i = 1,2*nn+2 !going through columns of k
      do j = 1,2*nn+2 !going through rows of k
           if (k(i,j) .NE. 0.0) then
@@ -216,12 +315,84 @@ do i = 1,2*nn+2 !going through columns of k
           end if         
      enddo
  enddo
- write(*,*) 'Number of NonZero components in stiffness matrix: ' , NonZeros
+!write(*,*) 'Number of NonZero components in stiffness matrix: ' , NonZeros ! A write statement for checking the number NonZeros
+
+! Allocation of SparseRow and SparseVal (After knowing the number of NonZeros)
+
+ allocate(sparserow(NonZeros))
+ allocate(sparseval(NonZeros))
+ 
+ sparserow = 0 !Initialisation
+ sparseval = 0 !Initialisation
+ 
+ counter=0
+ do j = 1,2*nn+2 !going through columns of k
+     do i = 1,2*nn+2 !going through rows of k
+          if (k(i,j).NE.0) then
+            counter = counter + 1
+            sparseval(counter)=k(i,j)
+            sparserow(counter)=i
+          end if
+     enddo ! do i
+     if (counter.EQ.0.0) then
+         sparsecol(j+1) = 0
+    else
+        sparsecol(j+1) = counter + 1
+     end if
+ enddo ! do j
+
+ 
+end subroutine Mat_to_CC
+
+
+!
+!###################################################################################
+!
+
+subroutine Mat_to_CSR(k,nn,sparsecol,sparserow,sparseval,NonZeros)
+! This subroutine forms the sparse representation of matrix K in Compressed Sparse Row(CRS) format.
+! INPUT/OUTPUT(s):
+!                - K ====> Stiffness Matrix for Capillary passed from matrix subroutine. (It should be a square matrix)
+!                - nn ====> Number of Nodes for the 1D capillary domain. Will be hard coded.
+!                - SparseVal ====> An array formed with NonZero values stored in of size(# NonZeros)
+!                - SparseCol ====> An array formed with the column number of NonZeros in matrix of size(# NonZeros)
+!                - SparseRow ====> An array formed with values to represent row storage. Includes the index numbers of start of each row (Size of array = MatrixSize + 1)
+
+
+
+use arrays, only:dp
+
+!Paramters:
+real(dp),  intent(in):: k(2*nn+2,2*nn+2)
+real(dp),  allocatable, intent(out) :: sparseval(:)
+integer, allocatable, intent(out) :: sparsecol(:), sparserow(:)
+integer, intent(in) :: nn
+integer, intent(out) :: NonZeros
+!Local Variables:
+integer :: i, j, counter
+
+
+allocate(sparserow(2*nn+3)) !allocation of sparserow
+NonZeros = 0 !Initialisation for NonZeros
+sparserow = 1 !SparseRow initialisation
+
+! Counting the number of NonZeros in K matrix
+do i = 1,2*nn+2 !going through columns of k
+     do j = 1,2*nn+2 !going through rows of k
+          if (k(i,j) .NE. 0.0) then
+          NonZeros = NonZeros + 1
+          end if         
+     enddo
+ enddo
+!write(*,*) 'Number of NonZero components in stiffness matrix: ' , NonZeros ! A write statement for checking the number NonZeros
+
+! Allocation of SparseCol and SparseVal (After knowing the number of NonZeros)
+
  allocate(sparsecol(NonZeros))
  allocate(sparseval(NonZeros))
  
- sparsecol = 0
- sparseval = 0
+ sparsecol = 0 !Initialisation
+ sparseval = 0 !Initialisation
  
  counter=0
  do i = 1,2*nn+2 !going through columns of k
@@ -238,12 +409,9 @@ do i = 1,2*nn+2 !going through columns of k
         sparserow(i+1) = counter + 1
      end if
  enddo ! do i
- !write(*,*) 'sparserow= ',sparserow
- !write(*,*) 'sparseval= ',sparseval
- !write(*,*) 'sparsecol= ', sparsecol
- 
-end subroutine sparsel
 
+ 
+end subroutine Mat_to_CSR
 
 !
 !###################################################################################
@@ -284,16 +452,22 @@ end subroutine sparsel
     real(dp):: Pin,Pout,Q01,R_in,R_out,x,y,z,Lin,Lout,Ppl
     logical, intent(in) :: OUTPUT_PERFUSION
     
+    
     type(capillary_bf_parameters) :: cap_param
 
     !    Local variables
     integer :: MatrixSize,NonZeros,submatrixsize,ngen,i
     real(dp) :: area,Q01_mthrees,sheet_number
     character(len=60) :: sub_name
+    real(dp) :: ha,hv,omega
     
     sub_name = 'cap_flow_ladder'
     call enter_exit(sub_name,1)
 
+    ha = 2.0
+    hv = 1.0
+    omega = 10.0
+    call calc_cap_imped(ha,hv,omega)
 !     Number of non-zero entries in solution matrix. 
       NonZeros=3
       do i=2,cap_param%num_symm_gen
