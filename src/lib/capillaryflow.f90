@@ -457,12 +457,15 @@ end subroutine Mat_to_CSR
     integer :: MatrixSize,NonZeros,submatrixsize,ngen,i
     real(dp) :: area,Q01_mthrees,sheet_number
     character(len=60) :: sub_name
-
+    real(dp) :: ha,hv,omega
     
     sub_name = 'cap_flow_ladder'
     call enter_exit(sub_name,1)
 
-    
+    ha = 4.0
+    hv = 1.0
+    omega = 10.0
+    call calc_cap_imped(ha,hv,omega)
 !     Number of non-zero entries in solution matrix. 
       NonZeros=3
       do i=2,cap_param%num_symm_gen
