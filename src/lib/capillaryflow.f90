@@ -46,7 +46,7 @@ use arrays, only:dp
 real(dp), intent(in) :: ha,hv,omega
 
 ! Local Variables:
-integer, parameter :: N_nodes = 2000
+integer, parameter :: N_nodes = 5000
 integer :: n,ldb
 integer :: iopt, info
 real(dp),  allocatable :: sparseval(:)
@@ -54,11 +54,27 @@ integer, allocatable :: sparsecol(:), sparserow(:)
 real(dp) :: stiff1(2*N_nodes+2,2*N_nodes+2), stiff2(2*N_nodes+2,2*N_nodes+2)
 real(dp) :: RHS1(2*N_nodes+2), RHS2(2*N_nodes+2)
 integer :: nrhs
-real(dp) :: b(2*N_nodes+2)
+real(dp) :: deriv1(2),deriv2(2),dx,h(5),rep
 integer :: i
 integer :: factors(8)
 integer :: NonZeros
 
+rep = ha**4 - hv**4
+dx = 1.0/(N_nodes - 1.0)
+h(1) = ha**3
+h(2) = (ha**4 - 2*rep*dx)**(0.75)
+!h(3) = (ha**4 - (N_nodes)*rep*dx)**(0.75)
+h(3) = (ha**4 - (N_nodes-1)*rep*dx)**(0.75)
+h(4) = (ha**4 - (N_nodes-2)*rep*dx)**(0.75)
+h(5) = (ha**4 - (N_nodes-3)*rep*dx)**(0.75)
+!write(*,*) 'h1 = ', h(1)
+!write(*,*) 'h2 = ', h(2)
+!write(*,*) 'h3 = ', h(3)
+!write(*,*) 'h4 = ', h(4)
+!write(*,*) 'h5 = ', h(5)
+!write(*,*) 'h6 = ', h(6)
+!c = (h(nn+1) * H2R(nn) - h(nn-1) * H2R(nn-2))/(2*dx)
+!c = (h(nn) * H2I(nn) - h(nn-2) * H2I(nn-2))/(2*dx)
 n = N_Nodes*2 + 2
 call Matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
 !call Mat_to_CSR(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
@@ -101,7 +117,12 @@ call Mat_to_CC(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
   write ( *, '(a)' ) '  Computed solution:'
   write ( *, '(a)' ) ' '
 
-write (*,*) 'C_1 = ',RHS1(1),'+ i(',RHS1(N_Nodes+2),')'
+write (*,*) 'C_1 = ',RHS1(2),'+ i(',RHS1(N_Nodes+2),')'
+deriv1(1) = (h(2)*RHS1(3) - h(1)*RHS1(1))/(2*dx)
+!c3 = (h(3) * H1R(3) - h(1) * H1R(1))/(2*dx);
+!c4 = (h(3) * H1I(3) - h(1) * H1I(1))/(2*dx);
+deriv1(2) = (h(2)*RHS1(N_nodes+4) - h(1)*RHS1(N_Nodes+2))/(2*dx)
+write (*,*) 'C_2 = ',deriv1(1),'+ i(',deriv1(2),')'
 
 !
 !  Free memory.
@@ -116,9 +137,6 @@ write (*,*) 'C_1 = ',RHS1(1),'+ i(',RHS1(N_Nodes+2),')'
   write ( *, '(a)' ) 'D_SAMPLE:'
   write ( *, '(a)' ) '  Normal end of execution.'
   write ( *, '(a)' ) ''
-!  do i = 1, n
-!    write ( *, '(2x,g14.6,2x,g14.6)' ) RHS1(i)
-!  end do
 
 call Mat_to_CC(stiff2,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
  nrhs = 1
@@ -159,6 +177,11 @@ call Mat_to_CC(stiff2,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
   write ( *, '(a)' ) ' '
 
 write (*,*) 'C_3 = ',RHS2(N_Nodes+1),'+ i(',RHS2(2*N_Nodes+2),')'
+deriv2(1) = (3*h(3)*RHS2(N_nodes+1) - 4*h(4)*RHS2(N_nodes) + h(5)*RHS2(N_nodes-1))/(2*dx)
+!c3 = (h(nn+1) * H2R(nn) - h(3) * H2R(nn-2))/(2*dx);
+!c4 = (h(nn) * H2I(nn) - h(nn-2) * H2I(nn-2))/(2*dx);
+deriv2(2) = (3*h(3)*RHS2(2*N_nodes+2) - 4*h(4)*RHS2(2*N_nodes+1) + h(5)*RHS2(2*N_nodes))/(2*dx)
+write (*,*) 'C_4 = ',deriv2(1),'+ i(',deriv2(2),')'
 
 !
 !  Free memory.
@@ -457,15 +480,11 @@ end subroutine Mat_to_CSR
     integer :: MatrixSize,NonZeros,submatrixsize,ngen,i
     real(dp) :: area,Q01_mthrees,sheet_number
     character(len=60) :: sub_name
-    real(dp) :: ha,hv,omega
+
     
     sub_name = 'cap_flow_ladder'
     call enter_exit(sub_name,1)
 
-    ha = 4.0
-    hv = 1.0
-    omega = 10.0
-    call calc_cap_imped(ha,hv,omega)
 !     Number of non-zero entries in solution matrix. 
       NonZeros=3
       do i=2,cap_param%num_symm_gen
