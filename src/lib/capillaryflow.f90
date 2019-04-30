@@ -40,6 +40,7 @@ subroutine calc_cap_imped(ha,hv,omega)
 !           1- As of now it will print out the constants from Fung's paper (Pulmonary microvascular impedance-1972) 
 
 
+use diagnostics, only: enter_exit
 use arrays, only:dp
 
 ! Parameters:
@@ -58,26 +59,23 @@ real(dp) :: deriv1(2),deriv2(2),dx,h(5),rep
 integer :: i
 integer :: factors(8)
 integer :: NonZeros
+character(len=60) :: sub_name
+
+    
+sub_name = 'calc_cap_imped'
+call enter_exit(sub_name,1)
+
 
 rep = ha**4 - hv**4
 dx = 1.0/(N_nodes - 1.0)
 h(1) = ha**3
 h(2) = (ha**4 - 2*rep*dx)**(0.75)
-!h(3) = (ha**4 - (N_nodes)*rep*dx)**(0.75)
 h(3) = (ha**4 - (N_nodes-1)*rep*dx)**(0.75)
 h(4) = (ha**4 - (N_nodes-2)*rep*dx)**(0.75)
 h(5) = (ha**4 - (N_nodes-3)*rep*dx)**(0.75)
-!write(*,*) 'h1 = ', h(1)
-!write(*,*) 'h2 = ', h(2)
-!write(*,*) 'h3 = ', h(3)
-!write(*,*) 'h4 = ', h(4)
-!write(*,*) 'h5 = ', h(5)
-!write(*,*) 'h6 = ', h(6)
-!c = (h(nn+1) * H2R(nn) - h(nn-1) * H2R(nn-2))/(2*dx)
-!c = (h(nn) * H2I(nn) - h(nn-2) * H2I(nn-2))/(2*dx)
+
 n = N_Nodes*2 + 2
 call Matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
-!call Mat_to_CSR(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
 call Mat_to_CC(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
  nrhs = 1
   ldb = n
@@ -197,6 +195,7 @@ write (*,*) 'C_4 = ',deriv2(1),'+ i(',deriv2(2),')'
   write ( *, '(a)' ) '  Normal end of execution.'
   write ( *, '(a)' ) ''
 
+call enter_exit(sub_name,2)
 
 end subroutine calc_cap_imped
 !
@@ -215,6 +214,7 @@ subroutine Matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
 !           1- Stiff1&2: Stiffness matrices based on different sets of fundamental solutions.
 !           2- RHS1&2: Right hand side matrix satisfying the BCs.
 
+use diagnostics, only: enter_exit
 use arrays, only:dp
 
 ! Parameters:
@@ -228,6 +228,12 @@ real(dp) :: rep
 real(dp) :: dx
 real(dp) :: x(N_nodes+1), h(N_nodes+1)
 integer :: i ! Matrix row
+character(len=60) :: sub_name
+
+    
+sub_name = 'Matrix'
+call enter_exit(sub_name,1)
+
 
 stiff1 = 0 !!! initialise stiff1 matrix
 stiff2 = 0 !!! initialise stiff2 matrix
@@ -294,7 +300,8 @@ enddo  !!! x and h^3 array created for x values
                stiff2(i+N_nodes+1,i) = -1.0 * omega
             end if
     enddo
-    
+    call enter_exit(sub_name,2)
+
     end subroutine Matrix
 
 !
@@ -311,7 +318,7 @@ subroutine Mat_to_CC(k,nn,sparsecol,sparserow,sparseval,NonZeros)
 !                - SparseCol ====> An array formed with values to represent row storage. Includes the index numbers of start of each column (Size of array = MatrixSize + 1)
 
 
-
+use diagnostics, only: enter_exit
 use arrays, only:dp
 
 !Parameters:
@@ -322,7 +329,11 @@ integer, intent(in) :: nn
 integer, intent(out) :: NonZeros
 !Local Variables:
 integer :: i, j, counter
+character(len=60) :: sub_name
 
+    
+sub_name = 'Mat_to_CC'
+call enter_exit(sub_name,1)
 
 allocate(sparsecol(2*nn+3)) !allocation of sparsecol
 NonZeros = 0 !Initialisation for NonZeros
@@ -361,7 +372,7 @@ do i = 1,2*nn+2 !going through columns of k
         sparsecol(j+1) = counter + 1
      end if
  enddo ! do j
-
+call enter_exit(sub_name,2)
  
 end subroutine Mat_to_CC
 
@@ -380,7 +391,7 @@ subroutine Mat_to_CSR(k,nn,sparsecol,sparserow,sparseval,NonZeros)
 !                - SparseRow ====> An array formed with values to represent row storage. Includes the index numbers of start of each row (Size of array = MatrixSize + 1)
 
 
-
+use diagnostics, only: enter_exit
 use arrays, only:dp
 
 !Paramters:
@@ -391,7 +402,11 @@ integer, intent(in) :: nn
 integer, intent(out) :: NonZeros
 !Local Variables:
 integer :: i, j, counter
+character(len=60) :: sub_name
 
+    
+sub_name = 'Mat_to_CSR'
+call enter_exit(sub_name,1)
 
 allocate(sparserow(2*nn+3)) !allocation of sparserow
 NonZeros = 0 !Initialisation for NonZeros
@@ -430,7 +445,7 @@ do i = 1,2*nn+2 !going through columns of k
         sparserow(i+1) = counter + 1
      end if
  enddo ! do i
-
+call enter_exit(sub_name,2)
  
 end subroutine Mat_to_CSR
 
