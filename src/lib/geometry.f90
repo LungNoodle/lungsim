@@ -534,6 +534,7 @@ contains
 !!!##################################################
 
   subroutine define_elem_geometry_2d(ELEMFILE,sf_option)
+      !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_ELEM_GEOMETRY_2D" :: DEFINE_ELEM_GEOMETRY_2D
 
     ! Reads in 2D ipelem file.
 
@@ -878,6 +879,7 @@ contains
 !!!##################################################
 
   subroutine define_node_geometry_2d(NODEFILE)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY_2D" :: DEFINE_NODE_GEOMETRY_2D
   
   !*define_node_geometry_2d:* Reads in an ipnode file to define surface nodes
     use arrays,only: dp,nodes_2d,node_field,node_xyz_2d,num_nodes_2d,node_versn_2d
@@ -975,6 +977,8 @@ contains
 !!!##################################################
 
   subroutine define_data_geometry(datafile)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_DATA_GEOMETRY" :: DEFINE_DATA_GEOMETRY
+
 
 !!! read data points from a file
     
@@ -1199,6 +1203,7 @@ contains
 !###################################################################################
 ! 
   subroutine make_data_grid(surface_elems,spacing,to_export,filename,groupname)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_MAKE_DATA_GRID" :: MAKE_DATA_GRID
 
      use arrays,only: dp,data_xyz,data_weight,num_data
      use mesh_utilities,only: volume_internal_to_surface,point_internal_to_surface
@@ -1522,7 +1527,7 @@ contains
   subroutine define_rad_from_geom(ORDER_SYSTEM, CONTROL_PARAM, START_FROM, START_RAD, group_type_in, group_option_in)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_GEOM" :: DEFINE_RAD_FROM_GEOM
     use arrays,only: dp,num_elems,elem_field,elem_ordrs,maxgen,elem_cnct
-    use indices
+    use indices,only: ne_radius, ne_radius_in, ne_radius_out, no_sord, no_hord
     use diagnostics, only: enter_exit
     implicit none
    character(LEN=100), intent(in) :: ORDER_SYSTEM,START_FROM
@@ -1571,7 +1576,7 @@ contains
 
     !Strahler and Horsfield ordering system
     if(ORDER_SYSTEM(1:5).EQ.'strah')THEN
-      nindex=no_sord !for Strahler ordering
+      nindex = no_sord !for Strahler ordering
     else if(ORDER_SYSTEM(1:5).eq.'horsf')then
       nindex = no_hord !for Horsfield ordering
     endif
@@ -1936,9 +1941,10 @@ contains
     use arrays,only: elem_cnct,elem_nodes,elem_ordrs,elem_symmetry,&
          elems_at_node,num_elems,num_nodes,maxgen
     use diagnostics, only: enter_exit
+    use indices, only: num_ord
     implicit none
 
-    integer :: INLETS,ne,ne0,ne2,noelem2,np,np2, &
+    integer :: INLETS,ne,ne0,ne2,noelem2,np,np2,nn, &
          num_attach,n_children,n_generation, &
          n_horsfield,OUTLETS,STRAHLER,STRAHLER_ADD,temp1
     LOGICAL :: DISCONNECT,DUPLICATE
@@ -1948,6 +1954,13 @@ contains
 
     !Calculate generations, Horsfield orders, Strahler orders
     !.....Calculate branch generations
+
+    ! Initialise memory to zero.
+    do nn=1,num_ord
+      do ne=1,num_elems
+        elem_ordrs(nn,ne) = 0
+      enddo
+    enddo
 
     maxgen=1
     DO ne=1,num_elems
@@ -1979,7 +1992,9 @@ contains
           DO noelem2=1,n_children !for all daughters
              ne2=elem_cnct(1,noelem2,ne) !global element # of daughter
              temp1=elem_ordrs(2,ne2) !Horsfield order of daughter
-             IF(temp1.GT.n_horsfield) n_horsfield=temp1
+             IF(temp1.GT.n_horsfield)then
+               n_horsfield=temp1
+             endif
              IF(elem_ordrs(3,ne2).LT.STRAHLER)THEN
                 STRAHLER_ADD=0
              ELSE IF(elem_ordrs(3,ne2).GT.STRAHLER)THEN
@@ -1991,6 +2006,7 @@ contains
        ELSE IF(n_children.EQ.1)THEN
           ne2=elem_cnct(1,1,ne) !local element # of daughter
           n_horsfield=elem_ordrs(2,ne2)+(elem_symmetry(ne)-1)
+
           STRAHLER_ADD=elem_ordrs(3,ne2)+(elem_symmetry(ne)-1)
        ENDIF !elem_cnct
        elem_ordrs(2,ne)=n_horsfield !store the Horsfield order
@@ -2095,9 +2111,9 @@ contains
        unit_field(nu_vol,nunit) = unit_field(nu_vol,nunit)*factor_adjust
     enddo
 
-    write(*,'('' Number of elements is'',I5)') num_elems
-    write(*,'('' Initial volume is'',F6.2,'' L'')') total_volume/1.0e+6_dp
-    write(*,'('' Deadspace volume is'',F6.1,'' mL'')') volume_of_tree/1.0e+3_dp
+    write(*,'('' Number of elements is '',I5)') num_elems
+    write(*,'('' Initial volume is '',F6.2,'' L'')') total_volume/1.0e+6_dp
+    write(*,'('' Deadspace volume is '',F6.1,'' mL'')') volume_of_tree/1.0e+3_dp
 
     call enter_exit(sub_name,2)
 
@@ -2248,6 +2264,7 @@ contains
 !
 !*group_elem_parent_term*
    subroutine group_elem_parent_term(ne_parent)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_ELEM_PARENT_TERM" :: GROUP_ELEM_PARENT_TERM
 
    use arrays,only: parentlist,num_elems,elem_cnct
    use diagnostics,only: enter_exit
