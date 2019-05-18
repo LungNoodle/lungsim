@@ -11,7 +11,7 @@
 !> This module handles all export functions
 module exports
   implicit none
-
+ 
   private
   public export_1d_elem_geometry,export_elem_geometry_2d,export_node_geometry,export_node_geometry_2d,&
        export_node_field,export_elem_field,export_terminal_solution,export_terminal_perfusion,&
@@ -69,7 +69,6 @@ contains
   end subroutine export_1d_elem_field
 
 !!!########################################################################
-
 
   subroutine export_1d_elem_geometry(EXELEMFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_1D_ELEM_GEOMETRY" :: EXPORT_1D_ELEM_GEOMETRY

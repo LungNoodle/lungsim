@@ -48,7 +48,7 @@ module indices
 
 public num_ord,no_gen,no_hord,no_sord
 
-public num_nj,nj_aw_press,nj_bv_press, nj_conc1,nj_conc2
+public num_nj,nj_aw_press,nj_bv_press,nj_conc1,nj_conc2
 
 public num_ne,ne_radius,ne_length,ne_vol,&
       ne_resist,ne_t_resist,ne_Vdot,ne_Vdot0,ne_a_A,&
@@ -69,7 +69,8 @@ public model_type
 
 !Interfaces
 private
-public define_problem_type,ventilation_indices, perfusion_indices, get_ne_radius, get_nj_conc1
+public define_problem_type,ventilation_indices, perfusion_indices, get_ne_radius, get_nj_conc1, &
+       growing_indices
 
 contains
 

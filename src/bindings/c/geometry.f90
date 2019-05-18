@@ -1,5 +1,12 @@
 module geometry_c
-  implicit none
+  use arrays
+  use diagnostics
+  use indices
+  !use mesh_functions
+  !use precision ! sets dp for precision
+  !use math_constants !pi  
+
+implicit none
   private
 
 contains
@@ -87,7 +94,6 @@ contains
 !###################################################################################
 !
   subroutine define_elem_geometry_2d_c(ELEMFILE, filename_len, SF_OPTION, sf_option_len) bind(C, name="define_elem_geometry_2d_c")
-
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
     use other_consts, only: MAX_FILENAME_LEN
@@ -381,9 +387,7 @@ contains
 
   end subroutine volume_of_mesh_c
 
-!
-!###################################################################################
-!
+
   function get_local_node_f_c(ndimension,np_global) result(get_local_node) bind(C, name="get_local_node_f_c")
     use arrays, only: dp
     use geometry, only: get_local_node_f
@@ -396,5 +400,7 @@ contains
 
   end function get_local_node_f_c
 
+
 end module geometry_c
+
 

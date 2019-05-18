@@ -9,6 +9,7 @@ module geometry
 !
 !This module handles all geometry read/write/generation.
   use other_consts
+  !use mesh_functions
   implicit none
 
   !Module parameters
@@ -33,6 +34,7 @@ module geometry
   public define_rad_from_geom
   public element_connectivity_1d
   public element_connectivity_2d
+  public inlist
   public evaluate_ordering
   public get_final_real
   public get_local_node_f
@@ -43,7 +45,6 @@ module geometry
   public volume_of_mesh
   public get_final_integer
   public get_four_nodes
-
 
 contains
 !
@@ -273,7 +274,7 @@ contains
         if(.NOT.REVERSE)then
           elem_nodes(1,ne)=np_map(elem_nodes(1,ne_m))
           elem_nodes(2,ne)=np_map(elem_nodes(2,ne_m))
-          elem_cnct(1,0,ne)=elem_cnct(1,0,ne_m)
+          elem_cnct(1,0,ne)=elem_cnct(1,0,ne_m)!The numberdownstream are the number downstream
           elem_cnct(-1,0,ne)=elem_cnct(-1,0,ne_m)
           do n=1,elem_cnct(1,0,ne)
             elem_cnct(1,n,ne)=elem_cnct(1,n,ne_m)+ne0
@@ -284,13 +285,13 @@ contains
         else
           elem_nodes(1,ne)=np_map(elem_nodes(2,ne_m))
           elem_nodes(2,ne)=np_map(elem_nodes(1,ne_m))
-          elem_cnct(-1,0,ne)=elem_cnct(1,0,ne_m)
-          elem_cnct(1,0,ne)=elem_cnct(-1,0,ne_m)
+          elem_cnct(-1,0,ne)=elem_cnct(1,0,ne_m) !The number upstream are the number downstream
+          elem_cnct(1,0,ne)=elem_cnct(-1,0,ne_m)!The number downstream are the number upstream
           do n=1,elem_cnct(1,0,ne)
-            elem_cnct(-1,n,ne)=elem_cnct(1,n,ne_m)+ne0
+            elem_cnct(1,n,ne)=elem_cnct(-1,n,ne_m)+ne0
           enddo
           do n=1,elem_cnct(-1,0,ne)
-            elem_cnct(1,n,ne)=elem_cnct(-1,n,ne_m)+ne0
+            elem_cnct(-1,n,ne)=elem_cnct(1,n,ne_m)+ne0
           enddo
         endif
         !if worrying about regions and versions do it here
@@ -615,9 +616,7 @@ contains
     
   end subroutine define_elem_geometry_2d
 
-!
-!###################################################################################
-!
+!!!###############################################################
 
 !*define_mesh_geometry_test:*
   subroutine define_mesh_geometry_test()
@@ -900,7 +899,6 @@ contains
     
     call enter_exit(sub_name,1)
 
-
     open(10, file=nodefile, status='old')
 
     !.....read in the total number of nodes. read each line until one is found
@@ -915,6 +913,7 @@ contains
     end do read_number_of_nodes
 
     !write(*,*) 'Number of nodes are:',num_nodes_2d
+
 !!!allocate memory to arrays that require node number
     if(.not.allocated(nodes_2d)) allocate(nodes_2d(num_nodes_2d))
     if(.not.allocated(node_xyz_2d)) allocate(node_xyz_2d(4,10,16,num_nodes_2d))
@@ -1068,8 +1067,7 @@ contains
     call enter_exit(sub_name,2)
 
   end subroutine define_data_geometry
-
-! 
+!
 !###################################################################################
 ! 
   subroutine triangles_from_surface(num_triangles,num_vertices,surface_elems,triangle,vertex_xyz)
@@ -2545,9 +2543,10 @@ contains
 
     end select
 
+
   end function get_local_node_f
 
-!
+
 !###################################################################################
 !
 !*get_final_integer*
@@ -2577,6 +2576,7 @@ contains
   end subroutine get_final_integer
 
 
+
 !!!##################################################
 
   subroutine get_four_nodes(ne,string)
@@ -2587,6 +2587,7 @@ contains
     integer :: ibeg,iend,i_ss_end,nn,np_global
     character(len=40) :: sub_string
     
+
     iend=len(string)
     ibeg=index(string,":")+1 !get location of first integer in string
     sub_string = adjustl(string(ibeg:iend)) ! get the characters beyond : and remove the leading blanks
@@ -2603,6 +2604,7 @@ contains
   end subroutine get_four_nodes
 
 ! 
+
 ! ##########################################################################      
 ! 
 

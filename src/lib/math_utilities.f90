@@ -13,11 +13,132 @@ module math_utilities
 
   implicit none
   private
-  public ax_cr,diagonal_pointer_cr,ilu_cr,lus_cr,mult_givens,rearrange_cr
+
+  public ax_cr,diagonal_pointer_cr,ilu_cr,lus_cr,mult_givens,rearrange_cr,bessel_complex
   public sort_integer_list
   public sort_real_list
 
+
 contains
+
+subroutine bessel_complex(z,bessel0,bessel1)
+  use other_consts,only: PI
+  use arrays, only:dp
+
+  complex(dp), intent(in) :: z
+  complex(dp), intent(out) :: bessel0,bessel1
+
+  real(dp) :: a(12),a1(10),b(12)
+  real(dp) :: a0
+  complex(dp) :: ci,cr,z1,ca,zr
+  integer :: k,k0
+!  complex ( kind = 8 ) ca
+!  complex ( kind = 8 ) cb
+!  complex ( kind = 8 ) ci
+!  complex ( kind = 8 ) cr
+!  complex ( kind = 8 ) cs
+!  complex ( kind = 8 ) ct
+!  complex ( kind = 8 ) cw
+!  integer ( kind = 4 ) k
+!  integer ( kind = 4 ) k0
+!  real ( kind = 8 ) pi
+!  real ( kind = 8 ) w0
+!  complex ( kind = 8 ) z
+!  complex ( kind = 8 ) z1
+!  complex ( kind = 8 ) z2
+!  complex ( kind = 8 ) zr
+!  complex ( kind = 8 ) zr2
+  a = (/ &
+    0.125e00_dp,           7.03125e-02_dp,&
+    7.32421875e-02_dp,      1.1215209960938e-01_dp,&
+    2.2710800170898e-01_dp, 5.7250142097473e-01_dp,&
+    1.7277275025845e00_dp, 6.0740420012735e00_dp,&
+    2.4380529699556e01_dp, 1.1001714026925e02_dp,&
+    5.5133589612202e02_dp, 3.0380905109224e03_dp /)
+   a1 = (/ &
+    0.125e00_dp,            0.2109375e00_dp, &
+    1.0986328125e00_dp,     1.1775970458984e01_dp, &
+    2.1461706161499e002_dp, 5.9511522710323e03_dp, &
+    2.3347645606175e05_dp,  1.2312234987631e07_dp, &
+    8.401390346421e08_dp,   7.2031420482627e10_dp /)
+   b = (/ &
+   -0.375e00_dp,           -1.171875e-01_dp, &
+   -1.025390625e-01_dp,     -1.4419555664063e-01_dp, &
+   -2.7757644653320e-01_dp, -6.7659258842468e-01_dp, &
+   -1.9935317337513e00_dp, -6.8839142681099e00_dp, &
+   -2.7248827311269e01_dp, -1.2159789187654e02_dp, &
+   -6.0384407670507e02_dp, -3.3022722944809e03_dp /)
+
+!
+  ci = cmplx (0.0_dp,1.0_dp,8)
+  a0 = abs (z)
+  z1 = z
+!
+  if(a0.eq.0.0_dp)then
+    bessel0 = cmplx(1.0_dp,0.0_dp,8)
+    bessel1 = cmplx(0.0_dp,0.0_dp,8)
+  endif
+
+  if(real(z).lt.0.0_dp) then
+    z1 = -z
+  endif
+!
+  if( a0 <= 18.0D+00 ) then
+
+    bessel0 =cmplx(1.0_dp,0.0_dp,8)
+    cr = cmplx(1.0_dp,0.0_dp,8)
+    do k = 1,50
+      cr = 0.25_dp*cr* z1**2/k**2
+      bessel0 = bessel0+cr
+      if (abs (cr/bessel0).LT.1.0e-15) then
+        exit
+      endif
+    enddo
+
+    bessel1 =cmplx(1.0_dp,0.0_dp,8)
+    cr = cmplx(1.0_dp,0.0_dp,8)
+    do k = 1,50
+      cr = 0.25_dp*cr*z**2/(k*(k+1))
+      bessel1 = bessel1+cr
+      if (abs (cr/bessel1).LT.1.0e-15) then
+        exit
+      endif
+    enddo
+
+    bessel1 = 0.5_dp*z1*bessel1
+
+  else
+
+    if ( a0 < 35.0D+00 ) then
+      k0 = 12
+    else if ( a0 < 50.0D+00 ) then
+      k0 = 9
+    else
+      k0 = 7
+    end if
+
+    ca = exp(z1)/sqrt(2.0_dp*pi*z1)
+    bessel0 = cmplx(1.0_dp,0.0_dp,8)
+    zr = 1.0_dp/z1
+    do k = 1,k0
+      bessel0 = bessel0 + a(k) * zr ** k
+    enddo
+    bessel0 = ca * bessel0
+    bessel1 = cmplx (1.0_dp,0.0_dp,8)
+    do k = 1,k0
+      bessel1 =bessel1+b(k)*zr**k
+    end do
+    bessel1 = ca * bessel1
+  endif
+
+
+  if ( real (z).lt.0.0_dp)then
+    bessel1 = - bessel1
+  endif
+
+end subroutine bessel_complex
+
+
 !
 !###########################################################################
 !
