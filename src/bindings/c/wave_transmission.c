@@ -7,5 +7,3 @@ void evaluate_wave_transmission(int grav_dirn, double grav_factor,int n_time, do
 
     evaluate_wave_transmission_c(&grav_dirn, &grav_factor,&n_time, &heartrate, &a0, &no_freq, a, b, &n_bcparams, admittance_param, &n_model, model_definition);
 }
-
-
