@@ -21,7 +21,7 @@ module capillaryflow
 
   !Interfaces
   private
-  public cap_flow_ladder,cap_flow_admit,calc_cap_imped
+  public cap_flow_ladder,cap_flow_admit
   
 contains
 
@@ -29,15 +29,16 @@ contains
 !################################################################
 !
 
-subroutine calc_cap_imped(ha,hv,omega)
-! Calculating the impedance through this subroutine.
-! Used by wave transmission model to solve the time dependent capillary sheet impedance.
+subroutine calc_cap_admit(ha,hv,omega,Y11,Y12,Y21,Y22)
+! Calculating the admittance components for non-constant sheet height
+! Used by cap_flow_admit to solve the time dependent capillary sheet impedance.
 !    Inputs:
 !           1- ha: Non-dimentional sheet height at arterial side of the capillary
 !           2- hv: Non-dimentional sheet height at venous side of the capillary
 !           3- omega: Dimensionless oscillatory frequency
 !    Output:
 !           1- As of now it will print out the constants from Fung's paper (Pulmonary microvascular impedance-1972) 
+!           2- Two port network capillary input admittance components
 
 
 use diagnostics, only: enter_exit
@@ -45,9 +46,11 @@ use arrays, only:dp
 
 ! Parameters:
 real(dp), intent(in) :: ha,hv,omega
+complex(dp), intent(out) :: Y11, Y12, Y21, Y22
+
 
 ! Local Variables:
-integer, parameter :: N_nodes = 5000
+integer, parameter :: N_nodes = 1000
 integer :: n,ldb
 integer :: iopt, info
 real(dp),  allocatable :: sparseval(:)
@@ -60,9 +63,10 @@ integer :: i
 integer :: factors(8)
 integer :: NonZeros
 character(len=60) :: sub_name
+complex(dp) :: C1,C2,C3,C4
 
     
-sub_name = 'calc_cap_imped'
+sub_name = 'calc_cap_admit'
 call enter_exit(sub_name,1)
 
 
@@ -73,13 +77,15 @@ h(2) = (ha**4 - 2*rep*dx)**(0.75)
 h(3) = (ha**4 - (N_nodes-1)*rep*dx)**(0.75)
 h(4) = (ha**4 - (N_nodes-2)*rep*dx)**(0.75)
 h(5) = (ha**4 - (N_nodes-3)*rep*dx)**(0.75)
-
+Y11 = 0 ! admittance initialisation
+Y12 = 0 ! admittance initialisation
+Y21 = 0 ! admittance initialisation
+Y22 = 0 ! admittance initialisation
 n = N_Nodes*2 + 2
 call Matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
 call Mat_to_CC(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
  nrhs = 1
   ldb = n
-
 
 !
 !  Factor the matrix.
@@ -88,14 +94,6 @@ call Mat_to_CC(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
   call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
     sparsecol, RHS1, ldb, factors, info )
 
-  if ( info /= 0 ) then
-    write ( *, '(a)' ) ' '
-    write ( *, '(a)' ) '  Factorization failed'
-    write ( *, '(a,i4)' ) '  INFO = ', info
-    stop 1
-  end if
-  write ( *, '(a)' ) '  Factorization succeeded.'
-
 !
 !  Solve the factored system.
 !
@@ -103,24 +101,12 @@ call Mat_to_CC(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
   call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
     sparsecol, RHS1, ldb, factors, info )
 
-  if ( info /= 0 ) then
-    write ( *, '(a)' ) ' '
-    write ( *, '(a)' ) 'C_SAMPLE - Fatal error!'
-    write ( *, '(a)' ) '  Backsolve failed'
-    write ( *, '(a,i4)' ) '  INFO = ', info
-    stop 1
-  end if
-
-  write ( *, '(a)' ) ' '
-  write ( *, '(a)' ) '  Computed solution:'
-  write ( *, '(a)' ) ' '
-
-write (*,*) 'C_1 = ',RHS1(2),'+ i(',RHS1(N_Nodes+2),')'
+!write (*,*) 'C_1 = ',RHS1(2),'+ i(',RHS1(N_Nodes+2),')'
+ C1 = RHS1(2) + RHS1(N_Nodes+2)*cmplx(0.0_dp,1.0_dp,8)
 deriv1(1) = (h(2)*RHS1(3) - h(1)*RHS1(1))/(2*dx)
-!c3 = (h(3) * H1R(3) - h(1) * H1R(1))/(2*dx);
-!c4 = (h(3) * H1I(3) - h(1) * H1I(1))/(2*dx);
 deriv1(2) = (h(2)*RHS1(N_nodes+4) - h(1)*RHS1(N_Nodes+2))/(2*dx)
-write (*,*) 'C_2 = ',deriv1(1),'+ i(',deriv1(2),')'
+!write (*,*) 'C_2 = ',deriv1(1),'+ i(',deriv1(2),')'
+ C2 = deriv1(1) + deriv1(2)*cmplx(0.0_dp,1.0_dp,8)
 
 !
 !  Free memory.
@@ -131,10 +117,6 @@ write (*,*) 'C_2 = ',deriv1(1),'+ i(',deriv1(2),')'
 !
 !  Terminate.
 !
-  write ( *, '(a)' ) ' '
-  write ( *, '(a)' ) 'D_SAMPLE:'
-  write ( *, '(a)' ) '  Normal end of execution.'
-  write ( *, '(a)' ) ''
 
 call Mat_to_CC(stiff2,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
  nrhs = 1
@@ -147,14 +129,6 @@ call Mat_to_CC(stiff2,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
   call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
     sparsecol, RHS2, ldb, factors, info )
 
-  if ( info /= 0 ) then
-    write ( *, '(a)' ) ' '
-    write ( *, '(a)' ) '  Factorization failed'
-    write ( *, '(a,i4)' ) '  INFO = ', info
-    stop 1
-  end if
-  write ( *, '(a)' ) '  Factorization succeeded.'
-
 !
 !  Solve the factored system.
 !
@@ -162,24 +136,12 @@ call Mat_to_CC(stiff2,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
   call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
     sparsecol, RHS2, ldb, factors, info )
 
-  if ( info /= 0 ) then
-    write ( *, '(a)' ) ' '
-    write ( *, '(a)' ) 'C_SAMPLE - Fatal error!'
-    write ( *, '(a)' ) '  Backsolve failed'
-    write ( *, '(a,i4)' ) '  INFO = ', info
-    stop 1
-  end if
-
-  write ( *, '(a)' ) ' '
-  write ( *, '(a)' ) '  Computed solution:'
-  write ( *, '(a)' ) ' '
-
-write (*,*) 'C_3 = ',RHS2(N_Nodes+1),'+ i(',RHS2(2*N_Nodes+2),')'
+!write (*,*) 'C_3 = ',RHS2(N_Nodes+1),'+ i(',RHS2(2*N_Nodes+2),')'
+ C3 = RHS2(N_Nodes+1) + RHS2(2*N_Nodes+2)*cmplx(0.0_dp,1.0_dp,8)
 deriv2(1) = (3*h(3)*RHS2(N_nodes+1) - 4*h(4)*RHS2(N_nodes) + h(5)*RHS2(N_nodes-1))/(2*dx)
-!c3 = (h(nn+1) * H2R(nn) - h(3) * H2R(nn-2))/(2*dx);
-!c4 = (h(nn) * H2I(nn) - h(nn-2) * H2I(nn-2))/(2*dx);
 deriv2(2) = (3*h(3)*RHS2(2*N_nodes+2) - 4*h(4)*RHS2(2*N_nodes+1) + h(5)*RHS2(2*N_nodes))/(2*dx)
-write (*,*) 'C_4 = ',deriv2(1),'+ i(',deriv2(2),')'
+!write (*,*) 'C_4 = ',deriv2(1),'+ i(',deriv2(2),')'
+ C4 = deriv2(1) + deriv2(2)*cmplx(0.0_dp,1.0_dp,8)
 
 !
 !  Free memory.
@@ -190,14 +152,17 @@ write (*,*) 'C_4 = ',deriv2(1),'+ i(',deriv2(2),')'
 !
 !  Terminate.
 !
-  write ( *, '(a)' ) ' '
-  write ( *, '(a)' ) 'D_SAMPLE:'
-  write ( *, '(a)' ) '  Normal end of execution.'
-  write ( *, '(a)' ) ''
 
+Y11 = -C2/C1
+Y12 = 1.0/C3
+Y21 = 1.0/C1
+Y22 = -C4/C3
+!write(*,*) '=================================================='
+!write(*,*) 'C1: ', C1*C2
+!write(*,*) 'IMPEDANCE: ', Y11 - (Y12*Y21)/(Y22)
 call enter_exit(sub_name,2)
 
-end subroutine calc_cap_imped
+end subroutine calc_cap_admit
 !
 !###################################################################################
 !
@@ -1354,7 +1319,8 @@ end subroutine cap_specific_parameters
 !################################################
 !
 subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
-  Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param)
+  Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param,constant_sheet_height)
+
   use arrays, only: dp,capillary_bf_parameters,elasticity_param,num_units
   use solve, only: pmgmres_ilu_cr
   use other_consts, only:PI
@@ -1368,6 +1334,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   complex(dp), intent(in) :: eff_admit_downstream(no_freq)
   real(dp), intent(inout) ::Lin,Lout,P1,P2,Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap
   real(dp), intent(in) :: harmonic_scale
+  logical, intent(in) :: constant_sheet_height
 
   type(elasticity_param) :: elast_param
 
@@ -1377,7 +1344,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   real(dp) :: alpha_c,area_scale,length_scale
   real(dp) :: radupdate,P_exta,P_extv,R_art1,R_ven1,R_art2,R_ven2,Q01_mthrees,Pin,Pout
   integer :: gen
-  real(dp) :: SHEET_RES,Q_c,Hart,Hven,RBC_TT,area,area_new,recruited,omega
+  real(dp) :: SHEET_RES,Q_c,Hart,Hven,RBC_TT,area,area_new,recruited,omega,nd_omega,h_a,h_v
   integer :: zone,nf
   complex(dp) :: bessel0,bessel1,f10,Gamma_sheet
   real(dp) :: wolmer,wavespeed
@@ -1399,6 +1366,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   integer :: MatrixSize,NonZeros,submatrixsize
   real(dp) :: sheet_number
   integer SOLVER_FLAG
+  real(dp) :: start, finish
 
   complex(dp), allocatable :: cap_admit(:,:)
   complex(dp), allocatable :: tube_admit(:,:)
@@ -1408,6 +1376,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   complex(dp), allocatable :: prop_const_cap(:,:)
 
   complex(dp) :: daughter_admit,sister_admit,reflect_coeff,sister_current
+  complex(dp) :: Y11,Y12,Y21,Y22
 
 
   character(len=60) :: sub_name
@@ -1479,7 +1448,11 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   SparseVal=0.0_dp
   Solution=0.0_dp
   SolutionLast=0.0_dp
-
+  Y11 = 0.0_dp ! admittance initialisation
+  Y12 = 0.0_dp ! admittance initialisation
+  Y21 = 0.0_dp ! admittance initialisation
+  Y22 = 0.0_dp ! admittance initialisation
+ 
   !!...  Initial guess for pressure distribution lets say all arterial pressures are the same
   !!...  and all the venous pressures are the same solution appears independent of this.
   DO i=1,cap_param%num_symm_gen-1
@@ -1640,17 +1613,20 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      enddo
 
 !!...   CAPILLARY ELEMENT (arteriole + venule + capillary)
+
      Q01_mthrees=Q01_mthrees-Q_sheet(gen)
      Hart=cap_param%H0+alpha_c*(Pressure(4*gen-3)-cap_param%Palv)
      Hven=cap_param%H0+alpha_c*(Pressure(4*gen-1)-cap_param%Palv)
      do nf=1,no_freq
-      omega=nf*2*PI*harmonic_scale
+      if (constant_sheet_height.eqv..True.) then !! Case of constant capillary sheet height
+     omega=nf*2*PI*harmonic_scale
      Gamma_sheet=sqrt(omega*Hart**3*cap_param%L_c**2*alpha_c/&
         (cap_param%mu_c*cap_param%K_cap*cap_param%F_cap))*&
         sqrt(cmplx(0.0_dp,1.0_dp,8))*1000.0_dp**3 !mm3/Pa.s
        cap_admit(gen,nf)=Gamma_sheet
           prop_const_cap(gen,nf)=sqrt(cmplx(0.0_dp,1.0_dp,8)*&
             cap_param%mu_c*cap_param%K_cap*cap_param%F_cap*omega*alpha_c/(Hart**3))/1000.0_dp!1/mm
+      endif !! Case of constant capillary sheet height
      enddo
      !...   SECOND HALF OF ARTERIOLE
 !...    Update radius of arteriole based on inlet pressure
@@ -1702,11 +1678,14 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
        prop_const(gen+3*ngen,nf)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed) !1/mm
      enddo
   enddo
+!write(*,*) 'I am here'
+!pause
   !!...   CAPILLARY ELEMENT (arteriole + venule + capillary)  at terminal
     Pin_sheet=Pressure(4*cap_param%num_symm_gen-6) !%pressure into final capillary sheets
     Pout_sheet=Pressure(4*cap_param%num_symm_gen-4) !%pressure out of final capillary sheets
     Hart=cap_param%H0+alpha_c*(Pin_sheet-cap_param%Palv)
     Hven=cap_param%H0+alpha_c*(Pout_sheet-cap_param%Palv)
+   if (constant_sheet_height.eqv..True.) then !! Case of constant capillary sheet height
     do nf=1,no_freq
      omega=nf*2*PI*harmonic_scale
      Gamma_sheet=sqrt(omega*Hart**3*cap_param%L_c**2*alpha_c/&
@@ -1717,6 +1696,8 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
           prop_const_cap(gen,nf)=sqrt(cmplx(0.0_dp,1.0_dp,8)*&
             cap_param%mu_c*cap_param%K_cap*cap_param%F_cap*omega*alpha_c/(Hart**3))/1000.0_dp!1/mm
      enddo
+   endif !! Case of constant capillary sheet height
+
   !FIRST GENERATION - need to relate to vein outlet admittance
   !first vein in generation
   do nf=1,no_freq
@@ -1725,9 +1706,12 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
    tube_eff_admit(1+2*ngen,nf)=tube_admit(1+2*ngen,nf)*(1&
               -reflect_coeff*exp(-2.0_dp*prop_const(1+2*ngen,nf)*L_v(1)*1000.0_dp/2.0_dp))/&
               (1+reflect_coeff*exp(-2.0_dp*prop_const(1+2*ngen,nf)*L_v(1)*1000.0_dp/2.0_dp))
+  !write(*,*) 'no_freq: ', no_freq
+!pause
   enddo
   !Now second vein and then capillary
-  do nf=1,no_freq
+      if (constant_sheet_height.eqv..True.) then !! Case of constant capillary sheet height
+        do nf=1,no_freq
   !Sister is capillary, vessel of interest is the vein
     sister_current=exp(-1.0_dp*prop_const_cap(1,nf)*cap_param%L_c*1000.0_dp)/&
       exp(-1.0_dp*prop_const(1+3*ngen,nf)*L_v(1)*1000.0_dp)
@@ -1744,10 +1728,40 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      cap_eff_admit(1,nf)=cap_admit(1,nf)*(1&
        -reflect_coeff*exp(-2.0_dp*prop_const_cap(1,nf)*cap_param%L_c*1000.0_dp))/&
        (1+reflect_coeff*exp(-2.0_dp*prop_const_cap(1,nf)*cap_param%L_c*1000.0_dp))
-  enddo
-
+        enddo
+      else  ! Case of Non-Constant capillary sheet height
+        do nf=1,no_freq
+ !Sister is capillary, vessel of interest is the vein
+           sister_current=exp(-1.0_dp*prop_const_cap(1,nf)*cap_param%L_c*1000.0_dp)/&
+      exp(-1.0_dp*prop_const(1+3*ngen,nf)*L_v(1)*1000.0_dp)
+     reflect_coeff=(tube_admit(1+3*ngen,nf)+(2*sister_current-1)*cap_admit(1,nf)-tube_admit(1+2*ngen,nf))&
+       /(tube_admit(1+2*ngen,nf)+tube_admit(1+3*ngen,nf)+cap_admit(1,nf))
+          tube_eff_admit(1+3*ngen,nf)=tube_admit(1+3*ngen,nf)*(1&
+              -reflect_coeff*exp(-2.0_dp*prop_const(1+3*ngen,nf)*L_v(1)*1000.0_dp/2.0_dp))/&
+              (1+reflect_coeff*exp(-2.0_dp*prop_const(1+3*ngen,nf)*L_v(1)*1000.0_dp/2.0_dp))
+     !sister is the tube current is the capillary
+         omega=nf*2*PI*harmonic_scale
+         write(*,*) 'mu: ' ,cap_param%mu_c
+         write(*,*) 'K: ' ,cap_param%K_cap
+         write(*,*) 'F: ' ,cap_param%F_cap
+         write(*,*) 'alphaC: ' ,alpha_c
+         write(*,*) 'Lc: ' ,cap_param%L_c
+         write(*,*) 'H0 is: ' ,cap_param%H0
+         nd_omega = (cap_param%mu_c*cap_param%K_cap*cap_param%F_cap*omega*alpha_c*(cap_param%L_c)**2)/(cap_param%H0**3) ! Non-Dimensional Frequency
+         !write(*,*) 'Non-Dimensional Freq1: ', nd_omega
+         h_a = Hart/cap_param%H0  ! non-dimensionilising Hart
+         h_v = Hven/cap_param%H0  ! non-dimensionilising Hven
+         write(*,*) 'ha: ', h_a
+         write(*,*) 'hv: ', h_v
+         call calc_cap_admit(h_a,h_v,nd_omega,Y11,Y12,Y21,Y22) ! Non-constant capillary sheet
+         cap_eff_admit(1,nf) = Y11 - (Y12*Y21)/(Y22)
+         write(*,*) 'Cap_effective_imped1: ', cap_eff_admit(1,nf)
+pause
+        enddo
+      endif !! Case of capillary sheet height end for first generation
   do gen=2,cap_param%num_symm_gen-1
-    do nf =1,no_freq
+      if (constant_sheet_height.eqv..True.) then !! Case of constant capillary sheet height
+        do nf =1,no_freq
       !Next two vessels are identical
       reflect_coeff=(2*tube_admit(gen+2*ngen,nf)-tube_admit(gen+2*ngen-1,nf))&
         /(tube_admit(gen+2*ngen-1,nf)+2*tube_admit(gen+2*ngen,nf))
@@ -1770,20 +1784,77 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
       cap_eff_admit(gen,nf)=cap_admit(gen,nf)*(1&
               -reflect_coeff*exp(-2.0_dp*prop_const_cap(gen,nf)*cap_param%L_c*1000.0_dp))/&
               (1+reflect_coeff*exp(-2.0_dp*prop_const_cap(gen,nf)*cap_param%L_c*1000.0_dp))
-    enddo
+        enddo
+      else  ! Case of Non-Constant capillary sheet height
+        do nf =1,no_freq
+      !Next two vessels are identical
+      reflect_coeff=(2*tube_admit(gen+2*ngen,nf)-tube_admit(gen+2*ngen-1,nf))&
+        /(tube_admit(gen+2*ngen-1,nf)+2*tube_admit(gen+2*ngen,nf))
+       tube_eff_admit(gen+2*ngen,nf)=tube_admit(gen+2*ngen,nf)*(1&
+              -reflect_coeff*exp(-2.0_dp*prop_const(gen+2*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp))/&
+              (1+reflect_coeff*exp(-2.0_dp*prop_const(gen+2*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp))
+      !Next up a vein plus a capillary
+      sister_current=exp(-1.0_dp*prop_const_cap(gen,nf)*cap_param%L_c*1000.0_dp)/&
+        exp(-1.0_dp*prop_const(gen+3*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp)
+      reflect_coeff=(tube_admit(gen+3*ngen,nf)+(2*sister_current-1)*cap_admit(gen,nf)-tube_admit(gen+2*ngen,nf))&
+        /(tube_admit(gen+2*ngen,nf)+tube_admit(gen+3*ngen,nf)+cap_admit(gen,nf))
+      tube_eff_admit(gen+3*ngen,nf)=tube_admit(gen+3*ngen,nf)*(1&
+              -reflect_coeff*exp(-2.0_dp*prop_const(gen+3*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp))/&
+              (1+reflect_coeff*exp(-2.0_dp*prop_const(gen+3*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp))
+      !sister is the tube current is the capillary
+         omega=nf*2*PI*harmonic_scale
+         write(*,*) 'mu: ' ,cap_param%mu_c
+         write(*,*) 'K: ' ,cap_param%K_cap
+         write(*,*) 'F: ' ,cap_param%F_cap
+         write(*,*) 'alphaC: ' ,alpha_c
+         write(*,*) 'Lc: ' ,cap_param%L_c
+         write(*,*) 'H0 is: ' ,cap_param%H0
+         nd_omega = (cap_param%mu_c*cap_param%K_cap*cap_param%F_cap*omega*alpha_c*(cap_param%L_c)**2)/(cap_param%H0**3) ! Non-Dimensional Frequency
+         !write(*,*) 'Non-Dimensional Freq: ', nd_omega
+         h_a = Hart/cap_param%H0  ! non-dimensionilising Hart
+         h_v = Hven/cap_param%H0  ! non-dimensionilising Hven
+         write(*,*) 'ha: ', h_a
+         write(*,*) 'hv: ', h_v
+         call calc_cap_admit(h_a,h_v,nd_omega,Y11,Y12,Y21,Y22) ! Non-constant capillary sheet
+         cap_eff_admit(gen,nf) = Y11 - (Y12*Y21)/(Y22)
+         write(*,*) 'Cap_effective_imped2: ', cap_eff_admit(gen,nf)
+pause
+        enddo
+      endif
   enddo
 
  !Final generation capillary
    gen=cap_param%num_symm_gen-1
-   do nf=1,no_freq
+      if (constant_sheet_height.eqv..True.) then !! Case of constant capillary sheet height
+        do nf=1,no_freq
    !two identical sisters
      reflect_coeff=(2*cap_admit(cap_param%num_symm_gen,nf)-tube_admit(gen+3*ngen,nf))&
        /(tube_admit(gen+3*ngen,nf)+2*cap_admit(cap_param%num_symm_gen,nf))
      cap_eff_admit(cap_param%num_symm_gen,nf)=cap_admit(cap_param%num_symm_gen,nf)*(1&
        -reflect_coeff*exp(-2.0_dp*prop_const_cap(cap_param%num_symm_gen,nf)**cap_param%L_c*1000.0_dp))/&
        (1+reflect_coeff*exp(-2.0_dp*prop_const_cap(cap_param%num_symm_gen,nf)*cap_param%L_c*1000.0_dp))
-  enddo
-
+        enddo
+      else  ! Case of Non-Constant capillary sheet height
+        do nf=1,no_freq
+         omega=nf*2*PI*harmonic_scale
+         write(*,*) 'mu: ' ,cap_param%mu_c
+         write(*,*) 'K: ' ,cap_param%K_cap
+         write(*,*) 'F: ' ,cap_param%F_cap
+         write(*,*) 'alphaC: ' ,alpha_c
+         write(*,*) 'Lc: ' ,cap_param%L_c
+         write(*,*) 'H0 is: ' ,cap_param%H0
+         nd_omega = (cap_param%mu_c*cap_param%K_cap*cap_param%F_cap*omega*alpha_c*(cap_param%L_c)**2)/(cap_param%H0**3) ! Non-Dimensional Frequency
+         !write(*,*) 'Non-Dimensional Freq: ', nd_omega
+         h_a = Hart/cap_param%H0  ! non-dimensionilising Hart
+         h_v = Hven/cap_param%H0  ! non-dimensionilising Hven
+         write(*,*) 'ha: ', h_a
+         write(*,*) 'hv: ', h_v
+         call calc_cap_admit(h_a,h_v,nd_omega,Y11,Y12,Y21,Y22) ! Non-constant capillary sheet
+         cap_eff_admit(cap_param%num_symm_gen,nf) = Y11 - (Y12*Y21)/(Y22)
+         write(*,*) 'Cap_effective_imped3: ', cap_eff_admit(cap_param%num_symm_gen,nf)
+pause
+        enddo
+      endif
   !now calculate effective admittance up the arteriole side of the tree
    do gen=cap_param%num_symm_gen-1,1,-1
      do nf=1,no_freq

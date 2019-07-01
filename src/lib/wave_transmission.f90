@@ -29,7 +29,7 @@ contains
 !##############################################################################
 !
 subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
-    n_time,heartrate,a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition)
+    n_time,heartrate,a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition,cap_model)
 !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_WAVE_TRANSMISSION: EVALUATE_WAVE_PROPAGATION
   use indices
   use arrays, only: dp,all_admit_param,num_elems,elem_field,fluid_properties,elasticity_param,num_units,&
@@ -49,6 +49,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   integer, intent(in) :: n_model
   real(dp), intent(in) :: model_definition(n_model)
   integer, intent(in) :: grav_dirn
+  integer, intent(in) :: cap_model ! This determines the capillary model (1: ha=hv, 2:non-constant sheet height)
 
   type(all_admit_param) :: admit_param
   type(fluid_properties) :: fluid
@@ -74,6 +75,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   real(dp) grav_vect(3),grav_factor,mechanics_parameters(2)
   integer :: AllocateStatus,fid=10,fid2=20,fid3=30,fid4=40,fid5=50
   character(len=60) :: sub_name
+  logical :: constant_sheet_height
 
   sub_name = 'evalulate_wave_transmission'
   call enter_exit(sub_name,1)
@@ -155,6 +157,14 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
     print *, 'ERROR: Your boundary condition choice has not yet been implemented'
     call exit(0)
   endif
+  
+  !! Determining the capillary model (Constant sheet height / Non-constant sheet height)
+  if (cap_model.eq.1) then
+     constant_sheet_height = .True.
+  else
+     constant_sheet_height = .False.
+  endif
+
   mechanics_type='linear'
   if (mechanics_type.eq.'linear') then
     mechanics_parameters(1)=5.0_dp*98.07_dp !average pleural pressure (Pa)
@@ -239,7 +249,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
             min_ven,max_ven,tree_direction)
 !        !cap admittance
         call capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
-            min_cap,max_cap,elast_param,mechanics_parameters,grav_vect)!
+            min_cap,max_cap,elast_param,mechanics_parameters,grav_vect,constant_sheet_height)
         !art admittance
         tree_direction='diverging'
         call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
@@ -671,7 +681,7 @@ end subroutine tree_admittance
 !
 !*capillaryadmittance:* Calculates the total admittance of a tree
 subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
-  min_elem,max_elem,elast_param,mechanics_parameters,grav_vect)
+  min_elem,max_elem,elast_param,mechanics_parameters,grav_vect,constant_sheet_height)
   use indices
   use arrays,only: dp,num_elems,elem_cnct,elem_field,capillary_bf_parameters,elem_nodes,&
     node_field,node_xyz,elasticity_param
@@ -687,6 +697,7 @@ subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,
   real(dp), intent(in) :: harmonic_scale
   integer, intent(in) :: min_elem,max_elem
   real(dp),intent(in) :: mechanics_parameters(2),grav_vect(3)
+  logical, intent(in) :: constant_sheet_height
 
   type(capillary_bf_parameters) :: cap_param
   type(elasticity_param) :: elast_param
@@ -723,7 +734,7 @@ subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,
       eff_admit_downstream(i)=eff_admit(i,ne1)
     enddo
     call cap_flow_admit(ne,eff_admit(:,ne),eff_admit_downstream,Lin,Lout,P1,P2,&
-                        Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param)
+Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param,constant_sheet_height)
    enddo!ne
 
 end subroutine capillary_admittance

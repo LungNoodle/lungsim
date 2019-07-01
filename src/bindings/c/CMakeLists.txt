@@ -3,7 +3,6 @@ project(AetherCBindings LANGUAGES C Fortran)
 
 set(C_FORTRAN_LIB_SRCS
     arrays.f90
-    capillaryflow.f90
     diagnostics.f90
     exports.f90
     filenames.f90
@@ -22,7 +21,6 @@ set(C_FORTRAN_LIB_SRCS
 )
 set(C_C_LIB_SRCS
     arrays.c
-    capillaryflow.c
     diagnostics.c
     exports.c
     filenames.c
@@ -43,7 +41,6 @@ set(C_C_LIB_SRCS
 set(C_LIB_HDRS
   symbol_export.h
   arrays.h
-  capillaryflow.h
   diagnostics.h
   exports.h
   filenames.h
