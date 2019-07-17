@@ -916,7 +916,8 @@ end subroutine cap_specific_parameters
 !################################################
 !
 subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
-  Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param)
+  Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param,&
+  cap_model)
   use arrays, only: dp,capillary_bf_parameters,elasticity_param,num_units
   use solve, only: pmgmres_ilu_cr
   use other_consts, only:PI
@@ -930,6 +931,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   complex(dp), intent(in) :: eff_admit_downstream(no_freq)
   real(dp), intent(inout) ::Lin,Lout,P1,P2,Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap
   real(dp), intent(in) :: harmonic_scale
+  integer, intent(in) :: cap_model
 
   type(elasticity_param) :: elast_param
 
