@@ -230,7 +230,6 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
           endif
         enddo
         if(bc_type.eq.'flow')then !update RHS to account for element resistance
-          write(*,*) update_flow_nzz_row
           do ne=1,num_elems
             depvar = depvar_at_elem(1,1,ne)
             if(FIX(depvar))then
@@ -789,7 +788,6 @@ subroutine calc_sparse_1dtree(bc_type,density,FIX,grav_vect,mesh_dof,depvar_at_e
                     call get_variable_offset(depvar3,mesh_dof,FIX,offset)
                     SparseCol(nzz) = depvar3-offset !variable position in the unknown variable vector
                     SparseVal(nzz)=-elem_field(ne_resist,ne2) !variable coefficient = resistance for element ne2
-                    !write(*,*) ne2, nzz
                     update_resistance_entries(ne2) = nzz
                     nzz=nzz+1 !next column
                 endif
