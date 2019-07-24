@@ -696,6 +696,9 @@ subroutine calc_sparse_1dtree(bc_type,density,FIX,grav_vect,mesh_dof,depvar_at_e
     logical :: ElementPressureEquationDone(num_elems)
     logical :: elem_found,one_node_balanced
     real(dp) :: flow_term
+    real(dp) :: grav
+    integer :: nj
+
     character(len=60) :: sub_name
     sub_name = 'calc_sparse_1dtree'
     call enter_exit(sub_name,1)
@@ -748,19 +751,28 @@ subroutine calc_sparse_1dtree(bc_type,density,FIX,grav_vect,mesh_dof,depvar_at_e
                 np2=elem_nodes(2,ne2) !second node
                 depvar2=depvar_at_node(np2,1,1) !pressure variable for second node
                 depvar3=depvar_at_elem(0,1,ne2) !flow variable for element
+                grav=0.d0
+                if(elem_field(ne_group,ne2).eq.1.0_dp)then
+                elseif(elem_ordrs(no_gen,ne2).eq.1)then !gravitational head not applied in inlets
+                else
+                  do nj=1,3
+                    grav=grav+density*grav_vect(nj)*9810.0_dp*(node_xyz(nj,elem_nodes(1,ne2))-node_xyz(nj,elem_nodes(2,ne2)))!rho g L cos theta (Pa)
+                  enddo
+                endif
                 if(FIX(depvar1))then !checking if pressure at 1st node is fixed
                     !store known variable - inlet pressure
-                    RHS(nzz_row) = -prq_solution(depvar1,1)
+                    RHS(nzz_row) = -prq_solution(depvar1,1) + grav
                 else
                     !unknown variable -pressure for node 1
                     call get_variable_offset(depvar1,mesh_dof,FIX,offset)
                     SparseCol(nzz) = depvar1 - offset !variable number
                     SparseVal(nzz)=1.0_dp !variable coefficient
                     nzz=nzz+1 !next column
+                    RHS(nzz_row) = grav
                 endif
                 if(FIX(depvar2))then !checking if pressure at 2nd node is fixed
                     !store known variable - outlet pressure
-                    RHS(nzz_row) = prq_solution(depvar2,1)
+                    RHS(nzz_row) = prq_solution(depvar2,1) + grav
                 else
                     !unknown variable - pressure for node 2
                     call get_variable_offset(depvar2,mesh_dof,FIX,offset)
