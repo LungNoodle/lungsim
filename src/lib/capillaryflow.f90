@@ -970,6 +970,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   complex(dp), allocatable :: tube_eff_admit(:,:)
   complex(dp), allocatable :: prop_const(:,:)
   complex(dp), allocatable :: prop_const_cap(:,:)
+  complex(dp), allocatable :: sheet_admit_matrix(:,:,:)
 
   complex(dp) :: daughter_admit,sister_admit,reflect_coeff,sister_current
 
@@ -979,6 +980,9 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
 
   sub_name = 'cap_flow_admit'
   call enter_exit(sub_name,1)
+
+  write(*,*) 'entering cap flow admit'
+  write(*,*) cap_model
 
   !     Number of non-zero entries in solution matrix.
   NonZeros=3
@@ -1131,7 +1135,10 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   if (AllocateStatus /= 0) STOP "*** Not enough memory for prop_const ***"
   allocate(prop_const_cap(ngen,no_freq), STAT = AllocateStatus)
   if (AllocateStatus /= 0) STOP "*** Not enough memory for prop_const_cap ***"
-
+  if(cap_model == 2)then !Allocating memory for sheet admittance matrix
+    allocate(sheet_admit_matrix(ngen,no_freq,4), STAT = AllocateStatus)
+    if (AllocateStatus /= 0) STOP "*** Not enough memory for prop_const_cap ***"
+  endif
 
 
   cap_admit=cmplx(0.0_dp,0.0_dp,8) !initialise
@@ -1382,6 +1389,9 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   deallocate(cap_eff_admit)
   deallocate(tube_eff_admit)
   deallocate(prop_const)
+  if(cap_model == 2)then
+    deallocate(sheet_admit_matrix)
+  endif
   deallocate (Pressure, STAT = AllocateStatus)
   deallocate (l_a, STAT = AllocateStatus)
   deallocate (l_v, STAT = AllocateStatus)
