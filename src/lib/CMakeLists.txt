@@ -71,5 +71,10 @@ add_library(aether_superlu_obj OBJECT ${SUPERLU_FORTRAN_SRCS})
 
 target_link_libraries(aether_superlu_obj PRIVATE superlu)
 
-target_link_libraries(aether PUBLIC aether_superlu_obj)
+set_property(TARGET aether_superlu_obj PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+# Create the aether library from the object libraries.
+#add_library(aether $<TARGET_OBJECTS:aether_obj> $<TARGET_OBJECTS:aether_superlu_obj> ${dummy_file})
+
+target_link_libraries(aether PUBLIC superlu)
 
