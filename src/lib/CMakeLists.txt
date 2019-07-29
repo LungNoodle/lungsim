@@ -67,7 +67,7 @@ set(SUPERLU_FORTRAN_SRCS
 )
 
 # Create an object library for the SuperLU C Fortran cgssv file.
-add_library(aether_superlu_obj OBJECT ${SUPERLU_FORTRAN_SRCS})
+add_library(aether_superlu_obj OBJECT c_fortran_dgssv.c)# ${SUPERLU_FORTRAN_SRCS})
 
 target_link_libraries(aether_superlu_obj PRIVATE superlu)
 
