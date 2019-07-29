@@ -237,7 +237,8 @@ contains
 
 !        call BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,Solution,SparseCol,&
 !             SparseRow,SparseVal,1.d-9,1000) !NB/ 1.d-9 = convergence tol, 1000 = max solver iterations
-
+    call c_fortran_dgssv ( 1, 1, NonZeros, 1, sparseval, sparserow, &
+     sparsecol, RHS, 1,1, 1 )
 
          DO j=1,submatrixsize
             Pressure(j)=Solution(j)
