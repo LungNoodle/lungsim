@@ -1,3 +1,12 @@
+/*! \file
+Copyright (c) 2003, The Regents of the University of California, through
+Lawrence Berkeley National Laboratory (subject to receipt of any required
+approvals from U.S. Dept. of Energy)
+All rights reserved.
+The source code is distributed under BSD license, see the file License.txt
+at the top-level directory.
+*/
+
 /*
  * -- SuperLU routine (version 5.0) --
  * Univ. of California Berkeley, Xerox Palo Alto Research Center,
@@ -102,23 +111,24 @@ c_fortran_dgssv_(int *iopt, int *n, int *nnz, int *nrhs,
 	panel_size = sp_ienv(1);
 	relax = sp_ienv(2);
 
-	dgstrf(&options, &AC, relax, panel_size, etree, NULL, 0, perm_c, perm_r, L, U, &stat, info);
+	dgstrf(&options, &AC, relax, panel_size, etree,
+                NULL, 0, perm_c, perm_r, L, U, &Glu, &stat, info);
 
 	if ( *info == 0 ) {
 	    Lstore = (SCformat *) L->Store;
 	    Ustore = (NCformat *) U->Store;
-	    //printf("No of nonzeros in factor L = %d\n", Lstore->nnz);
-	    //printf("No of nonzeros in factor U = %d\n", Ustore->nnz);
-	    //printf("No of nonzeros in L+U = %d\n", Lstore->nnz + Ustore->nnz);
+	    printf("No of nonzeros in factor L = %d\n", Lstore->nnz);
+	    printf("No of nonzeros in factor U = %d\n", Ustore->nnz);
+	    printf("No of nonzeros in L+U = %d\n", Lstore->nnz + Ustore->nnz);
 	    dQuerySpace(L, U, &mem_usage);
-	    //printf("L\\U MB %.3f\ttotal MB needed %.3f\n",
-		   //mem_usage.for_lu/1e6, mem_usage.total_needed/1e6);
+	    printf("L\\U MB %.3f\ttotal MB needed %.3f\n",
+		   mem_usage.for_lu/1e6, mem_usage.total_needed/1e6);
 	} else {
-	    //printf("dgstrf() error returns INFO= %d\n", *info);
+	    printf("dgstrf() error returns INFO= %d\n", *info);
 	    if ( *info <= *n ) { /* factorization completes */
 		dQuerySpace(L, U, &mem_usage);
-		//printf("L\\U MB %.3f\ttotal MB needed %.3f\n",
-		  //     mem_usage.for_lu/1e6, mem_usage.total_needed/1e6);
+		printf("L\\U MB %.3f\ttotal MB needed %.3f\n",
+		       mem_usage.for_lu/1e6, mem_usage.total_needed/1e6);
 	    }
 	}
 	
@@ -172,4 +182,3 @@ c_fortran_dgssv_(int *iopt, int *n, int *nnz, int *nrhs,
 	exit(-1);
     }
 }
-
