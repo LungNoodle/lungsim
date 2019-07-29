@@ -237,8 +237,8 @@ contains
 
 !        call BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,Solution,SparseCol,&
 !             SparseRow,SparseVal,1.d-9,1000) !NB/ 1.d-9 = convergence tol, 1000 = max solver iterations
-    call c_fortran_dgssv ( 1, 1, NonZeros, 1, sparseval, sparserow, &
-     sparsecol, RHS, 1,1, 1 )
+
+
 
          DO j=1,submatrixsize
             Pressure(j)=Solution(j)
@@ -1405,5 +1405,146 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   call enter_exit(sub_name,2)
 
 end subroutine cap_flow_admit
+
+
+
+!
+!################################################################
+!
+
+subroutine calc_cap_admit(ha,hv,omega,Y11,Y12,Y21,Y22)
+! Calculating the admittance components for non-constant sheet height
+! Used by cap_flow_admit to solve the time dependent capillary sheet impedance.
+!    Inputs:
+!           1- ha: Non-dimentional sheet height at arterial side of the capillary
+!           2- hv: Non-dimentional sheet height at venous side of the capillary
+!           3- omega: Dimensionless oscillatory frequency
+!    Output:
+!           1- As of now it will print out the constants from Fung's paper (Pulmonary microvascular impedance-1972)
+!           2- Two port network capillary input admittance components
+
+
+use diagnostics, only: enter_exit
+use arrays, only:dp
+
+! Parameters:
+real(dp), intent(in) :: ha,hv,omega
+complex(dp), intent(out) :: Y11, Y12, Y21, Y22
+
+
+! Local Variables:
+integer, parameter :: N_nodes = 1000
+integer :: n,ldb
+integer :: iopt, info
+real(dp),  allocatable :: sparseval(:)
+integer, allocatable :: sparsecol(:), sparserow(:)
+real(dp) :: stiff1(2*N_nodes+2,2*N_nodes+2), stiff2(2*N_nodes+2,2*N_nodes+2)
+real(dp) :: RHS1(2*N_nodes+2), RHS2(2*N_nodes+2)
+integer :: nrhs
+real(dp) :: deriv1(2),deriv2(2),dx,h(5),rep
+integer :: i
+integer :: factors(8)
+integer :: NonZeros
+character(len=60) :: sub_name
+complex(dp) :: C1,C2,C3,C4
+
+
+sub_name = 'calc_cap_admit'
+call enter_exit(sub_name,1)
+
+
+rep = ha**4 - hv**4
+dx = 1.0/(N_nodes - 1.0)
+h(1) = ha**3
+h(2) = (ha**4 - 2*rep*dx)**(0.75)
+h(3) = (ha**4 - (N_nodes-1)*rep*dx)**(0.75)
+h(4) = (ha**4 - (N_nodes-2)*rep*dx)**(0.75)
+h(5) = (ha**4 - (N_nodes-3)*rep*dx)**(0.75)
+Y11 = 0 ! admittance initialisation
+Y12 = 0 ! admittance initialisation
+Y21 = 0 ! admittance initialisation
+Y22 = 0 ! admittance initialisation
+n = N_Nodes*2 + 2
+call Matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
+call Mat_to_CC(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
+ nrhs = 1
+  ldb = n
+
+!
+!  Factor the matrix.
+!
+  iopt = 1
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS1, ldb, factors, info )
+
+!
+!  Solve the factored system.
+!
+  iopt = 2
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS1, ldb, factors, info )
+
+!write (*,*) 'C_1 = ',RHS1(2),'+ i(',RHS1(N_Nodes+2),')'
+ C1 = RHS1(2) + RHS1(N_Nodes+2)*cmplx(0.0_dp,1.0_dp,8)
+deriv1(1) = (h(2)*RHS1(3) - h(1)*RHS1(1))/(2*dx)
+deriv1(2) = (h(2)*RHS1(N_nodes+4) - h(1)*RHS1(N_Nodes+2))/(2*dx)
+!write (*,*) 'C_2 = ',deriv1(1),'+ i(',deriv1(2),')'
+ C2 = deriv1(1) + deriv1(2)*cmplx(0.0_dp,1.0_dp,8)
+
+!
+!  Free memory.
+!
+  iopt = 3
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS1, ldb, factors, info )
+!
+!  Terminate.
+!
+
+call Mat_to_CC(stiff2,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
+ nrhs = 1
+  ldb = n
+
+!
+!  Factor the matrix.
+!
+  iopt = 1
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS2, ldb, factors, info )
+
+!
+!  Solve the factored system.
+!
+  iopt = 2
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS2, ldb, factors, info )
+
+!write (*,*) 'C_3 = ',RHS2(N_Nodes+1),'+ i(',RHS2(2*N_Nodes+2),')'
+ C3 = RHS2(N_Nodes+1) + RHS2(2*N_Nodes+2)*cmplx(0.0_dp,1.0_dp,8)
+deriv2(1) = (3*h(3)*RHS2(N_nodes+1) - 4*h(4)*RHS2(N_nodes) + h(5)*RHS2(N_nodes-1))/(2*dx)
+deriv2(2) = (3*h(3)*RHS2(2*N_nodes+2) - 4*h(4)*RHS2(2*N_nodes+1) + h(5)*RHS2(2*N_nodes))/(2*dx)
+!write (*,*) 'C_4 = ',deriv2(1),'+ i(',deriv2(2),')'
+ C4 = deriv2(1) + deriv2(2)*cmplx(0.0_dp,1.0_dp,8)
+
+!
+!  Free memory.
+!
+  iopt = 3
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS1, ldb, factors, info )
+!
+!  Terminate.
+!
+
+Y11 = -C2/C1
+Y12 = 1.0/C3
+Y21 = 1.0/C1
+Y22 = -C4/C3
+!write(*,*) '=================================================='
+!write(*,*) 'C1: ', C1*C2
+!write(*,*) 'IMPEDANCE: ', Y11 - (Y12*Y21)/(Y22)
+call enter_exit(sub_name,2)
+
+end subroutine calc_cap_admit
 end module capillaryflow
 

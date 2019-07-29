@@ -60,5 +60,16 @@ install(TARGETS aether
 # Our version for FindSuperLU creates an imported target for us to use.
 find_package(SuperLU)
 
-target_link_libraries(aether PUBLIC superlu)
+
+set(SUPERLU_FORTRAN_SRCS
+  c_fortran_dgssv.c
+  #c_fortran_cgssv.c
+)
+
+# Create an object library for the SuperLU C Fortran cgssv file.
+add_library(aether_superlu_obj OBJECT ${SUPERLU_FORTRAN_SRCS})
+
+target_link_libraries(aether_superlu_obj PRIVATE superlu)
+
+target_link_libraries(aether PUBLIC aether_superlu_obj)
 
