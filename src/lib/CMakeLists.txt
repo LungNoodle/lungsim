@@ -63,18 +63,14 @@ find_package(SuperLU)
 
 set(SUPERLU_FORTRAN_SRCS
   c_fortran_dgssv.c
-  #c_fortran_cgssv.c
 )
 
 # Create an object library for the SuperLU C Fortran cgssv file.
-add_library(aether_superlu_obj OBJECT c_fortran_dgssv.c)# ${SUPERLU_FORTRAN_SRCS})
+add_library(aether_superlu_obj OBJECT ${SUPERLU_FORTRAN_SRCS})
 
 target_link_libraries(aether_superlu_obj PRIVATE superlu)
 
 set_property(TARGET aether_superlu_obj PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-# Create the aether library from the object libraries.
-#add_library(aether $<TARGET_OBJECTS:aether_obj> $<TARGET_OBJECTS:aether_superlu_obj> ${dummy_file})
 
 target_link_libraries(aether PUBLIC superlu)
 

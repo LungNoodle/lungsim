@@ -1275,10 +1275,13 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      enddo
   enddo
   !!...   CAPILLARY ELEMENT (arteriole + venule + capillary)  at terminal
-    Pin_sheet=Pressure(4*cap_param%num_symm_gen-6) !%pressure into final capillary sheets
-    Pout_sheet=Pressure(4*cap_param%num_symm_gen-4) !%pressure out of final capillary sheets
-    Hart=cap_param%H0+alpha_c*(Pin_sheet-cap_param%Palv)
-    Hven=cap_param%H0+alpha_c*(Pout_sheet-cap_param%Palv)
+    Pin_sheet=Pressure(4*cap_param%num_symm_gen-6) !pressure into final capillary sheets
+    Pout_sheet=Pressure(4*cap_param%num_symm_gen-4) !pressure out of final capillary sheets
+    Hart=cap_param%H0+alpha_c*(Pin_sheet-cap_param%Palv) !Sheet height at arterial side
+    Hven=cap_param%H0+alpha_c*(Pout_sheet-cap_param%Palv) !sheet height at venous side
+    if(cap_model == 2)then
+      write(*,*) 'Capillary sheet', Hart, Hven
+    endif
     do nf=1,no_freq
      omega=nf*2*PI*harmonic_scale
      Gamma_sheet=sqrt(omega*Hart**3*cap_param%L_c**2*alpha_c/&
