@@ -729,7 +729,7 @@ if (BLA_VENDOR STREQUAL "Apple" OR BLA_VENDOR STREQUAL "All")
       BLAS
       dgemm
       ""
-      "Accelerate"
+      "Accelerate.tbd"
       ""
       )
   endif()
