@@ -117,12 +117,14 @@ c_fortran_dgssv_(int *iopt, int *n, int *nnz, int *nrhs,
 	if ( *info == 0 ) {
 	    Lstore = (SCformat *) L->Store;
 	    Ustore = (NCformat *) U->Store;
-	    printf("No of nonzeros in factor L = %d\n", Lstore->nnz);
-	    printf("No of nonzeros in factor U = %d\n", Ustore->nnz);
-	    printf("No of nonzeros in L+U = %d\n", Lstore->nnz + Ustore->nnz);
-	    dQuerySpace(L, U, &mem_usage);
-	    printf("L\\U MB %.3f\ttotal MB needed %.3f\n",
-		   mem_usage.for_lu/1e6, mem_usage.total_needed/1e6);
+		/*
+	    *printf("No of nonzeros in factor L = %d\n", Lstore->nnz);
+	    *printf("No of nonzeros in factor U = %d\n", Ustore->nnz);
+	    *printf("No of nonzeros in L+U = %d\n", Lstore->nnz + Ustore->nnz);
+	    *dQuerySpace(L, U, &mem_usage);
+	    *printf("L\\U MB %.3f\ttotal MB needed %.3f\n",
+		*   mem_usage.for_lu/1e6, mem_usage.total_needed/1e6);
+		*/
 	} else {
 	    printf("dgstrf() error returns INFO= %d\n", *info);
 	    if ( *info <= *n ) { /* factorization completes */
