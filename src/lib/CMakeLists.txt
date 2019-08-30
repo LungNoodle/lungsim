@@ -1,4 +1,3 @@
-project(aether Fortran C)
 
 # The list of all source files that are required to build the library
 set(LIB_SRCS
@@ -44,7 +43,7 @@ set_target_properties(aether_obj PROPERTIES
 
 set(SUPERLU_FORTRAN_SRCS
   c_fortran_dgssv.c
-  c_fortran_cgssv.c
+  #c_fortran_cgssv.c
 )
 # Create an object library for the SuperLU C Fortran cgssv file.
 add_library(aether_superlu_obj OBJECT ${SUPERLU_FORTRAN_SRCS})
