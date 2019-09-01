@@ -49,11 +49,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   integer, intent(in) :: n_model
   real(dp), intent(in) :: model_definition(n_model)
   integer, intent(in) :: grav_dirn
-<<<<<<< HEAD
-  integer, intent(in) :: cap_model ! This determines the capillary model (1: ha=hv, 2:non-constant sheet height)
-=======
   integer, intent(in) :: cap_model
->>>>>>> 1b24b83a3b0e91c775b53a5bc03cb1278d43850b
 
   type(all_admit_param) :: admit_param
   type(fluid_properties) :: fluid
@@ -685,11 +681,7 @@ end subroutine tree_admittance
 !
 !*capillaryadmittance:* Calculates the total admittance of a tree
 subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
-<<<<<<< HEAD
-  min_elem,max_elem,elast_param,mechanics_parameters,grav_vect,constant_sheet_height)
-=======
   min_elem,max_elem,elast_param,mechanics_parameters,grav_vect,cap_model)
->>>>>>> 1b24b83a3b0e91c775b53a5bc03cb1278d43850b
   use indices
   use arrays,only: dp,num_elems,elem_cnct,elem_field,capillary_bf_parameters,elem_nodes,&
     node_field,node_xyz,elasticity_param
@@ -705,11 +697,7 @@ subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,
   real(dp), intent(in) :: harmonic_scale
   integer, intent(in) :: min_elem,max_elem
   real(dp),intent(in) :: mechanics_parameters(2),grav_vect(3)
-<<<<<<< HEAD
-  logical, intent(in) :: constant_sheet_height
-=======
   integer, intent(in) :: cap_model
->>>>>>> 1b24b83a3b0e91c775b53a5bc03cb1278d43850b
 
   type(capillary_bf_parameters) :: cap_param
   type(elasticity_param) :: elast_param
@@ -746,12 +734,8 @@ subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,
       eff_admit_downstream(i)=eff_admit(i,ne1)
     enddo
     call cap_flow_admit(ne,eff_admit(:,ne),eff_admit_downstream,Lin,Lout,P1,P2,&
-<<<<<<< HEAD
-Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param,constant_sheet_height)
-=======
                         Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,&
                         elast_param,cap_model)
->>>>>>> 1b24b83a3b0e91c775b53a5bc03cb1278d43850b
    enddo!ne
 
 end subroutine capillary_admittance

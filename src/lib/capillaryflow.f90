@@ -24,396 +24,6 @@ module capillaryflow
   public cap_flow_ladder,cap_flow_admit
   
 contains
-
-!
-!################################################################
-!
-
-subroutine calc_cap_admit(ha,hv,omega,Y11,Y12,Y21,Y22)
-! Calculating the admittance components for non-constant sheet height
-! Used by cap_flow_admit to solve the time dependent capillary sheet impedance.
-!    Inputs:
-!           1- ha: Non-dimentional sheet height at arterial side of the capillary
-!           2- hv: Non-dimentional sheet height at venous side of the capillary
-!           3- omega: Dimensionless oscillatory frequency
-!    Output:
-!           1- As of now it will print out the constants from Fung's paper (Pulmonary microvascular impedance-1972) 
-!           2- Two port network capillary input admittance components
-
-
-use diagnostics, only: enter_exit
-use arrays, only:dp
-
-! Parameters:
-real(dp), intent(in) :: ha,hv,omega
-complex(dp), intent(out) :: Y11, Y12, Y21, Y22
-
-
-! Local Variables:
-integer, parameter :: N_nodes = 1000
-integer :: n,ldb
-integer :: iopt, info
-real(dp),  allocatable :: sparseval(:)
-integer, allocatable :: sparsecol(:), sparserow(:)
-real(dp) :: stiff1(2*N_nodes+2,2*N_nodes+2), stiff2(2*N_nodes+2,2*N_nodes+2)
-real(dp) :: RHS1(2*N_nodes+2), RHS2(2*N_nodes+2)
-integer :: nrhs
-real(dp) :: deriv1(2),deriv2(2),dx,h(5),rep
-integer :: i
-integer :: factors(8)
-integer :: NonZeros
-character(len=60) :: sub_name
-complex(dp) :: C1,C2,C3,C4
-
-    
-sub_name = 'calc_cap_admit'
-call enter_exit(sub_name,1)
-
-
-rep = ha**4 - hv**4
-dx = 1.0/(N_nodes - 1.0)
-h(1) = ha**3
-h(2) = (ha**4 - 2*rep*dx)**(0.75)
-h(3) = (ha**4 - (N_nodes-1)*rep*dx)**(0.75)
-h(4) = (ha**4 - (N_nodes-2)*rep*dx)**(0.75)
-h(5) = (ha**4 - (N_nodes-3)*rep*dx)**(0.75)
-Y11 = 0 ! admittance initialisation
-Y12 = 0 ! admittance initialisation
-Y21 = 0 ! admittance initialisation
-Y22 = 0 ! admittance initialisation
-n = N_Nodes*2 + 2
-call Matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
-call Mat_to_CC(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
- nrhs = 1
-  ldb = n
-
-!
-!  Factor the matrix.
-!
-  iopt = 1
-  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
-    sparsecol, RHS1, ldb, factors, info )
-
-!
-!  Solve the factored system.
-!
-  iopt = 2
-  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
-    sparsecol, RHS1, ldb, factors, info )
-
-!write (*,*) 'C_1 = ',RHS1(2),'+ i(',RHS1(N_Nodes+2),')'
- C1 = RHS1(2) + RHS1(N_Nodes+2)*cmplx(0.0_dp,1.0_dp,8)
-deriv1(1) = (h(2)*RHS1(3) - h(1)*RHS1(1))/(2*dx)
-deriv1(2) = (h(2)*RHS1(N_nodes+4) - h(1)*RHS1(N_Nodes+2))/(2*dx)
-!write (*,*) 'C_2 = ',deriv1(1),'+ i(',deriv1(2),')'
- C2 = deriv1(1) + deriv1(2)*cmplx(0.0_dp,1.0_dp,8)
-
-!
-!  Free memory.
-!
-  iopt = 3
-  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
-    sparsecol, RHS1, ldb, factors, info )
-!
-!  Terminate.
-!
-
-call Mat_to_CC(stiff2,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
- nrhs = 1
-  ldb = n
-
-!
-!  Factor the matrix.
-!
-  iopt = 1
-  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
-    sparsecol, RHS2, ldb, factors, info )
-
-!
-!  Solve the factored system.
-!
-  iopt = 2
-  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
-    sparsecol, RHS2, ldb, factors, info )
-
-!write (*,*) 'C_3 = ',RHS2(N_Nodes+1),'+ i(',RHS2(2*N_Nodes+2),')'
- C3 = RHS2(N_Nodes+1) + RHS2(2*N_Nodes+2)*cmplx(0.0_dp,1.0_dp,8)
-deriv2(1) = (3*h(3)*RHS2(N_nodes+1) - 4*h(4)*RHS2(N_nodes) + h(5)*RHS2(N_nodes-1))/(2*dx)
-deriv2(2) = (3*h(3)*RHS2(2*N_nodes+2) - 4*h(4)*RHS2(2*N_nodes+1) + h(5)*RHS2(2*N_nodes))/(2*dx)
-!write (*,*) 'C_4 = ',deriv2(1),'+ i(',deriv2(2),')'
- C4 = deriv2(1) + deriv2(2)*cmplx(0.0_dp,1.0_dp,8)
-
-!
-!  Free memory.
-!
-  iopt = 3
-  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
-    sparsecol, RHS1, ldb, factors, info )
-!
-!  Terminate.
-!
-
-Y11 = -C2/C1
-Y12 = 1.0/C3
-Y21 = 1.0/C1
-Y22 = -C4/C3
-!write(*,*) '=================================================='
-!write(*,*) 'C1: ', C1*C2
-!write(*,*) 'IMPEDANCE: ', Y11 - (Y12*Y21)/(Y22)
-call enter_exit(sub_name,2)
-
-end subroutine calc_cap_admit
-!
-!###################################################################################
-!
-
-subroutine Matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
-! This subroutine will create the stiffness matrices and Right hand sides (RHS) for 2 sets of fundamental solutions.
-! These matrices is the output of Finite Difference solution of system of ODEs for capillary sheet heights.
-!Inputs:
-!           1- ha: Non-dimentional sheet height at arterial side of the capillary
-!           2- hv: Non-dimentional sheet height at venous side of the capillary
-!           3- omega: Dimensionless oscillatory frequency
-!           4- N_nodes: The number of nodes in the 1D domain. You can get a better approximation if you increase the number of nodes.
-!Outputs:
-!           1- Stiff1&2: Stiffness matrices based on different sets of fundamental solutions.
-!           2- RHS1&2: Right hand side matrix satisfying the BCs.
-
-use diagnostics, only: enter_exit
-use arrays, only:dp
-
-! Parameters:
-integer, intent(in) :: N_nodes
-real(dp), intent(in) :: ha,hv,omega
-real(dp), intent(out) :: stiff1(2*N_nodes+2,2*N_nodes+2), stiff2(2*N_nodes+2,2*N_nodes+2) ! Capillary Sheet Stiffness matrices
-real(dp), intent(out) :: RHS1(2*N_nodes+2), RHS2(2*N_nodes+2)
-
-! Local Variables
-real(dp) :: rep
-real(dp) :: dx
-real(dp) :: x(N_nodes+1), h(N_nodes+1)
-integer :: i ! Matrix row
-character(len=60) :: sub_name
-
-    
-sub_name = 'Matrix'
-call enter_exit(sub_name,1)
-
-
-stiff1 = 0 !!! initialise stiff1 matrix
-stiff2 = 0 !!! initialise stiff2 matrix
-RHS1 = 0 !!! initialise RHS matrix
-rep = ha**4 - hv**4
-dx = 1.0/(N_nodes - 1.0)  !!! defining delta(x) interval
-
-
-do i=1,N_nodes+1
-    x(i)=(i-1.0)/(N_nodes-1.0)
-    h(i)=(ha**4 - rep*x(i))**(0.75)
-enddo  !!! x and h^3 array created for x values
-
-    do i = 1,N_nodes+1 !Creating the first stiffness matrix for first fundamental solution + Right hand side
-              if (i .eq. N_nodes+1) then
-                            stiff1(i,i) = h(i) / (2*dx)
-                            stiff1(i, i-2) = -h(i-2) / (2*dx)
-                            stiff1(i+N_nodes+1,i+N_nodes+1) = h(i)
-                            stiff1(i+N_nodes+1,i+N_nodes-1) = -h(i-2)
-                            RHS1(i) = -1.0
-              else if (i .eq. N_nodes) then
-                            stiff1(i,i) = 1.0
-                            stiff1(i+N_nodes+1,i+N_nodes+1) = 1.0
-              else
-                            stiff1(i,i+2) = h(i+2) / (dx**2)
-                            stiff1(i,i+1) = -2.0*h(i+1) / (dx**2)
-                            stiff1(i,i) = h(i) / (dx**2)
-                            stiff1(i+N_nodes+1,i+N_nodes+3) = h(i+2) / (dx**2)
-                            stiff1(i+N_nodes+1,i+N_nodes+2) = -2.0*h(i+1) / (dx**2)
-                            stiff1(i+N_nodes+1,i+N_nodes+1) = h(i) / (dx**2)
-                            stiff1(i,N_nodes+i+1) = omega
-                            stiff1(i+N_nodes+1,i) = -1.0 * omega
-              end if
-    enddo ! End loop for stiff1
- 
- RHS2 = 0 !!! Reseting right hand side for the next stiffness matrix
- x = 0 !!! Reseting x array for the next stiffness matrix
- h = 0 !!! Reseting h^3 values for the next stiffness matrix
- 
- do i=0,N_nodes
-    x(i+1)=(i-1.0)/(N_nodes-1.0)
-    h(i+1)=(ha**4 - rep*x(i+1))**(0.75)
-enddo  !!! x and h^3 array created for x values
-
-
-    do i=1,N_nodes+1
-            if (i .eq. 1) then
-               stiff2(i,i) = -1.0* h(i) / (2*dx)
-               stiff2(i,i+2) = h(i+2) / (2*dx)
-               stiff2(i+N_nodes+1,i+N_nodes+1) = -1.0 * h(i)
-               stiff2(i+N_nodes+1,i+N_nodes+3) = h(i+2)
-               RHS2(i) = -1.0
-            else if (i .eq. 2) then
-               stiff2(i,i) = 1.0
-               stiff2(i+N_nodes+1,i+N_nodes+1) = 1.0
-            else
-               stiff2(i,i-2) = h(i-2) / (dx**2)
-               stiff2(i,i-1) = -2.0*h(i-1) / (dx**2)
-               stiff2(i,i) = h(i) / (dx**2)
-               stiff2(i+N_nodes+1,i+N_nodes-1) = h(i-2) / (dx**2)
-               stiff2(i+N_nodes+1,i+N_nodes) = -2.0*h(i-1) / (dx**2)
-               stiff2(i+N_nodes+1,i+N_nodes+1) = h(i) / (dx**2)
-               stiff2(i,N_nodes+i+1) = omega
-               stiff2(i+N_nodes+1,i) = -1.0 * omega
-            end if
-    enddo
-    call enter_exit(sub_name,2)
-
-    end subroutine Matrix
-
-!
-!###################################################################################
-!
-
-subroutine Mat_to_CC(k,nn,sparsecol,sparserow,sparseval,NonZeros)
-! This subroutine forms the sparse representation of matrix K in Compressed Column(CC) format.
-! INPUT/OUTPUT(s):
-!                - K ====> Stiffness Matrix for Capillary passed from matrix subroutine. (It should be a square matrix)
-!                - nn ====> Number of Nodes for the 1D capillary domain. Will be hard coded.
-!                - SparseVal ====> An array formed with NonZero values stored in of size(# NonZeros)
-!                - SparseRow ====> An array formed with the Row number of each NonZero in matrix of size(# NonZeros)
-!                - SparseCol ====> An array formed with values to represent row storage. Includes the index numbers of start of each column (Size of array = MatrixSize + 1)
-
-
-use diagnostics, only: enter_exit
-use arrays, only:dp
-
-!Parameters:
-real(dp),  intent(in):: k(2*nn+2,2*nn+2)
-real(dp),  allocatable, intent(out) :: sparseval(:)
-integer, allocatable, intent(out) :: sparsecol(:), sparserow(:)
-integer, intent(in) :: nn
-integer, intent(out) :: NonZeros
-!Local Variables:
-integer :: i, j, counter
-character(len=60) :: sub_name
-
-    
-sub_name = 'Mat_to_CC'
-call enter_exit(sub_name,1)
-
-allocate(sparsecol(2*nn+3)) !allocation of sparsecol
-NonZeros = 0 !Initialisation for NonZeros
-sparsecol = 1 !SparseCol initialisation
-
-! Counting the number of NonZeros in K matrix
-do i = 1,2*nn+2 !going through columns of k
-     do j = 1,2*nn+2 !going through rows of k
-          if (k(i,j) .NE. 0.0) then
-          NonZeros = NonZeros + 1
-          end if         
-     enddo
- enddo
-!write(*,*) 'Number of NonZero components in stiffness matrix: ' , NonZeros ! A write statement for checking the number NonZeros
-
-! Allocation of SparseRow and SparseVal (After knowing the number of NonZeros)
-
- allocate(sparserow(NonZeros))
- allocate(sparseval(NonZeros))
- 
- sparserow = 0 !Initialisation
- sparseval = 0 !Initialisation
- 
- counter=0
- do j = 1,2*nn+2 !going through columns of k
-     do i = 1,2*nn+2 !going through rows of k
-          if (k(i,j).NE.0) then
-            counter = counter + 1
-            sparseval(counter)=k(i,j)
-            sparserow(counter)=i
-          end if
-     enddo ! do i
-     if (counter.EQ.0.0) then
-         sparsecol(j+1) = 0
-    else
-        sparsecol(j+1) = counter + 1
-     end if
- enddo ! do j
-call enter_exit(sub_name,2)
- 
-end subroutine Mat_to_CC
-
-
-!
-!###################################################################################
-!
-
-subroutine Mat_to_CSR(k,nn,sparsecol,sparserow,sparseval,NonZeros)
-! This subroutine forms the sparse representation of matrix K in Compressed Sparse Row(CRS) format.
-! INPUT/OUTPUT(s):
-!                - K ====> Stiffness Matrix for Capillary passed from matrix subroutine. (It should be a square matrix)
-!                - nn ====> Number of Nodes for the 1D capillary domain. Will be hard coded.
-!                - SparseVal ====> An array formed with NonZero values stored in of size(# NonZeros)
-!                - SparseCol ====> An array formed with the column number of NonZeros in matrix of size(# NonZeros)
-!                - SparseRow ====> An array formed with values to represent row storage. Includes the index numbers of start of each row (Size of array = MatrixSize + 1)
-
-
-use diagnostics, only: enter_exit
-use arrays, only:dp
-
-!Paramters:
-real(dp),  intent(in):: k(2*nn+2,2*nn+2)
-real(dp),  allocatable, intent(out) :: sparseval(:)
-integer, allocatable, intent(out) :: sparsecol(:), sparserow(:)
-integer, intent(in) :: nn
-integer, intent(out) :: NonZeros
-!Local Variables:
-integer :: i, j, counter
-character(len=60) :: sub_name
-
-    
-sub_name = 'Mat_to_CSR'
-call enter_exit(sub_name,1)
-
-allocate(sparserow(2*nn+3)) !allocation of sparserow
-NonZeros = 0 !Initialisation for NonZeros
-sparserow = 1 !SparseRow initialisation
-
-! Counting the number of NonZeros in K matrix
-do i = 1,2*nn+2 !going through columns of k
-     do j = 1,2*nn+2 !going through rows of k
-          if (k(i,j) .NE. 0.0) then
-          NonZeros = NonZeros + 1
-          end if         
-     enddo
- enddo
-!write(*,*) 'Number of NonZero components in stiffness matrix: ' , NonZeros ! A write statement for checking the number NonZeros
-
-! Allocation of SparseCol and SparseVal (After knowing the number of NonZeros)
-
- allocate(sparsecol(NonZeros))
- allocate(sparseval(NonZeros))
- 
- sparsecol = 0 !Initialisation
- sparseval = 0 !Initialisation
- 
- counter=0
- do i = 1,2*nn+2 !going through columns of k
-     do j = 1,2*nn+2 !going through rows of k
-          if (k(i,j).NE.0) then
-            counter = counter + 1
-            sparseval(counter)=k(i,j)
-            sparsecol(counter)=j
-          end if
-     enddo ! do j
-     if (counter.EQ.0.0) then
-         sparserow(i+1) = 0
-    else
-        sparserow(i+1) = counter + 1
-     end if
- enddo ! do i
-call enter_exit(sub_name,2)
- 
-end subroutine Mat_to_CSR
-
 !
 !###################################################################################
 !
@@ -453,14 +63,12 @@ end subroutine Mat_to_CSR
     real(dp):: Pin,Pout,Q01,R_in,R_out,x,y,z,Lin,Lout,Ppl
     logical, intent(in) :: OUTPUT_PERFUSION
     
-    
     type(capillary_bf_parameters) :: cap_param
 
     !    Local variables
     integer :: MatrixSize,NonZeros,submatrixsize,ngen,i
     real(dp) :: area,Q01_mthrees,sheet_number
     character(len=60) :: sub_name
-
     
     sub_name = 'cap_flow_ladder'
     call enter_exit(sub_name,1)
@@ -1145,9 +753,6 @@ end subroutine populate_matrix_ladder
     C=area_new/(4.d0*cap_param%mu_c*cap_param%K_cap*cap_param%f_cap*L_new**2*alpha_c)
 
     !###  Determine what zone we are in and calculate flow and TT
-
-
-
     IF((P_a-cap_param%Palv).LT.cap_param%Plb_c)THEN
        !...   ZONE 1:
        !...   Arteriole and venous pressure both less than alveolar pressure - the
@@ -1157,12 +762,6 @@ end subroutine populate_matrix_ladder
        Hven=0.d0
        Q_c=0.d0
        RBC_tt=0.d0 !TEMPORARY
-
-
-
-
-
-
     ELSEIF((P_a-cap_param%Palv).LE.cap_param%Pub_c.AND.(P_v-cap_param%Palv).LE.cap_param%Plb_c)THEN
        !...    ZONE 2:
        zone=2
@@ -1201,8 +800,6 @@ end subroutine populate_matrix_ladder
             (Hmax_art**3.d0-Hven**3.d0))
     ELSEIF((P_a-cap_param%Palv).GT.cap_param%Pub_c.AND.(P_v-cap_param%Palv).GT.cap_param%Pub_c)THEN
        zone=4 !!!tmp should = 3
-write(*,*) 'parameters are: ', P_a , cap_param%Palv, cap_param%Pub_c, P_v, cap_param%Plb_c
-
        Hart=Hmax_art
        Hven=Hmax_ven
        Q_c=4.d0*C*alpha_c*Hart**3.d0*(P_a-P_v)
@@ -1367,7 +964,6 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   integer :: MatrixSize,NonZeros,submatrixsize
   real(dp) :: sheet_number
   integer SOLVER_FLAG
-  real(dp) :: start, finish
 
   complex(dp), allocatable :: cap_admit(:,:)
   complex(dp), allocatable :: tube_admit(:,:)
@@ -1378,7 +974,6 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   complex(dp), allocatable :: sheet_admit_matrix(:,:,:)
 
   complex(dp) :: daughter_admit,sister_admit,reflect_coeff,sister_current
-  complex(dp) :: Y11,Y12,Y21,Y22
 
 
   character(len=60) :: sub_name
@@ -1450,11 +1045,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   SparseVal=0.0_dp
   Solution=0.0_dp
   SolutionLast=0.0_dp
-  Y11 = 0.0_dp ! admittance initialisation
-  Y12 = 0.0_dp ! admittance initialisation
-  Y21 = 0.0_dp ! admittance initialisation
-  Y22 = 0.0_dp ! admittance initialisation
- 
+
   !!...  Initial guess for pressure distribution lets say all arterial pressures are the same
   !!...  and all the venous pressures are the same solution appears independent of this.
   DO i=1,cap_param%num_symm_gen-1
@@ -1618,7 +1209,6 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      enddo
 
 !!...   CAPILLARY ELEMENT (arteriole + venule + capillary)
-
      Q01_mthrees=Q01_mthrees-Q_sheet(gen)
      Hart=cap_param%H0+alpha_c*(Pressure(4*gen-3)-cap_param%Palv)
      Hven=cap_param%H0+alpha_c*(Pressure(4*gen-1)-cap_param%Palv)
@@ -1684,8 +1274,6 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
        prop_const(gen+3*ngen,nf)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed) !1/mm
      enddo
   enddo
-!write(*,*) 'I am here'
-!pause
   !!...   CAPILLARY ELEMENT (arteriole + venule + capillary)  at terminal
     Pin_sheet=Pressure(4*cap_param%num_symm_gen-6) !pressure into final capillary sheets
     Pout_sheet=Pressure(4*cap_param%num_symm_gen-4) !pressure out of final capillary sheets
@@ -1713,8 +1301,6 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
    tube_eff_admit(1+2*ngen,nf)=tube_admit(1+2*ngen,nf)*(1&
               -reflect_coeff*exp(-2.0_dp*prop_const(1+2*ngen,nf)*L_v(1)*1000.0_dp/2.0_dp))/&
               (1+reflect_coeff*exp(-2.0_dp*prop_const(1+2*ngen,nf)*L_v(1)*1000.0_dp/2.0_dp))
-  !write(*,*) 'no_freq: ', no_freq
-!pause
   enddo
   !Now second vein and then capillary
   do nf=1,no_freq
@@ -1757,8 +1343,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   enddo
 
   do gen=2,cap_param%num_symm_gen-1
-      if (constant_sheet_height.eqv..True.) then !! Case of constant capillary sheet height
-        do nf =1,no_freq
+    do nf =1,no_freq
       !Next two vessels are identical
       reflect_coeff=(2*tube_admit(gen+2*ngen,nf)-tube_admit(gen+2*ngen-1,nf))&
         /(tube_admit(gen+2*ngen-1,nf)+2*tube_admit(gen+2*ngen,nf))
@@ -2234,4 +1819,3 @@ call enter_exit(sub_name,2)
 
 end subroutine Mat_to_CC
 end module capillaryflow
-
