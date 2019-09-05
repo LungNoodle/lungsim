@@ -55,7 +55,7 @@ module arrays
   logical,allocatable :: expansile(:)
 
   type capillary_bf_parameters
-    integer :: num_symm_gen=2 !no units
+    integer :: num_symm_gen=9 !no units
     real(dp) :: total_cap_area=0.63000e02_dp !m
     real(dp) :: Palv=0.0_dp!Pa
     real(dp) :: H0=0.35000e-05_dp !m
