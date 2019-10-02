@@ -1,8 +1,8 @@
-project(aether Fortran C)
 
 # The list of all source files that are required to build the library
 set(LIB_SRCS
   arrays.f90
+  capillaryflow.f90
   diagnostics.f90
   exports.f90
   filenames.f90
@@ -23,10 +23,9 @@ set(LIB_SRCS
   wave_transmission.f90
 )
 if (SUPERLU_FOUND)
-  list(APPEND LIB_SRCS
-    capillaryflow.f90
-  )
+  set_source_files_properties(capillaryflow.f90 PROPERTIES COMPILE_DEFINITIONS HAVE_SUPERLU)
 endif ()
+set_source_files_properties(capillaryflow.f90 PROPERTIES COMPILE_FLAGS -cpp)
 
 if (MSVC)
   target_compile_options(aether_obj PRIVATE /heap-arrays0)
@@ -49,7 +48,7 @@ set_target_properties(aether_obj PROPERTIES
 if (SUPERLU_FOUND)
   set(SUPERLU_FORTRAN_SRCS
     c_fortran_dgssv.c
-    c_fortran_cgssv.c
+    #c_fortran_cgssv.c
   )
   # Create an object library for the SuperLU C Fortran cgssv file.
   add_library(aether_superlu_obj OBJECT ${SUPERLU_FORTRAN_SRCS})
@@ -81,4 +80,3 @@ install(TARGETS aether
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
-

@@ -1,13 +1,17 @@
 
 
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.10.2)
 project(Aether VERSION 0.1.0 LANGUAGES Fortran C CXX)
 
 # Policy settings
-
 if (POLICY CMP0078)
-  cmake_policy(SET CMP0078 OLD)
+  cmake_policy(SET CMP0078 NEW)
 endif ()
+if(POLICY CMP0086)
+  cmake_policy(SET CMP0086 NEW)
+endif()
+
+get_property(IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -31,7 +35,7 @@ set(AETHER_BUILD_SHARED ${BUILD_SHARED} CACHE BOOL "Build shared library (true) 
 set(BUILD_SHARED_LIBS ${AETHER_BUILD_SHARED} CACHE INTERNAL "Internalise BUILD_SHARED_LIBS, manipulate via AETHER_BUILD_SHARED" FORCE)
 
 # Set the build type Release, Debug plus more if you define them
-if (NOT CMAKE_CONFIGURATION_TYPES)
+if (NOT IS_MULTI_CONFIG)
   if(NOT BUILD_TYPE)
     set(BUILD_TYPE Release)
   endif()

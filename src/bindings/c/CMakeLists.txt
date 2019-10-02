@@ -3,6 +3,7 @@ project(AetherCBindings LANGUAGES C Fortran)
 
 set(C_FORTRAN_LIB_SRCS
     arrays.f90
+    capillaryflow.f90
     diagnostics.f90
     exports.f90
     filenames.f90
@@ -22,6 +23,7 @@ set(C_FORTRAN_LIB_SRCS
 
 set(C_C_LIB_SRCS
     arrays.c
+    capillaryflow.c
     diagnostics.c
     exports.c
     filenames.c
@@ -42,6 +44,7 @@ set(C_C_LIB_SRCS
 set(C_LIB_HDRS
   symbol_export.h
   arrays.h
+  capillaryflow.h
   diagnostics.h
   exports.h
   filenames.h
@@ -90,6 +93,7 @@ set_target_properties(aether_c PROPERTIES
 if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     set_source_files_properties(${C_FORTRAN_LIB_SRCS} PROPERTIES COMPILE_FLAGS -cpp)
 endif ()
+
 target_link_libraries(aether_c PUBLIC aether_c_fortran)
 if (SUPERLU_FOUND)
   target_link_libraries(aether_c PUBLIC superlu)
