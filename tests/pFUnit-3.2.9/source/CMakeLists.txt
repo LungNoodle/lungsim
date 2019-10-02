@@ -1,5 +1,5 @@
 
-find_package(PythonInterp REQUIRED) #Sets ${PYTHON_EXECUTABLE}
+find_package(Python COMPONENTS Interpreter REQUIRED) #Sets ${Python_EXECUTABLE}
 
 set(srcs Assert.F90)
 
@@ -11,7 +11,7 @@ list(APPEND _ADDTIONAL_SRCS_TO_CLEAN ${GENERATED_ASSERT_FILES_DIR})
 
 # Get list of source files
 execute_process(
-    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/GenerateAssertsOnArrays.py --maxRank ${PFUNIT_MAX_RANK}
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/GenerateAssertsOnArrays.py --maxRank ${PFUNIT_MAX_RANK}
     WORKING_DIRECTORY "${GENERATED_ASSERT_FILES_DIR}"
     OUTPUT_VARIABLE generate_asserts_on_array_output
 )
@@ -19,7 +19,7 @@ string(REPLACE "\n" ";" GENERATED_ASSERT_FILES ${generate_asserts_on_array_outpu
 
 # Generate AssertArray files:  AssertArrays.fh, generated.inc, and AssertXYZ?.F90
 add_custom_command(OUTPUT ${GENERATED_ASSERT_FILES} AssertArrays.fh generated.inc
-    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/GenerateAssertsOnArrays.py --maxRank ${PFUNIT_MAX_RANK} --quiet True
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/GenerateAssertsOnArrays.py --maxRank ${PFUNIT_MAX_RANK} --quiet True
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Generating assert files."
 )
