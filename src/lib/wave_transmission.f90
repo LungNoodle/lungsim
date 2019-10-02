@@ -75,7 +75,6 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   real(dp) grav_vect(3),grav_factor,mechanics_parameters(2)
   integer :: AllocateStatus,fid=10,fid2=20,fid3=30,fid4=40,fid5=50
   character(len=60) :: sub_name
-  logical :: constant_sheet_height
 
   sub_name = 'evalulate_wave_transmission'
   call enter_exit(sub_name,1)
@@ -156,13 +155,6 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   else
     print *, 'ERROR: Your boundary condition choice has not yet been implemented'
     call exit(0)
-  endif
-  
-  !! Determining the capillary model (Constant sheet height / Non-constant sheet height)
-  if (cap_model.eq.1) then
-     constant_sheet_height = .True.
-  else
-     constant_sheet_height = .False.
   endif
 
   mechanics_type='linear'
