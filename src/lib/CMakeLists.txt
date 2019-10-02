@@ -50,6 +50,9 @@ if (SUPERLU_FOUND)
     c_fortran_dgssv.c
     #c_fortran_cgssv.c
   )
+  if (SUPERLU_HAS_GLOBALLU_T)
+    set_source_files_properties(c_fortran_dgssv.c PROPERTIES COMPILE_DEFINITIONS SUPERLU_HAS_GLOBALLU_T)
+  endif()
   # Create an object library for the SuperLU C Fortran cgssv file.
   add_library(aether_superlu_obj OBJECT ${SUPERLU_FORTRAN_SRCS})
   # Our object library only needs the include directory information carried by the 'superlu' target
