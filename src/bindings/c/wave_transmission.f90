@@ -8,6 +8,7 @@ contains
 
 subroutine evaluate_wave_transmission_c(grav_dirn,grav_factor,n_time,heartrate,&
   a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition,cap_model) bind(C, name="evaluate_wave_transmission_c")
+
 use iso_c_binding, only: c_ptr
 use utils_c, only: strncpy
 use other_consts, only: MAX_STRING_LEN

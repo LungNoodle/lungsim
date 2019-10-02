@@ -156,6 +156,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
     print *, 'ERROR: Your boundary condition choice has not yet been implemented'
     call exit(0)
   endif
+
   mechanics_type='linear'
   if (mechanics_type.eq.'linear') then
     mechanics_parameters(1)=5.0_dp*98.07_dp !average pleural pressure (Pa)

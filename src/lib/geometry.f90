@@ -2299,8 +2299,6 @@ contains
      endif !elem_cnct
    enddo !noelem
 
-   !write(*,*) 'elems', parentlist
-
    deallocate(templist)
 
    call enter_exit(sub_name,2)
