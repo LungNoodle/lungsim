@@ -1531,6 +1531,8 @@ character(len=60) :: sub_name
 
 sub_name = 'calc_cap_admit_varh'
 call enter_exit(sub_name,1)
+
+#ifdef HAVE_SUPERLU
 !Convert dimensional parameters to non-dimensional ones
 omega = (cap_param%mu_c*cap_param%K_cap*cap_param%F_cap*omega_d*alpha_c*(cap_param%L_c)**2)/(cap_param%H0**3) ! Non-Dimensional Frequency
 ha = Hart/cap_param%H0
@@ -1637,6 +1639,11 @@ Y22 = Y22*cap_param%H0**3/(cap_param%mu_c*cap_param%K_cap)*1000.0_dp**3 !m->mm
 prop_const=sqrt(cmplx(0.0_dp,1.0_dp,8)*cap_param%mu_c* &
     cap_param%K_cap*cap_param%F_cap*omega*alpha_c/ &
     (((Hart+Hven)/2.0_dp)**3.0_dp))/1000.0_dp!1/mm
+
+#else
+write(*,*) 'SuperLU is not available you cannot use capillary model 2.'
+stop 2
+#endif
 
 call enter_exit(sub_name,2)
 
