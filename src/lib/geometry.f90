@@ -1310,7 +1310,7 @@ contains
       if(to_export)then
          !!! export vertices as nodes
          writefile = trim(filename)//'.exnode'
-         open(10, file = writefile)
+         open(10, file = writefile, status='replace')
          !**    write the group name
          write(10,'( '' Group name: '',A)') trim(groupname)
          !*** Exporting Geometry
