@@ -43,8 +43,8 @@ if (NOT IS_MULTI_CONFIG)
   set(CMAKE_BUILD_TYPE ${AETHER_BUILD_TYPE} CACHE INTERNAL "Internalise CMAKE_BUILD_TYPE, manipulate via AETHER_BUILD_TYPE" FORCE)
 endif()
 
-# Set whether to build bindings or not, may require SWIG
-option(AETHER_BUILD_BINDINGS "Build bindings for ${PROJECT}, may require SWIG" YES)
+# Set whether to build bindings or not, will require SWIG
+option(AETHER_BUILD_BINDINGS "Build bindings for ${PROJECT}, will require SWIG" YES)
 
 # Set base install location
 if(NOT INSTALL_PREFIX)
