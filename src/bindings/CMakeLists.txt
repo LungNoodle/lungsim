@@ -8,7 +8,9 @@ if(SWIG_FOUND)
   option(AETHER_BUILD_PYTHON_BINDINGS "Build Python bindings for ${PROJECT_NAME}" YES)
 
   if(AETHER_BUILD_PYTHON_BINDINGS)
-    find_package(Python COMPONENTS Interpreter Development NumPy)
+    add_project_config_parameter(PREFERRED_PYTHON_VERSION 3 STRING "Set the preferred Python version for the bindings.")
+
+    find_package(Python ${AETHER_PREFERRED_PYTHON_VERSION} COMPONENTS Interpreter Development NumPy)
     if(Python_FOUND)
       add_subdirectory(python)
     else()

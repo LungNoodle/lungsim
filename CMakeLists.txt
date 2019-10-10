@@ -27,19 +27,15 @@ include(buildtypes)
 # Mark some variables as advanced hiding them from basic users
 tidy_gui()
 
+message(STATUS "AETHER_TEST_VAR: ${AETHER_TEST_VAR}")
+
 # Build shared or static library
-if(NOT BUILD_SHARED)
-  set(BUILD_SHARED ON)
-endif()
-set(AETHER_BUILD_SHARED ${BUILD_SHARED} CACHE BOOL "Build shared library (true) or static library (false)")
+add_project_config_parameter(BUILD_SHARED ON BOOL "Build shared library (true) or static library (false)")
 set(BUILD_SHARED_LIBS ${AETHER_BUILD_SHARED} CACHE INTERNAL "Internalise BUILD_SHARED_LIBS, manipulate via AETHER_BUILD_SHARED" FORCE)
 
 # Set the build type Release, Debug plus more if you define them
 if (NOT IS_MULTI_CONFIG)
-  if(NOT BUILD_TYPE)
-    set(BUILD_TYPE Release)
-  endif()
-  set(AETHER_BUILD_TYPE ${BUILD_TYPE} CACHE STRING "Set the build type; [Release], Debug, Pedantic (GNU Fortran only)")
+  add_project_config_parameter(BUILD_TYPE Release STRING "Set the build type; [Release], Debug, Pedantic (GNU Fortran only)")
   set(CMAKE_BUILD_TYPE ${AETHER_BUILD_TYPE} CACHE INTERNAL "Internalise CMAKE_BUILD_TYPE, manipulate via AETHER_BUILD_TYPE" FORCE)
 endif()
 
@@ -47,10 +43,7 @@ endif()
 option(AETHER_BUILD_BINDINGS "Build bindings for ${PROJECT}, will require SWIG" YES)
 
 # Set base install location
-if(NOT INSTALL_PREFIX)
-  set(INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
-endif()
-set(AETHER_INSTALL_PREFIX ${INSTALL_PREFIX} CACHE STRING  "Set the base install prefix")
+add_project_config_parameter(INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} STRING "Set the base install prefix.")
 set(CMAKE_INSTALL_PREFIX ${AETHER_INSTALL_PREFIX} CACHE INTERNAL "Internlaise CMAKE_INSTALL_PREFIX, manipulate via AETHER_INSTALL_PREFIX" FORCE)
 mark_as_advanced(AETHER_INSTALL_PREFIX)
 
