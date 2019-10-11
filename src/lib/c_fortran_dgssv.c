@@ -67,7 +67,9 @@ c_fortran_dgssv_(int *iopt, int *n, int *nnz, int *nrhs,
     superlu_options_t options;
     SuperLUStat_t stat;
     factors_t *LUfactors;
+#ifdef SUPERLU_HAS_GLOBALLU_T
     GlobalLU_t Glu;   /* Not needed on return. */
+#endif
     int    *rowind0;  /* counter 1-based indexing from Frotran arrays. */
     int    *colptr0;
 
@@ -111,26 +113,23 @@ c_fortran_dgssv_(int *iopt, int *n, int *nnz, int *nrhs,
 	panel_size = sp_ienv(1);
 	relax = sp_ienv(2);
 
-	dgstrf(&options, &AC, relax, panel_size, etree,
+#ifdef SUPERLU_HAS_GLOBALLU_T
+    /* Probably running version 5.X of SuperLU. */
+    dgstrf(&options, &AC, relax, panel_size, etree,
                 NULL, 0, perm_c, perm_r, L, U, &Glu, &stat, info);
+#else
+    /* Probably running with version 4.3 or less of SuperLU. */
+    dgstrf(&options, &AC, relax, panel_size, etree,
+                NULL, 0, perm_c, perm_r, L, U, &stat, info);
+#endif
 
 	if ( *info == 0 ) {
 	    Lstore = (SCformat *) L->Store;
 	    Ustore = (NCformat *) U->Store;
-		/*
-	    *printf("No of nonzeros in factor L = %d\n", Lstore->nnz);
-	    *printf("No of nonzeros in factor U = %d\n", Ustore->nnz);
-	    *printf("No of nonzeros in L+U = %d\n", Lstore->nnz + Ustore->nnz);
-	    *dQuerySpace(L, U, &mem_usage);
-	    *printf("L\\U MB %.3f\ttotal MB needed %.3f\n",
-		*   mem_usage.for_lu/1e6, mem_usage.total_needed/1e6);
-		*/
+	    dQuerySpace(L, U, &mem_usage);
 	} else {
-	    printf("dgstrf() error returns INFO= %d\n", *info);
 	    if ( *info <= *n ) { /* factorization completes */
-		dQuerySpace(L, U, &mem_usage);
-		printf("L\\U MB %.3f\ttotal MB needed %.3f\n",
-		       mem_usage.for_lu/1e6, mem_usage.total_needed/1e6);
+            dQuerySpace(L, U, &mem_usage);
 	    }
 	}
 	

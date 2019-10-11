@@ -43,5 +43,6 @@ CMakeLists.txt.user
 *.pyc
 __pycache__/
 
-# Pycharm
-.idea
+# PyCharm
+.idea/
+

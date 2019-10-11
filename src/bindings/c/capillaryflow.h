@@ -4,7 +4,4 @@
 
 #include "symbol_export.h"
 
-
-
-
 #endif /* AETHER_CAPILLARYFLOW_H */

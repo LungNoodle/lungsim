@@ -6,6 +6,4 @@ module capillaryflow_c
 
 contains
 
-
-
 end module capillaryflow_c

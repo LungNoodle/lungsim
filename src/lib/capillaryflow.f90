@@ -1,5 +1,5 @@
 module capillaryflow
-!*Brief Description:* This module handles all microcirculatory blood flow. 
+!*Brief Description:* This module handles all microcirculatory blood flow.
 !
 !*LICENSE:*
 !
@@ -11,10 +11,10 @@ module capillaryflow
 !This module handles all microcirculatory blood flow.
   use other_consts, only: TOLERANCE
   implicit none
-  
+
 
   !Module parameters
-  
+
   !Module types
 
   !Module variables
@@ -22,7 +22,7 @@ module capillaryflow
   !Interfaces
   private
   public cap_flow_ladder,cap_flow_admit
-  
+
 contains
 !
 !###################################################################################
@@ -31,28 +31,28 @@ contains
     Q01,R_in,R_out,x,y,z,OUTPUT_PERFUSION)
 !*cap_flow_ladder:* Uses the ladder model to solve for perfusion in the acinus.
 ! It uses a symmetric, bifuracting arteriole and venule tree with N generations
-! and calls a function to calculate resistance across a capillary sheet at each 
-! generation (CAP_FLOW_SHEET.f). 
+! and calls a function to calculate resistance across a capillary sheet at each
+! generation (CAP_FLOW_SHEET.f).
 
 !###  -----------------------INPUT-------------------------
-!###  The input to this subroutine is: 
+!###  The input to this subroutine is:
 !###  ne=element number
 !###  Pin= Pressure into the acinus
 !###  Pout=Pressure out of the acinus
 !###  Ppl= Pleural pressure
 
 !###  ----------------------OUTPUT----------------------------
-!###  Important output to large vessel models 
+!###  Important output to large vessel models
 !###  LPM_FUNC= Resistance across the acinus:
 
-!###  This needs to be fed back into the large vessel model. Then 
-!###  Pin-Pout=LPM_FUNC*Q is solved for Pin, Pout and Q as part 
-!###  that system. Pin and Pout can then be fed back iteratively 
-!###  into this subroutine...  
-!###  
+!###  This needs to be fed back into the large vessel model. Then
+!###  Pin-Pout=LPM_FUNC*Q is solved for Pin, Pout and Q as part
+!###  that system. Pin and Pout can then be fed back iteratively
+!###  into this subroutine...
+!###
 !###  In addition this subroutine outputs:
 !###  Pressure at each each vessel interection and flow, resistance
-!###  and RBC transit times through each capillary element. 
+!###  and RBC transit times through each capillary element.
 
 !###  UNITS. The units that are used here are m.
 
@@ -62,18 +62,18 @@ contains
     real(dp), intent(inout) :: LPM_FUNC
     real(dp):: Pin,Pout,Q01,R_in,R_out,x,y,z,Lin,Lout,Ppl
     logical, intent(in) :: OUTPUT_PERFUSION
-    
+
     type(capillary_bf_parameters) :: cap_param
 
     !    Local variables
     integer :: MatrixSize,NonZeros,submatrixsize,ngen,i
     real(dp) :: area,Q01_mthrees,sheet_number
     character(len=60) :: sub_name
-    
+
     sub_name = 'cap_flow_ladder'
     call enter_exit(sub_name,1)
 
-!     Number of non-zero entries in solution matrix. 
+!     Number of non-zero entries in solution matrix.
       NonZeros=3
       do i=2,cap_param%num_symm_gen
          NonZeros=NonZeros+4*i+10
@@ -83,7 +83,7 @@ contains
 !!     The number of unknown pressures
       submatrixsize=4*cap_param%num_symm_gen-4
       ngen=cap_param%num_symm_gen
-  
+
 !...  ---INITIALISATION
 !...  The input Q01 gives us an estimate for flow into the acinus from the large
 !...  vessel model.
@@ -112,7 +112,7 @@ contains
 !...  to the large vessel model.
       LPM_FUNC=(Pin-Pout)/(Q01_mthrees*1000.d0**3) !Pa.s/m^3->pa.s/mm^3
     call enter_exit(sub_name,2)
-    
+
   end subroutine cap_flow_ladder
 !
 !######################################################################################################
@@ -1531,6 +1531,8 @@ character(len=60) :: sub_name
 
 sub_name = 'calc_cap_admit_varh'
 call enter_exit(sub_name,1)
+
+#ifdef HAVE_SUPERLU
 !Convert dimensional parameters to non-dimensional ones
 omega = (cap_param%mu_c*cap_param%K_cap*cap_param%F_cap*omega_d*alpha_c*(cap_param%L_c)**2)/(cap_param%H0**3) ! Non-Dimensional Frequency
 ha = Hart/cap_param%H0
@@ -1637,6 +1639,11 @@ Y22 = Y22*cap_param%H0**3/(cap_param%mu_c*cap_param%K_cap)*1000.0_dp**3 !m->mm
 prop_const=sqrt(cmplx(0.0_dp,1.0_dp,8)*cap_param%mu_c* &
     cap_param%K_cap*cap_param%F_cap*omega*alpha_c/ &
     (((Hart+Hven)/2.0_dp)**3.0_dp))/1000.0_dp!1/mm
+
+#else
+write(*,*) 'SuperLU is not available you cannot use capillary model 2.'
+stop 2
+#endif
 
 call enter_exit(sub_name,2)
 
@@ -1818,5 +1825,5 @@ do i = 1,2*nn+2 !going through columns of k
 call enter_exit(sub_name,2)
 
 end subroutine Mat_to_CC
-end module capillaryflow
 
+end module capillaryflow
