@@ -126,7 +126,9 @@ contains
 
   end subroutine export_1d_elem_geometry
 
-!!!############################################################################
+!
+!##############################################################################
+!
 
   subroutine export_elem_geometry_2d(EXELEMFILE, name, offset_elem, offset_node)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_ELEM_GEOMETRY_2D" :: EXPORT_ELEM_GEOMETRY_2D
@@ -245,8 +247,9 @@ contains
 
   end subroutine export_elem_geometry_2d
 
-
-!!!##########################################################################
+!
+!##############################################################################
+!
 
   subroutine export_node_geometry(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_GEOMETRY" :: EXPORT_NODE_GEOMETRY
@@ -299,7 +302,9 @@ contains
 
   end subroutine export_node_geometry
 
-!!!########################################################################
+!
+!##############################################################################
+!
 
   subroutine export_node_geometry_2d(EXNODEFILE, name, offset)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_GEOMETRY_2D" :: EXPORT_NODE_GEOMETRY_2D
@@ -384,7 +389,9 @@ contains
 
   end subroutine export_node_geometry_2d
 
-!!!####################################################################
+!
+!##############################################################################
+!
 
   subroutine export_data_geometry(EXDATAFILE, name, offset)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_DATA_GEOMETRY" :: EXPORT_DATA_GEOMETRY
@@ -422,7 +429,9 @@ contains
 
   end subroutine export_data_geometry
 
-!!!########################################################################
+!
+!##############################################################################
+!
 
   subroutine export_terminal_solution(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_SOLUTION" :: EXPORT_TERMINAL_SOLUTION
@@ -512,7 +521,11 @@ contains
     close(10)
 
   end subroutine export_terminal_solution
-!!! ##########################################################
+  
+!
+!##############################################################################
+!
+
   subroutine export_terminal_perfusion(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_PERFUSION" :: EXPORT_TERMINAL_PERFUSION
 
@@ -578,7 +591,11 @@ contains
     close(10)
 
   end subroutine export_terminal_perfusion
-!!!################################################
+
+!
+!##############################################################################
+!
+
   subroutine export_terminal_ssgexch(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_SSGEXCH" :: EXPORT_TERMINAL_SSGEXCH
 
@@ -656,10 +673,10 @@ contains
     close(10)
 
   end subroutine export_terminal_ssgexch
-
-
-
-!!! #################################################################
+  
+!
+!##############################################################################
+!
 
   subroutine export_node_field(nj_field, EXNODEFIELD, name, field_name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_FIELD" :: EXPORT_NODE_FIELD
@@ -703,8 +720,9 @@ contains
 
   end subroutine export_node_field
 
-
-!!! ###########################################################
+!
+!##############################################################################
+!
 
   subroutine export_elem_field(EXELEMFIELD, name, field_name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_ELEM_FIELD" :: EXPORT_ELEM_FIELD
