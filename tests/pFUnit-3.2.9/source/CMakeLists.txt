@@ -99,7 +99,7 @@ target_include_directories(pfunit PUBLIC
     "${CMAKE_CURRENT_BINARY_DIR}"
     "${MODULES_DIR}")
 
-install(TARGETS pfunit DESTINATION lib)
-install(DIRECTORY "${MODULES_DIR}" DESTINATION .)
+#install(TARGETS pfunit DESTINATION lib)
+#install(DIRECTORY "${MODULES_DIR}" DESTINATION .)
 
 set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "${_ADDTIONAL_SRCS_TO_CLEAN}")
