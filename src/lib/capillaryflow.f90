@@ -1,5 +1,5 @@
 module capillaryflow
-!*Brief Description:* This module handles all microcirculatory blood flow. 
+!*Brief Description:* This module handles all microcirculatory blood flow.
 !
 !*LICENSE:*
 !
@@ -11,10 +11,10 @@ module capillaryflow
 !This module handles all microcirculatory blood flow.
   use other_consts, only: TOLERANCE
   implicit none
-  
+
 
   !Module parameters
-  
+
   !Module types
 
   !Module variables
@@ -22,7 +22,7 @@ module capillaryflow
   !Interfaces
   private
   public cap_flow_ladder,cap_flow_admit
-  
+
 contains
 !
 !###################################################################################
@@ -31,28 +31,28 @@ contains
     Q01,R_in,R_out,x,y,z,OUTPUT_PERFUSION)
 !*cap_flow_ladder:* Uses the ladder model to solve for perfusion in the acinus.
 ! It uses a symmetric, bifuracting arteriole and venule tree with N generations
-! and calls a function to calculate resistance across a capillary sheet at each 
-! generation (CAP_FLOW_SHEET.f). 
+! and calls a function to calculate resistance across a capillary sheet at each
+! generation (CAP_FLOW_SHEET.f).
 
 !###  -----------------------INPUT-------------------------
-!###  The input to this subroutine is: 
+!###  The input to this subroutine is:
 !###  ne=element number
 !###  Pin= Pressure into the acinus
 !###  Pout=Pressure out of the acinus
 !###  Ppl= Pleural pressure
 
 !###  ----------------------OUTPUT----------------------------
-!###  Important output to large vessel models 
+!###  Important output to large vessel models
 !###  LPM_FUNC= Resistance across the acinus:
 
-!###  This needs to be fed back into the large vessel model. Then 
-!###  Pin-Pout=LPM_FUNC*Q is solved for Pin, Pout and Q as part 
-!###  that system. Pin and Pout can then be fed back iteratively 
-!###  into this subroutine...  
-!###  
+!###  This needs to be fed back into the large vessel model. Then
+!###  Pin-Pout=LPM_FUNC*Q is solved for Pin, Pout and Q as part
+!###  that system. Pin and Pout can then be fed back iteratively
+!###  into this subroutine...
+!###
 !###  In addition this subroutine outputs:
 !###  Pressure at each each vessel interection and flow, resistance
-!###  and RBC transit times through each capillary element. 
+!###  and RBC transit times through each capillary element.
 
 !###  UNITS. The units that are used here are m.
 
@@ -62,18 +62,18 @@ contains
     real(dp), intent(inout) :: LPM_FUNC
     real(dp):: Pin,Pout,Q01,R_in,R_out,x,y,z,Lin,Lout,Ppl
     logical, intent(in) :: OUTPUT_PERFUSION
-    
+
     type(capillary_bf_parameters) :: cap_param
 
     !    Local variables
     integer :: MatrixSize,NonZeros,submatrixsize,ngen,i
     real(dp) :: area,Q01_mthrees,sheet_number
     character(len=60) :: sub_name
-    
+
     sub_name = 'cap_flow_ladder'
     call enter_exit(sub_name,1)
 
-!     Number of non-zero entries in solution matrix. 
+!     Number of non-zero entries in solution matrix.
       NonZeros=3
       do i=2,cap_param%num_symm_gen
          NonZeros=NonZeros+4*i+10
@@ -83,7 +83,7 @@ contains
 !!     The number of unknown pressures
       submatrixsize=4*cap_param%num_symm_gen-4
       ngen=cap_param%num_symm_gen
-  
+
 !...  ---INITIALISATION
 !...  The input Q01 gives us an estimate for flow into the acinus from the large
 !...  vessel model.
@@ -112,7 +112,7 @@ contains
 !...  to the large vessel model.
       LPM_FUNC=(Pin-Pout)/(Q01_mthrees*1000.d0**3) !Pa.s/m^3->pa.s/mm^3
     call enter_exit(sub_name,2)
-    
+
   end subroutine cap_flow_ladder
 !
 !######################################################################################################
@@ -237,6 +237,7 @@ contains
 
 !        call BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,Solution,SparseCol,&
 !             SparseRow,SparseVal,1.d-9,1000) !NB/ 1.d-9 = convergence tol, 1000 = max solver iterations
+
 
 
          DO j=1,submatrixsize
@@ -916,7 +917,8 @@ end subroutine cap_specific_parameters
 !################################################
 !
 subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
-  Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param)
+  Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param,&
+  cap_model)
   use arrays, only: dp,capillary_bf_parameters,elasticity_param,num_units
   use solve, only: pmgmres_ilu_cr
   use other_consts, only:PI
@@ -930,6 +932,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   complex(dp), intent(in) :: eff_admit_downstream(no_freq)
   real(dp), intent(inout) ::Lin,Lout,P1,P2,Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap
   real(dp), intent(in) :: harmonic_scale
+  integer, intent(in) :: cap_model
 
   type(elasticity_param) :: elast_param
 
@@ -939,9 +942,9 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   real(dp) :: alpha_c,area_scale,length_scale
   real(dp) :: radupdate,P_exta,P_extv,R_art1,R_ven1,R_art2,R_ven2,Q01_mthrees,Pin,Pout
   integer :: gen
-  real(dp) :: SHEET_RES,Q_c,Hart,Hven,RBC_TT,area,area_new,recruited,omega
+  real(dp) :: SHEET_RES,Q_c,Hart,Hven,RBC_TT,area,area_new,recruited,omega,nd_omega
   integer :: zone,nf
-  complex(dp) :: bessel0,bessel1,f10,Gamma_sheet
+  complex(dp) :: bessel0,bessel1,f10
   real(dp) :: wolmer,wavespeed
   integer :: i,iter,j,num_sheet
   integer, allocatable :: SparseCol(:)
@@ -968,6 +971,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   complex(dp), allocatable :: tube_eff_admit(:,:)
   complex(dp), allocatable :: prop_const(:,:)
   complex(dp), allocatable :: prop_const_cap(:,:)
+  complex(dp), allocatable :: sheet_admit_matrix(:,:,:)
 
   complex(dp) :: daughter_admit,sister_admit,reflect_coeff,sister_current
 
@@ -1129,7 +1133,10 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   if (AllocateStatus /= 0) STOP "*** Not enough memory for prop_const ***"
   allocate(prop_const_cap(ngen,no_freq), STAT = AllocateStatus)
   if (AllocateStatus /= 0) STOP "*** Not enough memory for prop_const_cap ***"
-
+  if(cap_model == 2)then !Allocating memory for sheet admittance matrix
+    allocate(sheet_admit_matrix(ngen,no_freq,4), STAT = AllocateStatus)
+    if (AllocateStatus /= 0) STOP "*** Not enough memory for prop_const_cap ***"
+  endif
 
 
   cap_admit=cmplx(0.0_dp,0.0_dp,8) !initialise
@@ -1205,15 +1212,18 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      Q01_mthrees=Q01_mthrees-Q_sheet(gen)
      Hart=cap_param%H0+alpha_c*(Pressure(4*gen-3)-cap_param%Palv)
      Hven=cap_param%H0+alpha_c*(Pressure(4*gen-1)-cap_param%Palv)
-     do nf=1,no_freq
+    do nf = 1,no_freq
       omega=nf*2*PI*harmonic_scale
-     Gamma_sheet=sqrt(omega*Hart**3*cap_param%L_c**2*alpha_c/&
-        (cap_param%mu_c*cap_param%K_cap*cap_param%F_cap))*&
-        sqrt(cmplx(0.0_dp,1.0_dp,8))*1000.0_dp**3 !mm3/Pa.s
-       cap_admit(gen,nf)=Gamma_sheet
-          prop_const_cap(gen,nf)=sqrt(cmplx(0.0_dp,1.0_dp,8)*&
-            cap_param%mu_c*cap_param%K_cap*cap_param%F_cap*omega*alpha_c/(Hart**3))/1000.0_dp!1/mm
-     enddo
+      if(cap_model == 1)then!
+        call calc_cap_admit_consth(Hart,Hven,omega,alpha_c,cap_admit(gen,nf),&
+          prop_const_cap(gen,nf))
+      elseif(cap_model == 2)then
+        call calc_cap_admit_varh(Hart,Hven,omega,alpha_c,&
+          sheet_admit_matrix(gen,nf,1),sheet_admit_matrix(gen,nf,2),&
+          sheet_admit_matrix(gen,nf,3),sheet_admit_matrix(gen,nf,4), &
+          prop_const_cap(gen,nf)) ! Non-constant capillary sheet
+      endif
+    enddo
      !...   SECOND HALF OF ARTERIOLE
 !...    Update radius of arteriole based on inlet pressure
      if(Pin-P_exta.LE.cap_param%Pub_a_v)THEN
@@ -1265,20 +1275,24 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      enddo
   enddo
   !!...   CAPILLARY ELEMENT (arteriole + venule + capillary)  at terminal
-    Pin_sheet=Pressure(4*cap_param%num_symm_gen-6) !%pressure into final capillary sheets
-    Pout_sheet=Pressure(4*cap_param%num_symm_gen-4) !%pressure out of final capillary sheets
-    Hart=cap_param%H0+alpha_c*(Pin_sheet-cap_param%Palv)
-    Hven=cap_param%H0+alpha_c*(Pout_sheet-cap_param%Palv)
-    do nf=1,no_freq
-     omega=nf*2*PI*harmonic_scale
-     Gamma_sheet=sqrt(omega*Hart**3*cap_param%L_c**2*alpha_c/&
-        (cap_param%mu_c*cap_param%K_cap*cap_param%F_cap))*&
-        sqrt(cmplx(0.0_dp,1.0_dp,8))*1000.0_dp**3
-     gen=cap_param%num_symm_gen
-       cap_admit(gen,nf)=Gamma_sheet
-          prop_const_cap(gen,nf)=sqrt(cmplx(0.0_dp,1.0_dp,8)*&
-            cap_param%mu_c*cap_param%K_cap*cap_param%F_cap*omega*alpha_c/(Hart**3))/1000.0_dp!1/mm
-     enddo
+    Pin_sheet=Pressure(4*cap_param%num_symm_gen-6) !pressure into final capillary sheets
+    Pout_sheet=Pressure(4*cap_param%num_symm_gen-4) !pressure out of final capillary sheets
+    Hart=cap_param%H0+alpha_c*(Pin_sheet-cap_param%Palv) !Sheet height at arterial side
+    Hven=cap_param%H0+alpha_c*(Pout_sheet-cap_param%Palv) !sheet height at venous side
+    gen=cap_param%num_symm_gen
+    do nf = 1,no_freq
+      omega=nf*2*PI*harmonic_scale
+      if(cap_model == 1)then!
+        call calc_cap_admit_consth(Hart,Hven,omega,alpha_c,cap_admit(gen,nf),&
+          prop_const_cap(gen,nf))
+      elseif(cap_model == 2)then
+        call calc_cap_admit_varh(Hart,Hven,omega,alpha_c,&
+          sheet_admit_matrix(gen,nf,1),sheet_admit_matrix(gen,nf,2),&
+          sheet_admit_matrix(gen,nf,3),sheet_admit_matrix(gen,nf,4), &
+          prop_const_cap(gen,nf)) ! Non-constant capillary sheet
+      endif
+    enddo
+
   !FIRST GENERATION - need to relate to vein outlet admittance
   !first vein in generation
   do nf=1,no_freq
@@ -1290,22 +1304,42 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   enddo
   !Now second vein and then capillary
   do nf=1,no_freq
-  !Sister is capillary, vessel of interest is the vein
-    sister_current=exp(-1.0_dp*prop_const_cap(1,nf)*cap_param%L_c*1000.0_dp)/&
-      exp(-1.0_dp*prop_const(1+3*ngen,nf)*L_v(1)*1000.0_dp)
-     reflect_coeff=(tube_admit(1+3*ngen,nf)+(2*sister_current-1)*cap_admit(1,nf)-tube_admit(1+2*ngen,nf))&
-       /(tube_admit(1+2*ngen,nf)+tube_admit(1+3*ngen,nf)+cap_admit(1,nf))
-     tube_eff_admit(1+3*ngen,nf)=tube_admit(1+3*ngen,nf)*(1&
+   !Vein and capillary are sisters
+    if(cap_model == 1)then!
+      sister_current=exp(-1.0_dp*prop_const_cap(1,nf)*cap_param%L_c*1000.0_dp)/&
+        exp(-1.0_dp*prop_const(1+3*ngen,nf)*L_v(1)*1000.0_dp)
+      reflect_coeff=(tube_admit(1+3*ngen,nf)+(2*sister_current-1)*cap_admit(1,nf)-tube_admit(1+2*ngen,nf))&
+        /(tube_admit(1+2*ngen,nf)+tube_admit(1+3*ngen,nf)+cap_admit(1,nf))
+      tube_eff_admit(1+3*ngen,nf)=tube_admit(1+3*ngen,nf)*(1&
               -reflect_coeff*exp(-2.0_dp*prop_const(1+3*ngen,nf)*L_v(1)*1000.0_dp/2.0_dp))/&
               (1+reflect_coeff*exp(-2.0_dp*prop_const(1+3*ngen,nf)*L_v(1)*1000.0_dp/2.0_dp))
-     !sister is the tube current is the capillary
-     sister_current=exp(-1.0_dp*prop_const(1+3*ngen,nf)*L_v(1)*1000.0_dp/2.0_dp)/&
+      !sister is the tube current is the capillary
+      sister_current=exp(-1.0_dp*prop_const(1+3*ngen,nf)*L_v(1)*1000.0_dp/2.0_dp)/&
         exp(-1.0_dp*prop_const_cap(1,nf)*cap_param%L_c*1000.0_dp)
-     reflect_coeff=((2*sister_current-1)*tube_admit(1+3*ngen,nf)+cap_admit(1,nf)-tube_admit(1+2*ngen,nf))&
-       /(tube_admit(1+2*ngen,nf)+tube_admit(1+3*ngen,nf)+cap_admit(1,nf))
-     cap_eff_admit(1,nf)=cap_admit(1,nf)*(1&
-       -reflect_coeff*exp(-2.0_dp*prop_const_cap(1,nf)*cap_param%L_c*1000.0_dp))/&
-       (1+reflect_coeff*exp(-2.0_dp*prop_const_cap(1,nf)*cap_param%L_c*1000.0_dp))
+      reflect_coeff=((2*sister_current-1)*tube_admit(1+3*ngen,nf)+cap_admit(1,nf)-tube_admit(1+2*ngen,nf))&
+        /(tube_admit(1+2*ngen,nf)+tube_admit(1+3*ngen,nf)+cap_admit(1,nf))
+      cap_eff_admit(1,nf)=cap_admit(1,nf)*(1&
+        -reflect_coeff*exp(-2.0_dp*prop_const_cap(1,nf)*cap_param%L_c*1000.0_dp))/&
+        (1+reflect_coeff*exp(-2.0_dp*prop_const_cap(1,nf)*cap_param%L_c*1000.0_dp))
+    elseif(cap_model == 2)then
+      ! Take the capillary first
+      !Ycap = Y11-Y12Y21/(Ydaughter-Ysister+Y22)
+      cap_eff_admit(1,nf) = sheet_admit_matrix(1,nf,1)&
+          -(sheet_admit_matrix(1,nf,2)*sheet_admit_matrix(1,nf,3))/&
+          (tube_admit(1+2*ngen,nf)- tube_admit(1+3*ngen,nf)+sheet_admit_matrix(1,nf,4))
+      ! Now the vein
+      !Calculate the capillary admittance at the venous side
+      sister_admit = sheet_admit_matrix(1,nf,3)*sheet_admit_matrix(1,nf,2)/ &
+        (cap_eff_admit(1,nf) - sheet_admit_matrix(1,nf,3)) + sheet_admit_matrix(1,nf,4)
+      !! Calculate the reflection coefficient
+      sister_current = exp(-1.0_dp*prop_const_cap(1,nf)*cap_param%L_c*1000.0_dp)/&
+        exp(-1.0_dp*prop_const(1+3*ngen,nf)*L_v(1)*1000.0_dp)
+      reflect_coeff=(tube_admit(1+3*ngen,nf)+(2*sister_current-1)*sister_admit-tube_admit(1+2*ngen,nf))&
+        /(tube_admit(1+2*ngen,nf)+tube_admit(1+3*ngen,nf)+sister_admit)
+      tube_eff_admit(1+3*ngen,nf)=tube_admit(1+3*ngen,nf)*(1&
+              -reflect_coeff*exp(-2.0_dp*prop_const(1+3*ngen,nf)*L_v(1)*1000.0_dp/2.0_dp))/&
+              (1+reflect_coeff*exp(-2.0_dp*prop_const(1+3*ngen,nf)*L_v(1)*1000.0_dp/2.0_dp))
+    endif
   enddo
 
   do gen=2,cap_param%num_symm_gen-1
@@ -1316,34 +1350,62 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
        tube_eff_admit(gen+2*ngen,nf)=tube_admit(gen+2*ngen,nf)*(1&
               -reflect_coeff*exp(-2.0_dp*prop_const(gen+2*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp))/&
               (1+reflect_coeff*exp(-2.0_dp*prop_const(gen+2*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp))
-      !Next up a vein plus a capillary
-      sister_current=exp(-1.0_dp*prop_const_cap(gen,nf)*cap_param%L_c*1000.0_dp)/&
-        exp(-1.0_dp*prop_const(gen+3*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp)
-      reflect_coeff=(tube_admit(gen+3*ngen,nf)+(2*sister_current-1)*cap_admit(gen,nf)-tube_admit(gen+2*ngen,nf))&
-        /(tube_admit(gen+2*ngen,nf)+tube_admit(gen+3*ngen,nf)+cap_admit(gen,nf))
-      tube_eff_admit(gen+3*ngen,nf)=tube_admit(gen+3*ngen,nf)*(1&
+      if(cap_model == 1)then!
+        !Next up a vein plus a capillary
+        sister_current=exp(-1.0_dp*prop_const_cap(gen,nf)*cap_param%L_c*1000.0_dp)/&
+          exp(-1.0_dp*prop_const(gen+3*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp)
+        reflect_coeff=(tube_admit(gen+3*ngen,nf)+(2*sister_current-1)*cap_admit(gen,nf)-tube_admit(gen+2*ngen,nf))&
+          /(tube_admit(gen+2*ngen,nf)+tube_admit(gen+3*ngen,nf)+cap_admit(gen,nf))
+        tube_eff_admit(gen+3*ngen,nf)=tube_admit(gen+3*ngen,nf)*(1&
               -reflect_coeff*exp(-2.0_dp*prop_const(gen+3*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp))/&
               (1+reflect_coeff*exp(-2.0_dp*prop_const(gen+3*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp))
-      !sister is the tube current is the capillary
-      sister_current=exp(-1.0_dp*prop_const(gen+3*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp)/&
-        exp(-1.0_dp*prop_const_cap(gen,nf)*cap_param%L_c*1000.0_dp)
-      reflect_coeff=((2*sister_current-1)*tube_admit(gen+3*ngen,nf)+cap_admit(gen,nf)-tube_admit(1+2*ngen,nf))&
-         /(tube_admit(1+2*ngen,nf)+tube_admit(gen+3*ngen,nf)+cap_admit(gen,nf))
-      cap_eff_admit(gen,nf)=cap_admit(gen,nf)*(1&
+        !sister is the tube current is the capillary
+        sister_current=exp(-1.0_dp*prop_const(gen+3*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp)/&
+          exp(-1.0_dp*prop_const_cap(gen,nf)*cap_param%L_c*1000.0_dp)
+        reflect_coeff=((2*sister_current-1)*tube_admit(gen+3*ngen,nf)+cap_admit(gen,nf)-tube_admit(1+2*ngen,nf))&
+           /(tube_admit(1+2*ngen,nf)+tube_admit(gen+3*ngen,nf)+cap_admit(gen,nf))
+        cap_eff_admit(gen,nf)=cap_admit(gen,nf)*(1&
               -reflect_coeff*exp(-2.0_dp*prop_const_cap(gen,nf)*cap_param%L_c*1000.0_dp))/&
               (1+reflect_coeff*exp(-2.0_dp*prop_const_cap(gen,nf)*cap_param%L_c*1000.0_dp))
+      elseif(cap_model == 2)then
+        ! Take the capillary first
+        !Ycap = Y11-Y12Y21/(Ydaughter-Ysister+Y22)
+        cap_eff_admit(gen,nf) = sheet_admit_matrix(gen,nf,1)&
+          -(sheet_admit_matrix(gen,nf,2)*sheet_admit_matrix(gen,nf,3))/&
+          (tube_admit(gen+2*ngen,nf)- tube_admit(gen+3*ngen,nf)+sheet_admit_matrix(gen,nf,4))
+        ! Now the vein
+        !Calculate the capillary admittance at the venous side
+        sister_admit = sheet_admit_matrix(gen,nf,3)*sheet_admit_matrix(gen,nf,2)/ &
+          (cap_eff_admit(gen,nf) - sheet_admit_matrix(gen,nf,3)) + sheet_admit_matrix(gen,nf,4)
+        !! Calculate the reflection coefficient
+        sister_current=exp(-1.0_dp*prop_const(gen+3*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp)/&
+          exp(-1.0_dp*prop_const_cap(gen,nf)*cap_param%L_c*1000.0_dp)
+        reflect_coeff=(tube_admit(gen+3*ngen,nf)+(2*sister_current-1)*sister_admit-tube_admit(gen+2*ngen,nf))&
+          /(tube_admit(gen+2*ngen,nf)+tube_admit(gen+3*ngen,nf)+sister_admit)
+        tube_eff_admit(gen+3*ngen,nf)=tube_admit(gen+3*ngen,nf)*(1&
+              -reflect_coeff*exp(-2.0_dp*prop_const(gen+3*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp))/&
+              (1+reflect_coeff*exp(-2.0_dp*prop_const(gen+3*ngen,nf)*L_v(gen)*1000.0_dp/2.0_dp))
+      endif
     enddo
   enddo
 
  !Final generation capillary
    gen=cap_param%num_symm_gen-1
    do nf=1,no_freq
-   !two identical sisters
-     reflect_coeff=(2*cap_admit(cap_param%num_symm_gen,nf)-tube_admit(gen+3*ngen,nf))&
-       /(tube_admit(gen+3*ngen,nf)+2*cap_admit(cap_param%num_symm_gen,nf))
-     cap_eff_admit(cap_param%num_symm_gen,nf)=cap_admit(cap_param%num_symm_gen,nf)*(1&
-       -reflect_coeff*exp(-2.0_dp*prop_const_cap(cap_param%num_symm_gen,nf)**cap_param%L_c*1000.0_dp))/&
-       (1+reflect_coeff*exp(-2.0_dp*prop_const_cap(cap_param%num_symm_gen,nf)*cap_param%L_c*1000.0_dp))
+     if(cap_model == 1)then!
+       !two identical sisters
+       reflect_coeff=(2*cap_admit(cap_param%num_symm_gen,nf)-tube_admit(gen+3*ngen,nf))&
+         /(tube_admit(gen+3*ngen,nf)+2*cap_admit(cap_param%num_symm_gen,nf))
+       cap_eff_admit(cap_param%num_symm_gen,nf)=cap_admit(cap_param%num_symm_gen,nf)*(1&
+         -reflect_coeff*exp(-2.0_dp*prop_const_cap(cap_param%num_symm_gen,nf)**cap_param%L_c*1000.0_dp))/&
+         (1+reflect_coeff*exp(-2.0_dp*prop_const_cap(cap_param%num_symm_gen,nf)*cap_param%L_c*1000.0_dp))
+     elseif(cap_model == 2)then
+        !two identical sisters
+        !Ycap = Y11-2Y12Y21/(Ytube+2Y22)
+        cap_eff_admit(cap_param%num_symm_gen,nf) = sheet_admit_matrix(cap_param%num_symm_gen,nf,1)&
+          -(2.0_dp*sheet_admit_matrix(cap_param%num_symm_gen,nf,2)*sheet_admit_matrix(cap_param%num_symm_gen,nf,3))/&
+          (tube_admit(gen+3*ngen,nf)+2.0_dp*sheet_admit_matrix(cap_param%num_symm_gen,nf,4))
+     endif
   enddo
 
   !now calculate effective admittance up the arteriole side of the tree
@@ -1380,6 +1442,9 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   deallocate(cap_eff_admit)
   deallocate(tube_eff_admit)
   deallocate(prop_const)
+  if(cap_model == 2)then
+    deallocate(sheet_admit_matrix)
+  endif
   deallocate (Pressure, STAT = AllocateStatus)
   deallocate (l_a, STAT = AllocateStatus)
   deallocate (l_v, STAT = AllocateStatus)
@@ -1388,8 +1453,377 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   deallocate (Q_sheet, STAT = AllocateStatus)
   deallocate (mu_app, STAT = AllocateStatus)
 
-
+  write(*,*) 'Capillary impedance completed for element: ',ne
   call enter_exit(sub_name,2)
 
 end subroutine cap_flow_admit
+
+!
+!################################################################
+!
+subroutine calc_cap_admit_consth(Hart,Hven,omega,alpha_c,Y,prop_const)
+
+  use diagnostics, only: enter_exit
+  use arrays, only:dp,capillary_bf_parameters
+
+  ! Parameters:
+  real(dp), intent(in) :: Hart,Hven,omega,alpha_c
+  complex(dp), intent(out) :: Y, prop_const
+
+  !Local variables
+  complex(dp) :: Gamma_sheet
+  type(capillary_bf_parameters) :: cap_param
+
+  character(len=60) :: sub_name
+  sub_name = 'calc_cap_admit_consth'
+  call enter_exit(sub_name,1)
+
+    Gamma_sheet=sqrt(omega*Hart**3*cap_param%L_c**2*alpha_c/&
+        (cap_param%mu_c*cap_param%K_cap*cap_param%F_cap))*&
+        sqrt(cmplx(0.0_dp,1.0_dp,8))*1000.0_dp**3
+    Y=Gamma_sheet
+    prop_const=sqrt(cmplx(0.0_dp,1.0_dp,8)*cap_param%mu_c* &
+    cap_param%K_cap*cap_param%F_cap*omega*alpha_c/(Hart**3))/1000.0_dp!1/mm
+
+  call enter_exit(sub_name,2)
+
+end subroutine calc_cap_admit_consth
+!
+!################################################################
+!
+subroutine calc_cap_admit_varh(Hart,Hven,omega_d,alpha_c,Y11,Y12,Y21,Y22,prop_const)
+! Calculating the admittance components for non-constant sheet height
+! Used by cap_flow_admit to solve the time dependent capillary sheet impedance.
+!    Inputs:
+!           1- ha: Dimensional sheet height at arterial side of the capillary
+!           2- hv: Dimensional sheet height at venous side of the capillary
+!           3- omega: Dimensionless oscillatory frequency
+!    Output:
+!           1- As of now it will print out the constants from Fung's paper (Pulmonary microvascular impedance-1972)
+!           2- Two port network capillary input admittance components
+
+
+use diagnostics, only: enter_exit
+use arrays, only:dp,capillary_bf_parameters
+
+! Parameters:
+real(dp), intent(in) :: Hart,Hven,omega_d,alpha_c
+complex(dp), intent(out) :: Y11, Y12, Y21, Y22,prop_const
+
+
+! Local Variables:
+type(capillary_bf_parameters) :: cap_param
+integer, parameter :: N_nodes = 2500
+integer :: n,ldb
+integer :: iopt, info
+real(dp),  allocatable :: sparseval(:)
+integer, allocatable :: sparsecol(:), sparserow(:)
+real(dp) :: stiff1(2*N_nodes+2,2*N_nodes+2), stiff2(2*N_nodes+2,2*N_nodes+2)
+real(dp) :: RHS1(2*N_nodes+2), RHS2(2*N_nodes+2)
+integer :: nrhs
+real(dp) :: deriv1(2),deriv2(2),dx,h(5),rep
+integer :: i
+integer :: factors(8)
+integer :: NonZeros
+complex(dp) :: C1,C2,C3,C4
+real(dp) :: ha,hv,omega !Non-dimensional parameters
+character(len=60) :: sub_name
+
+sub_name = 'calc_cap_admit_varh'
+call enter_exit(sub_name,1)
+
+#ifdef HAVE_SUPERLU
+!Convert dimensional parameters to non-dimensional ones
+omega = (cap_param%mu_c*cap_param%K_cap*cap_param%F_cap*omega_d*alpha_c*(cap_param%L_c)**2)/(cap_param%H0**3) ! Non-Dimensional Frequency
+ha = Hart/cap_param%H0
+hv = Hven/cap_param%H0
+
+rep = ha**4 - hv**4
+dx = 1.0/(N_nodes - 1.0)
+h(1) = ha**3
+h(2) = (ha**4 - 2*rep*dx)**(0.75)
+h(3) = (ha**4 - (N_nodes-1)*rep*dx)**(0.75)
+h(4) = (ha**4 - (N_nodes-2)*rep*dx)**(0.75)
+h(5) = (ha**4 - (N_nodes-3)*rep*dx)**(0.75)
+Y11 = 0 ! admittance initialisation
+Y12 = 0 ! admittance initialisation
+Y21 = 0 ! admittance initialisation
+Y22 = 0 ! admittance initialisation
+n = N_Nodes*2 + 2
+call Matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
+call Mat_to_CC(stiff1,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
+ nrhs = 1
+  ldb = n
+
+!
+!  Factor the matrix.
+!
+  iopt = 1
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS1, ldb, factors, info )
+
+!
+!  Solve the factored system.
+!
+  iopt = 2
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS1, ldb, factors, info )
+
+!write (*,*) 'C_1 = ',RHS1(2),'+ i(',RHS1(N_Nodes+2),')'
+ C1 = RHS1(2) + RHS1(N_Nodes+2)*cmplx(0.0_dp,1.0_dp,8)
+deriv1(1) = (h(2)*RHS1(3) - h(1)*RHS1(1))/(2*dx)
+deriv1(2) = (h(2)*RHS1(N_nodes+4) - h(1)*RHS1(N_Nodes+2))/(2*dx)
+!write (*,*) 'C_2 = ',deriv1(1),'+ i(',deriv1(2),')'
+ C2 = deriv1(1) + deriv1(2)*cmplx(0.0_dp,1.0_dp,8)
+
+!
+!  Free memory.
+!
+  iopt = 3
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS1, ldb, factors, info )
+!
+!  Terminate.
+!
+
+call Mat_to_CC(stiff2,N_nodes,sparsecol,sparserow,sparseval,NonZeros)
+ nrhs = 1
+  ldb = n
+
+!
+!  Factor the matrix.
+!
+  iopt = 1
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS2, ldb, factors, info )
+
+!
+!  Solve the factored system.
+!
+  iopt = 2
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS2, ldb, factors, info )
+
+!write (*,*) 'C_3 = ',RHS2(N_Nodes+1),'+ i(',RHS2(2*N_Nodes+2),')'
+ C3 = RHS2(N_Nodes+1) + RHS2(2*N_Nodes+2)*cmplx(0.0_dp,1.0_dp,8)
+deriv2(1) = (3*h(3)*RHS2(N_nodes+1) - 4*h(4)*RHS2(N_nodes) + h(5)*RHS2(N_nodes-1))/(2*dx)
+deriv2(2) = (3*h(3)*RHS2(2*N_nodes+2) - 4*h(4)*RHS2(2*N_nodes+1) + h(5)*RHS2(2*N_nodes))/(2*dx)
+!write (*,*) 'C_4 = ',deriv2(1),'+ i(',deriv2(2),')'
+ C4 = deriv2(1) + deriv2(2)*cmplx(0.0_dp,1.0_dp,8)
+
+!
+!  Free memory.
+!
+  iopt = 3
+  call c_fortran_dgssv ( iopt, n, NonZeros, nrhs, sparseval, sparserow, &
+    sparsecol, RHS1, ldb, factors, info )
+!
+!  Terminate.
+!
+
+Y11 = -C2/C1
+Y12 = 1.0/C3
+Y21 = 1.0/C1
+Y22 = -C4/C3
+!write(*,*) '=================================================='
+!write(*,*) 'C1: ', C1*C2
+!write(*,*) 'IMPEDANCE: ', Y11 - (Y12*Y21)/(Y22)
+
+!Y11, Y12, Y21, Y22 are all dimensionless, but for the rest of the model they should have units of admittance
+!Here we need to convert back to dimensional form
+Y11 = Y11*cap_param%H0**3/(cap_param%mu_c*cap_param%K_cap)*1000.0_dp**3 !m->mm
+Y12 = Y12*cap_param%H0**3/(cap_param%mu_c*cap_param%K_cap)*1000.0_dp**3 !m->mm
+Y21 = Y21*cap_param%H0**3/(cap_param%mu_c*cap_param%K_cap)*1000.0_dp**3 !m->mm
+Y22 = Y22*cap_param%H0**3/(cap_param%mu_c*cap_param%K_cap)*1000.0_dp**3 !m->mm
+
+prop_const=sqrt(cmplx(0.0_dp,1.0_dp,8)*cap_param%mu_c* &
+    cap_param%K_cap*cap_param%F_cap*omega*alpha_c/ &
+    (((Hart+Hven)/2.0_dp)**3.0_dp))/1000.0_dp!1/mm
+
+#else
+write(*,*) 'SuperLU is not available you cannot use capillary model 2.'
+stop 2
+#endif
+
+call enter_exit(sub_name,2)
+
+end subroutine calc_cap_admit_varh
+
+!###################################################################################
+!
+
+subroutine Matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
+! This subroutine will create the stiffness matrices and Right hand sides (RHS) for 2 sets of fundamental solutions.
+! These matrices is the output of Finite Difference solution of system of ODEs for capillary sheet heights.
+!Inputs:
+!           1- ha: Non-dimentional sheet height at arterial side of the capillary
+!           2- hv: Non-dimentional sheet height at venous side of the capillary
+!           3- omega: Dimensionless oscillatory frequency
+!           4- N_nodes: The number of nodes in the 1D domain. You can get a better approximation if you increase the number of nodes.
+!Outputs:
+!           1- Stiff1&2: Stiffness matrices based on different sets of fundamental solutions.
+!           2- RHS1&2: Right hand side matrix satisfying the BCs.
+
+use diagnostics, only: enter_exit
+use arrays, only:dp
+
+! Parameters:
+integer, intent(in) :: N_nodes
+real(dp), intent(in) :: ha,hv,omega
+real(dp), intent(out) :: stiff1(2*N_nodes+2,2*N_nodes+2), stiff2(2*N_nodes+2,2*N_nodes+2) ! Capillary Sheet Stiffness matrices
+real(dp), intent(out) :: RHS1(2*N_nodes+2), RHS2(2*N_nodes+2)
+
+! Local Variables
+real(dp) :: rep
+real(dp) :: dx
+real(dp) :: x(N_nodes+1), h(N_nodes+1)
+integer :: i ! Matrix row
+character(len=60) :: sub_name
+
+
+sub_name = 'Matrix'
+call enter_exit(sub_name,1)
+
+
+stiff1 = 0 !!! initialise stiff1 matrix
+stiff2 = 0 !!! initialise stiff2 matrix
+RHS1 = 0 !!! initialise RHS matrix
+rep = ha**4 - hv**4
+dx = 1.0/(N_nodes - 1.0)  !!! defining delta(x) interval
+
+
+do i=1,N_nodes+1
+    x(i)=(i-1.0)/(N_nodes-1.0)
+    h(i)=(ha**4 - rep*x(i))**(0.75)
+enddo  !!! x and h^3 array created for x values
+
+    do i = 1,N_nodes+1 !Creating the first stiffness matrix for first fundamental solution + Right hand side
+              if (i .eq. N_nodes+1) then
+                            stiff1(i,i) = h(i) / (2*dx)
+                            stiff1(i, i-2) = -h(i-2) / (2*dx)
+                            stiff1(i+N_nodes+1,i+N_nodes+1) = h(i)
+                            stiff1(i+N_nodes+1,i+N_nodes-1) = -h(i-2)
+                            RHS1(i) = -1.0
+              else if (i .eq. N_nodes) then
+                            stiff1(i,i) = 1.0
+                            stiff1(i+N_nodes+1,i+N_nodes+1) = 1.0
+              else
+                            stiff1(i,i+2) = h(i+2) / (dx**2)
+                            stiff1(i,i+1) = -2.0*h(i+1) / (dx**2)
+                            stiff1(i,i) = h(i) / (dx**2)
+                            stiff1(i+N_nodes+1,i+N_nodes+3) = h(i+2) / (dx**2)
+                            stiff1(i+N_nodes+1,i+N_nodes+2) = -2.0*h(i+1) / (dx**2)
+                            stiff1(i+N_nodes+1,i+N_nodes+1) = h(i) / (dx**2)
+                            stiff1(i,N_nodes+i+1) = omega
+                            stiff1(i+N_nodes+1,i) = -1.0 * omega
+              end if
+    enddo ! End loop for stiff1
+
+ RHS2 = 0 !!! Reseting right hand side for the next stiffness matrix
+ x = 0 !!! Reseting x array for the next stiffness matrix
+ h = 0 !!! Reseting h^3 values for the next stiffness matrix
+
+ do i=0,N_nodes
+    x(i+1)=(i-1.0)/(N_nodes-1.0)
+    h(i+1)=(ha**4 - rep*x(i+1))**(0.75)
+enddo  !!! x and h^3 array created for x values
+
+
+    do i=1,N_nodes+1
+            if (i .eq. 1) then
+               stiff2(i,i) = -1.0* h(i) / (2*dx)
+               stiff2(i,i+2) = h(i+2) / (2*dx)
+               stiff2(i+N_nodes+1,i+N_nodes+1) = -1.0 * h(i)
+               stiff2(i+N_nodes+1,i+N_nodes+3) = h(i+2)
+               RHS2(i) = -1.0
+            else if (i .eq. 2) then
+               stiff2(i,i) = 1.0
+               stiff2(i+N_nodes+1,i+N_nodes+1) = 1.0
+            else
+               stiff2(i,i-2) = h(i-2) / (dx**2)
+               stiff2(i,i-1) = -2.0*h(i-1) / (dx**2)
+               stiff2(i,i) = h(i) / (dx**2)
+               stiff2(i+N_nodes+1,i+N_nodes-1) = h(i-2) / (dx**2)
+               stiff2(i+N_nodes+1,i+N_nodes) = -2.0*h(i-1) / (dx**2)
+               stiff2(i+N_nodes+1,i+N_nodes+1) = h(i) / (dx**2)
+               stiff2(i,N_nodes+i+1) = omega
+               stiff2(i+N_nodes+1,i) = -1.0 * omega
+            end if
+    enddo
+    call enter_exit(sub_name,2)
+
+    end subroutine Matrix
+
+!
+!###################################################################################
+!
+
+subroutine Mat_to_CC(k,nn,sparsecol,sparserow,sparseval,NonZeros)
+! This subroutine forms the sparse representation of matrix K in Compressed Column(CC) format.
+! INPUT/OUTPUT(s):
+!                - K ====> Stiffness Matrix for Capillary passed from matrix subroutine. (It should be a square matrix)
+!                - nn ====> Number of Nodes for the 1D capillary domain. Will be hard coded.
+!                - SparseVal ====> An array formed with NonZero values stored in of size(# NonZeros)
+!                - SparseRow ====> An array formed with the Row number of each NonZero in matrix of size(# NonZeros)
+!                - SparseCol ====> An array formed with values to represent row storage. Includes the index numbers of start of each column (Size of array = MatrixSize + 1)
+
+
+use diagnostics, only: enter_exit
+use arrays, only:dp
+
+!Parameters:
+real(dp),  intent(in):: k(2*nn+2,2*nn+2)
+real(dp),  allocatable, intent(out) :: sparseval(:)
+integer, allocatable, intent(out) :: sparsecol(:), sparserow(:)
+integer, intent(in) :: nn
+integer, intent(out) :: NonZeros
+!Local Variables:
+integer :: i, j, counter
+character(len=60) :: sub_name
+
+
+sub_name = 'Mat_to_CC'
+call enter_exit(sub_name,1)
+
+allocate(sparsecol(2*nn+3)) !allocation of sparsecol
+NonZeros = 0 !Initialisation for NonZeros
+sparsecol = 1 !SparseCol initialisation
+
+! Counting the number of NonZeros in K matrix
+do i = 1,2*nn+2 !going through columns of k
+     do j = 1,2*nn+2 !going through rows of k
+          if (k(i,j) .NE. 0.0) then
+          NonZeros = NonZeros + 1
+          end if
+     enddo
+ enddo
+!write(*,*) 'Number of NonZero components in stiffness matrix: ' , NonZeros ! A write statement for checking the number NonZeros
+
+! Allocation of SparseRow and SparseVal (After knowing the number of NonZeros)
+
+ allocate(sparserow(NonZeros))
+ allocate(sparseval(NonZeros))
+
+ sparserow = 0 !Initialisation
+ sparseval = 0 !Initialisation
+
+ counter=0
+ do j = 1,2*nn+2 !going through columns of k
+     do i = 1,2*nn+2 !going through rows of k
+          if (k(i,j).NE.0) then
+            counter = counter + 1
+            sparseval(counter)=k(i,j)
+            sparserow(counter)=i
+          end if
+     enddo ! do i
+     if (counter.EQ.0.0) then
+         sparsecol(j+1) = 0
+    else
+        sparsecol(j+1) = counter + 1
+     end if
+ enddo ! do j
+call enter_exit(sub_name,2)
+
+end subroutine Mat_to_CC
+
 end module capillaryflow

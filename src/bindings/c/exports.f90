@@ -56,7 +56,6 @@ contains
 
   end subroutine export_1d_elem_geometry_c
 
-
 !!!############################################################################
 
   subroutine export_elem_geometry_2d_c(EXELEMFILE, filename_len, name, name_len, offset_elem, offset_node)&
@@ -109,7 +108,6 @@ contains
 #endif
 
   end subroutine export_node_geometry_c
-
 
 !!!##########################################################################
 
@@ -217,7 +215,7 @@ contains
 
   end subroutine export_terminal_perfusion_c
 
-   !!!########################################################################
+!!!########################################################################
 
   subroutine export_terminal_ssgexch_c(EXNODEFILE, filename_len, name, name_len) bind(C, name="export_terminal_ssgexch_c")
 

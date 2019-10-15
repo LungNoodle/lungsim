@@ -29,8 +29,8 @@ contains
 !##############################################################################
 !
 subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
-    n_time,heartrate,a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition)
-!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_WAVE_TRANSMISSION: EVALUATE_WAVE_PROPAGATION
+    n_time,heartrate,a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition,cap_model)
+!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_WAVE_TRANSMISSION" :: EVALUATE_WAVE_TRANSMISSION
   use indices
   use arrays, only: dp,all_admit_param,num_elems,elem_field,fluid_properties,elasticity_param,num_units,&
     units,node_xyz,elem_cnct,elem_nodes,node_field
@@ -49,6 +49,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   integer, intent(in) :: n_model
   real(dp), intent(in) :: model_definition(n_model)
   integer, intent(in) :: grav_dirn
+  integer, intent(in) :: cap_model
 
   type(all_admit_param) :: admit_param
   type(fluid_properties) :: fluid
@@ -155,6 +156,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
     print *, 'ERROR: Your boundary condition choice has not yet been implemented'
     call exit(0)
   endif
+
   mechanics_type='linear'
   if (mechanics_type.eq.'linear') then
     mechanics_parameters(1)=5.0_dp*98.07_dp !average pleural pressure (Pa)
@@ -239,7 +241,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
             min_ven,max_ven,tree_direction)
 !        !cap admittance
         call capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
-            min_cap,max_cap,elast_param,mechanics_parameters,grav_vect)!
+            min_cap,max_cap,elast_param,mechanics_parameters,grav_vect,cap_model)!
         !art admittance
         tree_direction='diverging'
         call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
@@ -261,7 +263,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
     do nf=1,no_freq
         omega=nf*harmonic_scale
         write(fid5,fmt=*) omega,abs(eff_admit(nf,1)),&
-            atan2(imagpart(eff_admit(nf,1)),realpart(eff_admit(nf,1)))
+            atan2(eff_admit(nf,1)%im,eff_admit(nf,1)%re)
     enddo
     close(fid5)
 
@@ -284,27 +286,27 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
             do nf=1,no_freq
                 omega=2*pi*nf*harmonic_scale
                 forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
-                    atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne))))
+                    atan2(p_factor(nf,ne)%im,p_factor(nf,ne)%re))
 
                 reflected_pressure(nt)=reflected_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*&
-                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*realpart(prop_const(nf,ne)))*&
+                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(prop_const(nf,ne)%re))*&
                     cos(omega*time+b(nf)+&
-                    atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne)))+&
-                    (-2*elem_field(ne_length,ne))*imagpart(prop_const(nf,ne))+&
-                    atan2(imagpart(reflect(nf,ne)),realpart(reflect(nf,ne))))
+                    atan2(p_factor(nf,ne)%im,p_factor(nf,ne)%re)+&
+                    (-2*elem_field(ne_length,ne))*(prop_const(nf,ne)%im)+&
+                    atan2(reflect(nf,ne)%im,reflect(nf,ne)%re))
 
                 forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
                     cos(omega*time+b(nf)+&
-                    atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne)))+&
-                    atan2(imagpart(char_admit(nf,ne)),realpart(char_admit(nf,ne))))
+                    atan2(p_factor(nf,ne)%im,p_factor(nf,ne)%re)+&
+                    atan2(char_admit(nf,ne)%im,char_admit(nf,ne)%re))
 
                 reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
-                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*realpart(prop_const(nf,ne)))*&
+                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(prop_const(nf,ne)%re))*&
                     cos(omega*time+b(nf)+&
-                    atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne)))+&
-                    (-2*elem_field(ne_length,ne))*imagpart(prop_const(nf,ne))+&
-                    atan2(imagpart(reflect(nf,ne)),realpart(reflect(nf,ne)))+&
-                    atan2(imagpart(char_admit(nf,ne)),realpart(char_admit(nf,ne))))
+                    atan2(p_factor(nf,ne)%im,p_factor(nf,ne)%re)+&
+                    (-2*elem_field(ne_length,ne))*(prop_const(nf,ne)%im)+&
+                    atan2(reflect(nf,ne)%im,reflect(nf,ne)%re)+&
+                    atan2(char_admit(nf,ne)%im,char_admit(nf,ne)%re))
 
             enddo
             time=time+dt
@@ -342,7 +344,6 @@ end subroutine evaluate_wave_transmission
 !*boundary_admittance* applies chosen admittance boundary conditions at the terminal units
 subroutine boundary_admittance(no_freq,eff_admit,char_admit,admit_param,harmonic_scale,&
   density,viscosity,elast_param,mesh_type)
-!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_boundary_admittance: boundary_admittance
   use arrays,only: num_elems,all_admit_param,units,num_units,elasticity_param,elem_cnct
   use diagnostics, only: enter_exit
 
@@ -463,7 +464,6 @@ end subroutine boundary_admittance
 !*characteristic_admittance* calculates the characteristic admittance of each
 subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scale,&
   density,viscosity,admit_param,elast_param,mechanics_parameters,grav_vect)
-!DEC$ ATTRIBUTES DLLEXPORT, ALIAD:"SO_characteristic_admittance: characteristic_admittance
   use other_consts, only: MAX_STRING_LEN
   use indices
   use arrays, only: num_elems,elem_field,elasticity_param,all_admit_param,elem_nodes
@@ -671,7 +671,7 @@ end subroutine tree_admittance
 !
 !*capillaryadmittance:* Calculates the total admittance of a tree
 subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
-  min_elem,max_elem,elast_param,mechanics_parameters,grav_vect)
+  min_elem,max_elem,elast_param,mechanics_parameters,grav_vect,cap_model)
   use indices
   use arrays,only: dp,num_elems,elem_cnct,elem_field,capillary_bf_parameters,elem_nodes,&
     node_field,node_xyz,elasticity_param
@@ -687,6 +687,7 @@ subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,
   real(dp), intent(in) :: harmonic_scale
   integer, intent(in) :: min_elem,max_elem
   real(dp),intent(in) :: mechanics_parameters(2),grav_vect(3)
+  integer, intent(in) :: cap_model
 
   type(capillary_bf_parameters) :: cap_param
   type(elasticity_param) :: elast_param
@@ -723,7 +724,8 @@ subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,
       eff_admit_downstream(i)=eff_admit(i,ne1)
     enddo
     call cap_flow_admit(ne,eff_admit(:,ne),eff_admit_downstream,Lin,Lout,P1,P2,&
-                        Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param)
+                        Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,&
+                        elast_param,cap_model)
    enddo!ne
 
 end subroutine capillary_admittance
