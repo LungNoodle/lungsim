@@ -26,3 +26,23 @@
 *.exe
 *.out
 *.app
+
+# OS X
+.DS_Store
+
+# Qt Creator
+CMakeLists.txt.user
+
+# Eclipse
+.project
+
+#Linux autosavefiles
+*~
+
+# Compiled Python files
+*.pyc
+__pycache__/
+
+# PyCharm
+.idea/
+
