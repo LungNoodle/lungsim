@@ -102,7 +102,6 @@ void export_data_geometry(const char *EXDATAFILE, const char *name, int offset)
   export_data_geometry_c(EXDATAFILE, &filename_len, name, &name_len, &offset);
 }
 
-
 void export_elem_field(const char *EXELEMFIELD, const char *name, const char *field_name)
 {
   int filename_len = strlen(EXELEMFIELD);

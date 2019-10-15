@@ -27,8 +27,6 @@ include(buildtypes)
 # Mark some variables as advanced hiding them from basic users
 tidy_gui()
 
-message(STATUS "AETHER_TEST_VAR: ${AETHER_TEST_VAR}")
-
 # Build shared or static library
 add_project_config_parameter(BUILD_SHARED ON BOOL "Build shared library (true) or static library (false)")
 set(BUILD_SHARED_LIBS ${AETHER_BUILD_SHARED} CACHE INTERNAL "Internalise BUILD_SHARED_LIBS, manipulate via AETHER_BUILD_SHARED" FORCE)
