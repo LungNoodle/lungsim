@@ -263,7 +263,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
     do nf=1,no_freq
         omega=nf*harmonic_scale
         write(fid5,fmt=*) omega,abs(eff_admit(nf,1)),&
-            atan2(eff_admit(nf,1)%im,eff_admit(nf,1)%re)
+            atan2(dimag(eff_admit(nf,1)),real(eff_admit(nf,1), 8))
     enddo
     close(fid5)
 
@@ -286,27 +286,27 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
             do nf=1,no_freq
                 omega=2*pi*nf*harmonic_scale
                 forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
-                    atan2(p_factor(nf,ne)%im,p_factor(nf,ne)%re))
+                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8)))
 
                 reflected_pressure(nt)=reflected_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*&
-                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(prop_const(nf,ne)%re))*&
+                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
                     cos(omega*time+b(nf)+&
-                    atan2(p_factor(nf,ne)%im,p_factor(nf,ne)%re)+&
-                    (-2*elem_field(ne_length,ne))*(prop_const(nf,ne)%im)+&
-                    atan2(reflect(nf,ne)%im,reflect(nf,ne)%re))
+                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                    (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                    atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8)))
 
                 forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
                     cos(omega*time+b(nf)+&
-                    atan2(p_factor(nf,ne)%im,p_factor(nf,ne)%re)+&
-                    atan2(char_admit(nf,ne)%im,char_admit(nf,ne)%re))
+                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                    atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
 
                 reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
-                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(prop_const(nf,ne)%re))*&
+                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
                     cos(omega*time+b(nf)+&
-                    atan2(p_factor(nf,ne)%im,p_factor(nf,ne)%re)+&
-                    (-2*elem_field(ne_length,ne))*(prop_const(nf,ne)%im)+&
-                    atan2(reflect(nf,ne)%im,reflect(nf,ne)%re)+&
-                    atan2(char_admit(nf,ne)%im,char_admit(nf,ne)%re))
+                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                    (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                    atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))+&
+                    atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
 
             enddo
             time=time+dt
