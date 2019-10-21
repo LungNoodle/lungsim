@@ -41,7 +41,7 @@ endif()
 option(AETHER_BUILD_BINDINGS "Build bindings for ${PROJECT}, will require SWIG" YES)
 
 # Set base install location
-add_project_config_parameter(INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} STRING "Set the base install prefix.")
+add_project_config_parameter(INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} PATH "Set the base install prefix.")
 set(CMAKE_INSTALL_PREFIX ${AETHER_INSTALL_PREFIX} CACHE INTERNAL "Internlaise CMAKE_INSTALL_PREFIX, manipulate via AETHER_INSTALL_PREFIX" FORCE)
 mark_as_advanced(AETHER_INSTALL_PREFIX)
 
