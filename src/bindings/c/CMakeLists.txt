@@ -58,17 +58,6 @@ set(C_LIB_HDRS
   ventilation.h
   wave_transmission.h
 )
-#if (SUPERLU_FOUND)
-#  list(APPEND C_FORTRAN_LIB_SRCS
-#    capillaryflow.f90
-#  )
-#  list(APPEND C_C_LIB_SRCS
-#    capillaryflow.c
-#  )
-#  list(APPEND C_LIB_HDRS
-#    capillaryflow.h
-#  )
-#endif ()
 
 add_library(aether_c_fortran STATIC ${C_FORTRAN_LIB_SRCS} $<TARGET_OBJECTS:aether_obj>)
 set_target_properties(aether_c_fortran PROPERTIES
