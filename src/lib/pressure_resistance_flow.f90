@@ -926,7 +926,7 @@ subroutine calc_sparse_size(mesh_dof,depvar_at_elem,depvar_at_node,FIX,NonZeros,
     NonZeros = num_elems*3 - fixed_pressures - fixed_flows
     !count of conservation of flow equations = sum of elements connected to nodes which have at least 2 connected elements - fixed flows
     do np=1, num_nodes
-        if(elems_at_node(np,0).GT.1)then
+        if(elems_at_node(np,0).gt.1)then
             NonZeros = NonZeros + elems_at_node(np,0)
         endif
     enddo
@@ -958,7 +958,7 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
     character(len=60) :: sub_name
     sub_name = 'calc_press_area'
     call enter_exit(sub_name,1)
-    if(KOUNT.EQ.1)then !store initial, unstressed radius values
+    if(KOUNT.eq.1)then !store initial, unstressed radius values
       do  ne=1,num_elems
         elem_field(ne_radius_in0,ne)=elem_field(ne_radius_in,ne)
         elem_field(ne_radius_out0,ne)=elem_field(ne_radius_out,ne)
@@ -976,10 +976,10 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
         if(nn.eq.1)R0=elem_field(ne_radius_in0,ne)
         if(nn.eq.2)R0=elem_field(ne_radius_out0,ne)
       if(vessel_type.eq.'elastic_g0_beta')then
-        if(Ptm.LT.elasticity_parameters(3).and.elasticity_parameters(1).gt.0.0_dp)THEN
+        if(Ptm.lt.elasticity_parameters(3).and.elasticity_parameters(1).gt.0.0_dp)then
           if(nn.eq.1) elem_field(ne_radius_in,ne)=R0*((Ptm/elasticity_parameters(1))+1.d0)**(1.d0/elasticity_parameters(2))
           if(nn.eq.2) elem_field(ne_radius_out,ne)=R0*((Ptm/elasticity_parameters(1))+1.d0)**(1.d0/elasticity_parameters(2))
-        elseif(Ptm.lt.0.0_dp.or.elasticity_parameters(1).LT.TOLERANCE)THEN
+        elseif(Ptm.lt.0.0_dp.or.elasticity_parameters(1).LT.TOLERANCE)then
           if(Ptm.lt.0)write(*,*) 'Transmural pressure < zero',ne,Ptm,Pblood,Ppl
           if(nn.eq.1) elem_field(ne_radius_in,ne)=R0
           if(nn.eq.2) elem_field(ne_radius_out,ne)=R0
@@ -994,10 +994,10 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
           endif
         endif
       elseif(vessel_type.eq.'elastic_alpha')then
-         if(Ptm.LT.elasticity_parameters(2))THEN
+         if(Ptm.LT.elasticity_parameters(2))then
           if(nn.eq.1) elem_field(ne_radius_in,ne)=R0*((Ptm*elasticity_parameters(1))+1.d0)
           if(nn.eq.2) elem_field(ne_radius_out,ne)=R0*((Ptm*elasticity_parameters(1))+1.d0)
-        elseif(Ptm.lt.0.0_dp)THEN
+        elseif(Ptm.lt.0.0_dp)then
           if(Ptm.lt.0)write(*,*) 'Transmural pressure < zero',ne,Ptm,Pblood,Ppl
           if(nn.eq.1) elem_field(ne_radius_in,ne)=R0
           if(nn.eq.2) elem_field(ne_radius_out,ne)=R0
