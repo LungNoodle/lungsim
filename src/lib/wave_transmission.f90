@@ -30,7 +30,7 @@ contains
 !
 subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
     n_time,heartrate,a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition,cap_model)
-!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_WAVE_TRANSMISSION" :: EVALUATE_WAVE_TRANSMISSION
+!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_WAVE_TRANSMISSION: EVALUATE_WAVE_PROPAGATION
   use indices
   use arrays, only: dp,all_admit_param,num_elems,elem_field,fluid_properties,elasticity_param,num_units,&
     units,node_xyz,elem_cnct,elem_nodes,node_field
@@ -263,7 +263,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
     do nf=1,no_freq
         omega=nf*harmonic_scale
         write(fid5,fmt=*) omega,abs(eff_admit(nf,1)),&
-            atan2(dimag(eff_admit(nf,1)),real(eff_admit(nf,1), 8))
+            atan2(imagpart(eff_admit(nf,1)),realpart(eff_admit(nf,1)))
     enddo
     close(fid5)
 
@@ -286,27 +286,27 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
             do nf=1,no_freq
                 omega=2*pi*nf*harmonic_scale
                 forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8)))
+                    atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne))))
 
                 reflected_pressure(nt)=reflected_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*&
-                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*realpart(prop_const(nf,ne)))*&
                     cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                    (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
-                    atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8)))
+                    atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne)))+&
+                    (-2*elem_field(ne_length,ne))*imagpart(prop_const(nf,ne))+&
+                    atan2(imagpart(reflect(nf,ne)),realpart(reflect(nf,ne))))
 
                 forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
                     cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                    atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+                    atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne)))+&
+                    atan2(imagpart(char_admit(nf,ne)),realpart(char_admit(nf,ne))))
 
                 reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
-                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*realpart(prop_const(nf,ne)))*&
                     cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                    (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
-                    atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))+&
-                    atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+                    atan2(imagpart(p_factor(nf,ne)),realpart(p_factor(nf,ne)))+&
+                    (-2*elem_field(ne_length,ne))*imagpart(prop_const(nf,ne))+&
+                    atan2(imagpart(reflect(nf,ne)),realpart(reflect(nf,ne)))+&
+                    atan2(imagpart(char_admit(nf,ne)),realpart(char_admit(nf,ne))))
 
             enddo
             time=time+dt
@@ -344,6 +344,7 @@ end subroutine evaluate_wave_transmission
 !*boundary_admittance* applies chosen admittance boundary conditions at the terminal units
 subroutine boundary_admittance(no_freq,eff_admit,char_admit,admit_param,harmonic_scale,&
   density,viscosity,elast_param,mesh_type)
+!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_boundary_admittance: boundary_admittance
   use arrays,only: num_elems,all_admit_param,units,num_units,elasticity_param,elem_cnct
   use diagnostics, only: enter_exit
 
@@ -464,6 +465,7 @@ end subroutine boundary_admittance
 !*characteristic_admittance* calculates the characteristic admittance of each
 subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scale,&
   density,viscosity,admit_param,elast_param,mechanics_parameters,grav_vect)
+!DEC$ ATTRIBUTES DLLEXPORT, ALIAD:"SO_characteristic_admittance: characteristic_admittance
   use other_consts, only: MAX_STRING_LEN
   use indices
   use arrays, only: num_elems,elem_field,elasticity_param,all_admit_param,elem_nodes
@@ -502,8 +504,25 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scal
       if(nn.eq.1)R0=elem_field(ne_radius_in0,ne)
       if(nn.eq.2)R0=elem_field(ne_radius_out0,ne)
       if(admit_param%admittance_type.eq.'duan_zamir')then!alpha controls elasticity
-       if(nn.eq.1)Rg_in=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
-       if(nn.eq.2)Rg_out=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
+         if(elem_field(ne_group,ne).eq.0.0_dp)then !applying remodeling factors on arteries only
+           if(nn.eq.1) then
+             if((R0.gt.0.015_dp).and.(R0.lt.0.15)) then !checking the conditions for remodeling
+               Rg_in=0.55_dp*R0*(Ptm*0.16_dp*elast_param%elasticity_parameters(1)+1.d0)
+             else
+               Rg_in=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
+             endif ! radius condition
+           endif ! nn=1
+           if(nn.eq.2) then
+             if((R0.gt.0.015_dp).and.(R0.lt.0.15)) then !checking the conditions for remodeling
+               Rg_out=0.55_dp*R0*(Ptm*0.16_dp*elast_param%elasticity_parameters(1)+1.d0)
+             else
+               Rg_out=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
+             endif ! radius condition
+           endif ! nn=2
+         else !everything except arteries is treated as normal
+           if(nn.eq.1)Rg_in=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
+           if(nn.eq.2)Rg_out=R0*(Ptm*elast_param%elasticity_parameters(1)+1.d0)
+         endif
       else!Hooke type elasticity
          h=elast_param%elasticity_parameters(2)*R0
         if(nn.eq.1) Rg_in=R0+3.0_dp*R0**2*Ptm/(4.0_dp*elast_param%elasticity_parameters(1)*h)
@@ -543,10 +562,18 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scal
     elseif(admit_param%admittance_type.eq.'duan_zamir')then
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale!q/s
-       wolmer=(elem_field(ne_radius_out,ne))*sqrt(omega*density/viscosity)
+       wolmer=(elem_field(ne_radius_out,ne))*sqrt(omega*density/viscosity) !radii is already affected by a factor
        call bessel_complex(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp),bessel0,bessel1)
        f10=2*bessel1/(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp)*bessel0)!no units
+       if(elem_field(ne_group,ne).eq.0.0_dp)then !applying elasticity factor on wavespeed for arteries
+         if((elem_field(ne_radius_out0,ne).ge.0.015).and.(elem_field(ne_radius_out0,ne).le.0.15))then
+           wavespeed=sqrt(1.0_dp/(2*density*0.16_dp*elast_param%elasticity_parameters(1)))*sqrt(1-f10)! !mm/s
+         else
+           wavespeed=sqrt(1.0_dp/(2*density*elast_param%elasticity_parameters(1)))*sqrt(1-f10)! !mm/s
+         endif
+       else !apply normal elasticity on everything except arteries
        wavespeed=sqrt(1.0_dp/(2*density*elast_param%elasticity_parameters(1)))*sqrt(1-f10)! !mm/s
+       endif
        char_admit(nf,ne)=PI*(elem_field(ne_radius_out,ne))**2/(density*wavespeed/(1-f10))*sqrt(1-f10)!mm3/Pa
        prop_const(nf,ne)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed)!1/mm
      enddo
