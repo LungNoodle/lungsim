@@ -43,6 +43,9 @@ CMakeLists.txt.user
 *.pyc
 __pycache__/
 
+#Atom temp cache
+.nfs*
+
 # PyCharm
 .idea/
 
