@@ -1203,7 +1203,7 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
                 if(R0.lt.0.05) then ! only Narrow_factor
                   elem_field(ne_radius_in,ne) = narrow_factor*R0*((Ptm*elasticity_parameters(1))+1.d0)
                 elseif(R0.gt.narrow_rad_two) then ! only Hypertophy
-                  elem_field(ne_radius_in,ne) = R0*((Ptm*alt_hyp*alt_fib*elasticity_parameters(1))+1.d0)
+                  elem_field(ne_radius_in,ne) = R0*((Ptm*alt_hyp*elasticity_parameters(1))+1.d0)
                 else ! Both hypertophy and narrowing
                   elem_field(ne_radius_in,ne) = narrow_factor*R0*((Ptm*alt_hyp*alt_fib*elasticity_parameters(1))+1.d0)
                 endif
@@ -1216,7 +1216,7 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
                 if(R0.lt.0.05) then ! only Narrow_factor
                   elem_field(ne_radius_out,ne) = narrow_factor*R0*((Ptm*elasticity_parameters(1))+1.d0)
                 elseif(R0.gt.narrow_rad_two) then ! hypertophy only
-                  elem_field(ne_radius_out,ne) = R0*((Ptm*alt_hyp*alt_fib*elasticity_parameters(1))+1.d0)
+                  elem_field(ne_radius_out,ne) = R0*((Ptm*alt_hyp*elasticity_parameters(1))+1.d0)
                 else ! Both hypertophy and narrowing
                   elem_field(ne_radius_out,ne) = narrow_factor*R0*((Ptm*alt_hyp*alt_fib*elasticity_parameters(1))+1.d0)
                 endif
@@ -1254,7 +1254,7 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
                 if(R0.lt.0.05) then ! only Narrow_factor
                   elem_field(ne_radius_in,ne)=narrow_factor*R0*((elasticity_parameters(2)*elasticity_parameters(1))+1.d0)
                 elseif(R0.gt.narrow_rad_two) then ! hypertophy only
-                  elem_field(ne_radius_in,ne)=R0*((elasticity_parameters(2)*alt_hyp*alt_fib*elasticity_parameters(1))+1.d0)
+                  elem_field(ne_radius_in,ne)=R0*((elasticity_parameters(2)*alt_hyp*elasticity_parameters(1))+1.d0)
                 else ! Both hypertophy and narrowing
                   elem_field(ne_radius_in,ne)=narrow_factor*R0*(elasticity_parameters(2)* &
                   alt_hyp*alt_fib*elasticity_parameters(1)+1.d0)
@@ -1268,7 +1268,7 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
                 if(R0.lt.0.05) then ! only Narrow_factor
                   elem_field(ne_radius_out,ne)=narrow_factor*R0*((elasticity_parameters(2)*elasticity_parameters(1))+1.d0)
                 elseif(R0.gt.narrow_rad_two) then ! hypertophy only
-                  elem_field(ne_radius_out,ne)=R0*((elasticity_parameters(2)*alt_hyp*alt_fib*elasticity_parameters(1))+1.d0)
+                  elem_field(ne_radius_out,ne)=R0*((elasticity_parameters(2)*alt_hyp*elasticity_parameters(1))+1.d0)
                 else ! Both hypertophy and narrowing
                   elem_field(ne_radius_out,ne)=narrow_factor*R0*((elasticity_parameters(2)* &
                   alt_hyp*alt_fib*elasticity_parameters(1))+1.d0)
