@@ -7,7 +7,8 @@ contains
 !!!###################################################################################
 
 subroutine evaluate_wave_transmission_c(grav_dirn,grav_factor,n_time,heartrate,&
-  a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition,cap_model) bind(C, name="evaluate_wave_transmission_c")
+  a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition,cap_model,&
+remodeling_grade) bind(C, name="evaluate_wave_transmission_c")
 
 use iso_c_binding, only: c_ptr
 use utils_c, only: strncpy
@@ -28,15 +29,16 @@ real(dp), intent(in) :: admittance_param(n_adparams)
 integer, intent(in) :: n_model
 real(dp), intent(in) :: model_definition(n_model)
 integer, intent(in) :: cap_model
+integer, intent(in) :: remodeling_grade
 
 
 
 #if defined _WIN32 && defined __INTEL_COMPILER
 call so_evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,no_freq,a,&
-  b,n_adparams,admittance_param,n_model,model_definition,cap_model)
+  b,n_adparams,admittance_param,n_model,model_definition,cap_model,remodeling_grade)
 #else
 call evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,no_freq,a,&
-  b,n_adparams,admittance_param,n_model,model_definition,cap_model)
+  b,n_adparams,admittance_param,n_model,model_definition,cap_model,remodeling_grade)
 #endif
 
 end subroutine evaluate_wave_transmission_c
