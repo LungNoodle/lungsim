@@ -1040,17 +1040,17 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
     !  prune_fraction=0
     !endif
     if(remodeling_grade.eq.2) then
-      alt_hyp=5/6
-      alt_fib=1
-      prox_fib=1
+      alt_hyp=5.0_dp/6
+      alt_fib=1.0_dp
+      prox_fib=1.0
       narrow_rad_one=0.015
       narrow_rad_two=0.15
-      narrow_factor=1
+      narrow_factor=1.0
       prune_rad=0.16E-3
       prune_fraction=0
     elseif(remodeling_grade.eq.3) then
-      alt_hyp=4/6
-      alt_fib=1
+      alt_hyp=4.0_dp/6
+      alt_fib=1.0_dp
       prox_fib=1
       narrow_rad_one=0.015
       narrow_rad_two=0.15
@@ -1058,8 +1058,8 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
       prune_rad=0.16E-3
       prune_fraction=0.0625
     elseif(remodeling_grade.eq.4) then
-      alt_hyp=3/6
-      alt_fib=1
+      alt_hyp=3.0_dp/6
+      alt_fib=1.0_dp
       prox_fib=1
       narrow_rad_one=0.015
       narrow_rad_two=0.15
@@ -1067,8 +1067,8 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
       prune_rad=0.16E-3
       prune_fraction=0.125
     elseif(remodeling_grade.eq.5) then
-      alt_hyp=2/6
-      alt_fib=1
+      alt_hyp=2.0_dp/6
+      alt_fib=1.0_dp
       prox_fib=1
       narrow_rad_one=0.015
       narrow_rad_two=0.25
@@ -1076,26 +1076,26 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
       prune_rad=0.25E-3
       prune_fraction=0.1875
     elseif(remodeling_grade.eq.6) then
-      alt_hyp=1/6
-      alt_fib=5/6
+      alt_hyp=1.0_dp/6
+      alt_fib=5.0_dp/6
       prox_fib=(1-0.145)
       narrow_rad_one=0.015
-      narrow_rad_two=0.025
+      narrow_rad_two=0.25
       narrow_factor=0.7
       prune_rad=0.25E-3
       prune_fraction=0.25
     elseif(remodeling_grade.eq.7) then
-      alt_hyp=1/6
-      alt_fib=4/6
+      alt_hyp=1.0_dp/6
+      alt_fib=4.0_dp/6
       prox_fib=(1-2*0.145)
       narrow_rad_one=0.015
-      narrow_rad_two=0.025
+      narrow_rad_two=0.25
       narrow_factor=0.625
       prune_rad=0.25E-3
       prune_fraction=0.3125
     elseif(remodeling_grade.eq.8) then
-      alt_hyp=1/6
-      alt_fib=3/6
+      alt_hyp=1.0_dp/6
+      alt_fib=3.0_dp/6
       prox_fib=(1-3*0.145)
       narrow_rad_one=0.015
       narrow_rad_two=0.25
@@ -1103,8 +1103,8 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
       prune_rad=0.25E-3
       prune_fraction=0.375
     elseif(remodeling_grade.eq.9) then
-      alt_hyp=1/6
-      alt_fib=2/6
+      alt_hyp=1.0_dp/6
+      alt_fib=2.0_dp/6
       prox_fib=(1-4*0.145)
       narrow_rad_one=0.015
       narrow_rad_two=0.25
@@ -1112,8 +1112,8 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
       prune_rad=0.25E-3
       prune_fraction=0.4375
     elseif(remodeling_grade.eq.10) then
-      alt_hyp=1/6
-      alt_fib=1/6
+      alt_hyp=1.0_dp/6
+      alt_fib=1.0_dp/6
       prox_fib=(1-5*0.145)
       narrow_rad_one=0.015
       narrow_rad_two=0.25
