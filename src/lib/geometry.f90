@@ -49,6 +49,23 @@ module geometry
 
 contains
 !
+!!!#####################################################################
+!
+!*allocate_node_arrays:* allocate memory for arrays associated with 1D trees
+  subroutine allocate_node_arrays(num_nodes)
+
+    integer,intent(in) :: num_nodes
+    
+    if(.not.allocated(nodes)) allocate (nodes(num_nodes))
+    if(.not.allocated(node_xyz)) allocate (node_xyz(3,num_nodes))
+    if(.not.allocated(node_field)) allocate (node_field(num_nj,num_nodes))
+    if(.not.allocated(elems_at_node)) allocate(elems_at_node(num_nodes,0:3))
+    nodes = 0 !initialise node index values
+    node_xyz = 0.0_dp !initialise
+    node_field = 0.0_dp !initialise
+
+  end subroutine allocate_node_arrays
+
 !###################################################################################
 !
 !*add_mesh:* Reads in an ipmesh file and adds this mesh to the terminal branches of an existing tree geometry
@@ -779,105 +796,88 @@ contains
 
     character(len=MAX_FILENAME_LEN), intent(in) :: NODEFILE !Input nodefile
     !     Local Variables
-    integer :: i,ierror,np,np_global,&
-         num_versions,nv,NJT
-    character(LEN=132) :: ctemp1
-    LOGICAL :: versions
+    integer :: i,ierror,np,np_global,num_nodes_temp,num_versions,nv,NJT=0
+    character(len=300) :: ctemp1,readfile
     real(dp) :: point
     character(len=60) :: sub_name
+    logical :: overwrite = .false. ! initialised
 
     sub_name = 'define_node_geometry'
     call enter_exit(sub_name,1)
 
-    versions = .TRUE.
-    NJT = 0
+    readfile = trim(nodefile)//'.ipnode'
     open(10, file=NODEFILE, status='old')
 
+    if(num_nodes.gt.0) overwrite = .true.
+    
     !.....read in the total number of nodes. read each line until one is found
     !.....that has the correct keyword (nodes). then return the integer that is
     !.....at the end of the line
     read_number_of_nodes : do !define a do loop name
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !read a line into ctemp1
        if(index(ctemp1, "nodes")> 0) then !keyword "nodes" is found in ctemp1
-          call get_final_integer(ctemp1,num_nodes) !return the final integer
+          num_nodes_temp = get_final_integer(ctemp1) !return the final integer
           exit read_number_of_nodes !exit the named do loop
        endif
     end do read_number_of_nodes
 
-    if(allocated(nodes)) deallocate (nodes)
-    allocate (nodes(num_nodes))
-    if(allocated(node_xyz)) deallocate (node_xyz)
-    allocate (node_xyz(3,num_nodes))
-    if(allocated(node_field)) deallocate (node_field)
-    allocate (node_field(num_nj,num_nodes))
-    nodes = 0 !initialise node index values
-    node_xyz = 0.0_dp !initialise
-    node_field = 0.0_dp !initialise
+    if(.not.overwrite) call allocate_node_arrays(num_nodes_temp) ! don't allocate if just overwriting
 
     !.....read in the number of coordinates
     read_number_of_coords : do !define a do loop name
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !read a line into ctemp1
        if(index(ctemp1, "coordinates")> 0) then !keyword "coordinates" is found
-          call get_final_integer(ctemp1,NJT) !return the final integer
+          NJT = get_final_integer(ctemp1) !return the final integer
           exit read_number_of_coords !exit the named do loop
        endif
     end do read_number_of_coords
-
-    !.....check whether versions are prompted (>1)
-    read_versions : do !define a do loop name
-       read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !read a line into ctemp1
-       if(index(ctemp1, "different")> 0) then !keyword "different" is found
-          if(index(ctemp1, " N")> 0) then !keyword " N" is found
-             versions=.false.
-          endif
-          exit read_versions !exit the named do loop
-       endif
-    end do read_versions
-
-!!! WARNING :: following should be in general code
-    ! note that only the first version of coordinate is currently read in
-
-    !.....read the coordinate, derivative, and version information for each node.
+    
+    ! note that only the first version of coordinate is currently read in   
+    
+    !.....read the coordinate, derivative, and version information for each node. 
     np=0
     read_a_node : do !define a do loop name
        !.......read node number
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1
        if(index(ctemp1, "Node")> 0) then
-          call get_final_integer(ctemp1,np_global) !get node number
-          np=np+1
-          nodes(np)=np_global
-          !.......read coordinates and derivatives
-          do i=1,NJT ! for the NJT coordinates
-             !...........coordinate
+          np_global = get_final_integer(ctemp1) !get node number
+
+          np = np+1
+          nodes(np) = np_global
+          !.......read coordinates
+          do i=1,3 ! for the x,y,z coordinates
              num_versions=1
-             if(versions)then
-                read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                call get_final_integer(ctemp1,num_versions)
-             endif
-             if(num_versions > 1)then
-                read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !temporary line
-                read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                call get_final_real(ctemp1,point)
-                do nv=2,num_versions
+             read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+             if(index(ctemp1, "versions")> 0) then
+                num_versions = get_final_integer(ctemp1)
+                if(num_versions > 1)then
                    read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !temporary line
                    read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                enddo
-             else
-                read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                call get_final_real(ctemp1,point)
+                   point = get_final_real(ctemp1)
+                   do nv=2,num_versions
+                      read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !temporary line
+                      read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+                   enddo
+                else
+                   read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+                   point = get_final_real(ctemp1)
+                endif
+             else ! no prompting for versions
+                point = get_final_real(ctemp1)
              endif
              node_xyz(i,np)=point
           end do !i
-
        endif !index
-       if(np.ge.num_nodes) exit read_a_node
+       if(np.ge.num_nodes_temp) exit read_a_node
     end do read_a_node
 
+    if(.not.overwrite) num_nodes = num_nodes_temp
+    
     close(10)
 
     call enter_exit(sub_name,2)
 
-  END subroutine define_node_geometry
+  end subroutine define_node_geometry
 
 !!!##################################################
 
@@ -2549,13 +2549,17 @@ contains
 !###################################################################################
 !
 !*get_final_integer*
-  subroutine get_final_integer(string,num)
-    implicit none
-    character,intent(in) :: string*(132)
-    integer,intent(out) :: num
-    integer :: ibeg,iend,nsign,ntemp
-    character :: sub_string*(40)
 
+  function get_final_integer(string)
+    
+    character,intent(in) :: string*(*)
+    integer :: ibeg,iend,ierror,nsign,ntemp
+    character :: sub_string*(40)
+    
+    integer :: get_final_integer
+    
+    ! ###########################################################################
+    
     iend=len(string) !get the length of the string
     ibeg=index(string,":")+1 !get location of integer in string, follows ":"
     sub_string = adjustl(string(ibeg:iend)) ! get the characters beyond ":"
@@ -2567,15 +2571,19 @@ contains
        nsign=1
        ibeg=1
     endif
-    read (sub_string(ibeg:iend), '(i10)' ) ntemp !get integer values
+    
+    read (sub_string(ibeg:iend), '(i10)', iostat=ierror ) ntemp !get integer values
+    if(ierror.gt.0)then
+       !... something wrong with data
+       write(*,'(''Data read error'')')
+       write(*,'(a)') sub_string(ibeg:iend)
+    endif
     ntemp=ntemp*nsign !apply sign to number
-
-    num=ntemp !return the integer value
-
-  end subroutine get_final_integer
-
-
-
+    
+    get_final_integer=ntemp !return the integer value
+    
+  end function get_final_integer
+  
 !!!##################################################
 
   subroutine get_four_nodes(ne,string)
