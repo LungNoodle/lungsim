@@ -37,12 +37,6 @@ contains
 ! ventilation as field values).
  subroutine import_ventilation(FLOWFILE)
  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_IMPORT_VENTILATION" :: IMPORT_VENTILATION
-!   use arrays,only: dp,elem_field,num_elems,num_units,units,unit_field,zero_tol,elem_cnct
-!   use geometry,only: get_final_real
-!   use indices
-!   use ventilation,only: sum_elem_field_from_periphery
-!   use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-!   use diagnostics, only: enter_exit
 
    character(len=MAX_FILENAME_LEN),intent(in) :: FLOWFILE
    !local variables
@@ -79,12 +73,6 @@ contains
 ! ventilation as field values).
  subroutine import_perfusion(FLOWFILE)
  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_IMPORT_PERFUSION" :: IMPORT_PERFUSION
-!   use arrays,only: dp,elem_field,num_elems,num_units,units,unit_field,zero_tol,elem_cnct
-!   use geometry,only: get_final_real
-!   use indices
-!   use ventilation,only: sum_elem_field_from_periphery
-!   use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-!   use diagnostics, only: enter_exit
 
    character(len=MAX_FILENAME_LEN),intent(in) :: FLOWFILE
    !local variables
@@ -118,11 +106,6 @@ contains
 !>*import_exelemfield:* This subroutine reads in the content of an exelem field file (1 field)
  subroutine import_exelemfield(FLOWFILE,field_no)
  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_IMPORT_EXELEMFIELD" :: IMPORT_EXELEMFIELD
-!   use arrays,only: dp,elem_field,num_elems,num_units,units,unit_field,zero_tol,elem_cnct
-!   use geometry,only: get_final_real
-!   use indices
-!   use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-!   use diagnostics, only: enter_exit
 
    character(len=MAX_FILENAME_LEN),intent(in) :: FLOWFILE
    integer, intent(in) :: field_no

@@ -48,7 +48,6 @@ contains
 !           -2=breakdown omega=0
 
 subroutine BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,Solution,SparseCol,SparseRow,SparseVal,TOLER,MaxIter)
-!    use arrays
 
     !Input/Output Variables
     integer, intent(in) :: MatrixSize,NonZeros

@@ -82,8 +82,6 @@ contains
   !> Define problem type
   subroutine define_problem_type(PROBLEM_TYPE)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_PROBLEM_TYPE" :: DEFINE_PROBLEM_TYPE
-!    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-!    use diagnostics, only: enter_exit
 
     character(len=MAX_FILENAME_LEN),intent(in) :: PROBLEM_TYPE
 
@@ -119,8 +117,6 @@ contains
   subroutine exchange_indices
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GASMIX_INDICES" :: GASMIX_INDICES
 
-!    use diagnostics, only: enter_exit
-!    implicit none
     character(len=60) :: sub_name
 
     sub_name = 'exchange_indices'
@@ -159,8 +155,6 @@ contains
   subroutine gasmix_indices
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GASMIX_INDICES" :: GASMIX_INDICES
 
-!    use diagnostics, only: enter_exit
-!    implicit none
     character(len=60) :: sub_name
 
     sub_name = 'gasmix_indices'
@@ -201,8 +195,6 @@ contains
   subroutine ventilation_indices
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_VENTILATION_INDICES" :: VENTILATION_INDICES
 
-!    use diagnostics, only: enter_exit
-!    implicit none
     character(len=60) :: sub_name
 
     sub_name = 'ventilation_indices'
@@ -242,8 +234,6 @@ contains
   subroutine growing_indices
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROWING_INDICES" :: GROWING_INDICES
 
-!    use diagnostics, only: enter_exit
-!    implicit none
     character(len=60) :: sub_name
 
     sub_name = 'growing_indices'
@@ -266,8 +256,6 @@ contains
   subroutine perfusion_indices
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_PERFUSION_INDICES" :: PERFUSION_INDICES
 
-!    use diagnostics, only: enter_exit
-!    implicit none
     character(len=60) :: sub_name
 
     sub_name = 'perfusion_indices'
@@ -298,8 +286,6 @@ contains
   function get_ne_radius() result(res)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GET_NE_RADIUS" :: GET_NE_RADIUS
 
-!    use diagnostics, only: enter_exit
-
     implicit none
     character(len=60) :: sub_name
     integer :: res
@@ -315,8 +301,6 @@ contains
   function get_nj_conc1() result(res)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GET_NJ_CONC1" :: GET_NJ_CONC1
 
-!    use diagnostics, only: enter_exit
-!    implicit none
     character(len=60) :: sub_name
     integer :: res
 

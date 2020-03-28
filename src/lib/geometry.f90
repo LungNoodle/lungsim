@@ -12,8 +12,6 @@ module geometry
   use arrays
   use diagnostics
   use indices
-  !  use mesh_functions
-!  use math_constants !pi
   use mesh_utilities
   use other_consts ! currently has pi
   use precision ! sets dp for precision
@@ -78,14 +76,6 @@ contains
 !*add_mesh:* Reads in an ipmesh file and adds this mesh to the terminal branches of an existing tree geometry
   subroutine add_mesh(AIRWAY_MESHFILE)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADD_MESH" :: ADD_MESH
-!    use arrays,only: dp,elems,elem_cnct,elem_direction,elem_field,&
-!         elem_nodes,elem_ordrs,elem_symmetry,&
-!         nodes,node_xyz,num_elems,&
-!         num_nodes,num_units,units
-!    use indices,only: ne_length,ne_radius,ne_a_A, ne_vol
-!    use other_consts,only: PI
-!    use diagnostics, only: enter_exit
-!    implicit none
 
     character(len=MAX_FILENAME_LEN), intent(in) :: AIRWAY_MESHFILE
     ! Local parameters
@@ -232,14 +222,7 @@ contains
 !*add_matching_mesh:*
   subroutine add_matching_mesh()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADD_MATCHING_MESH" :: ADD_MATCHING_MESH
-!    use arrays,only: dp,elems,elem_cnct,elem_direction,elem_field,&
-!         elem_nodes,elem_ordrs,elem_symmetry,elems_at_node,&
-!         nodes,node_xyz,num_elems,&
-!         num_nodes,num_units,units
-!    use indices
-!    use other_consts,only: PI
-!    use diagnostics, only: enter_exit
-!    implicit none
+
     !Parameters to become inputs
     real(dp) :: offset(3)
     logical :: REVERSE=.TRUE.
@@ -386,11 +369,6 @@ contains
 !*append_units:* Appends terminal units at the end of a tree structure
   subroutine append_units()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_APPEND_UNITS" :: APPEND_UNITS
-!    use arrays,only: dp, elem_cnct,elem_symmetry,elem_units_below,&
-!         num_elems,num_units,units,unit_field
-!    use indices,only: num_nu
-!    use diagnostics, only: enter_exit
-!    implicit none
 
     integer :: ne,ne0,nu
     character(len=60) :: sub_name
@@ -442,13 +420,6 @@ contains
   !*define_1d_elements:* Reads in an 1D element ipelem file to define a geometry
   subroutine define_1d_elements(ELEMFILE)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_1D_ELEMENTS" :: DEFINE_1D_ELEMENTS
-
-!    use arrays,only: dp, elem_direction,elem_field,elems,elem_cnct,elem_nodes,&
-!         elem_ordrs,elem_symmetry,elems_at_node,elem_units_below,&
-!         expansile,node_xyz,num_elems,num_nodes
-!    use indices
-!    use diagnostics, only: enter_exit
-!    implicit none
 
     character(len=MAX_FILENAME_LEN), intent(in) :: ELEMFILE
     !     Local Variables
@@ -566,11 +537,6 @@ contains
 
     ! Reads in 2D ipelem file.
 
-!    use arrays,only: elems_2d,elem_nodes_2d,num_elems_2d,elem_versn_2d,node_versn_2d
-!    use indices
-!    use diagnostics, only: enter_exit
-!    implicit none 
-
     character(len=*) :: ELEMFILE
     character(len=4) :: sf_option
     
@@ -646,12 +612,6 @@ contains
 !*define_mesh_geometry_test:*
   subroutine define_mesh_geometry_test()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_MESH_GEOMETRY_TEST" :: DEFINE_MESH_GEOMETRY_TEST
-!    use arrays,only: dp,nodes,node_field,node_xyz,num_nodes,&
-!         elem_direction,elem_field,elems,elem_cnct,elem_nodes,&
-!         elem_ordrs,elem_symmetry,elems_at_node,elem_units_below,&
-!         expansile,node_xyz,num_elems,num_nodes
-!    use indices
-!    implicit none
 
     !     Local Variables
     integer :: j,ne,np,np1,np2
@@ -795,11 +755,6 @@ contains
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY" :: DEFINE_NODE_GEOMETRY
 
   !*define_node_geometry:* Reads in an ipnode file to define a tree geometry
-!    use arrays,only: dp,nodes,node_field,node_xyz,num_nodes
-!    use diagnostics, only: enter_exit
-!    use indices
-!    use other_consts, only: MAX_FILENAME_LEN
-!    implicit none
 
     character(len=MAX_FILENAME_LEN), intent(in) :: NODEFILE !Input nodefile
     !     Local Variables
@@ -892,10 +847,6 @@ contains
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY_2D" :: DEFINE_NODE_GEOMETRY_2D
   
   !*define_node_geometry_2d:* Reads in an ipnode file to define surface nodes
-!    use arrays,only: dp,nodes_2d,node_field,node_xyz_2d,num_nodes_2d,node_versn_2d
-!    use diagnostics, only: enter_exit
-!    use indices
-!    use other_consts, only: MAX_FILENAME_LEN
 
     character(len=*),intent(in) :: NODEFILE
     !     Local Variables
@@ -992,10 +943,6 @@ contains
 
 !!! read data points from a file
     
-!    use arrays,only: dp,data_xyz,data_weight,num_data
-!    use diagnostics, only: enter_exit
-!    use indices
-!    use other_consts, only: MAX_FILENAME_LEN   
 !!! dummy arguments
     character(len=*) :: datafile
 !!! local variables
@@ -1083,8 +1030,6 @@ contains
      !#This subroutine is called by make_data_grid subroutine.
      !#Application: to grow a grid in 2D surface.
      
-!     use diagnostics,only: enter_exit
-!     use arrays,only: dp,num_elems_2d,elem_nodes_2d
      integer,intent(in) :: surface_elems(:)
      integer,allocatable :: triangle(:,:)
      real(dp),allocatable :: vertex_xyz(:,:)
@@ -1214,9 +1159,6 @@ contains
   subroutine make_data_grid(surface_elems,spacing,to_export,filename,groupname)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_MAKE_DATA_GRID" :: MAKE_DATA_GRID
 
-!     use arrays,only: dp,data_xyz,data_weight,num_data
-!     use mesh_utilities,only: volume_internal_to_surface,point_internal_to_surface
-!     use diagnostics,only: enter_exit
      ! Parameters
      integer,intent(in) :: surface_elems(:)
      real(dp),intent(in) :: spacing
@@ -1408,13 +1350,6 @@ contains
   !*define_rad_from_file:* reads in a radius field associated with an aiway tree
 ! and assigns radius information to each element, also calculates volume of each
 ! element
-!    use arrays,only: dp,elem_field,elem_cnct,elem_nodes,&
-!         elems_at_node,num_elems,num_nodes,node_field
-!    use indices,only: ne_a_A,ne_length,ne_radius,ne_vol,&
-!      ne_radius_in,ne_radius_out
-!
-!    use diagnostics, only: enter_exit
-!    implicit none
 
     character(len=MAX_FILENAME_LEN), intent(in) :: FIELDFILE
     character(len=MAX_STRING_LEN), optional ::  radius_type_in
@@ -1535,11 +1470,8 @@ contains
 !*define_rad_from_geom:* Defines vessel or airway radius based on their geometric structure
   subroutine define_rad_from_geom(ORDER_SYSTEM, CONTROL_PARAM, START_FROM, START_RAD, group_type_in, group_option_in)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_GEOM" :: DEFINE_RAD_FROM_GEOM
-!    use arrays,only: dp,num_elems,elem_field,elem_ordrs,maxgen,elem_cnct
-!    use indices,only: ne_radius, ne_radius_in, ne_radius_out, no_sord, no_hord
-!    use diagnostics, only: enter_exit
-!    implicit none
-   character(LEN=100), intent(in) :: ORDER_SYSTEM,START_FROM
+
+    character(LEN=100), intent(in) :: ORDER_SYSTEM,START_FROM
    character(LEN=100), optional :: group_type_in, group_option_in
    real(dp), intent(in) :: CONTROL_PARAM,START_RAD
    !Input options ORDER_SYSTEM=STRAHLER (CONTROL_PARAM=RDS), HORSFIELD (CONTROL_PARAM=RDH)
@@ -1613,9 +1545,7 @@ contains
 !*element_connectivity_1d:*  Calculates element connectivity in 1D and stores in elelem_cnct
   subroutine element_connectivity_1d()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ELEMENT_CONNECTIVITY_1D" :: ELEMENT_CONNECTIVITY_1D
-!    use arrays,only: elem_cnct,elem_nodes,elems_at_node,num_elems,num_nodes
-!    use diagnostics, only: enter_exit
-!    implicit none
+
     !     Local Variables
     integer :: ne,ne2,nn,noelem,np,np2,np1
     integer,parameter :: NNT=2
@@ -1671,10 +1601,8 @@ contains
   subroutine element_connectivity_2d
 
 !!! calculates the connectivity of elements in each xi direction
-!    use arrays,only: elem_cnct_2d,elem_nodes_2d,elems_at_node_2d,num_elems_2d,num_nodes_2d
-!    use diagnostics, only: enter_exit
-!    implicit none
-    !!! local variables
+
+!!! local variables
     integer :: ne,ne2,nn,np,noelem2,np_list(4),np_list_2(4)
     integer,parameter :: num_elem_nodes = 4
     
@@ -1745,10 +1673,7 @@ contains
 !!! ##########################################################################      
 
   subroutine line_segments_for_2d_mesh(sf_option)
-!    use arrays,only: num_elems_2d,elem_lines_2d,elem_cnct_2d,num_lines_2d,lines_2d, &
-!                     line_versn_2d,lines_in_elem,nodes_in_line,arclength,elem_nodes_2d, &
-!                     elem_versn_2d,scale_factors_2d
-!    use mesh_utilities,only: calc_scale_factors_2d
+
 !!! sets up the line segment arrays for a 2d mesh
     
     character(len=4),intent(in) :: sf_option
@@ -1947,11 +1872,6 @@ contains
 !*evaluate_ordering:* calculates generations, Horsfield orders, Strahler orders for a given tree
   subroutine evaluate_ordering()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_ORDERING" :: EVALUATE_ORDERING
-!    use arrays,only: elem_cnct,elem_nodes,elem_ordrs,elem_symmetry,&
-!         elems_at_node,num_elems,num_nodes,maxgen
-!    use diagnostics, only: enter_exit
-!    use indices, only: num_ord
-!    implicit none
 
     integer :: INLETS,ne,ne0,ne2,noelem2,np,np2,nn, &
          num_attach,n_children,n_generation, &
@@ -2060,12 +1980,6 @@ contains
   subroutine set_initial_volume(Gdirn,COV,total_volume,Rmax,Rmin)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SET_INITIAL_VOLUME" :: SET_INITIAL_VOLUME
 
-!    use arrays,only: dp,elem_nodes,elem_units_below,&
-!         node_xyz,num_elems,num_units,units,unit_field
-!    use indices,only: nu_vol,nu_vt
-!    use diagnostics, only: enter_exit
-!    implicit none
-
     !     Parameter List
     integer,intent(in) :: Gdirn
     real(dp),intent(in) :: COV,total_volume,Rmax,Rmin
@@ -2134,11 +2048,6 @@ contains
 !*volume_of_mesh:* calculates the volume of an airway mesh including conducting and respiratory airways
   subroutine volume_of_mesh(volume_model,volume_tree)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_VOLUME_OF_MESH" :: VOLUME_OF_MESH
-!    use arrays,only: dp,elem_cnct,elem_field,elem_symmetry,&
-!         num_elems,num_units,units,unit_field
-!    use indices,only: ne_vol,nu_vol
-!    use diagnostics, only: enter_exit
-!    implicit none
 
     real(dp) :: volume_model,volume_tree
     !     Local Variables
@@ -2212,8 +2121,7 @@ contains
 !
 !*get_final_string*
   subroutine get_final_string(string,rtemp)
-!    use arrays,only: dp
-!    implicit none
+
     character, intent(in) :: string*(132)
     integer :: ibeg,iend
     real(dp), intent(out) :: rtemp
@@ -2241,8 +2149,6 @@ contains
 !
 !*get_local_node*
   subroutine get_local_node(np_global,np_local)
-!    use arrays,only: nodes,num_nodes
-!    implicit none
 
     integer,intent(in) :: np_global
     integer,intent(out) :: np_local
@@ -2276,9 +2182,6 @@ contains
 !*group_elem_parent_term*
    subroutine group_elem_parent_term(ne_parent)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_ELEM_PARENT_TERM" :: GROUP_ELEM_PARENT_TERM
-
-!   use arrays,only: parentlist,num_elems,elem_cnct
-!   use diagnostics,only: enter_exit
 
    ! Parameters
    integer,intent(in) :: ne_parent  ! Number of element that feed that specific area
@@ -2318,9 +2221,6 @@ contains
 !
 !*group_elem_by_parent*
    subroutine group_elem_by_parent(ne_parent,elemlist)
-
-!   use arrays,only: elem_cnct
-!   use diagnostics,only: enter_exit
 
    ! Parameters
    integer,intent(in) :: ne_parent  ! Number of element that feed that specific area
@@ -2375,13 +2275,6 @@ contains
 !
 !*reallocate_node_elem_arrays:* Reallocates the size of geometric arrays when modifying geometries
   subroutine reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
-!    use arrays,only: dp,elems,elem_cnct,elem_direction,elem_field,&
-!         elem_ordrs,elem_nodes,&
-!         elem_symmetry,elem_units_below,elems_at_node,expansile,&
-!         nodes,node_field,node_xyz,num_elems,num_nodes
-!    use indices
-!    use diagnostics, only: enter_exit
-!    implicit none
 
 !!! Parameters
     integer,intent(in) :: num_elems_new,num_nodes_new
@@ -2509,7 +2402,7 @@ contains
 !!!###############################################################
 
   function get_local_node_f(ndimension,np_global) result(get_local_node)
-!    use arrays,only: num_nodes,num_nodes_2d,nodes,nodes_2d
+
 !! dummy arguments
     integer,intent(in) :: ndimension,np_global
 !!! local variables
@@ -2596,7 +2489,7 @@ contains
 !!!##################################################
 
   subroutine get_four_nodes(ne,string)
-!    use arrays,only: elem_nodes_2d
+
     !     Parameter List
     integer, INTENT(IN) :: ne
     character(len=132), INTENT(IN) :: string
@@ -2642,7 +2535,6 @@ contains
 ! 
   function coord_at_xi(ne,xi,basis)
 
-!    use arrays,only: dp,node_xyz_2d,elem_nodes_2d,elem_versn_2d
     ! Parameters
     integer,intent(in) :: ne
     real(dp),intent(in) :: xi(:)
