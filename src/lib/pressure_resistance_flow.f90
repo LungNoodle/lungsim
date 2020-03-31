@@ -8,9 +8,16 @@ module pressure_resistance_flow
 !*Full Description:*
 !
 !This module contains tools that are used to solve systems of equations representing steady pressure, resistance and flow problems in any branching geometry. The subroutines in this module are core subroutines that are used in many problem types and are applicable beyond lung modelling
+
+  use arrays
+  use capillaryflow
+  use diagnostics
+  use indices
+  use other_consts
   use solve, only: BICGSTAB_LinSolv,pmgmres_ilu_cr
-  use other_consts, only: TOLERANCE
+
   implicit none
+  
   !Module parameters
 
   !Module types
@@ -26,10 +33,7 @@ contains
 !*evaluate_PRQ:* Solves for pressure and flow in a rigid or compliant tree structure
   subroutine evaluate_prq(mesh_type,vessel_type,grav_dirn,grav_factor,bc_type,inlet_bc,outlet_bc)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_PRQ" :: EVALUATE_PRQ
-    use indices
-    use capillaryflow,only: cap_flow_ladder
-    use arrays,only: dp,num_elems,num_nodes,elem_field,elem_nodes,elem_cnct,node_xyz
-    use diagnostics, only: enter_exit
+
     !local variables
     integer :: mesh_dof,depvar_types
     integer, allocatable :: mesh_from_depvar(:,:,:)
@@ -373,9 +377,6 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 !*boundary_conditions:* Defines boundary conditions for prq problems
  subroutine boundary_conditions(ADD,FIX,bc_type,grav_vect,density,inletbc,outletbc,&
        depvar_at_node,depvar_at_elem,prq_solution,mesh_dof,mesh_type)
- use arrays,only: dp,num_elems,num_nodes,elem_nodes,elem_cnct,node_xyz,units,&
-        num_units
-    use diagnostics, only: enter_exit
 
     integer :: mesh_dof
     integer :: depvar_at_elem(0:2,2,num_elems)
@@ -453,12 +454,8 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 !###################################################################################
 !
 subroutine calculate_resistance(viscosity,KOUNT)
-    use arrays,only: dp,num_elems,elem_nodes,node_xyz,&
-        elem_field
-    use other_consts
-    use indices
-    use diagnostics, only: enter_exit
-    real(dp):: viscosity
+
+  real(dp):: viscosity
     integer :: KOUNT
 !local variables
     integer :: ne,np1,np2
@@ -505,8 +502,7 @@ subroutine calculate_resistance(viscosity,KOUNT)
 !the problem depvar that are needed for matrix setup and solution
   subroutine calc_depvar_maps(mesh_from_depvar,depvar_at_elem,&
                 depvar_totals,depvar_at_node,mesh_dof,num_vars)
-    use arrays,only: num_elems,num_nodes,elem_nodes
-    use diagnostics, only: enter_exit
+
     character(len=60) :: sub_name
 
      integer :: mesh_dof
@@ -589,9 +585,7 @@ subroutine calculate_resistance(viscosity,KOUNT)
 !*tree_resistance:* Calculates the total resistance of a tree (arterial tree only)
 
   subroutine tree_resistance(resistance)
-    use indices
-    use arrays,only: dp,num_elems,elem_cnct,elem_field
-    use diagnostics, only: enter_exit
+
     character(len=60) :: sub_name
 !local variables
     real(dp), intent(out) :: resistance
@@ -625,9 +619,6 @@ subroutine calculate_resistance(viscosity,KOUNT)
 subroutine initialise_solution(pressure_in,pressure_out,cardiac_output,mesh_dof,prq_solution,&
     depvar_at_node,depvar_at_elem,FIX)
 
-    use indices
-    use arrays,only: dp,num_elems,elem_ordrs,elem_nodes,num_nodes
-    use diagnostics, only: enter_exit
     integer, intent(in) :: mesh_dof
     integer,intent(in) :: depvar_at_elem(0:2,2,num_elems)
     integer,intent(in) :: depvar_at_node(num_nodes,0:2,2)
@@ -663,13 +654,6 @@ subroutine initialise_solution(pressure_in,pressure_out,cardiac_output,mesh_dof,
 subroutine calc_sparse_1dtree(bc_type,density,FIX,grav_vect,mesh_dof,depvar_at_elem,&
         depvar_at_node,NonZeros,MatrixSize,SparseCol,SparseRow,SparseVal,RHS,&
         prq_solution,update_resistance_entries,update_flow_nzz_row)
-
-
-    use indices
-    use arrays,only: dp,num_elems,elem_nodes,num_nodes,elems_at_node,elem_field,&
-      node_xyz,elem_cnct,elem_ordrs
-
-    use diagnostics, only: enter_exit
 
     character(len=60) :: bc_type
     real(dp), intent(in) :: density
@@ -888,10 +872,8 @@ subroutine calc_sparse_1dtree(bc_type,density,FIX,grav_vect,mesh_dof,depvar_at_e
 !*calc_sparse_size:* Calculates sparsity sizes
 
 subroutine calc_sparse_size(mesh_dof,depvar_at_elem,depvar_at_node,FIX,NonZeros,MatrixSize)
-    use indices
-    use arrays,only: num_elems,elem_nodes,num_nodes,elems_at_node
-    use diagnostics, only: enter_exit
-    integer, intent(in) :: mesh_dof
+
+  integer, intent(in) :: mesh_dof
     integer,intent(in) :: depvar_at_elem(0:2,2,num_elems)
     integer,intent(in) :: depvar_at_node(num_nodes,0:2,2)
     logical, intent(in) :: FIX(mesh_dof)
@@ -941,9 +923,6 @@ subroutine calc_sparse_size(mesh_dof,depvar_at_elem,depvar_at_node,FIX,NonZeros,
 subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
     mesh_dof,vessel_type,elasticity_parameters,mechanics_parameters)
 
-    use indices
-    use arrays,only: dp,num_nodes,num_elems,elem_field,elem_nodes,node_xyz
-    use diagnostics, only: enter_exit
     character(len=60), intent(in) :: vessel_type
     real(dp), intent(in) :: grav_vect(3)
     integer,intent(in) :: KOUNT,mesh_dof
@@ -1030,9 +1009,6 @@ end subroutine calc_press_area
 !
 !*map_solution_to_mesh* maps the solution array to appropriate nodal and element fields
 subroutine map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof)
-    use indices
-    use arrays,only: dp,num_nodes,num_elems,elem_field,node_field
-    use diagnostics, only: enter_exit
 
     integer, intent(in) :: mesh_dof
     real(dp),intent(in) ::  prq_solution(mesh_dof,2)
@@ -1061,10 +1037,8 @@ end subroutine map_solution_to_mesh
 !
 !*map_flow_to_terminals* maps the solution array to appropriate nodal and element fields
 subroutine map_flow_to_terminals
-    use indices
-    use arrays,only: elem_field,node_field,num_units,units,unit_field,elem_nodes
-    use diagnostics, only: enter_exit
-    integer :: nu,ne,np
+
+  integer :: nu,ne,np
     character(len=60) :: sub_name
     sub_name = 'map_flow_to_terminals'
     call enter_exit(sub_name,1)
@@ -1084,10 +1058,8 @@ end subroutine map_flow_to_terminals
 !*calculate_ppl* calculates pleural pressure at a node
 !
 subroutine calculate_ppl(np,grav_vect,mechanics_parameters,Ppl)
-    use indices
-    use arrays,only: dp,node_xyz
-    use diagnostics, only: enter_exit
-    integer, intent(in) :: np
+
+  integer, intent(in) :: np
     real(dp), intent(in) :: mechanics_parameters(2)
     real(dp), intent(in) :: grav_vect(3)
     real(dp), intent(out) :: Ppl

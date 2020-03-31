@@ -16,6 +16,7 @@ set(LIB_SRCS
   math_utilities.f90
   mesh_utilities.f90
   other_consts.f90
+  precision.f90
   pressure_resistance_flow.f90
   solve.f90
   species_transport.f90

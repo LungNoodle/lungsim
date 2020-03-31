@@ -8,8 +8,9 @@ module math_utilities
 !*Full Description:*
 !
 !
-  use arrays, only: dp
-  use diagnostics, only: enter_exit
+  use arrays
+  use diagnostics
+  use other_consts
 
   implicit none
   private
@@ -22,8 +23,6 @@ module math_utilities
 contains
 
 subroutine bessel_complex(z,bessel0,bessel1)
-  use other_consts,only: PI
-  use arrays, only:dp
 
   complex(dp), intent(in) :: z
   complex(dp), intent(out) :: bessel0,bessel1

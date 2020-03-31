@@ -10,8 +10,11 @@
 !>\Description
 !> This module handles diagnostics
 module diagnostics
-
+  
+  use other_consts
+  
   implicit none
+
   logical :: diagnostics_on
 
   private
@@ -23,8 +26,6 @@ contains
 
   subroutine enter_exit(sub_name, state)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ENTER_EXIT" :: ENTER_EXIT
-    use other_consts, only: MAX_SUBNAME_LEN
-    implicit none
 
     integer,intent(in) :: state
     character(len=MAX_SUBNAME_LEN), intent(in) :: sub_name
@@ -39,9 +40,10 @@ contains
 
   end subroutine enter_exit
 
+!!!######################################################################
+
   subroutine set_diagnostics_on(state)
   !DEC$ ATTRIBUTES DLLEXPORT, ALIAS:"SO_SET_DIAGNOSTICS_ON":: SET_DIAGNOSTICS_ON
-    implicit none
 
     logical, intent(in) :: state
 

@@ -10,11 +10,18 @@ module solve
 !Solvers included in this module are:
 ! BICGSTAB == The STABalized BIConjugate Gradient method
 ! GMRES == Generalised Minimal RESidual method
+
+  use arrays
   use math_utilities
+  use precision
+
   implicit none
+
   private
+
   public BICGSTAB_LinSolv
   public pmgmres_ilu_cr
+
 contains
 !
 !#######################################################################
@@ -41,7 +48,6 @@ contains
 !           -2=breakdown omega=0
 
 subroutine BICGSTAB_LinSolv(MatrixSize,NonZeros,RHS,Solution,SparseCol,SparseRow,SparseVal,TOLER,MaxIter)
-    use arrays
 
     !Input/Output Variables
     integer, intent(in) :: MatrixSize,NonZeros

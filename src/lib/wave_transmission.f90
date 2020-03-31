@@ -9,8 +9,14 @@ module wave_transmission
 !*Full Description:*
 !Simulating wave propagation in a 1D tree structure
 !
-  use arrays, only: dp
-  use other_consts, only: PI
+  use arrays
+  use capillaryflow
+  use diagnostics
+  use indices
+  use other_consts
+  use math_utilities
+  use pressure_resistance_flow
+  
   implicit none
 
   !Module parameters
@@ -31,12 +37,6 @@ contains
 subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
     n_time,heartrate,a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition,cap_model)
 !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_WAVE_TRANSMISSION" :: EVALUATE_WAVE_TRANSMISSION
-  use indices
-  use arrays, only: dp,all_admit_param,num_elems,elem_field,fluid_properties,elasticity_param,num_units,&
-    units,node_xyz,elem_cnct,elem_nodes,node_field
-  use diagnostics, only: enter_exit
-
-
 
   integer, intent(in) :: n_time
   real(dp), intent(in) :: heartrate
@@ -344,8 +344,6 @@ end subroutine evaluate_wave_transmission
 !*boundary_admittance* applies chosen admittance boundary conditions at the terminal units
 subroutine boundary_admittance(no_freq,eff_admit,char_admit,admit_param,harmonic_scale,&
   density,viscosity,elast_param,mesh_type)
-  use arrays,only: num_elems,all_admit_param,units,num_units,elasticity_param,elem_cnct
-  use diagnostics, only: enter_exit
 
   integer, intent(in) :: no_freq
   complex(dp), intent(inout) :: eff_admit(1:no_freq,num_elems)
@@ -464,12 +462,6 @@ end subroutine boundary_admittance
 !*characteristic_admittance* calculates the characteristic admittance of each
 subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scale,&
   density,viscosity,admit_param,elast_param,mechanics_parameters,grav_vect)
-  use other_consts, only: MAX_STRING_LEN
-  use indices
-  use arrays, only: num_elems,elem_field,elasticity_param,all_admit_param,elem_nodes
-  use pressure_resistance_flow, only: calculate_ppl
-  use math_utilities, only: bessel_complex
-  use diagnostics, only: enter_exit
 
   integer, intent(in) :: no_freq
   complex(dp), intent(inout) :: char_admit(1:no_freq,num_elems)
@@ -573,9 +565,7 @@ end subroutine characteristic_admittance
 !*tree_admittance:* Calculates the total admittance of a tree
 subroutine tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
   min_elem,max_elem,tree_direction)
-  use indices
-  use arrays,only: dp,num_elems,elem_cnct,elem_field
-  use diagnostics, only: enter_exit
+
   integer, intent(in) :: no_freq
   complex(dp), intent(inout) :: eff_admit(1:no_freq,num_elems)
   complex(dp), intent(in) :: char_admit(1:no_freq,num_elems)
@@ -672,12 +662,6 @@ end subroutine tree_admittance
 !*capillaryadmittance:* Calculates the total admittance of a tree
 subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
   min_elem,max_elem,elast_param,mechanics_parameters,grav_vect,cap_model)
-  use indices
-  use arrays,only: dp,num_elems,elem_cnct,elem_field,capillary_bf_parameters,elem_nodes,&
-    node_field,node_xyz,elasticity_param
-  use pressure_resistance_flow,only: calculate_ppl
-  use capillaryflow, only:cap_flow_admit
-  use diagnostics, only: enter_exit
 
   integer, intent(in) :: no_freq
   complex(dp), intent(inout) :: eff_admit(1:no_freq,num_elems)
@@ -734,9 +718,7 @@ end subroutine capillary_admittance
 !
 !*pressure_factor:* Calculates change in pressure through tree
   subroutine pressure_factor(no_freq,p_factor,reflect,prop_const,harmonic_scale,ne_min,ne_max)
-    use indices
-    use arrays,only: dp,num_elems,elem_cnct,elem_field
-    use diagnostics, only: enter_exit
+
     integer, intent(in) :: no_freq
     complex(dp), intent(inout) :: p_factor(1:no_freq,num_elems)
     complex(dp), intent(inout) :: reflect(1:no_freq,num_elems)

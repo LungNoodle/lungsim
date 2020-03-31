@@ -7,8 +7,8 @@ module mesh_utilities
 !!! ALL subroutines and functions in this module are public.
 
 
+  use arrays
   use other_consts
-  use arrays, only: dp,zero_tol
 
   implicit none
 
@@ -73,8 +73,6 @@ contains
     
 !!! calculates the direction of element ne and stores in elem_direction    
     
-    use arrays,only: elem_direction,elem_nodes,node_xyz
-    
     integer,intent(in) :: ne
     
     integer :: np_end,np_start
@@ -95,9 +93,6 @@ contains
 !!! calculates the arclengths and scale factors for 2d surface elements,
 !!! stores in scale_factors_2d
   
-    use arrays,only: arclength,elem_lines_2d,elem_nodes_2d,lines_2d,lines_in_elem,&
-         line_versn_2d,nodes_in_line,node_xyz_2d,num_elems_2d,num_lines_2d,scale_factors_2d
-
     character(len=4),intent(in) :: sf_option
 !!! local variables
     integer,parameter :: num_deriv = 4
@@ -306,8 +301,6 @@ contains
 !!!##################################################
 
   subroutine scale_mesh(scaling,type)
-
-    use arrays,only: node_xyz,node_xyz_2d,scale_factors_2d
 
     real(dp),intent(in) :: scaling
     character(len=2),intent(in) :: type
