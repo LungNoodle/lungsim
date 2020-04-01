@@ -45,6 +45,9 @@ module arrays
   real(dp),allocatable :: elem_direction(:,:)
   real(dp),allocatable :: node_xyz(:,:)
   real(dp),allocatable :: data_xyz(:,:)
+  real(dp),allocatable :: field_xyz(:)
+  real(dp),allocatable :: data_field(:)
+
   real(dp),allocatable :: data_weight(:,:)
   real(dp),allocatable :: node_xyz_2d(:,:,:,:)
   real(dp),allocatable :: gasex_field(:,:) !gasexchange specific fields
@@ -122,7 +125,7 @@ module arrays
          num_lines_2d, lines_2d, line_versn_2d, lines_in_elem, nodes_in_line, elems_2d, &
          elem_cnct_2d, elem_nodes_2d, elem_versn_2d, elem_lines_2d, elems_at_node_2d, arclength, &
          scale_factors_2d, parentlist, fluid_properties, elasticity_vessels, admittance_param, &
-         elasticity_param, all_admit_param
+         elasticity_param, all_admit_param, field_xyz, data_field
 
 contains
   subroutine set_node_field_value(row, col, value)

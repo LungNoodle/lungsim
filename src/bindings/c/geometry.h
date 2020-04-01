@@ -12,8 +12,12 @@ SHO_PUBLIC void define_elem_geometry_2d(const char *ELEMFILE, const char *SF_OPT
 SHO_PUBLIC void define_mesh_geometry_test();
 SHO_PUBLIC void define_node_geometry(const char *NODEFILE);
 SHO_PUBLIC void define_node_geometry_2d(const char *NODEFILE);
-SHO_PUBLIC void define_data_geometry(const char *DATAFILE);
+SHO_PUBLIC void define_data_geometry(const char *DATAFILE, int is_field, int number_of_fields);
 SHO_PUBLIC void group_elem_parent_term(int ne_parent);
+
+SHO_PUBLIC void split_datacloud(const char *lobe, int to_export);
+SHO_PUBLIC void split_datacloudfromSTL(const char *STLfile, const char *lobe, int to_export);
+
 SHO_PUBLIC void make_data_grid(int surface_elems, double spacing, int to_export, const char *filename, const char *groupname);
 SHO_PUBLIC void define_rad_from_file(const char *FIELDFILE, const char *radius_type);
 SHO_PUBLIC int get_local_node_f(const char *ndimenstion, const char *np_global);
