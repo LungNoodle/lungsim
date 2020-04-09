@@ -60,7 +60,8 @@ contains
     !                                   tidal volume and expired volume to the 
     !                                   target volume.
     real(dp) :: pmus_step             ! change in Ppl for driving flow (Pa)
-    real(dp) :: press_in              ! pressure at entry to model (Pa)
+    real(dp) :: press_in              ! constant pressure at entry to model (Pa)
+    real(dp) :: press_in_total        ! dynamic pressure at entry to model (Pa)
     real(dp) :: refvol                ! proportion of model for 'zero stress'
     real(dp) :: RMaxMean              ! ratio max to mean volume
     real(dp) :: RMinMean              ! ratio min to mean volume
@@ -103,6 +104,9 @@ contains
        refvol, RMaxMean, RMinMean, T_interval, volume_target, expiration_type)
     call read_params_main(num_brths, num_itns, dt, err_tol)
 
+!!! set dynamic pressure at entry. only changes for the 'pressure' option
+    press_in_total = press_in
+    
 !!! calculate key variables from the boundary conditions/problem parameters
     Texpn = T_interval / (1.0_dp+i_to_e_ratio)
     Tinsp = T_interval - Texpn
@@ -176,7 +180,7 @@ contains
           call evaluate_vent_step(num_itns,chest_wall_compliance, &
                chestwall_restvol,dt,err_tol,init_vol,last_vol,current_vol, &
                Pcw,pmus_factor_ex,pmus_factor_in,pmus_step,p_mus,ppl_current, &
-               pptrans,press_in,prev_flow,ptrans_frc,sum_dpmus,sum_dpmus_ei, &
+               pptrans,press_in_total,prev_flow,ptrans_frc,sum_dpmus,sum_dpmus_ei, &
                sum_expid,sum_tidal,texpn,time,tinsp,ttime,undef,WOBe,WOBr, &
                WOBe_insp,WOBr_insp,WOB_insp,expiration_type, &
                dpmus,converged,iter_step)
@@ -219,14 +223,14 @@ contains
   subroutine evaluate_vent_step(num_itns,chest_wall_compliance, &
        chestwall_restvol,dt,err_tol,init_vol,last_vol,current_vol,Pcw, &
        pmus_factor_ex,pmus_factor_in,pmus_step,p_mus,ppl_current,pptrans, &
-       press_in,prev_flow,ptrans_frc,sum_dpmus,sum_dpmus_ei,sum_expid, &
+       press_in_total,prev_flow,ptrans_frc,sum_dpmus,sum_dpmus_ei,sum_expid, &
        sum_tidal,texpn,time,tinsp,ttime,undef,WOBe,WOBr,WOBe_insp,WOBr_insp, &
        WOB_insp,expiration_type,dpmus,converged,iter_step)
 
     integer,intent(in) :: num_itns
     real(dp),intent(in) :: chest_wall_compliance,chestwall_restvol,dt, &
          err_tol,init_vol,pmus_factor_ex,pmus_factor_in,pmus_step,pptrans, &
-         press_in,ptrans_frc,texpn,time,tinsp,ttime,undef
+         press_in_total,ptrans_frc,texpn,time,tinsp,ttime,undef
     real(dp) :: last_vol,current_vol,Pcw,ppl_current,prev_flow,p_mus, &
          sum_dpmus,sum_dpmus_ei,sum_expid,sum_tidal,WOBe,WOB_insp,WOBe_insp, &
          WOBr,WOBr_insp
@@ -279,7 +283,7 @@ contains
        call sum_elem_field_from_periphery(ne_Vdot) !sum flows UP tree
        call update_elem_field(1.0_dp)
        call update_resistance ! updates resistances
-       call update_node_pressures(press_in) ! updates the pressures at nodes
+       call update_node_pressures(press_in_total) ! updates the pressures at nodes
        call update_unit_dpdt(dt) ! update dP/dt at the terminal units
     enddo !converged
     
@@ -367,22 +371,23 @@ contains
     call enter_exit(sub_name,1)
 
     select case(expiration_type)
+       
     case("active")
        if(ttime.lt.Tinsp)then
-          dpmus=pmus_step*pmus_factor_in*PI* &
-               sin(2.0_dp*pi/(2.0_dp*Tinsp)*ttime)/(2.0_dp*Tinsp)*dt
-       elseif(ttime.LE.Tinsp+Texpn)then
-          dpmus=pmus_step*pmus_factor_ex*PI* &
+          dpmus = pmus_step*pmus_factor_in*PI* &
+               sin(pi/Tinsp*ttime)/(2.0_dp*Tinsp)*dt
+       elseif(ttime.le.Tinsp+Texpn)then
+          dpmus = pmus_step*pmus_factor_ex*PI* &
                sin(2.0_dp*pi*(0.5_dp+(ttime-Tinsp)/(2.0_dp*Texpn)))/ &
                (2.0_dp*Texpn)*dt
        endif
        
     case("passive")
        if(ttime.le.Tinsp+0.5_dp*dt)then
-          dpmus=pmus_step*pmus_factor_in*PI*dt* &
+          dpmus = pmus_step*pmus_factor_in*PI*dt* &
                sin(pi*ttime/Tinsp)/(2.0_dp*Tinsp)
-          sum_dpmus=sum_dpmus+dpmus
-          sum_dpmus_ei=sum_dpmus
+          sum_dpmus = sum_dpmus+dpmus
+          sum_dpmus_ei = sum_dpmus
        else
           Tpass = 0.1_dp
           dpmus = MIN(-sum_dpmus_ei/(Tpass*Texpn)*dt,-sum_dpmus)
