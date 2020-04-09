@@ -21,12 +21,13 @@ module growtree
   ! ovine bronchial tree' J. Appl. Physiol. 97(6): 2310-21.
 
   use arrays
-  !use diagnostics, only: enter_exit      !! for diagnostics at enter/exit of subroutines
+  use diagnostics
   use geometry
   use indices
   use other_consts   !! pi
   use mesh_utilities   !! general functions for geometric/mesh calculations
   use math_utilities   !! general utility functions for sorting etc
+
   implicit none
 
   !Module parameters
@@ -51,8 +52,6 @@ contains
   !
   subroutine adjust_branch_angle(Nth,ne,np1,np2,np,angle_max,angle_min)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADJUST_BRANCH_ANGLE" :: ADJUST_BRANCH_ANGLE
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer :: Nth,ne,np1,np2,np
     real(dp) :: angle_max,angle_min
@@ -130,9 +129,6 @@ contains
   subroutine branch_to_cofm(map_seed_to_elem,nen,np1,COFM,branch_fraction,length_limit,&
     length_parent,shortest_length,candidate_xyz,make_branch)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_BRANCH_TO_COFM" :: BRANCH_TO_COFM
-
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer :: map_seed_to_elem(*),nen,np1
     real(dp) :: COFM(3),branch_fraction,length_limit,length_parent,&
@@ -222,9 +218,6 @@ contains
   subroutine calculate_seed_cofm(map_seed_to_elem,nen,COFM)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CALCULATE_SEED_COFM" :: CALCULATE_SEED_COFM
 
-    use diagnostics, only: enter_exit
-    implicit none
-
     integer :: map_seed_to_elem(*),nen
     real(dp) :: COFM(3)
 
@@ -263,9 +256,6 @@ contains
        ne_grnd_parent,ne_parent,local_parent_temp,num_next_parents,&
        np,np1,np2,np3,num_terminal,rotation_limit)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CHECK_BRANCH_ROTATION_PLANE" :: CHECK_BRANCH_ROTATION_PLANE
-
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer :: map_seed_to_elem(*),ne,ne_grnd_parent,ne_parent, &
          num_next_parents,np,np1,np2,np3,num_terminal
@@ -380,9 +370,6 @@ contains
   !
   subroutine check_rotation_angle(ne,np00,np0,np1,np2,np3,np4,rotation_limit)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CHECK_ROTATION_ANGLE" :: CHECK_ROTATION_ANGLE
-
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer,intent(in) :: ne,np00,np0,np1,np2,np3,np4
     real(dp),intent(in) :: rotation_limit
@@ -575,9 +562,6 @@ contains
   subroutine create_new_node(ne,ne_start,np,np_start,MAKE)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CREATE_NEW_NODE" :: CREATE_NEW_NODE
 
-    use diagnostics, only: enter_exit
-    implicit none
-
     integer :: ne,ne_start,np,np_start
     logical :: MAKE
 
@@ -624,9 +608,6 @@ contains
   subroutine group_seeds_with_branch(map_array,num_next_parents,num_seeds_from_elem, &
        num_terminal,local_parent,DISTANCE_LIMIT,FIRST)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_SEEDS_WITH_BRANCH" :: GROUP_SEEDS_WITH_BRANCH
-
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer :: num_next_parents,local_parent(:),map_array(:),num_seeds_from_elem(*),&
          num_terminal
@@ -792,9 +773,6 @@ contains
   subroutine grow_tree(parent_ne,surface_elems,angle_max,angle_min,&
        branch_fraction,length_limit,shortest_length,rotation_limit,to_export,filename)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
-
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer,intent(in)  :: parent_ne                ! list of end branch elements to grow from
     integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
@@ -1119,9 +1097,6 @@ contains
        np_prnt_start,np_start,angle_max,angle_min)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_LIMIT_BRANCH_ANGLES" :: LIMIT_BRANCH_ANGLES
 
-    use diagnostics, only: enter_exit
-    implicit none
-
     integer,intent(in) :: ne,ne_parent,np,np_prnt_start,np_start
     real(dp) :: angle_max,angle_min
 
@@ -1202,9 +1177,6 @@ contains
   subroutine reduce_branch_angle(np1,np2,np,candidate_xyz,factor)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_REDUCE_BRANCH_ANGLE" :: REDUCE_BRANCH_ANGLE
 
-    use diagnostics, only: enter_exit
-    implicit none
-
     integer,intent(in) :: np1,np2,np
     real(dp),intent(in) :: factor
     real(dp) :: candidate_xyz(3)
@@ -1241,9 +1213,6 @@ contains
   !
   subroutine shorten_branch_and_children(ne)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SHORTEN_BRANCH_AND_CHILDREN" :: SHORTEN_BRANCH_AND_CHILDREN
-
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer,intent(in) :: ne
 
@@ -1286,9 +1255,6 @@ contains
   !
   subroutine smooth_1d_tree(num_elem_start,length_limit)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SMOOTH_1D_TREE" :: SMOOTH_1D_TREE
-
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer,intent(in) :: num_elem_start
     real(dp),intent(in) :: length_limit
@@ -1345,9 +1311,6 @@ contains
   !
   subroutine split_seed_points(map_seed_to_elem,ne1,ne,np1,np2,np3,COFM,enough_points)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SPLIT_SEED_POINTS" :: SPLIT_SEED_POINTS
-
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer :: map_seed_to_elem(*),ne,ne1,np1,np2,np3
     real(dp) :: COFM(3)
@@ -1426,9 +1389,6 @@ contains
   !
   subroutine split_seed_points_initial(map_array,ne_stem)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SPLIT_SEED_POINTS_INITIAL" :: SPLIT_SEED_POINTS_INITIAL
-
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer :: map_array(:),ne_stem
 
@@ -1534,9 +1494,6 @@ contains
   !
   function closest_seed_to_node(map_seed_to_elem,np)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CLOSEST_SEED_TO_NODE" :: CLOSEST_SEED_TO_NODE
-
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer,intent(in) :: map_seed_to_elem(*),np
 

@@ -10,12 +10,11 @@ module arrays
 !
 !This module defines arrays
 
+  use precision
+  
   implicit none
 
   integer :: num_elems,num_elems_2d,num_nodes,num_data,num_nodes_2d,num_units,num_lines_2d,maxgen
-  integer, parameter :: dp=kind(0.d0) !  for double precision
-  real(dp),parameter :: zero_tol = 1.0e-12_dp
-  real(dp),parameter :: loose_tol = 1.0e-6_dp
 
   integer,allocatable :: nodes(:) !allocated in define_node_geometry
   integer,allocatable :: nodes_2d(:) !allocated in define_node_geometry_2d

@@ -9,8 +9,13 @@ module geometry
 !*Full Description:*
 !
 !This module handles all geometry read/write/generation.
-  use other_consts
-  !use mesh_functions
+  use arrays
+  use diagnostics
+  use indices
+  use mesh_utilities
+  use other_consts ! currently has pi
+  use precision ! sets dp for precision
+
   implicit none
 
   !Module parameters
@@ -53,19 +58,28 @@ module geometry
 
 contains
 !
+!!!#####################################################################
+!
+!*allocate_node_arrays:* allocate memory for arrays associated with 1D trees
+  subroutine allocate_node_arrays(num_nodes)
+
+    integer,intent(in) :: num_nodes
+    
+    if(.not.allocated(nodes)) allocate (nodes(num_nodes))
+    if(.not.allocated(node_xyz)) allocate (node_xyz(3,num_nodes))
+    if(.not.allocated(node_field)) allocate (node_field(num_nj,num_nodes))
+    if(.not.allocated(elems_at_node)) allocate(elems_at_node(num_nodes,0:3))
+    nodes = 0 !initialise node index values
+    node_xyz = 0.0_dp !initialise
+    node_field = 0.0_dp !initialise
+
+  end subroutine allocate_node_arrays
+
 !###################################################################################
 !
 !*add_mesh:* Reads in an ipmesh file and adds this mesh to the terminal branches of an existing tree geometry
   subroutine add_mesh(AIRWAY_MESHFILE)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADD_MESH" :: ADD_MESH
-    use arrays,only: dp,elems,elem_cnct,elem_direction,elem_field,&
-         elem_nodes,elem_ordrs,elem_symmetry,&
-         nodes,node_xyz,num_elems,&
-         num_nodes,num_units,units
-    use indices,only: ne_length,ne_radius,ne_a_A, ne_vol
-    use other_consts,only: PI
-    use diagnostics, only: enter_exit
-    implicit none
 
     character(len=MAX_FILENAME_LEN), intent(in) :: AIRWAY_MESHFILE
     ! Local parameters
@@ -212,14 +226,7 @@ contains
 !*add_matching_mesh:*
   subroutine add_matching_mesh()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADD_MATCHING_MESH" :: ADD_MATCHING_MESH
-    use arrays,only: dp,elems,elem_cnct,elem_direction,elem_field,&
-         elem_nodes,elem_ordrs,elem_symmetry,elems_at_node,&
-         nodes,node_xyz,num_elems,&
-         num_nodes,num_units,units
-    use indices
-    use other_consts,only: PI
-    use diagnostics, only: enter_exit
-    implicit none
+
     !Parameters to become inputs
     real(dp) :: offset(3)
     logical :: REVERSE=.TRUE.
@@ -366,11 +373,6 @@ contains
 !*append_units:* Appends terminal units at the end of a tree structure
   subroutine append_units()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_APPEND_UNITS" :: APPEND_UNITS
-    use arrays,only: dp, elem_cnct,elem_symmetry,elem_units_below,&
-         num_elems,num_units,units,unit_field
-    use indices,only: num_nu
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer :: ne,ne0,nu
     character(len=60) :: sub_name
@@ -423,13 +425,6 @@ contains
   subroutine define_1d_elements(ELEMFILE)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_1D_ELEMENTS" :: DEFINE_1D_ELEMENTS
 
-    use arrays,only: dp, elem_direction,elem_field,elems,elem_cnct,elem_nodes,&
-         elem_ordrs,elem_symmetry,elems_at_node,elem_units_below,&
-         expansile,node_xyz,num_elems,num_nodes
-    use indices
-    use diagnostics, only: enter_exit
-    implicit none
-
     character(len=MAX_FILENAME_LEN), intent(in) :: ELEMFILE
     !     Local Variables
     integer :: ibeg,iend,ierror,i_ss_end,j,ne,ne_global,&
@@ -446,7 +441,7 @@ contains
     read_number_of_elements : do
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1
        if(index(ctemp1, "elements")> 0) then
-          call get_final_integer(ctemp1,num_elems)
+          num_elems = get_final_integer(ctemp1) !return the final integer
           exit read_number_of_elements
        endif
     end do read_number_of_elements
@@ -488,7 +483,7 @@ contains
        !.......read element number
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1
        if(index(ctemp1, "Element")> 0) then
-          call get_final_integer(ctemp1,ne_global) !get element number
+          ne_global = get_final_integer(ctemp1) !return the final integer
           ne=ne+1
           elems(ne)=ne_global
 
@@ -546,11 +541,6 @@ contains
 
     ! Reads in 2D ipelem file.
 
-    use arrays,only: elems_2d,elem_nodes_2d,num_elems_2d,elem_versn_2d,node_versn_2d
-    use indices
-    use diagnostics, only: enter_exit
-    implicit none 
-
     character(len=*) :: ELEMFILE
     character(len=4) :: sf_option
     
@@ -567,7 +557,7 @@ contains
     read_number_of_elements : do
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1
        if(index(ctemp1, "elements")> 0) then
-          call get_final_integer(ctemp1,number_of_elements)
+          number_of_elements = get_final_integer(ctemp1) !return the final integer
           exit read_number_of_elements
        endif
     end do read_number_of_elements
@@ -583,7 +573,7 @@ contains
        !.......read element number
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1
        if(index(ctemp1, "Element")> 0) then
-          call get_final_integer(ctemp1,ne_global) !get element number
+          ne_global = get_final_integer(ctemp1) !return the final integer
           ne = ne + 1
           elems_2d(ne) = ne_global
           
@@ -598,7 +588,7 @@ contains
                       read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !contains version# for njj=1
                       read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !contains version# for njj=1
                       read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !contains version# for njj=1
-                      call get_final_integer(ctemp1,elem_versn_2d(nn,ne)) !get version#
+                      elem_versn_2d(nn,ne) = get_final_integer(ctemp1) !return the final integer
                    else
                       elem_versn_2d(nn,ne)= 1
                    endif !nversions
@@ -626,12 +616,6 @@ contains
 !*define_mesh_geometry_test:*
   subroutine define_mesh_geometry_test()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_MESH_GEOMETRY_TEST" :: DEFINE_MESH_GEOMETRY_TEST
-    use arrays,only: dp,nodes,node_field,node_xyz,num_nodes,&
-         elem_direction,elem_field,elems,elem_cnct,elem_nodes,&
-         elem_ordrs,elem_symmetry,elems_at_node,elem_units_below,&
-         expansile,node_xyz,num_elems,num_nodes
-    use indices
-    implicit none
 
     !     Local Variables
     integer :: j,ne,np,np1,np2
@@ -775,113 +759,91 @@ contains
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY" :: DEFINE_NODE_GEOMETRY
 
   !*define_node_geometry:* Reads in an ipnode file to define a tree geometry
-    use arrays,only: dp,nodes,node_field,node_xyz,num_nodes
-    use diagnostics, only: enter_exit
-    use indices
-    use other_consts, only: MAX_FILENAME_LEN
-    implicit none
 
     character(len=MAX_FILENAME_LEN), intent(in) :: NODEFILE !Input nodefile
     !     Local Variables
-    integer :: i,ierror,np,np_global,&
-         num_versions,nv,NJT
-    character(LEN=132) :: ctemp1
-    LOGICAL :: versions
+    integer :: i,ierror,np,np_global,num_nodes_temp,num_versions,nv,NJT=0
+    character(len=300) :: ctemp1,readfile
     real(dp) :: point
     character(len=60) :: sub_name
+    logical :: overwrite = .false. ! initialised
 
     sub_name = 'define_node_geometry'
     call enter_exit(sub_name,1)
 
-    versions = .TRUE.
-    NJT = 0
+    readfile = trim(nodefile)//'.ipnode'
     open(10, file=NODEFILE, status='old')
 
+    if(num_nodes.gt.0) overwrite = .true.
+    
     !.....read in the total number of nodes. read each line until one is found
     !.....that has the correct keyword (nodes). then return the integer that is
     !.....at the end of the line
     read_number_of_nodes : do !define a do loop name
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !read a line into ctemp1
        if(index(ctemp1, "nodes")> 0) then !keyword "nodes" is found in ctemp1
-          call get_final_integer(ctemp1,num_nodes) !return the final integer
+          num_nodes_temp = get_final_integer(ctemp1) !return the final integer
           exit read_number_of_nodes !exit the named do loop
        endif
     end do read_number_of_nodes
 
-    if(allocated(nodes)) deallocate (nodes)
-    allocate (nodes(num_nodes))
-    if(allocated(node_xyz)) deallocate (node_xyz)
-    allocate (node_xyz(3,num_nodes))
-    if(allocated(node_field)) deallocate (node_field)
-    allocate (node_field(num_nj,num_nodes))
-    nodes = 0 !initialise node index values
-    node_xyz = 0.0_dp !initialise
-    node_field = 0.0_dp !initialise
+    if(.not.overwrite) call allocate_node_arrays(num_nodes_temp) ! don't allocate if just overwriting
 
     !.....read in the number of coordinates
     read_number_of_coords : do !define a do loop name
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !read a line into ctemp1
        if(index(ctemp1, "coordinates")> 0) then !keyword "coordinates" is found
-          call get_final_integer(ctemp1,NJT) !return the final integer
+          NJT = get_final_integer(ctemp1) !return the final integer
           exit read_number_of_coords !exit the named do loop
        endif
     end do read_number_of_coords
-
-    !.....check whether versions are prompted (>1)
-    read_versions : do !define a do loop name
-       read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !read a line into ctemp1
-       if(index(ctemp1, "different")> 0) then !keyword "different" is found
-          if(index(ctemp1, " N")> 0) then !keyword " N" is found
-             versions=.false.
-          endif
-          exit read_versions !exit the named do loop
-       endif
-    end do read_versions
-
-!!! WARNING :: following should be in general code
-    ! note that only the first version of coordinate is currently read in
-
-    !.....read the coordinate, derivative, and version information for each node.
+    
+    ! note that only the first version of coordinate is currently read in   
+    
+    !.....read the coordinate, derivative, and version information for each node. 
     np=0
     read_a_node : do !define a do loop name
        !.......read node number
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1
        if(index(ctemp1, "Node")> 0) then
-          call get_final_integer(ctemp1,np_global) !get node number
-          np=np+1
-          nodes(np)=np_global
-          !.......read coordinates and derivatives
-          do i=1,NJT ! for the NJT coordinates
-             !...........coordinate
+          np_global = get_final_integer(ctemp1) !get node number
+
+          np = np+1
+          nodes(np) = np_global
+          !.......read coordinates
+          do i=1,3 ! for the x,y,z coordinates
              num_versions=1
-             if(versions)then
-                read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                call get_final_integer(ctemp1,num_versions)
-             endif
-             if(num_versions > 1)then
-                read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !temporary line
-                read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                call get_final_real(ctemp1,point)
-                do nv=2,num_versions
+             read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+             if(index(ctemp1, "versions")> 0) then
+                num_versions = get_final_integer(ctemp1)
+                if(num_versions > 1)then
                    read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !temporary line
                    read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                enddo
-             else
-                read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                call get_final_real(ctemp1,point)
+                   point = get_final_real(ctemp1)
+                   do nv=2,num_versions
+                      read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !temporary line
+                      read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+                   enddo
+                else
+                   read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+                   point = get_final_real(ctemp1)
+                endif
+             else ! no prompting for versions
+                point = get_final_real(ctemp1)
              endif
              node_xyz(i,np)=point
           end do !i
-
        endif !index
-       if(np.ge.num_nodes) exit read_a_node
+       if(np.ge.num_nodes_temp) exit read_a_node
     end do read_a_node
 
+    if(.not.overwrite) num_nodes = num_nodes_temp
+    
     close(10)
 
     call enter_exit(sub_name,2)
 
-  END subroutine define_node_geometry
+  end subroutine define_node_geometry
 
 !!!##################################################
 
@@ -889,10 +851,6 @@ contains
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY_2D" :: DEFINE_NODE_GEOMETRY_2D
   
   !*define_node_geometry_2d:* Reads in an ipnode file to define surface nodes
-    use arrays,only: dp,nodes_2d,node_field,node_xyz_2d,num_nodes_2d,node_versn_2d
-    use diagnostics, only: enter_exit
-    use indices
-    use other_consts, only: MAX_FILENAME_LEN
 
     character(len=*),intent(in) :: NODEFILE
     !     Local Variables
@@ -912,7 +870,7 @@ contains
     read_number_of_nodes : do !define a do loop name
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !read a line into ctemp1
         if(index(ctemp1, "nodes")> 0) then !keyword "nodes" is found in ctemp1
-          call get_final_integer(ctemp1,num_nodes_2d) !return the final integer
+          num_nodes_2d = get_final_integer(ctemp1) !return the final integer
           exit read_number_of_nodes !exit the named do loop
         endif
     end do read_number_of_nodes
@@ -931,7 +889,7 @@ contains
        !.......read node number
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1
        if(index(ctemp1, "Node")> 0) then
-          call get_final_integer(ctemp1,np_global) !get node number
+          np_global = get_final_integer(ctemp1) !get node number
 
           np=np+1
           nodes_2d(np) = np_global
@@ -940,7 +898,7 @@ contains
           do i=1,3 ! for the x,y,z coordinates
              num_versions = 0
              read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-             if(index(ctemp1, "versions")> 0) call get_final_integer(ctemp1,num_versions)
+             if(index(ctemp1, "versions")> 0) num_versions = get_final_integer(ctemp1)
              node_versn_2d(np) = max(1,num_versions) !number of versions for node np
              do nv=1,node_versn_2d(np)
                 if(num_versions > 1)then
@@ -948,21 +906,21 @@ contains
                 endif
                 !...........coordinate          
                 if(num_versions > 0) read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                call get_final_real(ctemp1,node_xyz_2d(1,nv,i,np))
+                node_xyz_2d(1,nv,i,np) = get_final_real(ctemp1)
                 if(num_derivs.ge.1)then
                    !..........derivative 1
                    read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                   call get_final_real(ctemp1,node_xyz_2d(2,nv,i,np))
+                   node_xyz_2d(2,nv,i,np) = get_final_real(ctemp1)
                 endif
                 if(num_derivs.ge.2)then
                    !..........derivative 2
                    read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                   call get_final_real(ctemp1,node_xyz_2d(3,nv,i,np))
+                   node_xyz_2d(3,nv,i,np) = get_final_real(ctemp1)
                 endif
                 if(num_derivs.ge.3)then
                    !...........derivative 1&2
                    read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                   call get_final_real(ctemp1,node_xyz_2d(4,nv,i,np))
+                   node_xyz_2d(4,nv,i,np) = get_final_real(ctemp1)
                 endif
                 if(num_derivs.ge.4)then
                    write(*,'(''This code is only valid for a surface geometry'')')
@@ -1093,8 +1051,6 @@ contains
      !#This subroutine is called by make_data_grid subroutine.
      !#Application: to grow a grid in 2D surface.
      
-     use diagnostics,only: enter_exit
-     use arrays,only: dp,num_elems_2d,elem_nodes_2d
      integer,intent(in) :: surface_elems(:)
      integer,allocatable :: triangle(:,:)
      real(dp),allocatable :: vertex_xyz(:,:)
@@ -1359,9 +1315,6 @@ contains
   subroutine make_data_grid(surface_elems,spacing,to_export,filename,groupname)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_MAKE_DATA_GRID" :: MAKE_DATA_GRID
 
-     use arrays,only: dp,data_xyz,data_weight,num_data
-     use mesh_utilities,only: volume_internal_to_surface,point_internal_to_surface
-     use diagnostics,only: enter_exit
      ! Parameters
      integer,intent(in) :: surface_elems(:)
      real(dp),intent(in) :: spacing
@@ -1954,13 +1907,6 @@ contains
   !*define_rad_from_file:* reads in a radius field associated with an aiway tree
 ! and assigns radius information to each element, also calculates volume of each
 ! element
-    use arrays,only: dp,elem_field,elem_cnct,elem_nodes,&
-         elems_at_node,num_elems,num_nodes,node_field
-    use indices,only: ne_a_A,ne_length,ne_radius,ne_vol,&
-      ne_radius_in,ne_radius_out
-
-    use diagnostics, only: enter_exit
-    implicit none
 
     character(len=MAX_FILENAME_LEN), intent(in) :: FIELDFILE
     character(len=MAX_STRING_LEN), optional ::  radius_type_in
@@ -2005,7 +1951,7 @@ contains
        !.......read node number
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1
        if(index(ctemp1, "Node")> 0) then
-          call get_final_integer(ctemp1,np_global) !get global node number
+          np_global = get_final_integer(ctemp1) !get global node number
           ! find the corresponding local node number
           call get_local_node(np_global,np) ! get local node np for global node
           surround=elems_at_node(np,0)         !get number of surrounding elems
@@ -2019,7 +1965,7 @@ contains
                     read(unit=10, fmt="(a)", iostat=ierror) ctemp1
                  endif
                  if(index(ctemp1, "value")> 0) then
-                    call get_final_real(ctemp1,radius)
+                    radius = get_final_real(ctemp1)
                     elem_field(ne_radius_in,ne)=constrict*radius
                  endif
                endif
@@ -2031,7 +1977,7 @@ contains
                 read(unit=10, fmt="(a)", iostat=ierror) ctemp1
              endif
              if(index(ctemp1, "value")> 0) then
-                call get_final_real(ctemp1,radius)
+                radius = get_final_real(ctemp1)
                  if(radius_type.eq.'taper')then
                    elem_field(ne_radius_out,ne)=constrict*radius
                  else
@@ -2043,7 +1989,7 @@ contains
              read(unit=10, fmt="(a)", iostat=ierror) ctemp1
              read(unit=10, fmt="(a)", iostat=ierror) ctemp1
              if(index(ctemp1, "value")> 0) then
-                call get_final_real(ctemp1,radius)
+                radius = get_final_real(ctemp1)
                   if(radius_type.eq.'taper')then
                     elem_field(ne_radius_out,ne)=constrict*radius
                   else
@@ -2081,11 +2027,8 @@ contains
 !*define_rad_from_geom:* Defines vessel or airway radius based on their geometric structure
   subroutine define_rad_from_geom(ORDER_SYSTEM, CONTROL_PARAM, START_FROM, START_RAD, group_type_in, group_option_in)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_GEOM" :: DEFINE_RAD_FROM_GEOM
-    use arrays,only: dp,num_elems,elem_field,elem_ordrs,maxgen,elem_cnct
-    use indices,only: ne_radius, ne_radius_in, ne_radius_out, no_sord, no_hord
-    use diagnostics, only: enter_exit
-    implicit none
-   character(LEN=100), intent(in) :: ORDER_SYSTEM,START_FROM
+
+    character(LEN=100), intent(in) :: ORDER_SYSTEM,START_FROM
    character(LEN=100), optional :: group_type_in, group_option_in
    real(dp), intent(in) :: CONTROL_PARAM,START_RAD
    !Input options ORDER_SYSTEM=STRAHLER (CONTROL_PARAM=RDS), HORSFIELD (CONTROL_PARAM=RDH)
@@ -2159,9 +2102,7 @@ contains
 !*element_connectivity_1d:*  Calculates element connectivity in 1D and stores in elelem_cnct
   subroutine element_connectivity_1d()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ELEMENT_CONNECTIVITY_1D" :: ELEMENT_CONNECTIVITY_1D
-    use arrays,only: elem_cnct,elem_nodes,elems_at_node,num_elems,num_nodes
-    use diagnostics, only: enter_exit
-    implicit none
+
     !     Local Variables
     integer :: ne,ne2,nn,noelem,np,np2,np1
     integer,parameter :: NNT=2
@@ -2217,10 +2158,8 @@ contains
   subroutine element_connectivity_2d
 
 !!! calculates the connectivity of elements in each xi direction
-    use arrays,only: elem_cnct_2d,elem_nodes_2d,elems_at_node_2d,num_elems_2d,num_nodes_2d
-    use diagnostics, only: enter_exit
-    implicit none
-    !!! local variables
+
+!!! local variables
     integer :: ne,ne2,nn,np,noelem2,np_list(4),np_list_2(4)
     integer,parameter :: num_elem_nodes = 4
     
@@ -2291,10 +2230,7 @@ contains
 !!! ##########################################################################      
 
   subroutine line_segments_for_2d_mesh(sf_option)
-    use arrays,only: num_elems_2d,elem_lines_2d,elem_cnct_2d,num_lines_2d,lines_2d, &
-                     line_versn_2d,lines_in_elem,nodes_in_line,arclength,elem_nodes_2d, &
-                     elem_versn_2d,scale_factors_2d
-    use mesh_utilities,only: calc_scale_factors_2d
+
 !!! sets up the line segment arrays for a 2d mesh
     
     character(len=4),intent(in) :: sf_option
@@ -2493,11 +2429,6 @@ contains
 !*evaluate_ordering:* calculates generations, Horsfield orders, Strahler orders for a given tree
   subroutine evaluate_ordering()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_ORDERING" :: EVALUATE_ORDERING
-    use arrays,only: elem_cnct,elem_nodes,elem_ordrs,elem_symmetry,&
-         elems_at_node,num_elems,num_nodes,maxgen
-    use diagnostics, only: enter_exit
-    use indices, only: num_ord
-    implicit none
 
     integer :: INLETS,ne,ne0,ne2,noelem2,np,np2,nn, &
          num_attach,n_children,n_generation, &
@@ -2606,12 +2537,6 @@ contains
   subroutine set_initial_volume(Gdirn,COV,total_volume,Rmax,Rmin)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SET_INITIAL_VOLUME" :: SET_INITIAL_VOLUME
 
-    use arrays,only: dp,elem_nodes,elem_units_below,&
-         node_xyz,num_elems,num_units,units,unit_field
-    use indices,only: nu_vol,nu_vt
-    use diagnostics, only: enter_exit
-    implicit none
-
     !     Parameter List
     integer,intent(in) :: Gdirn
     real(dp),intent(in) :: COV,total_volume,Rmax,Rmin
@@ -2680,11 +2605,6 @@ contains
 !*volume_of_mesh:* calculates the volume of an airway mesh including conducting and respiratory airways
   subroutine volume_of_mesh(volume_model,volume_tree)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_VOLUME_OF_MESH" :: VOLUME_OF_MESH
-    use arrays,only: dp,elem_cnct,elem_field,elem_symmetry,&
-         num_elems,num_units,units,unit_field
-    use indices,only: ne_vol,nu_vol
-    use diagnostics, only: enter_exit
-    implicit none
 
     real(dp) :: volume_model,volume_tree
     !     Local Variables
@@ -2726,15 +2646,14 @@ contains
 !###################################################################################
 !
 !>get_final_real
-  subroutine get_final_real(string,rtemp)
-    use arrays,only: dp
-    implicit none
-    character, intent(in) :: string*(132)
-    integer :: ibeg,iend
-    real(dp), intent(out) :: rtemp
-    real(dp) :: rsign
-    character :: sub_string*(40)
+  
+  function get_final_real(string)
 
+    character :: string*(*)
+    integer :: ibeg,iend
+    real(dp) :: rsign,rtemp,get_final_real
+    character :: sub_string*(40)
+    
     iend=len(string) !get the length of the string
     ibeg=index(string,":")+1 !get location of real in string
     sub_string = adjustl(string(ibeg:iend)) ! get the characters beyond :
@@ -2746,18 +2665,20 @@ contains
        rsign=1.0_dp
        ibeg=1
     endif
+   
     read (sub_string(ibeg:iend), * ) rtemp !get real value
     rtemp=rtemp*rsign !apply sign to number
-
-  end subroutine get_final_real
+    
+    get_final_real=rtemp !return the real value
+    
+  end function get_final_real
 
 !
 !###################################################################################
 !
 !*get_final_string*
   subroutine get_final_string(string,rtemp)
-    use arrays,only: dp
-    implicit none
+
     character, intent(in) :: string*(132)
     integer :: ibeg,iend
     real(dp), intent(out) :: rtemp
@@ -2785,8 +2706,6 @@ contains
 !
 !*get_local_node*
   subroutine get_local_node(np_global,np_local)
-    use arrays,only: nodes,num_nodes
-    implicit none
 
     integer,intent(in) :: np_global
     integer,intent(out) :: np_local
@@ -2820,9 +2739,6 @@ contains
 !*group_elem_parent_term*
    subroutine group_elem_parent_term(ne_parent)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_ELEM_PARENT_TERM" :: GROUP_ELEM_PARENT_TERM
-
-   use arrays,only: parentlist,num_elems,elem_cnct
-   use diagnostics,only: enter_exit
 
    ! Parameters
    integer,intent(in) :: ne_parent  ! Number of element that feed that specific area
@@ -2862,9 +2778,6 @@ contains
 !
 !*group_elem_by_parent*
    subroutine group_elem_by_parent(ne_parent,elemlist)
-
-   use arrays,only: elem_cnct
-   use diagnostics,only: enter_exit
 
    ! Parameters
    integer,intent(in) :: ne_parent  ! Number of element that feed that specific area
@@ -2919,13 +2832,6 @@ contains
 !
 !*reallocate_node_elem_arrays:* Reallocates the size of geometric arrays when modifying geometries
   subroutine reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
-    use arrays,only: dp,elems,elem_cnct,elem_direction,elem_field,&
-         elem_ordrs,elem_nodes,&
-         elem_symmetry,elem_units_below,elems_at_node,expansile,&
-         nodes,node_field,node_xyz,num_elems,num_nodes
-    use indices
-    use diagnostics, only: enter_exit
-    implicit none
 
 !!! Parameters
     integer,intent(in) :: num_elems_new,num_nodes_new
@@ -3053,8 +2959,8 @@ contains
 !!!###############################################################
 
   function get_local_node_f(ndimension,np_global) result(get_local_node)
-    use arrays,only: num_nodes,num_nodes_2d,nodes,nodes_2d
-!!! dummy arguments
+
+!! dummy arguments
     integer,intent(in) :: ndimension,np_global
 !!! local variables
     integer :: np
@@ -3102,13 +3008,17 @@ contains
 !###################################################################################
 !
 !*get_final_integer*
-  subroutine get_final_integer(string,num)
-    implicit none
-    character,intent(in) :: string*(132)
-    integer,intent(out) :: num
-    integer :: ibeg,iend,nsign,ntemp
-    character :: sub_string*(40)
 
+  function get_final_integer(string)
+    
+    character,intent(in) :: string*(*)
+    integer :: ibeg,iend,ierror,nsign,ntemp
+    character :: sub_string*(40)
+    
+    integer :: get_final_integer
+    
+    ! ###########################################################################
+    
     iend=len(string) !get the length of the string
     ibeg=index(string,":")+1 !get location of integer in string, follows ":"
     sub_string = adjustl(string(ibeg:iend)) ! get the characters beyond ":"
@@ -3120,19 +3030,23 @@ contains
        nsign=1
        ibeg=1
     endif
-    read (sub_string(ibeg:iend), '(i10)' ) ntemp !get integer values
+    
+    read (sub_string(ibeg:iend), '(i10)', iostat=ierror ) ntemp !get integer values
+    if(ierror.gt.0)then
+       !... something wrong with data
+       write(*,'(''Data read error'')')
+       write(*,'(a)') sub_string(ibeg:iend)
+    endif
     ntemp=ntemp*nsign !apply sign to number
-
-    num=ntemp !return the integer value
-
-  end subroutine get_final_integer
-
-
-
+    
+    get_final_integer=ntemp !return the integer value
+    
+  end function get_final_integer
+  
 !!!##################################################
 
   subroutine get_four_nodes(ne,string)
-    use arrays,only: elem_nodes_2d
+
     !     Parameter List
     integer, INTENT(IN) :: ne
     character(len=132), INTENT(IN) :: string
@@ -3178,7 +3092,6 @@ contains
 ! 
   function coord_at_xi(ne,xi,basis)
 
-    use arrays,only: dp,node_xyz_2d,elem_nodes_2d,elem_versn_2d
     ! Parameters
     integer,intent(in) :: ne
     real(dp),intent(in) :: xi(:)

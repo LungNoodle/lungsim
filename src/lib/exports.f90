@@ -10,6 +10,12 @@
 !>\Description
 !> This module handles all export functions
 module exports
+
+  use arrays
+  use diagnostics
+  use indices
+  use other_consts
+  
   implicit none
  
   private
@@ -22,9 +28,6 @@ contains
 
   subroutine export_1d_elem_field(ne_field, EXELEMFILE, group_name, field_name )
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_1D_ELEM_FIELD" :: EXPORT_1D_ELEM_FIELD
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    use arrays,only: elem_field,num_elems
-    implicit none
 
 !!! Parameters
     integer, intent(in) :: ne_field
@@ -74,10 +77,6 @@ contains
 
   subroutine export_1d_elem_geometry(EXELEMFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_1D_ELEM_GEOMETRY" :: EXPORT_1D_ELEM_GEOMETRY
-
-    use arrays,only: elem_nodes,num_elems
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN), intent(in) :: EXELEMFILE
@@ -134,10 +133,6 @@ contains
 
   subroutine export_elem_geometry_2d(EXELEMFILE, name, offset_elem, offset_node)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_ELEM_GEOMETRY_2D" :: EXPORT_ELEM_GEOMETRY_2D
-
-    use arrays,only: num_lines_2d,lines_2d,elem_versn_2d,elem_nodes_2d,nodes_2d,scale_factors_2d, &
-                     elem_lines_2d,num_elems_2d
-    use diagnostics,only: enter_exit
 
 !!! Parameters
     integer :: offset_elem,offset_node
@@ -256,10 +251,6 @@ contains
   subroutine export_node_geometry(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_GEOMETRY" :: EXPORT_NODE_GEOMETRY
 
-    use arrays,only: node_xyz,num_nodes
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
-
 !!! Parameters
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
     character(len=MAX_STRING_LEN),intent(in) :: name
@@ -311,8 +302,6 @@ contains
   subroutine export_node_geometry_2d(EXNODEFILE, name, offset)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_GEOMETRY_2D" :: EXPORT_NODE_GEOMETRY_2D
 
-    use arrays!,only: nodes_2d,node_xyz_2d,num_nodes_2d,node_versn_2d
-    use diagnostics, only: enter_exit
     integer :: offset
     character(len=*) :: EXNODEFILE
     character(len=*) :: name
@@ -398,8 +387,6 @@ contains
   subroutine export_data_geometry(EXDATAFILE, name, offset)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_DATA_GEOMETRY" :: EXPORT_DATA_GEOMETRY
 
-    use arrays, only: num_data,data_xyz
-    use diagnostics,only: enter_exit
 !!! dummy arguments
     integer :: offset
     character(len=*) :: EXDATAFILE
@@ -437,12 +424,6 @@ contains
 
   subroutine export_terminal_solution(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_SOLUTION" :: EXPORT_TERMINAL_SOLUTION
-
-    use arrays,only: elem_nodes,&
-         node_xyz,num_units,units,unit_field
-    use indices,only: nu_comp,nu_pe,nu_vt,nu_vent
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
@@ -531,12 +512,6 @@ contains
   subroutine export_terminal_perfusion(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_PERFUSION" :: EXPORT_TERMINAL_PERFUSION
 
-    use arrays,only: elem_nodes,&
-         node_xyz,num_units,units,unit_field
-    use indices
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
-
 !!! Parameters
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
     character(len=MAX_STRING_LEN),intent(in) :: name
@@ -600,12 +575,6 @@ contains
 
   subroutine export_terminal_ssgexch(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_SSGEXCH" :: EXPORT_TERMINAL_SSGEXCH
-
-    use arrays,only: elem_nodes,&
-         node_xyz,num_units,units,unit_field,gasex_field
-    use indices
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
@@ -683,10 +652,6 @@ contains
   subroutine export_node_field(nj_field, EXNODEFIELD, name, field_name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_FIELD" :: EXPORT_NODE_FIELD
 
-    use arrays,only: node_field,num_nodes
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
-
 !!! Parameters
     integer,intent(in) :: nj_field
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFIELD
@@ -728,10 +693,6 @@ contains
 
   subroutine export_elem_field(EXELEMFIELD, name, field_name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_ELEM_FIELD" :: EXPORT_ELEM_FIELD
-
-    use arrays,only: elem_nodes,num_elems
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN), intent(in) :: EXELEMFIELD

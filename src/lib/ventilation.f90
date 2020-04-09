@@ -9,6 +9,14 @@ module ventilation
 !
 ! This module handles all code specific to simulating ventilation 
 
+  use arrays
+  use diagnostics
+  use exports
+  use geometry
+  use indices
+  use other_consts
+  use precision
+  
   implicit none
   !Module parameters
 
@@ -29,13 +37,6 @@ contains
 !*evaluate_vent:* Sets up and solves venilation model
   subroutine evaluate_vent
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_VENT" :: EVALUATE_VENT
-    use arrays,only: dp,elem_field,elem_units_below,num_elems,num_units,units,unit_field
-    use indices,only: ne_Vdot,ne_Vdot0,ne_t_resist,nu_comp,nu_dpdt,nu_pe,nu_vt
-    use exports,only: export_1d_elem_field,export_terminal_solution
-    use other_consts !PI
-    use diagnostics, only: enter_exit
-    use geometry,only: set_initial_volume,volume_of_mesh
-    implicit none
 
     ! Local variables
     integer :: Gdirn,iter_step,n,ne,num_brths,num_itns,nunit
@@ -348,14 +349,6 @@ contains
   subroutine evaluate_uniform_flow
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_UNIFORM_FLOW" :: EVALUATE_UNIFORM_FLOW
   
-    use arrays,only: dp,elem_field,num_elems,num_units,&
-         units,unit_field
-    use indices,only: ne_Vdot,nu_Vdot0,nu_vol
-    use other_consts
-    use diagnostics, only: enter_exit
-    use geometry,only: volume_of_mesh
-    implicit none
-
     ! Local variables
     integer :: ne,nunit
     real(dp) :: init_vol,volume_tree
@@ -390,11 +383,6 @@ contains
 !!!###################################################################################
 
   subroutine update_unit_dpdt(dt)
-    use arrays,only: dp,elem_nodes,node_field,&
-         num_units,units,unit_field
-    use indices,only: nj_aw_press,nu_dpdt,nu_air_press
-    use diagnostics, only: enter_exit
-    implicit none
 
     real(dp), intent(in) :: dt
     integer :: ne,np1,nunit
@@ -427,10 +415,6 @@ contains
 !!!###################################################################################
 
   subroutine update_proximal_pressure
-    use arrays,only: elem_nodes,node_field,num_units,units,unit_field
-    use indices,only: nj_aw_press,nu_air_press
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer :: ne,np1,nunit
 
@@ -458,10 +442,6 @@ contains
   subroutine update_pleural_pressure(ppl_current)
 !!! Update the mean pleural pressure based on current Pel (=Ptp) and Palv,
 !!! i.e. Ppl(unit) = -Pel(unit)+Palv(unit)
-    use arrays,only: dp,elem_nodes,node_field,num_units,units,unit_field
-    use diagnostics, only: enter_exit
-    use indices,only: nj_aw_press,nu_pe
-    implicit none
 
     real(dp),intent(out) :: ppl_current
     integer :: ne,np2,nunit
@@ -491,10 +471,6 @@ contains
 
 
   subroutine update_node_pressures(press_in)
-    use arrays,only: dp,elem_field,elem_nodes,node_field,num_elems
-    use indices,only: ne_Vdot,ne_resist,nj_aw_press
-    use diagnostics, only: enter_exit
-    implicit none
 
     real(dp),intent(in) :: press_in
     !Local parameters
@@ -530,10 +506,6 @@ contains
 !!!###################################################################################
 
   subroutine tissue_compliance(chest_wall_compliance,undef)
-    use arrays,only: dp,num_units,units,unit_field
-    use indices,only: nu_comp,nu_pe,nu_vol
-    use diagnostics, only: enter_exit
-    implicit none
 
     !     Parameter List
     real(dp), intent(in) :: chest_wall_compliance,undef
@@ -579,9 +551,6 @@ contains
 !!!###################################################################################
 
   subroutine sum_elem_field_from_periphery(ne_field)
-    use arrays,only: dp,elem_cnct,elem_field,elem_symmetry,num_elems
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer,intent(in) :: ne_field
 
@@ -614,11 +583,6 @@ contains
 !!!###################################################################################
 
   subroutine update_unit_volume(dt,Tinsp, Texpn)
-    use arrays,only: dp,elem_field,elem_nodes,num_units,&
-         units,unit_field
-    use diagnostics, only: enter_exit
-    use indices,only: ne_Vdot,nu_vol,nu_vt,nu_vent
-    implicit none
 
     real(dp),intent(in) :: dt,Tinsp,Texpn
     integer :: ne,np,nunit
@@ -650,12 +614,6 @@ contains
 !!!####################################################################
 
   subroutine update_elem_field
-    use arrays,only: dp,elem_field,elem_nodes,node_xyz,num_elems
-    use diagnostics, only: enter_exit
-    use indices,only: ne_Vdot,ne_length, &
-         ne_radius,ne_resist,ne_t_resist,ne_vol
-    use other_consts
-    implicit none
 
     ! Local variables
     integer :: ne,np1,np2
@@ -713,12 +671,6 @@ contains
 !!!####################################################################
 
   subroutine estimate_flow(dpmus,dt,err_est)
-    use arrays,only: dp,elem_field,num_units,&
-         units,unit_field
-    use diagnostics, only: enter_exit
-    use indices,only: ne_Vdot,ne_Vdot0,ne_resist,nu_comp,&
-         nu_dpdt,nu_Vdot0,nu_Vdot1,nu_Vdot2
-    implicit none
 
     real(dp),intent(in) :: dpmus,dt
     real(dp),intent(out) :: err_est
@@ -783,11 +735,7 @@ contains
 !!!#############################################################################
 
   subroutine calculate_work(breath_vol,dt_vol,WOBe,WOBr,pptrans)
-    use arrays,only: dp,elem_nodes,node_field,&
-         num_units,units,unit_field
-    use diagnostics, only: enter_exit
-    use indices,only: nj_aw_press,nu_pe
-    implicit none
+
     real(dp) :: breath_vol,dt_vol,WOBe,WOBr,pptrans
     ! Local variables
     integer :: ne,np1,nunit
@@ -822,9 +770,6 @@ contains
 !!!###########################################################################
 
   subroutine read_params_main(num_brths, num_itns, dt, err_tol)
-    use arrays,only: dp
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer,intent(out) :: num_brths, num_itns
     real(dp) :: dt,err_tol
@@ -889,10 +834,6 @@ contains
   subroutine read_params_evaluate_flow (Gdirn, chest_wall_compliance, &
        constrict, COV, FRC, i_to_e_ratio, pmus_step, press_in,&
        refvol, RMaxMean, RMinMean, T_interval, volume_target, expiration_type)
-
-    use arrays,only: dp
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer,intent(out) :: Gdirn
     real(dp),intent(out) :: chest_wall_compliance, constrict, COV,&
@@ -1004,11 +945,6 @@ contains
 
   subroutine two_unit_test
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_TWO_UNIT_TEST" :: TWO_UNIT_TEST
-    use arrays
-    use diagnostics, only: enter_exit
-    use geometry,only: append_units
-    use indices
-    implicit none
 
     integer ne,noelem,nonode,np
 
