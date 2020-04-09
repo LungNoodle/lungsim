@@ -182,7 +182,7 @@ configure_file(cmake/pFUnitConfigVersion.cmake.in
   "${PROJECT_BINARY_DIR}/pFUnitConfigVersion.cmake" @ONLY)
 
 # Install the pFUnitConfig.cmake and pFUnitConfigVersion.cmake
-install(FILES
-  "${PROJECT_BINARY_DIR}/pFUnitConfig.cmake"
-  "${PROJECT_BINARY_DIR}/pFUnitConfigVersion.cmake"
-  DESTINATION . )
+#install(FILES
+#  "${PROJECT_BINARY_DIR}/pFUnitConfig.cmake"
+#  "${PROJECT_BINARY_DIR}/pFUnitConfigVersion.cmake"
+#  DESTINATION . )

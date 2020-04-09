@@ -10,8 +10,14 @@
 !>\Description
 !> This module handles all export functions
 module exports
-  implicit none
 
+  use arrays
+  use diagnostics
+  use indices
+  use other_consts
+  
+  implicit none
+ 
   private
   public export_1d_elem_geometry,export_elem_geometry_2d,export_node_geometry,export_node_geometry_2d,&
        export_node_field,export_elem_field,export_terminal_solution,export_terminal_perfusion,&
@@ -22,9 +28,6 @@ contains
 
   subroutine export_1d_elem_field(ne_field, EXELEMFILE, group_name, field_name )
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_1D_ELEM_FIELD" :: EXPORT_1D_ELEM_FIELD
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    use arrays,only: elem_field,num_elems
-    implicit none
 
 !!! Parameters
     integer, intent(in) :: ne_field
@@ -68,14 +71,12 @@ contains
 
   end subroutine export_1d_elem_field
 
-!!!############################################################################
+!
+!##############################################################################
+!
 
   subroutine export_1d_elem_geometry(EXELEMFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_1D_ELEM_GEOMETRY" :: EXPORT_1D_ELEM_GEOMETRY
-
-    use arrays,only: elem_nodes,num_elems
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN), intent(in) :: EXELEMFILE
@@ -126,36 +127,33 @@ contains
 
   end subroutine export_1d_elem_geometry
 
+!
+!##############################################################################
+!
 
-!!!############################################################################
-  
   subroutine export_elem_geometry_2d(EXELEMFILE, name, offset_elem, offset_node)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_ELEM_GEOMETRY_2D" :: EXPORT_ELEM_GEOMETRY_2D
-
-    use arrays,only: num_lines_2d,lines_2d,elem_versn_2d,elem_nodes_2d,nodes_2d,scale_factors_2d, &
-                     elem_lines_2d,num_elems_2d
-    use diagnostics,only: enter_exit
 
 !!! Parameters
     integer :: offset_elem,offset_node
     character(len=*) :: EXELEMFILE
     character(len=*) :: name
-    
+
 !!! Local Variables
     integer :: ne,nj,nk,nl,nn,nn_index(4),np_index(4),numnodes_ex,nvv(4)
     character(len=1) :: char1
     character(len=200) :: exfile
     logical :: CHANGED
-    character(len=60) :: sub_name = 'export_node_geometry_2d'
+    character(len=60) :: sub_name = 'export_elem_geometry_2d'
 
     call enter_exit(sub_name,1)
-    
+
     exfile = trim(exelemfile)//'.exelem'
     open(10, file=exfile, status='replace')
-    
+
     !**     write the group name
     write(10,'( '' Group name: '',a)') trim(name)
-    
+
     !**         write the lines
     if(num_lines_2d.GT.0) then
        WRITE(10,'( '' Shape.  Dimension=1'' )')
@@ -163,14 +161,14 @@ contains
           WRITE(10,'( '' Element: 0 0 '',I5)') lines_2d(nl)
        enddo !nl
     endif
-    
+
     !**         write the elements
     WRITE(10,'( '' Shape.  Dimension=2'' )')
-    
+
     CHANGED=.TRUE. !initialise to force output of element information
-    
+
     nvv=0
-    
+
     do ne=1,num_elems_2d
        if(nvv(1)==elem_versn_2d(1,ne) .AND. nvv(2)==elem_versn_2d(2,ne) .AND. &
             nvv(3)==elem_versn_2d(3,ne) .AND. nvv(4)==elem_versn_2d(4,ne)) then
@@ -178,7 +176,7 @@ contains
        else
           CHANGED=.TRUE.
        endif
-       
+
        forall (nn=1:4) nvv(nn)=elem_versn_2d(nn,ne)
        numnodes_ex = 4
        forall (nn=1:4) nn_index(nn) = nn
@@ -200,7 +198,7 @@ contains
 !          numnodes_ex = 3
 !          nn_index(4) = 3
 !       endif
-       
+
        if(CHANGED)then
           WRITE(10,'( '' #Scale factor sets=1'' )')
           WRITE(10,'( ''   c.Hermite*c.Hermite, #Scale factors=16'' )')
@@ -244,18 +242,14 @@ contains
     close(10)
     call enter_exit(sub_name,2)
 
-    
   end subroutine export_elem_geometry_2d
 
-
-!!!##########################################################################
+!
+!##############################################################################
+!
 
   subroutine export_node_geometry(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_GEOMETRY" :: EXPORT_NODE_GEOMETRY
-
-    use arrays,only: node_xyz,num_nodes
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
@@ -301,32 +295,32 @@ contains
 
   end subroutine export_node_geometry
 
-!!!########################################################################
+!
+!##############################################################################
+!
 
   subroutine export_node_geometry_2d(EXNODEFILE, name, offset)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_GEOMETRY_2D" :: EXPORT_NODE_GEOMETRY_2D
 
-    use arrays!,only: nodes_2d,node_xyz_2d,num_nodes_2d,node_versn_2d
-    use diagnostics, only: enter_exit    
     integer :: offset
     character(len=*) :: EXNODEFILE
     character(len=*) :: name
     character(len=60) :: sub_name = 'export_node_geometry_2d'
 
-    
+
     !     Local Variables
-    integer :: nderiv,nversions,nj,nk,np,np_last,nv,VALUE_INDEX 
+    integer :: nderiv,nversions,nj,nk,np,np_last,nv,VALUE_INDEX
     logical :: FIRST_NODE
     character(len=200) :: exfile
 
     call enter_exit(sub_name,1)
-    
+
     if(num_nodes_2d.gt.0)then
        exfile = trim(exnodefile)//'.exnode'
        open(10, file=exfile, status='replace')
        !**     write the group name
        WRITE(10,'( '' Group name: '',A)') trim(name)
-       
+
        FIRST_NODE=.TRUE.
        np_last=1
        !*** Exporting Geometry
@@ -338,7 +332,7 @@ contains
           VALUE_INDEX=1
           if(FIRST_NODE.OR.node_versn_2d(np).NE.node_versn_2d(np_last))then
              write(10,'( '' #Fields=1'' )')
-             write(10,'('' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')') 
+             write(10,'('' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
              do nj=1,3
                 if(nj.eq.1) write(10,'(2X,''x.  '')',advance="no")
                 if(nj.eq.2) write(10,'(2X,''y.  '')',advance="no")
@@ -359,10 +353,10 @@ contains
                 else
                    write(10,'()')
                 endif
-                
+
                 VALUE_INDEX=VALUE_INDEX+MAX(4*node_versn_2d(np),1)
              enddo
-             
+
           endif !FIRST_NODE
           !***      write the node
           WRITE(10,'(1X,''Node: '',I12)') nodes_2d(NP)+OFFSET
@@ -386,13 +380,13 @@ contains
 
   end subroutine export_node_geometry_2d
 
-!!!####################################################################
+!
+!##############################################################################
+!
 
   subroutine export_data_geometry(EXDATAFILE, name, offset)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_DATA_GEOMETRY" :: EXPORT_DATA_GEOMETRY
-  
-    use arrays, only: num_data,data_xyz
-    use diagnostics,only: enter_exit
+
 !!! dummy arguments
     integer :: offset
     character(len=*) :: EXDATAFILE
@@ -401,10 +395,10 @@ contains
     integer,parameter :: num_coords = 3
     integer nd,nj
     character(len=200) :: exfile
-    character(len=60) :: sub_name = 'export_data_geometry'    
+    character(len=60) :: sub_name = 'export_data_geometry'
 
     call enter_exit(sub_name,1)
-    
+
     exfile = trim(exdatafile)//'.exdata'
     open(10, file = exfile, status = 'replace')
     !**   write the group name
@@ -414,26 +408,22 @@ contains
     write(10,'(1X,''  x.  Value index= 1, #Derivatives=0'')')
     write(10,'(1X,''  y.  Value index= 2, #Derivatives=0'')')
     write(10,'(1X,''  z.  Value index= 3, #Derivatives=0'')')
-    
+
     do nd = 1,num_data
        write(10,'(1X,''Node: '',I9)') nd + offset
        write(10,'(1X,3E13.5)')  (data_xyz(nj,nd),nj=1,num_coords)
     enddo !NOLIST
     close(10)
     call enter_exit(sub_name,2)
-    
+
   end subroutine export_data_geometry
 
-!!!########################################################################
+!
+!##############################################################################
+!
 
   subroutine export_terminal_solution(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_SOLUTION" :: EXPORT_TERMINAL_SOLUTION
-
-    use arrays,only: elem_nodes,&
-         node_xyz,num_units,units,unit_field
-    use indices,only: nu_comp,nu_pe,nu_vt,nu_vent
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
@@ -514,15 +504,13 @@ contains
     close(10)
 
   end subroutine export_terminal_solution
-!!! ##########################################################
+  
+!
+!##############################################################################
+!
+
   subroutine export_terminal_perfusion(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_PERFUSION" :: EXPORT_TERMINAL_PERFUSION
-
-    use arrays,only: elem_nodes,&
-         node_xyz,num_units,units,unit_field
-    use indices
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
@@ -580,15 +568,13 @@ contains
     close(10)
 
   end subroutine export_terminal_perfusion
-!!!################################################
+
+!
+!##############################################################################
+!
+
   subroutine export_terminal_ssgexch(EXNODEFILE, name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_SSGEXCH" :: EXPORT_TERMINAL_SSGEXCH
-
-    use arrays,only: elem_nodes,&
-         node_xyz,num_units,units,unit_field,gasex_field
-    use indices
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
@@ -658,17 +644,13 @@ contains
     close(10)
 
   end subroutine export_terminal_ssgexch
-
-
-
-!!! #################################################################
+  
+!
+!##############################################################################
+!
 
   subroutine export_node_field(nj_field, EXNODEFIELD, name, field_name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_FIELD" :: EXPORT_NODE_FIELD
-
-    use arrays,only: node_field,num_nodes
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
 
 !!! Parameters
     integer,intent(in) :: nj_field
@@ -705,15 +687,12 @@ contains
 
   end subroutine export_node_field
 
-
-!!! ###########################################################
+!
+!##############################################################################
+!
 
   subroutine export_elem_field(EXELEMFIELD, name, field_name)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_ELEM_FIELD" :: EXPORT_ELEM_FIELD
-
-    use arrays,only: elem_nodes,num_elems
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN), intent(in) :: EXELEMFIELD

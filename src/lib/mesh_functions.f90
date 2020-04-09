@@ -1,4 +1,4 @@
-module mesh_utilities
+module mesh_functions
 
 !!! Subroutines and functions for general calculations. Not specific to any
 !!! particular application, although it is expected these will generally be used 
@@ -6,16 +6,15 @@ module mesh_utilities
 !!! Any function that is used by more than one module should appear in here. 
 !!! ALL subroutines and functions in this module are public.
 
-
   use arrays
-  use other_consts
-
+  use other_consts   !! pi 
+  
   implicit none
 
   private
 
   public  area_between_three_points,area_between_two_vectors,calc_branch_direction,&
-       angle_btwn_points,angle_btwn_vectors,calc_scale_factors_2d,check_colinear_points,cross_product,&
+       angle_btwn_vectors,calc_scale_factors_2d,check_colinear_points,cross_product,&
        distance_between_points,make_plane_from_3points,mesh_a_x_eq_b,ph3,pl1,&
        point_internal_to_surface,scalar_product_3,scalar_triple_product,scale_mesh,&
        unit_norm_to_plane_two_vectors,unit_norm_to_three_points,unit_vector,&
@@ -39,9 +38,6 @@ contains
   ! ..... multiply mesh (coordinates and derivatives) by a constant
 
 !!! list of functions
-
-  ! angle_btwn_points
-  ! .... returns the angle between three points
 
   ! angle_btwn_vectors
   ! .... returns the angle between two vectors
@@ -73,6 +69,8 @@ contains
     
 !!! calculates the direction of element ne and stores in elem_direction    
     
+!    use arrays!,only: elem_direction,elem_nodes,node_xyz
+    
     integer,intent(in) :: ne
     
     integer :: np_end,np_start
@@ -93,6 +91,9 @@ contains
 !!! calculates the arclengths and scale factors for 2d surface elements,
 !!! stores in scale_factors_2d
   
+!    use arrays !only: arclength,elem_lines_2d,elem_nodes_2d,lines_2d,lines_in_elem,&
+!line_versn_2d,nodes_in_line,node_xyz_2d,num_elems_2d,num_lines_2d,scale_factors_2d,dp
+
     character(len=4),intent(in) :: sf_option
 !!! local variables
     integer,parameter :: num_deriv = 4
@@ -263,7 +264,7 @@ contains
     !###    NORMALTYPE=2 for unit normal and plane equation
     !###    The coefficients represent aX + bY + cZ + d = 0
     !###    NORML(1)=a,NORML(2)=b,NORML(3)=c,NORML(4)=d
-    
+!    use arrays
     
     !     Parameter list
     integer :: NORMALTYPE
@@ -302,6 +303,8 @@ contains
 
   subroutine scale_mesh(scaling,type)
 
+!    use arrays!,only: node_xyz,node_xyz_2d,scale_factors_2d
+
     real(dp),intent(in) :: scaling
     character(len=2),intent(in) :: type
 
@@ -322,7 +325,7 @@ contains
   function area_between_two_vectors(vect_a,vect_b)
     
     !### 
-    
+!    use arrays
     real(dp),intent(in) :: vect_a(3),vect_b(3)
     real(dp) :: cross(3)
     real(dp) :: area_between_two_vectors
@@ -340,7 +343,7 @@ contains
   function area_between_three_points(point_a,point_b,point_c)
     
     !### 
-    
+!    use arrays
     real(dp),intent(in) :: point_a(3),point_b(3),point_c(3)
     real(dp) :: norm(3),vect_a(3),vect_b(3)
     real(dp) :: area_between_three_points
@@ -358,7 +361,7 @@ contains
 !!! ##########################################################################      
 
   function ph3(I,J,K,XI)
-    
+!    use arrays 
 !!! dummy arguments
     integer :: I,I_J_K,J,K
     real(dp) :: XI
@@ -401,7 +404,7 @@ contains
 !!! ##########################################################################      
 
   function pl1(I,K,XI)
-    
+!    use arrays 
 !!! dummy arguments
     integer :: I,I_K,K
     real(dp) :: XI
@@ -429,7 +432,7 @@ contains
 !!!##################################################
   
   function unit_norm_to_plane_two_vectors(vect_a,vect_b)
-    
+!    use arrays 
     real(dp),intent(in) :: vect_a(3),vect_b(3)
     real(dp) :: magnitude,norm(3)
     real(dp) :: unit_norm_to_plane_two_vectors(3)
@@ -444,7 +447,7 @@ contains
 !!!##################################################
   
   function unit_norm_to_three_points(point_a,point_b,point_c)
-
+!    use arrays
     real(dp),intent(in) :: point_a(3),point_b(3),point_c(3)
     real(dp) :: magnitude,norm(3),vect_a(3),vect_b(3)
     real(dp) :: unit_norm_to_three_points(3)
@@ -459,26 +462,8 @@ contains
 
 !!!##################################################
   
-
-  function angle_btwn_points(A,B,C)
-    
-    !###    calculates the angle between three points
-    
-    real(dp),intent(in) :: A(3),B(3),C(3)
-
-    real(dp) :: U(3),V(3)
-    real(dp) :: angle_btwn_points
-
-    U = A - B
-    V = C - B
-    angle_btwn_points = angle_btwn_vectors(U,V)
-        
-  end function angle_btwn_points
-  
-!!!##################################################
-
   function angle_btwn_vectors(U,V)
-    
+!     use arrays
     !###    ANGLE calculates the angle between two vectors
     
     real(dp),intent(in) :: U(3),V(3)
@@ -487,12 +472,11 @@ contains
     
     N_U = unit_vector(U)
     N_V = unit_vector(V)
-
     ANGLE = scalar_product_3(N_U,N_V)
     ANGLE = max(-1.0_dp,ANGLE)
     ANGLE = min(1.0_dp,ANGLE)
-    ANGLE = acos(ANGLE)
-
+    ANGLE = cos(ANGLE)
+    
     angle_btwn_vectors=ANGLE
     
   end function angle_btwn_vectors
@@ -500,13 +484,14 @@ contains
 !!!###############################################################
   
   function check_colinear_points(POINT1,POINT2,POINT3)
-    
+!    use arrays ,only : dp
     !###    check_colinear_points checks whether two vectors are colinear.
      
     !     Parameter list
     real(dp) :: POINT1(3),POINT2(3),POINT3(3)
     !     Local variables
     real(dp) :: ERR1(3),ERR2(3),LU,LV,U(3),V(3)
+    real(dp),parameter :: zero_tol = 1.0e-14_dp
     logical :: check_colinear_points
     
     
@@ -533,7 +518,7 @@ contains
 !!!###############################################################
   
   function cross_product(A,B)
-    
+!     use arrays
     !###  cross_product returns the vector cross product of A*B in C.
     
     !     Parameter List
@@ -550,7 +535,7 @@ contains
 !!!###############################################################
   
   function scalar_triple_product(A,B,C)
-    
+!     use arrays
     !###  scalar_triple_product returns A.(BxC)
     
     !     Parameter List
@@ -566,7 +551,7 @@ contains
 !!!###############################################################
   
   function distance_between_points(point1, point2)
-    
+!     use arrays
     !###    calculates the distance between two arbitrary points
     
     real(dp),intent(in) :: point1(3),point2(3)
@@ -584,7 +569,7 @@ contains
 !!!###############################################################
   
   function mesh_a_x_eq_b(MATRIX,VECTOR)
-    
+!     use arrays
     real(dp) :: MATRIX(3,3),VECTOR(3)
     !Local variables
     integer :: i,j,k,pivot_row
@@ -631,7 +616,7 @@ contains
 !!!##################################################
   
   function scalar_product_3(A,B)
-    
+!     use arrays
     !### calculates scalar product of two vectors A,B of length 3.
     
     real(dp),intent(in) :: A(*),B(*)
@@ -649,7 +634,7 @@ contains
 !!!###############################################################
   
   function unit_vector(A)
-    
+!     use arrays
     !###  Calculates the unit vector for an arbitrary 3x1 vector 
     
     real(dp),intent(in) :: A(*)
@@ -669,7 +654,7 @@ contains
 !!!##################################################
   
   function vector_length(A)
-    
+!     use arrays
     !###  Calculates the length of a 3x1 vector 
     
     real(dp),intent(in) :: A(*)
@@ -687,7 +672,7 @@ contains
 !!!###############################################################
 
   function volume_internal_to_surface(triangles,vertex_xyz)
-
+!     use arrays
     ! calculates the volume enclosed by a list of surface elements
 
     integer,intent(in) :: triangles(:,:)
@@ -717,17 +702,17 @@ contains
 
 !!!###############################################################
 
-  function point_internal_to_surface(num_vertices,triangles,point_xyz,vertex_xyz)
+  function point_internal_to_surface(triangles,point_xyz,vertex_xyz)
 !!! Cast a line in positive x-direction from each data point and 
 !!! then work out how many triangular elements it crosses. If even it is in the 
 !!! shape and if odd it is outside the shape
-
-    integer,intent(in) :: num_vertices,triangles(:,:)
+!     use arrays
+    integer,intent(in) :: triangles(:,:)
     real(dp),intent(in) :: point_xyz(3),vertex_xyz(:,:)
     logical :: point_internal_to_surface
 
 !!! Local Variables
-    integer :: i,ncrossed,ntri,num_triangles
+    integer :: ntri,num_triangles
     real(dp) :: area,area_triangle,cofm_surfaces(3),denominator,&
          norm_v(3),point(3),P1(3),P2(3),P3(3),u
     real(dp),parameter :: dist_tol = 1.0e-4_dp, user_tol = 1.0e-14_dp
@@ -735,16 +720,14 @@ contains
 
     num_triangles = count(triangles(:,:).ne.0)/3
 
-    forall (i=1:3) cofm_surfaces(i) = sum(vertex_xyz(i,1:num_vertices))/num_vertices
-!    write(*,*) 'cofm',cofm_surfaces
+    cofm_surfaces = sum(vertex_xyz,dim=2)/size(vertex_xyz,dim=2)
 
 ! check whether the line that joins the centre of mass of the surface mesh and the point
 ! in question crosses ANY face. If it does, then point not inside.
 
     cross_any = .false.
-    ncrossed = 0
 
-    do ntri = 1,num_triangles
+    do ntri=1,num_triangles
        P1(1:3) = vertex_xyz(1:3,triangles(1,ntri))
        P2(1:3) = vertex_xyz(1:3,triangles(2,ntri))
        P3(1:3) = vertex_xyz(1:3,triangles(3,ntri))
@@ -762,10 +745,7 @@ contains
              area = area_between_two_vectors(P1-point,P2-point)+ &
                   area_between_two_vectors(P1-point,P3-point)+area_between_two_vectors(P2-point,P3-point)
              area_triangle = area_between_two_vectors(P1-P2,P1-P3)
-             if(abs(area_triangle-area).lt.dist_tol)then
-                cross_any = .true.
-                ncrossed = ncrossed + 1
-             endif
+             if(abs(area_triangle-area).lt.dist_tol) cross_any = .true.
           endif
        endif
     enddo
@@ -773,15 +753,11 @@ contains
     if(.not.cross_any)then
        point_internal_to_surface = .true.
     else
-       if(ncrossed.eq.2)then
-          point_internal_to_surface = .true.
-       else
-          point_internal_to_surface = .false.
-       endif
+       point_internal_to_surface = .false.
     endif
 
   end function point_internal_to_surface
 
 
 
-end module mesh_utilities
+end module mesh_functions
