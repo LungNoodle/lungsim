@@ -35,6 +35,7 @@ module geometry
   public define_node_geometry_2d
   public define_data_geometry
   public group_elem_parent_term
+  public define_rad_elem_from_file
   public define_rad_from_file
   public define_rad_from_geom
   public element_connectivity_1d
@@ -1382,6 +1383,74 @@ contains
     
   end subroutine make_data_grid
   
+  !###################################################################################
+  
+  subroutine define_rad_elem_from_file(FIELDFILE)
+    !*define_rad_elem_from_file:* reads in a radius field defined at elements
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_ELEM_FROM_FILE" :: DEFINE_RAD_ELEM_FROM_FILE
+
+    character(LEN=*),intent(in) :: FIELDFILE
+    !     Local Variables
+    integer :: ierror,ne,ne_counter,ne_global,np1,np2,num_elem_rad
+    real(dp) :: radius
+    character(LEN=132) :: ctemp1,readfile
+    character(len=60) :: sub_name
+  
+    ! --------------------------------------------------------------------------
+    
+    sub_name = 'define_rad_elem_from_file'
+    call enter_exit(sub_name,1)
+    
+    readfile = trim(fieldfile)//'.ipfiel'
+    open(10, file=readfile, status='old')
+    
+    read_num_elem_radii : do
+       read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+       if(index(ctemp1, "The number of elements is")> 0) then
+          num_elem_rad = get_final_integer(ctemp1) !get global element number
+          exit read_num_elem_radii
+       endif
+    end do read_num_elem_radii
+    
+    ne = 0
+    ne_counter = 0
+    
+    read_an_elem : do !define a do loop name
+       !.......read element number
+       read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+       if(index(ctemp1, "Element number")> 0) then
+          ne_global = get_final_integer(ctemp1) !get global element number
+          ne = get_local_elem_1d(ne_global) ! get local elem ne for global elem
+          if(ne.eq.0)then
+             write(*,'('' WARNING! no local element for global element'',i6)') ne_global
+             read(*,*)
+          endif
+          if(ne.gt.0)then
+             read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+             if(index(ctemp1, "value")> 0) then
+                radius = get_final_real(ctemp1)
+                elem_field(ne_radius,ne) = radius
+             endif
+             ne_counter = ne_counter + 1
+          endif
+       endif !index
+       if(ne_counter.ge.num_elem_rad) exit read_an_elem
+    end do read_an_elem
+    
+    ! calculate the element volumes
+    do ne=1,num_elems
+       np1=elem_nodes(1,ne)
+       np2=elem_nodes(2,ne)
+       ! element volume
+       elem_field(ne_vol,ne) = PI * elem_field(ne_radius,ne)**2 * &
+            elem_field(ne_length,ne)
+       elem_field(ne_a_A,ne) = 1.0_dp ! set default for ratio a/A
+    enddo
+    
+    call enter_exit(sub_name,2)
+    
+  end subroutine define_rad_elem_from_file
+  
 !!!#############################################################################
 
   subroutine define_rad_from_file(FIELDFILE, radius_type_in)
@@ -2662,6 +2731,24 @@ contains
     
   end function coord_at_xi
   
+!!!#############################################################################
+
+  function get_local_elem_1d(ne_global)
+
+    integer,intent(in) :: ne_global
+    ! Local variables
+    integer :: ne
+    integer :: get_local_elem_1d
+
+    ! --------------------------------------------------------------------------
+
+    get_local_elem_1d = 0
+    do ne=1,num_elems
+       if(ne_global.eq.elems(ne)) get_local_elem_1d = ne
+    enddo
+
+  end function get_local_elem_1d
+
 !!!#############################################################################
   
 end module geometry

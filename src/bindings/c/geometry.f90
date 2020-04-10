@@ -259,6 +259,31 @@ contains
 !###################################################################################
 !
 
+  subroutine define_rad_elem_from_file_c(FIELDFILE, filename_len) bind(C, name="define_rad_elem_from_file_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
+    use geometry, only: define_rad_elem_from_file
+    implicit none
+
+    integer,intent(in) :: filename_len
+    type(c_ptr), value, intent(in) :: FIELDFILE
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, FIELDFILE, filename_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_define_rad_elem_from_file(filename_f)
+#else
+    call define_rad_elem_from_file(filename_f)
+#endif
+
+    end subroutine define_rad_elem_from_file_c
+!
+!###################################################################################
+!
+
   subroutine define_rad_from_file_c(FIELDFILE, filename_len, radius_type, radius_type_len) bind(C, name="define_rad_from_file_c")
 
     use iso_c_binding, only: c_ptr
