@@ -227,27 +227,35 @@ contains
     nu_vent=10
     call enter_exit(sub_name,2)
   end subroutine ventilation_indices
-!
-!########################################################################
-!
-!> Growing indices
-  subroutine growing_indices
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROWING_INDICES" :: GROWING_INDICES
 
+
+!!!#############################################################################
+
+  subroutine growing_indices
+    !* Growing indices:* set up indices for growing (1D tree) arrays
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROWING_INDICES" :: GROWING_INDICES
+    
     character(len=60) :: sub_name
+
+    ! --------------------------------------------------------------------------
 
     sub_name = 'growing_indices'
     call enter_exit(sub_name,1)
+    
     ! indices for elem_ordrs. These dont usually change.
     ! indices for node_field
-    num_nj=0 !number of nodal fields
+    num_nj = 0 !number of nodal fields
     ! indices for elem_field
-    num_ne=2 !number of element fields
-    ne_radius=1 !radius of airway
-    ne_length=2 !length of airway
+    num_ne = 4 !number of element fields
+    ne_radius = 1 !radius of airway
+    ne_length = 2 !length of airway
+    ne_length = 3 !length of airway
+    ne_a_A = 4 !length of airway
     ! indices for unit_field
-    num_nu=0
+    num_nu = 0
+    
     call enter_exit(sub_name,2)
+    
   end subroutine growing_indices
 !
 !######################################################################
