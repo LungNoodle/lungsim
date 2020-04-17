@@ -791,8 +791,11 @@ contains
     enddo !nunit
 
     ! the estimate of error for the iterative solution
-    if(abs(flow_sum*dble(num_units)).gt.zero_tol) &
-         err_est = err_est/(flow_sum*dble(num_units))
+    if(abs(flow_sum*dble(num_units)).gt.zero_tol) then
+       err_est = err_est/(flow_sum*dble(num_units))
+    else
+       err_est = err_est/dble(num_units)
+    endif
 
     call enter_exit(sub_name,2)
 
