@@ -157,7 +157,7 @@ contains
 !
 !###################################################################################
 !
-  subroutine make_data_grid_c(surface_elems, spacing, to_export, filename, filename_len, groupname, groupname_len)&
+  subroutine make_data_grid_c(spacing, to_export, filename, filename_len, groupname, groupname_len)&
  bind(C, name="make_data_grid_c")
     
     use arrays,only: dp
@@ -167,7 +167,7 @@ contains
     use geometry, only: make_data_grid
     implicit none
 
-    integer,intent(in) :: surface_elems(:)
+!integer,intent(in) :: surface_elems(:)
     real(dp),intent(in) :: spacing
     logical,intent(in) :: to_export
     integer,intent(in) :: filename_len, groupname_len
@@ -179,9 +179,9 @@ contains
     call strncpy(groupname_f, groupname, groupname_len)
 
 #if defined _WIN32 && defined __INTEL_COMPILER
-    call so_make_data_grid(surface_elems, spacing, to_export, filename_f, groupname_f)
+    call so_make_data_grid(spacing, to_export, filename_f, groupname_f)
 #else
-    call make_data_grid(surface_elems, spacing, to_export, filename_f, groupname_f)
+    call make_data_grid(spacing, to_export, filename_f, groupname_f)
 #endif
 
   end subroutine make_data_grid_c

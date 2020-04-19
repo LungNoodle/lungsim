@@ -1,3 +1,4 @@
+
 module growtree
   !
   !*Brief Description:* This module generates a volume-filling tree within a bounding surface.
@@ -334,7 +335,7 @@ contains
        internal=.true.
        if(.not.internal)then
           length = distance_between_points(node_xyz(1,np1),node_xyz(1,np))
-!          node_xyz(1:3,np) = node_xyz(1:3,np1)+0.5_dp*length*elem_direction(1:3,np)
+!         node_xyz(1:3,np) = node_xyz(1:3,np1)+0.5_dp*length*elem_direction(1:3,np)
           node_xyz(1:3,np) = node_xyz(1:3,np1)+0.5_dp*length*elem_direction(1:3,ne)
           call reduce_branch_angle(np1,np2,np,candidate_xyz,0.5_dp) ! reduces the branch angle by a half
        endif
@@ -770,12 +771,12 @@ contains
   !*grow_tree:* the main growing subroutine (public). Genertes a volume-filling
   ! tree into a closed surface.
   !
-  subroutine grow_tree(parent_ne,surface_elems,angle_max,angle_min,&
+  subroutine grow_tree(parent_ne,angle_max,angle_min,&
        branch_fraction,length_limit,shortest_length,rotation_limit,to_export,filename)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
 
     integer,intent(in)  :: parent_ne                ! list of end branch elements to grow from
-    integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
+!   integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
     real(dp),intent(in) :: angle_max                ! maximum branch angle with parent; in degrees
     real(dp),intent(in) :: angle_min                ! minimum branch angle with parent; in degrees
     real(dp),intent(in) :: branch_fraction          ! fraction of distance (to COFM) to branch
@@ -811,7 +812,6 @@ contains
     sub_name = 'grow_tree'
     call enter_exit(sub_name,1)
 
-
     if(to_export)then
        !!! export vertices as nodes
        writefile = trim(filename)//'.txt'
@@ -819,15 +819,20 @@ contains
        write(40,'('' Data point number          Terminal element number'')')
     endif
 
-
-    call triangles_from_surface(num_triangles,num_vertices,surface_elems,triangle,vertex_xyz)
+    call triangles_from_surface(num_triangles,num_vertices,triangle,vertex_xyz)
 
 !!! We can estimate the number of elements in the generated model based on the
 !!! number of data (seed) points. i.e. N = 2*N_data - 1. So the total number of
 !!! elements following tree generation will be ~ num_elems + 2*num_data. Use this estimate
 !!! to increase the node and element arrays.
-    num_elems_new = num_elems + 2*num_data + 100
-    num_nodes_new = num_nodes + 2*num_data + 100
+!   num_elems_new = num_elems + 2*num_data + 100
+!   num_nodes_new = num_nodes + 2*num_data + 100
+
+!Hari
+    num_elems_new = num_elems + 2*num_data + 1000
+    num_nodes_new = num_nodes + 2*num_data + 1000
+     
+
     call reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
 
 !!! Allocate memory for temporary arrays (need a more intelligent way of estimating size!)
@@ -844,7 +849,6 @@ contains
 
     NUM_SEEDS_FROM_ELEM = 0
     num_next_parents = num_parents
-
 
 !!! Calculate the initial grouping of data points with terminal elements
 !!! this defines the 'space' with which each seed is associated
@@ -1051,6 +1055,7 @@ contains
           ! Copy the temporary list of branches to local_parent. These become the
           ! parent elements for the next branching
           local_parent(1:num_next_parents) = local_parent_temp(1:num_next_parents)
+
           ! Regroup the seed points with the closest current parent
           call group_seeds_with_branch(map_seed_to_elem,num_next_parents,num_seeds_from_elem,&
                num_terminal,local_parent,DISTANCE_LIMIT,.FALSE.)
@@ -1071,18 +1076,36 @@ contains
 
 !!! update the tree connectivity
     call element_connectivity_1d
+
 !!! calculate branch generations and orders
     call evaluate_ordering
+
 !!! deallocate temporary arrays
-    deallocate(vertex_xyz)
-    deallocate(triangle)
+
+!   deallocate(vertex_xyz)
+!   deallocate(triangle)
     deallocate(local_parent_temp)
     deallocate(local_parent)
     deallocate(map_seed_to_elem)
     deallocate(map_seed_to_space)
     deallocate(num_seeds_from_elem)
 
+    deallocate(elems_2d)
+    deallocate(elem_nodes_2d)
+    deallocate(elem_versn_2d)
+    deallocate(elem_cnct_2d)
+
+    deallocate(elem_lines_2d)
+    deallocate(scale_factors_2d)
+
+    deallocate(lines_2d)
+    deallocate(line_versn_2d)
+    deallocate(lines_in_elem)
+    deallocate(nodes_in_line)
+    deallocate(arclength)
+
     call enter_exit(sub_name,2)
+
   end subroutine grow_tree
 
 

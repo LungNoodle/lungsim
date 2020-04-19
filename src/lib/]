@@ -547,8 +547,6 @@ contains
     
     call enter_exit(sub_name,1)
     
-    write(*,*) 'entering define elem geom'
-
     !readfile = trim(elemfile)//'.ipelem'
     open(10, file=elemfile, status='old')
     
@@ -564,8 +562,7 @@ contains
     if(.not.allocated(elems_2d)) allocate(elems_2d(num_elems_2d))
     if(.not.allocated(elem_nodes_2d)) allocate(elem_nodes_2d(4,num_elems_2d))
     if(.not.allocated(elem_versn_2d)) allocate(elem_versn_2d(4,num_elems_2d))
-
-    write(*,*) 'num_elem 2d=',num_elems_2d
+    
     ne = 0
     
     read_an_element : do 
@@ -603,9 +600,15 @@ contains
     
     close(10)
     
+    write(*,*) 'define elem geom 2d'
+
     call element_connectivity_2d
  
+    write(*,*) 'called elem_conn'
+
     call line_segments_for_2d_mesh(sf_option)
+
+    write(*,*) 'open line_seg_2d_mesh'
 
     call enter_exit(sub_name,2)
     
@@ -878,7 +881,6 @@ contains
     !write(*,*) 'Number of nodes are:',num_nodes_2d
 
 !!!allocate memory to arrays that require node number
-
     if(.not.allocated(nodes_2d)) allocate(nodes_2d(num_nodes_2d))
     if(.not.allocated(node_xyz_2d)) allocate(node_xyz_2d(4,10,16,num_nodes_2d))
     if(.not.allocated(node_versn_2d)) allocate(node_versn_2d(num_nodes_2d))
@@ -1185,7 +1187,9 @@ contains
 
      call enter_exit(sub_name,1)
 
+     write(*,*) 'calling triangle from surface'
      call triangles_from_surface(num_triangles,num_vertices,triangle,vertex_xyz)
+     write(*,*) 'out of triangle from surface'
 
      if(offset.gt.0.0_dp)then
    !!! generate within a scaled mesh, then return to original size afterwards
@@ -1343,10 +1347,6 @@ contains
 
       deallocate(triangle)
       deallocate(vertex_xyz)
-
-!     if(allocated(elems_2d)) deallocate(elems_2d)
-!     if(allocated(elem_nodes_2d)) deallocate(elem_nodes_2d)
-!     if(allocated(elem_versn_2d)) deallocate(elem_versn_2d)
 
       call enter_exit(sub_name,2)
 
@@ -1629,6 +1629,7 @@ contains
           np = elem_nodes_2d(nn,ne)
           elems_at_node_2d(np,0) = elems_at_node_2d(np,0)+1
           elems_at_node_2d(np,elems_at_node_2d(np,0)) = ne !element that np is in
+          write(*,*) 'elem cnct = ',np,elems_at_node_2d(np,elems_at_node_2d(np,0))
        enddo !nn
     enddo !noelem
     
@@ -1638,21 +1639,30 @@ contains
     
     do ne = 1,num_elems_2d ! for each of the 2d elements
        np_list(1:4) = elem_nodes_2d(1:4,ne) ! the list of nodes in the element (including repeated)
+       write(*,*) 'element =',ne
+       write(*,*) 'nodes in elem id:',elem_nodes_2d(1,ne),elem_nodes_2d(2,ne),&
+                                     elem_nodes_2d(3,ne),elem_nodes_2d(4,ne)
+       write(*,*) 'calling do loop'
 !!! check the elements attached to the 1st node
        do noelem2 = 1,elems_at_node_2d(np_list(1),0) ! for each element attached to the 1st node
+          write(*,*) 'no elem=',noelem2
           ne2 = elems_at_node_2d(np_list(1),noelem2) ! attached element number
+          write(*,*) 'corresp elem num=',ne2
           if(ne2.ne.ne)then
              np_list_2(1:4) = elem_nodes_2d(1:4,ne2) !list of nodes in attached element
              if(np_list(2).ne.np_list(1))then ! only if first two nodes are not repeated
                 if(inlist(np_list(2),np_list_2))then
                   elem_cnct_2d(-2,0,ne) = elem_cnct_2d(-2,0,ne)+1
                   elem_cnct_2d(-2,elem_cnct_2d(-2,0,ne),ne) = ne2 
+                  write(*,*) 'elem id:',ne
+                  write(*,*) '1.elem cnct 2d=',ne2,elem_cnct_2d(-2,elem_cnct_2d(-2,0,ne),ne) 
                 endif
              endif
              if(np_list(3).ne.np_list(1))then ! only if the two nodes are not repeated
                 if(inlist(np_list(3),np_list_2))then
                    elem_cnct_2d(-1,0,ne) = elem_cnct_2d(-1,0,ne)+1
                    elem_cnct_2d(-1,elem_cnct_2d(-1,0,ne),ne) = ne2 
+                   write(*,*) '1.1.elem cnct 2d=',ne2,elem_cnct_2d(-1,elem_cnct_2d(-1,0,ne),ne)
                 endif
              endif
           endif
@@ -1721,14 +1731,14 @@ contains
           elem_lines_2d(2,ne) = 1 ! at this stage just to tag it for conditional above
           elem_lines_2d(4,ne) = 1 ! at this stage just to tag it for conditional above
        enddo !ne
-       elem_lines_2d(:,:) = 0
+       
+       elem_lines_2d = 0
        
        if(.not.allocated(lines_2d)) allocate(lines_2d(0:num_lines_2d))
        if(.not.allocated(line_versn_2d)) allocate(line_versn_2d(2,3,num_lines_2d))
        if(.not.allocated(lines_in_elem)) allocate(lines_in_elem(0:4,num_lines_2d))
        if(.not.allocated(nodes_in_line)) allocate(nodes_in_line(3,0:3,num_lines_2d))
        if(.not.allocated(arclength)) allocate(arclength(3,num_lines_2d)) 
-
        lines_in_elem=0
        lines_2d=0
        nodes_in_line=0
@@ -2303,6 +2313,7 @@ contains
     nodelem_temp = nodes ! copy to temporary array
     deallocate(nodes) !deallocate initially allocated memory
     allocate(nodes(num_nodes_new))
+    write(*,*) 're Allocating nodes'
     nodes(1:num_nodes)=nodelem_temp(1:num_nodes)
     deallocate(nodelem_temp) !deallocate the temporary array
 
@@ -2310,12 +2321,14 @@ contains
     xyz_temp=node_xyz
     deallocate(node_xyz)
     allocate(node_xyz(3,num_nodes_new))
+    write(*,*) 're Allocating node xyz'
     node_xyz(1:3,1:num_nodes)=xyz_temp(1:3,1:num_nodes)
 
     allocate(nodelem_temp(num_elems))
     nodelem_temp = elems ! copy to temporary array
     deallocate(elems) !deallocate initially allocated memory
     allocate(elems(num_elems_new))
+    write(*,*) 're Allocating elems'
     elems(1:num_elems)=nodelem_temp(1:num_elems)
     deallocate(nodelem_temp) !deallocate the temporary array
 

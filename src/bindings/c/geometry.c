@@ -13,7 +13,7 @@ void define_node_geometry_c(const char *NODEFILE, int *filename_len);
 void define_node_geometry_2d_c(const char *NODEFILE, int *filename_len);
 void define_data_geometry_c(const char *DATAFILE, int *filename_len);
 void group_elem_parent_term_c(int *ne_parent);
-void make_data_grid_c(int *surface_elems, double *spacing, int *to_export, const char *filename, int *filename_len, const char *groupname, int *groupname_len);
+void make_data_grid_c(double *spacing, int *to_export, const char *filename, int *filename_len, const char *groupname, int *groupname_len);
 void define_rad_from_file_c(const char *FIELDFILE, int *filename_len, const char *radius_type, int *radius_type_len);
 int get_local_node_f_c(const char *ndimension, int *dimension_len, const char *np_global, int *np_global_len);
 void define_rad_from_geom_c(const char *order_system, int *order_system_len, double *control_param,
@@ -81,11 +81,11 @@ void group_elem_parent_term(int ne_parent)
   group_elem_parent_term_c(&ne_parent);
 }
 
-void make_data_grid(int surface_elems, double spacing, int to_export, const char *filename, const char *groupname)
+void make_data_grid(double spacing, int to_export, const char *filename, const char *groupname)
 {
   int filename_len = (int)strlen(filename);
   int groupname_len = (int)strlen(groupname);
-  make_data_grid_c(&surface_elems, &spacing, &to_export, filename, &filename_len, groupname, &groupname_len);
+  make_data_grid_c(&spacing, &to_export, filename, &filename_len, groupname, &groupname_len);
 }
 
 void define_rad_from_file(const char *FIELDFILE, const char *radius_type)
