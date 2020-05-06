@@ -198,6 +198,7 @@ contains
           elem_nodes(2,ne) = np
           
           elem_ordrs(1,ne) = ngen_parent + generation(i)
+          elem_ordrs(no_type,ne) = 1   ! ntype ! 0 for respiratory, 1 for conducting
           elem_symmetry(ne) = symmetry_temp(i)+1 ! uses 0/1 in file; 1/2 in code
           
           ! record the element connectivity
@@ -495,8 +496,9 @@ contains
     endif
     
 !!! initialise element arrays
-    elems=0
-    elem_nodes=0
+    elems = 0
+    elem_nodes = 0
+    elem_ordrs = 0  ! where the default is that 0==respiratory and 1==conducting
     elem_symmetry = 1
     elem_field = 0.0_dp
     if(model_type.eq.'gas_mix')expansile = .false.
@@ -552,6 +554,8 @@ contains
     
     call element_connectivity_1d
     call evaluate_ordering
+
+    elem_ordrs(no_type,:) = 1 ! 0 for respiratory, 1 for conducting
     
     call enter_exit(sub_name,2)
 
@@ -3151,21 +3155,25 @@ contains
     
     vol_anat = elem_field(ne_vol,1:num_elems) !initialise to branch volume
     vol_below = elem_field(ne_vol,1:num_elems) !initialise to branch volume
-    
-    do nunit=1,num_units
-       ne=units(nunit)
-       vol_below(ne) = vol_below(ne) + unit_field(nu_vol,nunit) !add elastic unit volume
+
+    do nunit = 1,num_units
+       ne = units(nunit)
+       if(ne.ne.0) vol_below(ne) = vol_below(ne) + unit_field(nu_vol,nunit) !add elastic unit volume
     enddo !nunit
-    
-    do ne=num_elems,2,-1
-       ne0=elem_cnct(-1,1,ne)
-       vol_anat(ne0) = vol_anat(ne0) + DBLE(elem_symmetry(ne))*vol_anat(ne)
-       vol_below(ne0) = vol_below(ne0) + DBLE(elem_symmetry(ne))*vol_below(ne)
+
+    do ne = num_elems,2,-1
+       ne0 = elem_cnct(-1,1,ne)
+!!! don't include the respiratory airways (already included via lumped units). multiply
+!!! by the element type (0 for respiratory) to account for this
+       vol_anat(ne0) = vol_anat(ne0) + dble(elem_symmetry(ne))*dble(elem_ordrs(no_type,ne))*vol_anat(ne)
+       vol_below(ne0) = vol_below(ne0) + dble(elem_symmetry(ne))*dble(elem_ordrs(no_type,ne))*vol_below(ne)
     enddo !noelem
-    
-    volume_model = vol_below(1)
-    volume_tree = vol_anat(1)
-    
+
+    elem_field(ne_vd_bel,:) = vol_anat(:)
+    elem_field(ne_vol_bel,:) = vol_below(:)
+    volume_model = elem_field(ne_vol_bel,1)
+    volume_tree = elem_field(ne_vd_bel,1)
+
     deallocate(vol_anat)
     deallocate(vol_below)
     
