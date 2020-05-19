@@ -1,9 +1,10 @@
 module surface_fitting
 
   use arrays
+  use geometry
   use other_consts
   use mesh_functions
-  !use precision
+  use precision
   use solve
 
   implicit none
@@ -35,7 +36,6 @@ contains
 !!! the nodes/derivatives that are fixed, and any mapping of nodes and/or
 !!! derivatives
 
-    use geometry,only: get_local_node_f
 !!! dummy arguments
     integer,intent(in) :: niterations             ! user-specified number of fitting iterations
     character(len=255),intent(in) :: fitting_file ! file that lists versions/mapping/BCs
@@ -141,8 +141,6 @@ contains
 !!! and mapping of dependent variables for geometric fitting. set up the 
 !!! dependent variable-to-mapping arrays  
   
-    use arrays,only: elems_2d,node_versn_2d,node_xyz_2d,num_elems_2d,num_nodes_2d
-    use geometry,only: get_final_integer,get_local_node_f
 !!! dummy arguments
     integer :: elem_list(0:),npny(0:,:),num_depvar,nynp(:,:,:,:),nynr(0:)
     integer,allocatable :: nyny(:,:)
@@ -309,8 +307,6 @@ contains
 
 !!! calculates the mapping arrays nyno/nony/cyno/cony
 
-    use arrays,only: node_versn_2d,num_nodes_2d
-
 !!! dummy arguments
     integer :: nony(0:,:,:),not_1,not_2,npny(0:,:),nyno(0:,:,:),nynp(:,:,:,:),nyny(0:,:)
     real(dp) :: cony(0:,:,:),cyno(0:,:,:),cyny(0:,:)
@@ -399,10 +395,6 @@ contains
     
 !!! sets up the line segment arrays for a 2d mesh
     
-    use arrays,only: arclength,elem_cnct_2d,elem_nodes_2d,elem_versn_2d,elem_lines_2d,&
-         lines_in_elem,line_versn_2d,&
-         lines_2d,nodes_in_line,num_elems_2d,num_lines_2d,scale_factors_2d
-
 !!! local variables
     integer :: ne,ne_adjacent,ni1,nj,npn(2)
     logical :: MAKE
@@ -543,7 +535,6 @@ contains
 !!! calculate and write out the RMS error for distance between data points
 !!! and 2d mesh surface
 
-    use arrays,only: data_xyz,num_elems_2d
 !!! dummy arguments
     integer :: data_on_elem(:,:),ndata_on_elem(:) 
     real(dp) :: data_xi(:,:)
@@ -601,8 +592,6 @@ contains
   
   subroutine map_versions(IPFILE,num_depvar,nynp,nyny,cyny,fit_soln,fix_bcs)
 
-    use arrays,only: node_versn_2d,node_xyz_2d,num_nodes_2d
-    use geometry,only: get_final_integer,get_local_node_f
 !!! dummy arguments
     integer, intent(in) :: IPFILE,num_depvar
     integer :: nynp(:,:,:,:)
@@ -722,7 +711,6 @@ contains
 !!! and fit variable njj in region nr.  It also returns the total
 !!! number of element variables NHST(nrc).
     
-    use arrays,only: elem_nodes_2d,elem_versn_2d
 !!! dummy arguments    
     integer :: LGE2(num_fit*num_deriv_elem,2),ne,NHST(2),nynp(:,:,:,:)
 !!! local variables
@@ -792,8 +780,6 @@ contains
 
   subroutine update_scale_factor_norm
   
-    use arrays,only: node_versn_2d,node_xyz_2d,num_nodes_2d
-    
 !!! local variables
     integer :: nj,nk,nk1,np,nv
     real(dp) :: SCALE,XD(3),ZERO_TOL=1.0e-12_dp
@@ -827,7 +813,6 @@ contains
 
 !!! copies geometry information from nodes into a local element array
     
-    use arrays,only: elem_nodes_2d,elem_versn_2d,node_xyz_2d,scale_factors_2d
 !!! dummy arguments
     integer,intent(in) :: ne
     real(dp) :: xe(:,:)
@@ -858,7 +843,6 @@ contains
 !!!    node_xyz_2d(nk,nv,nj,np), to the set of data values data_xyz(nj,nd) with
 !!!    weights data_weight(nj,nd) at local coordinate values data_xi(ni,nd).
 
-    use arrays,only: data_weight,data_xyz,scale_factors_2d
 !!! dummy arguments
     integer :: data_on_elem(:,:),ndata_on_elem(:),ne
     real(dp) :: data_xi(:,:),ER(:),PG(:,:,:),WDL(:,:),WG(:),sobelov_wts(0:,:),&
@@ -918,7 +902,6 @@ contains
 !!!    weights data_weight(nj,nd) at local coordinate values data_xi(ni,nd), where
 !!!    nj=NJO.
 
-    use arrays,only: scale_factors_2d
 !!! dummy arguments    
     integer :: ndata_on_elem(:),ne
     real(dp) :: ES(:,:),PG(:,:,:),WDL(:,:),WG(:),sobelov_wts(0:,:),XIDL(:,:)
@@ -999,8 +982,6 @@ contains
     
   subroutine zpze_fit(ne,fit_soln_local,fit_soln)
 
-    use arrays,only: elem_nodes_2d,elem_versn_2d,&
-         scale_factors_2d
 !!! dummy arguments
     integer,intent(in) :: ne
     real(dp) :: fit_soln_local(:,:)
@@ -1026,7 +1007,6 @@ contains
   
   subroutine calculate_ny_maps(npny,num_depvar,nynp,nynr)
   
-    use arrays,only: node_versn_2d,num_nodes_2d
 !!! dummy arguments
     integer :: npny(0:,:),num_depvar,nynp(:,:,:,:),nynr(0:)
 !!! local variables
@@ -1066,8 +1046,6 @@ contains
     
   subroutine define_2d_elements(ELEMFILE)
 
-    use arrays,only: elems_2d,elem_nodes_2d,elem_versn_2d,node_versn_2d,num_elems_2d
-    use geometry,only: get_final_integer,get_four_nodes,element_connectivity_2d
     character(len=*) :: ELEMFILE
     
     !     Local Variables
@@ -1297,7 +1275,6 @@ contains
        elem_list,not_1,not_2,npny,nynp,nynr,nyny,data_xi,cyny,sobelov_wts,&
        fit_soln,fix_bcs)
 
-    use arrays,only: node_xyz_2d
 !!! dummy arguments
     integer :: data_on_elem(:,:),ndata_on_elem(:),not_1,not_2,num_depvar,&
          elem_list(0:),npny(0:,:),nynp(:,:,:,:),nynr(0:),nyny(0:,:)
@@ -1454,7 +1431,6 @@ contains
   
   subroutine project_orthogonal(nd,SQ,xe,xi,inelem)
 
-    use arrays,only: data_xyz
 !!! dummy arguments        
     integer :: nd
     real(dp) :: sq,xe(num_deriv_elem,num_coords),xi(:)

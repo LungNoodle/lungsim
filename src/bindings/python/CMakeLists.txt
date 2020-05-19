@@ -19,7 +19,6 @@ endif()
 
 set(INTERFACE_SRCS
   ../interface/arrays.i
-  ../interface/capillaryflow.i
   ../interface/diagnostics.i
   ../interface/exports.i
   ../interface/filenames.i

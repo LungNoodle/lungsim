@@ -7,9 +7,13 @@ module gas_exchange
 !
 !*Full Description:*
 !More info on what the module does if necessary
-!
+  !
+  use arrays
+  use diagnostics
+  use indices
   use other_consts
-  use arrays, only: dp,zero_tol
+  use precision
+
   implicit none
 
   !Module parameters
@@ -63,10 +67,6 @@ contains
 !
  subroutine initial_gasexchange(initial_concentration,surface_area,V_cap)
  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIAL_GASEXCHANGE" :: INITIAL_GASEXCHANGE
-   use indices
-   use arrays, only: dp,elem_units_below,gasex_field,node_field,num_nodes,&
-         num_units,unit_field
-   use diagnostics, only: enter_exit
 
    !local variables
    real(dp),intent(in) :: initial_concentration
@@ -134,10 +134,6 @@ contains
        p_art_co2,p_art_o2,p_i_o2,p_ven_co2,p_ven_o2,shunt_fraction,&
        VCO2,VO2)
  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_STEADYSTATE_GASEXCHANGE" :: STEADYSTATE_GASEXCHANGE
-    use arrays,only: dp,elem_field,num_units,gasex_field,node_field,units,unit_field,&
-         elem_units_below,elem_nodes
-    use indices
-    use diagnostics, only:enter_exit
 
 !!! Parameter List
     real(dp),intent(in) :: p_i_o2,shunt_fraction,VCO2,VO2

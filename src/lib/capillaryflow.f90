@@ -8,8 +8,16 @@ module capillaryflow
 !
 !*Full Description:*
 !
-!This module handles all microcirculatory blood flow.
-  use other_consts, only: TOLERANCE
+  !This module handles all microcirculatory blood flow.
+
+  use arrays
+  use diagnostics
+  use indices
+  use math_utilities
+  use other_consts
+  use precision
+  use solve
+  
   implicit none
 
 
@@ -56,8 +64,6 @@ contains
 
 !###  UNITS. The units that are used here are m.
 
-    use diagnostics, only: enter_exit
-    use arrays, only:dp,capillary_bf_parameters,num_units
     integer, intent(in) :: ne
     real(dp), intent(inout) :: LPM_FUNC
     real(dp):: Pin,Pout,Q01,R_in,R_out,x,y,z,Lin,Lout,Ppl
@@ -121,9 +127,6 @@ contains
   subroutine evaluate_ladder(ne,NonZeros,MatrixSize,submatrixsize,ngen,&
       area,L_in,L_out,Pin,Pout,Ppl,R_in,R_out,Q01_mthrees,x,y,z, &
       OUTPUT_PERFUSION)
-    use diagnostics, only: enter_exit
-    use solve, only: pmgmres_ilu_cr
-    use arrays, only:dp,capillary_bf_parameters,elem_cnct
 
     type(capillary_bf_parameters) :: cap_param
 
@@ -357,8 +360,6 @@ contains
 subroutine laddersol_matrix(NonZeros,MatrixSize,submatrixsize,&
       SparseCol,SparseRow,SparseVal,RHS,Pin,Pout)
 !*laddersol_matrix:*Sets up ladder matrix entries that are independent of iteration.
-    use diagnostics, only: enter_exit
-    use arrays, only:dp,capillary_bf_parameters
 
     type(capillary_bf_parameters) :: cap_param
 
@@ -493,9 +494,6 @@ subroutine populate_matrix_ladder(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
        area_scale,length_scale,mu_app,Ppl,Pin,Pout,Pressure,&
       Q01_mthrees,Q_sheet,SparseVal,l_a,rad_a,l_v,rad_v)
 !*populate_matrix_ladder:*Sets up ladder matrix entries that are NOT independent of iteration.
-    use diagnostics, only: enter_exit
-    use arrays, only:dp,capillary_bf_parameters
-    use other_consts, only:PI
 
     type(capillary_bf_parameters) :: cap_param
 
@@ -707,9 +705,6 @@ end subroutine populate_matrix_ladder
      zone,Pin_sheet,Pout_sheet,area,area_new,alpha_c,area_scale,&
      length_scale,recruited)
 !*cap_flow_sheet:* Calculates resistance across a capillary sheet.
-    use arrays, only: dp
-    use diagnostics, only: enter_exit
-    use arrays, only:dp,capillary_bf_parameters
 
     type(capillary_bf_parameters) :: cap_param
 
@@ -843,10 +838,6 @@ end subroutine populate_matrix_ladder
 !
 subroutine cap_specific_parameters(ne,Ppl,alpha_c,area_scale,length_scale,l_a,rad_a,l_v,rad_v,ngen,&
     mu_app,R_in,R_out,L_in,L_out)
-    use indices, only: ne_length
-    use arrays, only: dp,elem_field
-    use diagnostics, only: enter_exit
-    use arrays, only:dp,capillary_bf_parameters
 
     type(capillary_bf_parameters) :: cap_param
 
@@ -919,12 +910,6 @@ end subroutine cap_specific_parameters
 subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param,&
   cap_model)
-  use arrays, only: dp,capillary_bf_parameters,elasticity_param,num_units
-  use solve, only: pmgmres_ilu_cr
-  use other_consts, only:PI
-  use diagnostics, only: enter_exit
-  use arrays, only:dp,capillary_bf_parameters,fluid_properties
-  use math_utilities, only: bessel_complex
 
   integer,intent(in) :: ne
   integer,intent(in) :: no_freq
@@ -1463,9 +1448,6 @@ end subroutine cap_flow_admit
 !
 subroutine calc_cap_admit_consth(Hart,Hven,omega,alpha_c,Y,prop_const)
 
-  use diagnostics, only: enter_exit
-  use arrays, only:dp,capillary_bf_parameters
-
   ! Parameters:
   real(dp), intent(in) :: Hart,Hven,omega,alpha_c
   complex(dp), intent(out) :: Y, prop_const
@@ -1502,9 +1484,6 @@ subroutine calc_cap_admit_varh(Hart,Hven,omega_d,alpha_c,Y11,Y12,Y21,Y22,prop_co
 !           1- As of now it will print out the constants from Fung's paper (Pulmonary microvascular impedance-1972)
 !           2- Two port network capillary input admittance components
 
-
-use diagnostics, only: enter_exit
-use arrays, only:dp,capillary_bf_parameters
 
 ! Parameters:
 real(dp), intent(in) :: Hart,Hven,omega_d,alpha_c
@@ -1664,9 +1643,6 @@ subroutine Matrix(N_nodes, ha, hv, omega, stiff1, stiff2, RHS1, RHS2)
 !           1- Stiff1&2: Stiffness matrices based on different sets of fundamental solutions.
 !           2- RHS1&2: Right hand side matrix satisfying the BCs.
 
-use diagnostics, only: enter_exit
-use arrays, only:dp
-
 ! Parameters:
 integer, intent(in) :: N_nodes
 real(dp), intent(in) :: ha,hv,omega
@@ -1767,9 +1743,6 @@ subroutine Mat_to_CC(k,nn,sparsecol,sparserow,sparseval,NonZeros)
 !                - SparseRow ====> An array formed with the Row number of each NonZero in matrix of size(# NonZeros)
 !                - SparseCol ====> An array formed with values to represent row storage. Includes the index numbers of start of each column (Size of array = MatrixSize + 1)
 
-
-use diagnostics, only: enter_exit
-use arrays, only:dp
 
 !Parameters:
 real(dp),  intent(in):: k(2*nn+2,2*nn+2)
