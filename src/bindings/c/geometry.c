@@ -14,6 +14,7 @@ void define_node_geometry_2d_c(const char *NODEFILE, int *filename_len);
 void define_data_geometry_c(const char *DATAFILE, int *filename_len);
 void group_elem_parent_term_c(int *ne_parent);
 void make_data_grid_c(double *spacing, int *to_export, const char *filename, int *filename_len, const char *groupname, int *groupname_len);
+extern void make_2d_vessel_from_1d_c(int *elemlist_len, int elemlist[]);
 void define_rad_from_file_c(const char *FIELDFILE, int *filename_len, const char *radius_type, int *radius_type_len);
 int get_local_node_f_c(const char *ndimension, int *dimension_len, const char *np_global, int *np_global_len);
 void define_rad_from_geom_c(const char *order_system, int *order_system_len, double *control_param,
@@ -23,6 +24,9 @@ void element_connectivity_1d_c(void);
 void evaluate_ordering_c(void);
 void set_initial_volume_c(int *Gdirn, double *COV, double *total_volume, double *Rmax, double *Rmin);
 void volume_of_mesh_c(double *volume_model, double *volume_tree);
+void write_elem_geometry_2d_c(const char *ELEMFILE, int *filename_len);
+void write_geo_file_c(int *ntype, const char *GEOFILE, int *filename_len);
+void write_node_geometry_2d_c(const char *NODEFILE, int *filename_len);
 
 void add_mesh(const char *AIRWAY_MESHFILE)
 {
@@ -88,6 +92,11 @@ void make_data_grid(double spacing, int to_export, const char *filename, const c
   make_data_grid_c(&spacing, &to_export, filename, &filename_len, groupname, &groupname_len);
 }
 
+void make_2d_vessel_from_1d(int elemlist_len, int elemlist[])
+{
+  make_2d_vessel_from_1d_c(elemlist, &elemlist_len);
+}
+
 void define_rad_from_file(const char *FIELDFILE, const char *radius_type)
 {
   int filename_len = (int)strlen(FIELDFILE);
@@ -133,3 +142,22 @@ void volume_of_mesh(double *volume_model, double *volume_tree)
 {
   volume_of_mesh_c(volume_model, volume_tree);
 }
+
+void write_elem_geometry_2d(const char *ELEMFILE)
+{
+  int filename_len = (int)strlen(ELEMFILE);
+  write_elem_geometry_2d_c(ELEMFILE, &filename_len);
+}
+
+void write_geo_file(int ntype, const char *GEOFILE)
+{
+  int filename_len = (int)strlen(GEOFILE);
+  write_geo_file_c(&ntype, GEOFILE, &filename_len);
+}
+
+void write_node_geometry_2d(const char *NODEFILE)
+{
+  int filename_len = (int)strlen(NODEFILE);
+  write_node_geometry_2d_c(NODEFILE, &filename_len);
+}
+

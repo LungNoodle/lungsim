@@ -1,12 +1,12 @@
 module field_utilities
-!*Brief Description:* This module contains all the subroutines that perform general operations
-!on fields
-!*LICENSE:*
-!
-!
-!
-!*Full Description:*
-!More info on what the module does if necessary
+  !*Brief Description:* This module contains all the subroutines that perform general operations
+  !on fields
+  !*LICENSE:*
+  !
+  !
+  !
+  !*Full Description:*
+  !More info on what the module does if necessary
   !
   use arrays
   use diagnostics
@@ -15,28 +15,32 @@ module field_utilities
   use precision
   
   implicit none
-
+  
   !Module parameters
-
+  
   !Module types
-
+  
   !Module variables
-
+  
   !Interfaces
   private
   public scale_flow_to_inlet
-
+  
 contains
 
-!
-!*scale_flow_field* Scales a flow field to an 'inlet flow' value (real units).
+!!!#############################################################################
+  
   subroutine scale_flow_to_inlet(inlet_flow,VorQ)
+    !*scale_flow_field:* Scales a flow field to an 'inlet flow' value (real units).
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SCALE_FLOW_TO_INLET" :: SCALE_FLOW_TO_INLET
 
     real(dp),intent(in) :: inlet_flow
     character(len=1), intent(in) :: VorQ
+    ! Local variables
     real(dp) :: ratio
     character(len=60) :: sub_name
+
+    ! --------------------------------------------------------------------------
 
     sub_name = 'scale_flow_to_inlet'
     call enter_exit(sub_name,1)
@@ -63,6 +67,9 @@ contains
     endif
 
     call enter_exit(sub_name,2)
+    
   end subroutine scale_flow_to_inlet
+
+!!!#############################################################################
 
 end module field_utilities

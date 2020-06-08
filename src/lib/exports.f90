@@ -38,8 +38,21 @@ contains
 !!! Local Variables
     integer :: len_end,ne
     logical :: CHANGED
+    character(len=300) :: writefile
+    character(len=60) :: sub_name
+    
+    ! --------------------------------------------------------------------------
+    
+    sub_name = 'export_1d_elem_field'
+    call enter_exit(sub_name,1)
 
-    open(10, file=EXELEMFILE, status='replace')
+    if(index(EXELEMFILE, ".exelem")> 0) then !full filename is given
+       writefile = EXELEMFILE
+    else ! need to append the correct filename extension
+       writefile = trim(EXELEMFILE)//'.exelem'
+    endif
+    
+    open(10, file=writefile, status='replace')
 
     len_end=len_trim(group_name)
     !**     write the group name
@@ -86,8 +99,22 @@ contains
     integer :: len_end,ne,nj,nn
     character(len=1) :: char1
     logical :: CHANGED
+    character(len=300) :: writefile
+    character(len=60) :: sub_name
+    
+    ! --------------------------------------------------------------------------
+    
+    sub_name = 'export_1d_elem_geometry'
+    call enter_exit(sub_name,1)
 
-    open(10, file=EXELEMFILE, status='replace')
+    if(index(EXELEMFILE, ".exelem")> 0) then !full filename is given
+       writefile = EXELEMFILE
+    else ! need to append the correct filename extension
+       writefile = trim(EXELEMFILE)//'.exelem'
+    endif
+    
+    open(10, file=writefile, status='replace')
+    
     len_end=len_trim(name)
     !**     write the group name
     write(10,'( '' Group name: '',A)') name(:len_end)
@@ -125,6 +152,8 @@ contains
     enddo !no_nelist (ne)
     close(10)
 
+    call enter_exit(sub_name,2)
+    
   end subroutine export_1d_elem_geometry
 
 !
@@ -142,14 +171,19 @@ contains
 !!! Local Variables
     integer :: ne,nj,nk,nl,nn,nn_index(4),np_index(4),numnodes_ex,nvv(4)
     character(len=1) :: char1
-    character(len=200) :: exfile
+    character(len=300) :: writefile
     logical :: CHANGED
     character(len=60) :: sub_name = 'export_elem_geometry_2d'
 
     call enter_exit(sub_name,1)
 
-    exfile = trim(exelemfile)//'.exelem'
-    open(10, file=exfile, status='replace')
+    if(index(EXELEMFILE, ".exelem")> 0) then !full filename is given
+       writefile = EXELEMFILE
+    else ! need to append the correct filename extension
+       writefile = trim(EXELEMFILE)//'.exelem'
+    endif
+    
+    open(10, file=writefile, status='replace')
 
     !**     write the group name
     write(10,'( '' Group name: '',a)') trim(name)
@@ -258,10 +292,23 @@ contains
 !!! Local Variables
     integer :: len_end,nj,np,np_last,VALUE_INDEX
     logical :: FIRST_NODE
+    character(len=300) :: writefile
+    character(len=60) :: sub_name
+    
+    ! --------------------------------------------------------------------------
+    
+    sub_name = 'export_node_geometry'
+    call enter_exit(sub_name,1)
 
+    if(index(EXNODEFILE, ".exnode")> 0) then !full filename is given
+       writefile = EXNODEFILE
+    else ! need to append the correct filename extension
+       writefile = trim(EXNODEFILE)//'.exnode'
+    endif
+    
     len_end=len_trim(name)
     if(num_nodes.GT.0) THEN
-       open(10, file=EXNODEFILE, status='replace')
+       open(10, file=writefile, status='replace')
        !**     write the group name
        write(10,'( '' Group name: '',A)') name(:len_end)
        FIRST_NODE=.TRUE.
@@ -293,6 +340,8 @@ contains
     endif !num_nodes
     close(10)
 
+    call enter_exit(sub_name,2)
+    
   end subroutine export_node_geometry
 
 !
@@ -311,13 +360,19 @@ contains
     !     Local Variables
     integer :: nderiv,nversions,nj,nk,np,np_last,nv,VALUE_INDEX
     logical :: FIRST_NODE
-    character(len=200) :: exfile
+    character(len=300) :: writefile
 
     call enter_exit(sub_name,1)
 
+    if(index(EXNODEFILE, ".exnode")> 0) then !full filename is given
+       writefile = EXNODEFILE
+    else ! need to append the correct filename extension
+       writefile = trim(EXNODEFILE)//'.exnode'
+    endif
+    
     if(num_nodes_2d.gt.0)then
-       exfile = trim(exnodefile)//'.exnode'
-       open(10, file=exfile, status='replace')
+       open(10, file=writefile, status='replace')
+
        !**     write the group name
        WRITE(10,'( '' Group name: '',A)') trim(name)
 
