@@ -186,6 +186,23 @@ contains
 
   end subroutine make_data_grid_c
 
+!!!###################################################################################
+
+  subroutine make_2d_vessel_from_1d_c(elemlist, elemlist_len) bind(C, name="make_2d_vessel_from_1d_c")
+    use geometry, only: make_2d_vessel_from_1d
+    implicit none
+
+    integer,intent(in) :: elemlist_len
+    integer,intent(in) :: elemlist(elemlist_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_make_2d_vessel_from_1d(elemlist)
+#else
+    call make_2d_vessel_from_1d(elemlist)
+#endif
+
+  end subroutine make_2d_vessel_from_1d_c
+  
 !
 !###################################################################################
 !
@@ -399,7 +416,7 @@ contains
 #endif
 
   end subroutine evaluate_ordering_c
-!
+
 !###################################################################################
 !
 !>*set_initial_volume:* assigns a volume to terminal units appended on a tree structure
@@ -455,6 +472,75 @@ contains
 
   end function get_local_node_f_c
 
+!
+!###################################################################################
+!
+  subroutine write_elem_geometry_2d_c(elemfile, filename_len) bind(C, name="write_elem_geometry_2d_c")
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry, only: write_elem_geometry_2d
+    implicit none
+
+    integer,intent(in) :: filename_len
+    type(c_ptr), value, intent(in) :: elemfile
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, elemfile, filename_len)
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_write_elem_geometry_2d(filename_f)
+#else
+    call write_elem_geometry_2d(filename_f)
+#endif
+
+  end subroutine write_elem_geometry_2d_c
+!
+!###################################################################################
+!
+  subroutine write_geo_file_c(ntype, geofile, filename_len) bind(C, name="write_geo_file_c")
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry, only: write_geo_file
+    implicit none
+
+    integer,intent(in) :: ntype, filename_len
+    type(c_ptr), value, intent(in) :: geofile
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, geofile, filename_len)
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_write_geo_file(ntype, filename_f)
+#else
+    call write_geo_file(ntype, filename_f)
+#endif
+
+  end subroutine write_geo_file_c
+!
+!###################################################################################
+!
+  subroutine write_node_geometry_2d_c(nodefile, filename_len) bind(C, name="write_node_geometry_2d_c")
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry, only: write_node_geometry_2d
+    implicit none
+
+    integer,intent(in) :: filename_len
+    type(c_ptr), value, intent(in) :: nodefile
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, nodefile, filename_len)
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_write_node_geometry_2d(filename_f)
+#else
+    call write_node_geometry_2d(filename_f)
+#endif
+
+  end subroutine write_node_geometry_2d_c
+!
+!###################################################################################
+!
 
 end module geometry_c
 
