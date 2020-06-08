@@ -15,7 +15,8 @@ module mesh_functions
 
   public  area_between_three_points,area_between_two_vectors,calc_branch_direction,&
        angle_btwn_vectors,calc_scale_factors_2d,check_colinear_points,cross_product,&
-       distance_between_points,make_plane_from_3points,mesh_a_x_eq_b,ph3,pl1,&
+       distance_between_points,distance_from_plane_to_point,make_plane_from_3points, &
+       mesh_a_x_eq_b,ph3,pl1,&
        point_internal_to_surface,scalar_product_3,scalar_triple_product,scale_mesh,&
        unit_norm_to_plane_two_vectors,unit_norm_to_three_points,unit_vector,&
        vector_length,volume_internal_to_surface
@@ -252,6 +253,23 @@ contains
     end select
 
   end subroutine calc_scale_factors_2d
+  
+!!!###############################################################
+  
+  function distance_from_plane_to_point(P1,P2,P3,P4)
+    
+    !###    calculates the distance from a plane defined by three points
+    !###    and another arbitrary point
+    
+    real(dp),intent(in) :: P1(3),P2(3),P3(3),P4(3)
+    real(dp) :: norml(4)
+    real(dp) :: distance_from_plane_to_point
+
+    call make_plane_from_3points(norml,2,P1,P2,P3)
+    distance_from_plane_to_point = abs(scalar_product_3(norml,P4) + norml(4)) / &
+         sqrt(scalar_product_3(norml,norml))
+    
+  end function distance_from_plane_to_point
   
 !!!###############################################################
   
