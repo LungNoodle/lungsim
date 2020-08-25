@@ -11,8 +11,18 @@
 !> This module contains code specific to running gas mixing problems
 
 module gasmix
-  use arrays,only: dp
+  
+  use arrays
+  use diagnostics
+  use exports
+  use geometry
+  use indices
+  use other_consts
+  use precision
+  use solve
+  
   implicit none
+  
   private airway_mesh_deform
 
   integer,public :: inlet_node = 1
@@ -30,11 +40,6 @@ contains
 !!!#########################################################################
 
   subroutine assemble_gasmix(diffusion_coeff,nonzeros_unreduced)
-
-    use arrays,only: dp,elem_nodes,num_elems
-    use geometry, only: volume_of_mesh
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer,intent(in) :: nonzeros_unreduced
     real(dp),intent(in) :: diffusion_coeff
@@ -80,11 +85,6 @@ contains
 !!!################################################################################
 
   subroutine calc_mass(nj,nu_field,gas_mass)
-    use arrays,only: dp,elem_cnct,elem_nodes,elem_symmetry,&
-         node_field,num_elems,num_nodes,num_units,elem_field,units,unit_field
-    use indices,only: ne_vol,nu_vol
-    use diagnostics, only: enter_exit
-    implicit none
 
     integer,intent(in) :: nj,nu_field
     real(dp) :: gas_mass
@@ -133,10 +133,6 @@ contains
 !!!###################################################################
 
   subroutine element_gasmix(ne,elem_K,elem_M,elem_R,diffusion_coeff)
-    use arrays,only: dp,elem_field,elem_symmetry
-    use indices,only: ne_a_A,ne_length,ne_radius
-    use other_consts
-    implicit none
 
     integer,intent(in) :: ne
     real(dp) :: elem_K(2,2),elem_M(2,2),elem_R(2)
@@ -169,11 +165,6 @@ contains
 
   subroutine initial_gasmix(initial_concentration,inlet_concentration)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIAL_GASMIX" :: INITIAL_GASMIX
-
-    use arrays,only: dp,node_field,num_nodes
-    use indices,only: nj_conc1,nu_conc1
-    use diagnostics, only: enter_exit
-    implicit none
 
     real(dp),intent(in) :: initial_concentration,inlet_concentration
 
@@ -214,8 +205,6 @@ contains
 
   subroutine reduce_gasmix(MatrixSize,NonZeros,noffset_entry,noffset_row,&
        inspiration)
-    use arrays,only: num_nodes
-    implicit none
 
     integer :: MatrixSize,NonZeros,&
          noffset_entry,noffset_row
@@ -270,15 +259,6 @@ contains
 !!! of material point movement); and this is followed by solution of the diffusion equation
 !!! with the advective solution as an initial condition. See Tawhai, M.H., PhD thesis for
 !!! further explanation.
-
-    use arrays,only: dp,node_field,num_nodes
-    use exports,only: export_node_field
-    use indices,only: nj_conc1,nu_conc1
-    use other_consts
-    use diagnostics, only: enter_exit
-    use geometry, only: volume_of_mesh
-    use solve,only: pmgmres_ilu_cr
-    implicit none
 
     integer,intent(in) :: fileid,inr_itr_max,out_itr_max
     real(dp),intent(in) :: diffusion_coeff,dt,initial_volume,&
@@ -439,7 +419,6 @@ contains
 !!!########################################################################
 
   subroutine sparse_gasmix
-    use arrays,only: elem_cnct,elem_nodes,num_elems
 
     implicit none
 
@@ -486,11 +465,6 @@ contains
 !!!####################################################################
 
   subroutine update_unit_mass(dt,inlet_concentration,inlet_flow)
-    use arrays,only: dp,elem_field,elem_nodes,num_units,units,unit_field
-    use indices,only: ne_Vdot,nu_conc1,nu_vol
-    use geometry, only: volume_of_mesh
-    use diagnostics, only: enter_exit
-    implicit none
 
     real(dp),intent(in) :: dt,inlet_concentration,inlet_flow
 
@@ -538,14 +512,6 @@ contains
 !!! when the unit changes volume. If a unit changes in volume, then both the radius
 !!! and length scale as the cube root of volume change. For alveolated airways (where
 !!! a/A is < 1) the outer radius (indexed as nj_radius) is scaled and a/A unchanged.
-
-    use arrays,only: dp,elem_field,elem_nodes,&
-         num_elems,num_units,units,unit_field
-    use indices,only: ne_dvdt,ne_Vdot,ne_length,ne_radius,&
-         ne_vol,nu_conc1,nu_vol
-    use geometry, only: volume_of_mesh
-    use diagnostics, only: enter_exit
-    implicit none
 
     real(dp),intent(in) :: dt,initial_volume,inlet_flow
 
@@ -600,8 +566,6 @@ contains
 !!! ######################################################################
 
   subroutine smooth_expiration(nj_field)
-    use arrays,only: elem_cnct,elem_ordrs,num_elems
-    implicit none
 
     integer,intent(in) :: nj_field
 
@@ -652,9 +616,6 @@ contains
 !!! ######################################################################
 
   subroutine smooth_expiration_linear(nj_field,nsmooth_list,num_smooth)
-    use arrays,only: dp,elem_field,elem_nodes,node_field,num_elems
-    use indices,only: ne_length
-    implicit none
 
 !!! Parameter List
     integer,intent(in) :: nj_field,num_smooth,nsmooth_list(*)
@@ -713,12 +674,6 @@ contains
 
   subroutine transfer_flow_vol_from_units()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_TRANSFER_FLOW_VOL_FROM_UNITS" :: TRANSFER_FLOW_VOL_FROM_UNITS
-
-    use arrays,only: dp,elem_cnct,elem_field,elem_symmetry,&
-         elem_units_below,expansile,units,num_elems,num_units,&
-         unit_field
-    use indices,only: ne_dvdt,ne_Vdot,ne_length,ne_radius,ne_vol,nu_vol
-    implicit none
 
 !!! Parameters
 
@@ -815,10 +770,6 @@ contains
 !!! ##################################################################
 
   subroutine track_back(dt,inlet_concentration,inlet_flow,inspiration)
-    use arrays,only: dp,elem_cnct,elem_field,elem_nodes,elem_symmetry,&
-         elems_at_node,node_field,num_nodes,num_units,unit_field,units
-    use indices,only: ne_dvdt,ne_Vdot,ne_vol,nj_conc1,nu_conc1
-    implicit none
 
 !!! Parameters
     real(dp),intent(in) :: dt,inlet_concentration,inlet_flow
@@ -940,10 +891,6 @@ contains
   subroutine track_to_location(ne,concentration,cumulative_mass,&
        dt,inlet_concentration,inlet_flow)
 
-    use arrays,only: dp,elem_cnct,elem_field,elem_nodes,node_field
-    use indices,only: ne_Vdot,ne_vol,nj_conc1
-    implicit none
-
 !!! Parameters
     integer,intent(in) :: ne
     real(dp),intent(in) :: dt,inlet_concentration,inlet_flow
@@ -1021,10 +968,6 @@ contains
 
   subroutine normalised_slope(num_breaths,dt,t_fit_0,t_fit_1,&
        time_expiration,vol_expired,vol_frc,resultsfile)
-
-    use arrays,only: dp
-
-    implicit none
 
 !!! Parameters
     integer,intent(in) :: num_breaths

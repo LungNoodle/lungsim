@@ -10,8 +10,12 @@
 
 !> This module handles all read and write filenames.
 module filenames
-  use other_consts, only : MAX_FILENAME_LEN
+
+  use diagnostics
+  use other_consts
+  
   implicit none
+  
  !Module parameters
 
   CHARACTER(LEN=MAX_FILENAME_LEN) :: AIRWAY_ELEMFILE,AIRWAY_NODEFILE,AIRWAY_FIELDFILE, &
@@ -51,9 +55,6 @@ contains
 !> reads in output filenames typically used to analyse and visualise ventilation model results
   subroutine read_geometry_evaluate_flow()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_READ_GEOMETRY_EVALUATE_FLOW" :: READ_GEOMETRY_EVALUATE_FLOW
-
-    use diagnostics, only: enter_exit
-    implicit none
 
     ! Input related variables
     character(len=255) :: buffer, label
@@ -111,9 +112,6 @@ contains
 
   subroutine read_geometry_main()
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_READ_GEOMETRY_MAIN" :: READ_GEOMETRY_MAIN
-
-    use diagnostics, only: enter_exit
-    implicit none
 
     ! Input related variables
     character(len=255) :: buffer, label
@@ -187,8 +185,6 @@ contains
 !
   function get_filename(label) result(str)
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GET_FILENAME" :: GET_FILENAME
-    use other_consts, only: MAX_FILENAME_LEN, MAX_STRING_LEN
-    implicit none
 
     character(len=MAX_STRING_LEN), intent(in) :: label
     character(len=MAX_FILENAME_LEN) :: str

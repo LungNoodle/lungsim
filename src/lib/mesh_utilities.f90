@@ -7,19 +7,22 @@ module mesh_utilities
 !!! ALL subroutines and functions in this module are public.
 
 
+  use arrays
   use other_consts
-  use arrays, only: dp,zero_tol
 
   implicit none
 
   private
 
-  public  area_between_three_points,area_between_two_vectors,calc_branch_direction,&
-       angle_btwn_points,angle_btwn_vectors,calc_scale_factors_2d,check_colinear_points,cross_product,&
-       distance_between_points,make_plane_from_3points,mesh_a_x_eq_b,ph3,pl1,&
-       point_internal_to_surface,scalar_product_3,scalar_triple_product,scale_mesh,&
-       unit_norm_to_plane_two_vectors,unit_norm_to_three_points,unit_vector,&
-       vector_length,volume_internal_to_surface
+  public  area_between_three_points,area_between_two_vectors,angle_btwn_points, &
+       angle_btwn_vectors,bifurcation_element,calc_branch_direction, &
+       calc_scale_factors_2d,check_colinear_points,cross_product,&
+       direction_point_to_point,distance_between_points, &
+       distance_from_plane_to_point,make_plane_from_3points, &
+       mesh_a_x_eq_b,ph3,pl1,point_internal_to_surface,scalar_product_3, &
+       scalar_triple_product,scale_mesh,stem_element,terminal_element, &
+       unit_norm_to_plane_two_vectors,unit_norm_to_three_points,unit_vector, &
+       vector_length,volume_internal_to_surface,which_child
 
 contains
 
@@ -73,8 +76,6 @@ contains
     
 !!! calculates the direction of element ne and stores in elem_direction    
     
-    use arrays,only: elem_direction,elem_nodes,node_xyz
-    
     integer,intent(in) :: ne
     
     integer :: np_end,np_start
@@ -95,9 +96,6 @@ contains
 !!! calculates the arclengths and scale factors for 2d surface elements,
 !!! stores in scale_factors_2d
   
-    use arrays,only: arclength,elem_lines_2d,elem_nodes_2d,lines_2d,lines_in_elem,&
-         line_versn_2d,nodes_in_line,node_xyz_2d,num_elems_2d,num_lines_2d,scale_factors_2d
-
     character(len=4),intent(in) :: sf_option
 !!! local variables
     integer,parameter :: num_deriv = 4
@@ -259,6 +257,23 @@ contains
   
 !!!###############################################################
   
+  function distance_from_plane_to_point(P1,P2,P3,P4)
+    
+    !###    calculates the distance from a plane defined by three points
+    !###    and another arbitrary point
+    
+    real(dp),intent(in) :: P1(3),P2(3),P3(3),P4(3)
+    real(dp) :: norml(4)
+    real(dp) :: distance_from_plane_to_point
+
+    call make_plane_from_3points(norml,2,P1,P2,P3)
+    distance_from_plane_to_point = abs(scalar_product_3(norml,P4) + norml(4)) / &
+         sqrt(scalar_product_3(norml,norml))
+    
+  end function distance_from_plane_to_point
+  
+!!!###############################################################
+  
   subroutine make_plane_from_3points(NORML,NORMALTYPE,POINT1,POINT2,POINT3)
     
     !###    make_plane_from_3points finds the equation of a plane in three
@@ -306,8 +321,6 @@ contains
 !!!##################################################
 
   subroutine scale_mesh(scaling,type)
-
-    use arrays,only: node_xyz,node_xyz_2d,scale_factors_2d
 
     real(dp),intent(in) :: scaling
     character(len=2),intent(in) :: type
@@ -554,6 +567,21 @@ contains
     
   end function cross_product
   
+!!! ##########################################################################   
+
+  function direction_point_to_point(point_start,point_end)
+
+    real(dp),intent(in) :: point_start(:),point_end(:)
+
+    real(dp) :: vector(3)
+    real(dp) :: direction_point_to_point(3)
+
+    vector(1:3) = point_end(1:3) - point_start(1:3)
+    vector(1:3) = unit_vector(vector)
+    direction_point_to_point = vector
+
+  end function direction_point_to_point
+
 !!!###############################################################
   
   function scalar_triple_product(A,B,C)
@@ -790,5 +818,84 @@ contains
   end function point_internal_to_surface
 
 
+!!!#############################################################################
+  
+  function terminal_element(ne)
+    !*terminal element:* returns 'true' if a 1d element has no elements adjacent
+    ! in the Xi+1 direction
+    integer,intent(in) :: ne
+    logical :: terminal_element
 
+    ! --------------------------------------------------------------------------
+
+    if(elem_cnct(1,0,ne).eq.0)then
+       terminal_element = .true.
+    else
+       terminal_element = .false.
+    endif
+    
+  end function terminal_element
+
+!!!#############################################################################
+  
+  function stem_element(ne)
+    !*stem element:* returns 'true' if a 1d element has no elements adjacent
+    ! in the Xi-1 direction
+    integer,intent(in) :: ne
+    logical :: stem_element
+
+    ! --------------------------------------------------------------------------
+
+    if(elem_cnct(-1,0,ne).eq.0)then
+       stem_element = .true.
+    else
+       stem_element = .false.
+    endif
+    
+  end function stem_element
+
+!!!#############################################################################
+  
+  function bifurcation_element(ne)
+    !*bifurcation element:* returns 'true' if a 1d element has two elements 
+    ! adjacent in the Xi+1 direction (i.e. parent of a bifurcation)
+    integer,intent(in) :: ne
+    logical :: bifurcation_element
+
+    ! --------------------------------------------------------------------------
+
+    if(ne.eq.0)then
+       bifurcation_element = .false.
+    elseif(elem_cnct(1,0,ne).eq.2)then
+       bifurcation_element = .true.
+    else
+       bifurcation_element = .false.
+    endif
+    
+  end function bifurcation_element
+
+!!!#############################################################################
+  
+  function which_child(ne,ne0)
+    !*which child:* returns '1' if ne is recorded as the first child element of
+    ! element ne0, and '2' if the second
+    integer,intent(in) :: ne,ne0
+    integer :: which_child
+
+    ! --------------------------------------------------------------------------
+
+    if(elem_cnct(1,1,ne0).eq.ne) then
+       which_child = 1
+    elseif(elem_cnct(1,2,ne0).eq.ne) then
+       which_child = 2
+    else
+       write(*,'('' Warning! element'',i6,'' is not a child element of'',i6)') &
+            ne,ne0
+       which_child = 0
+    endif
+    
+  end function which_child
+
+!!!#############################################################################
+  
 end module mesh_utilities
