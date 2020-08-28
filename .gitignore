@@ -36,6 +36,9 @@ CMakeLists.txt.user
 # Eclipse
 .project
 
+#BBEdit
+*.bbproject*
+
 #Linux autosavefiles
 *~
 

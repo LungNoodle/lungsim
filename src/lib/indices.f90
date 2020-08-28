@@ -21,18 +21,18 @@ module indices
   ! indices for elem_ordrs
   integer :: num_ord=4,no_gen=1,no_hord=2,no_sord=3,no_type = 4
   ! indices for node_fields
-  integer :: num_nj,nj_aw_press,nj_bv_press,nj_conc1,&
-       nj_conc2
+  integer :: num_nj,nj_aw_press=0,nj_bv_press=0,nj_conc1=0,&
+       nj_conc2=0
   ! indices for elem_field
-  integer ::num_ne,ne_radius,ne_length,ne_vol,&
-       ne_resist,ne_t_resist,ne_Vdot,ne_Vdot0,ne_a_A,&
-       ne_dvdt,ne_radius_in,ne_radius_in0,&
-       ne_radius_out,ne_radius_out0,ne_group,ne_Qdot, &
-       ne_vd_bel, ne_vol_bel
+  integer ::num_ne,ne_radius=0,ne_length=0,ne_vol=0,&
+       ne_resist=0,ne_t_resist=0,ne_Vdot=0,ne_Vdot0=0,ne_a_A=0,&
+       ne_dvdt=0,ne_radius_in=0,ne_radius_in0=0,&
+       ne_radius_out=0,ne_radius_out0=0,ne_group=0,ne_Qdot=0, &
+       ne_vd_bel=0, ne_vol_bel=0
   ! indices for unit_field
-  integer :: num_nu,nu_vol,nu_comp,nu_conc2,nu_Vdot0,nu_Vdot1, &
-       nu_Vdot2,nu_dpdt,nu_pe,nu_vt,nu_air_press,nu_conc1,nu_vent,&
-       nu_vd,nu_perf,nu_blood_press
+  integer :: num_nu,nu_vol=0,nu_comp=0,nu_conc2=0,nu_Vdot0=0,nu_Vdot1=0, &
+       nu_Vdot2=0,nu_dpdt=0,nu_pe=0,nu_vt=0,nu_air_press=0,nu_conc1=0,nu_vent=0,&
+       nu_vd=0,nu_perf=0,nu_blood_press=0
   !indices for gas exchange field
   ! indices for gasex_field
   integer,parameter :: num_gx = 12

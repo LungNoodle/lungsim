@@ -2588,7 +2588,9 @@ contains
                    radius = (10.0_dp**(log10(ratio_diameter)*dble(norder- &
                         n_max_ord)+log10(2.0_dp*max_radius)))*0.5_dp
                    elem_field(ne_radius,ne) = radius
-                   elem_field(ne_vol,ne) = pi*radius**2*elem_field(ne_length,ne)
+                   if(ne_vol.gt.0)then
+                     elem_field(ne_vol,ne) = pi*radius**2*elem_field(ne_length,ne)
+ 				   endif
                 else
                    ne0 = elem_cnct(-1,1,ne0)
                 endif
@@ -2612,7 +2614,9 @@ contains
           radius = 10.0_dp**(log10(CONTROL_PARAM)*dble(elem_ordrs(nindex,ne) &
                -n_max_ord)+log10(USER_RAD))
           elem_field(ne_radius,ne)=radius
-          elem_field(ne_vol,ne) = pi*radius**2*elem_field(ne_length,ne)
+          if(ne_vol.gt.0)then
+            elem_field(ne_vol,ne) = pi*radius**2*elem_field(ne_length,ne)
+          endif
           if(ne_radius_in.gt.0)then
              elem_field(ne_radius_in,ne)=radius
              elem_field(ne_radius_out,ne)=radius
