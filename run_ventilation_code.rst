@@ -17,7 +17,7 @@
 
 Run ventilation code
 ======================
-We use imaging-based biophysical airway tree and ventilation model to simulate airflow in human airways.
+
 
 
 Requirements
