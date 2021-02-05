@@ -225,7 +225,7 @@ contains
 !
 !###################################################################################
 !
-  subroutine define_data_geometry_c(DATAFILE, filename_len) bind(C, name="define_data_geometry_c")
+  subroutine define_data_geometry_c(DATAFILE, filename_len, is_field, number_of_fields) bind(C, name="define_data_geometry_c")
 
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
@@ -233,19 +233,74 @@ contains
     use geometry, only: define_data_geometry
     implicit none
 
-    integer,intent(in) :: filename_len
+    integer,intent(in) :: filename_len, number_of_fields
     type(c_ptr), value, intent(in) :: DATAFILE
+    logical,intent(in) :: is_field
     character(len=MAX_FILENAME_LEN) :: filename_f
 
     call strncpy(filename_f, DATAFILE, filename_len)
 
 #if defined _WIN32 && defined __INTEL_COMPILER
-    call so_define_data_geometry(filename_f)
+    call so_define_data_geometry(filename_f, is_field, number_of_fields)
 #else
-    call define_data_geometry(filename_f)
+    call define_data_geometry(filename_f, is_field, number_of_fields)
 #endif
 
   end subroutine define_data_geometry_c
+
+!###################################################################################
+!
+  subroutine split_datacloud_c(lobe, to_export) bind(C,name="split_datacloud_c")
+
+    use arrays,only: dp
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use geometry, only: split_datacloud
+    implicit none
+
+    logical,intent(in) :: to_export
+    type(c_ptr), value, intent(in) :: lobe
+
+    character(len=3) :: lobe_f
+    call strncpy(lobe_f, lobe,3)
+
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_split_datacloud(lobe_f , to_export)
+#else
+    call split_datacloud(lobe_f , to_export)
+#endif
+
+  end subroutine split_datacloud_c
+
+
+!###################################################################################
+!
+  subroutine split_datacloudfromSTL_c(STLfile, lobe, to_export) bind(C,name="split_datacloudfromSTL_c")
+
+    use arrays,only: dp
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use geometry, only: split_datacloudfromSTL
+    implicit none
+
+    logical,intent(in) :: to_export
+    type(c_ptr), value, intent(in) :: lobe, STLfile
+
+    character(len=4) :: lobe_f
+    character(len=40) :: STLfile_f
+    call strncpy(lobe_f, lobe,4)
+    call strncpy(STLfile_f, STLfile,40)
+
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_split_datacloudfromSTL(STLfile_f, lobe_f , to_export)
+#else
+    call split_datacloudfromSTL(STLfile_f, lobe_f , to_export)
+#endif
+
+  end subroutine split_datacloudfromSTL_c
+
 
 !
 !###################################################################################

@@ -11,8 +11,10 @@ void define_elem_geometry_2d_c(const char *ELEMFILE, int *filename_len, const ch
 void define_mesh_geometry_test_c(void);
 void define_node_geometry_c(const char *NODEFILE, int *filename_len);
 void define_node_geometry_2d_c(const char *NODEFILE, int *filename_len);
-void define_data_geometry_c(const char *DATAFILE, int *filename_len);
+void define_data_geometry_c(const char *DATAFILE, int *filename_len, int *is_field, int *number_of_fields);
 void group_elem_parent_term_c(int *ne_parent);
+void split_datacloud_c(const char *lobe, int *to_export);
+void split_datacloudfromSTL_c(const char *STLfile, const char *lobe, int *to_export);
 void make_data_grid_c(int *surface_elems, double *spacing, int *to_export, const char *filename, int *filename_len, const char *groupname, int *groupname_len);
 extern void make_2d_vessel_from_1d_c(int *elemlist_len, int elemlist[]);
 void define_rad_from_file_c(const char *FIELDFILE, int *filename_len, const char *radius_type, int *radius_type_len);
@@ -74,16 +76,27 @@ void define_node_geometry_2d(const char *NODEFILE)
   define_node_geometry_2d_c(NODEFILE, &filename_len);
 }
 
-void define_data_geometry(const char *DATAFILE)
+void define_data_geometry(const char *DATAFILE, int is_field, int number_of_fields)
 {
   int filename_len = (int)strlen(DATAFILE);
-  define_data_geometry_c(DATAFILE, &filename_len);
+  define_data_geometry_c(DATAFILE, &filename_len, &is_field, &number_of_fields);
 }
 
 void group_elem_parent_term(int ne_parent)
 {
   group_elem_parent_term_c(&ne_parent);
 }
+
+void split_datacloud(const char *lobe, int to_export)
+{
+  split_datacloud_c(lobe, &to_export);
+}
+
+void split_datacloudfromSTL(const char *STLfile, const char *lobe, int to_export)
+{
+  split_datacloudfromSTL_c(STLfile, lobe, &to_export);
+}
+
 
 void make_data_grid(int surface_elems, double spacing, int to_export, const char *filename, const char *groupname)
 {
