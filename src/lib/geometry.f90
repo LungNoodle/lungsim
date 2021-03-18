@@ -994,14 +994,21 @@ contains
 
 !!!#############################################################################
 
-  subroutine define_data_geometry(datafile)
+  subroutine define_data_geometry(datafile,is_field,number_of_fields)
     !*define_data_geometry:* reads data points from a file
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_DATA_GEOMETRY" :: DEFINE_DATA_GEOMETRY
 
+!   use arrays,only: dp,data_xyz,data_weight,num_data,field_xyz
+!   use diagnostics, only: enter_exit
+!   use indices
+
     character(len=*) :: datafile
     ! Local variables
-    integer :: iend,ierror,length_string,ncount,nj,itemp
+    integer :: iend,ierror,length_string,ncount,nj,itemp,nfield
     character(len=132) :: buffer,readfile
+    logical,intent(in) :: is_field
+    integer, intent(in) :: number_of_fields
+
     character(len=60) :: sub_name
 
     ! --------------------------------------------------------------------------
@@ -1030,7 +1037,8 @@ contains
     if(allocated(data_xyz)) deallocate(data_xyz)
     if(allocated(data_weight)) deallocate(data_weight)
     allocate(data_xyz(3,num_data))
-    allocate(data_weight(3,num_data))
+    allocate(data_weight(3+number_of_fields,num_data))
+    if(.not.allocated(field_xyz)) allocate(field_xyz(number_of_fields,num_data))
     
 !!! read the data point information
     !readfile = trim(datafile)//'.ipdata'
@@ -1061,8 +1069,18 @@ contains
           iend=index(buffer," ",.false.)-1 !index returns location of first blank
           read (buffer(1:iend), '(D25.17)') data_xyz(nj,ncount)
        enddo !nj
-       
-       do nj=1,3
+       if(is_field) then
+         do nfield = 1, number_of_fields
+          ! read field
+          buffer = adjustl(buffer(iend+1:length_string)) !remove data number from string
+          buffer = adjustl(buffer) !remove leading blanks
+          length_string = len(buffer) !new length of buffer
+          iend=index(buffer," ",.false.)-1 !index returns location of first blank
+          read (buffer(1:iend), '(D25.17)') field_xyz(nfield,ncount)
+         enddo
+       endif
+
+       do nj=1,3+(number_of_fields-1)
           !        ! read weightings
           !        buffer = adjustl(buffer(iend+1:length_string)) !remove data number from string
           !        buffer = adjustl(buffer) !remove leading blanks
