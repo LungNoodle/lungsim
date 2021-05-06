@@ -18,7 +18,7 @@ module mesh_utilities
        angle_btwn_vectors,bifurcation_element,calc_branch_direction, &
        calc_scale_factors_2d,check_colinear_points,cross_product,&
        direction_point_to_point,distance_between_points, &
-       distance_from_plane_to_point,make_plane_from_3points, &
+       distance_from_plane_to_point,get_local_elem_2d,make_plane_from_3points, &
        mesh_a_x_eq_b,ph3,pl1,point_internal_to_surface,scalar_product_3, &
        scalar_triple_product,scale_mesh,stem_element,terminal_element, &
        unit_norm_to_plane_two_vectors,unit_norm_to_three_points,unit_vector, &
@@ -581,6 +581,24 @@ contains
     direction_point_to_point = vector
 
   end function direction_point_to_point
+
+!!!#############################################################################
+
+  function get_local_elem_2d(ne_global)
+
+    integer,intent(in) :: ne_global
+    ! Local variables
+    integer :: ne
+    integer :: get_local_elem_2d
+
+    ! --------------------------------------------------------------------------
+
+    get_local_elem_2d = 0
+    do ne = 1,num_elems_2d
+       if(ne_global.eq.elems_2d(ne)) get_local_elem_2d = ne
+    enddo
+
+  end function get_local_elem_2d
 
 !!!###############################################################
   
