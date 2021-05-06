@@ -21,10 +21,153 @@ module exports
   private
   public export_1d_elem_geometry,export_elem_geometry_2d,export_node_geometry,export_node_geometry_2d,&
        export_node_field,export_elem_field,export_terminal_solution,export_terminal_perfusion,&
-       export_terminal_ssgexch,export_1d_elem_field,export_data_geometry
+       export_terminal_ssgexch,export_triangle_elements,export_triangle_nodes,export_1d_elem_field,export_data_geometry
 
 contains
-!!!################################################################
+
+!
+!##############################################################################
+!
+
+  subroutine export_triangle_elements(num_triangles,triangle,EXELEMFILE,groupname)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TRIANGLE_ELEMENTS" :: EXPORT_TRIANGLE_ELEMENTS
+
+!!! Parameters
+    integer :: num_triangles, triangle(:,:)
+    character(len=MAX_FILENAME_LEN),intent(in) :: EXELEMFILE
+    character(len=MAX_STRING_LEN),intent(in) :: groupname
+
+!!! Local Variables
+    integer :: ne,nj,nline,nn
+    character(len=1) :: char1
+    character(len=100) :: writefile
+    character(len=60) :: sub_name
+    
+    ! --------------------------------------------------------------------------
+    
+    sub_name = 'export_triangle_elements'
+    call enter_exit(sub_name,1)
+    
+    if(index(EXELEMFILE, ".exelem")> 0) then !full filename is given
+       writefile = EXELEMFILE
+    else ! need to append the correct filename extension
+       writefile = trim(EXELEMFILE)//'.exelem'
+    endif
+    open(10, file=writefile, status='replace')
+    !**     write the group name
+    write(10,'( '' Group name: '',a10)') groupname
+    !**     write the lines
+    write(10,'( '' Shape. Dimension=1'' )')
+    nline = 0
+    do ne = 1,num_triangles
+       write(10,'( '' Element: 0 0 '',I5)') nline+1
+       write(10,'( '' Element: 0 0 '',I5)') nline+2
+       write(10,'( '' Element: 0 0 '',I5)') nline+3
+       nline = nline+3
+    enddo !ne
+       
+    !**        write the elements
+    write(10,'( '' Shape. Dimension=2, line*line'' )')
+    write(10,'( '' #Scale factor sets=1'' )')
+    write(10,'( '' l.Lagrange*l.Lagrange, #Scale factors=4'' )')
+    write(10,'( '' #Nodes= '',I2 )') 4
+    write(10,'( '' #Fields=1'' )')
+    write(10,'( '' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
+       
+    do nj = 1,3
+       if(nj==1) char1='x'; if(nj==2) char1='y'; if(nj==3) char1='z';
+       write(10,'(''  '',A2,''. l.Lagrange*l.Lagrange, no modify, standard node based.'')') char1
+       write(10,'( ''   #Nodes=4'')')
+       do nn = 1,4
+          write(10,'(''   '',I1,''. #Values=1'')') nn
+          write(10,'(''     Value indices: '',I4)') 1
+          write(10,'(''     Scale factor indices: '',I4)') nn
+       enddo !nn
+    enddo !nj
+       
+    nline = 0
+    do ne = 1,num_triangles
+       !**         write the element
+       write(10,'(1X,''Element: '',I12,'' 0 0'' )') ne
+       !**          write the faces
+       WRITE(10,'(3X,''Faces: '' )')
+       WRITE(10,'(5X,''0 0'',I6)') nline+1
+       WRITE(10,'(5X,''0 0'',I6)') nline+2
+       WRITE(10,'(5X,''0 0'',I6)') nline+3
+       WRITE(10,'(5X,''0 0'',I6)') 0
+       nline = nline+3
+       !**          write the nodes
+       write(10,'(3X,''Nodes:'' )')
+       write(10,'(4X,4(1X,I12))') triangle(:,ne),triangle(3,ne)
+       !**          write the scale factors
+       write(10,'(3X,''Scale factors:'' )')
+       write(10,'(4X,4(1X,E12.5))') 1.0_dp,1.0_dp,1.0_dp,1.0_dp
+    enddo
+    close(10)
+
+    call enter_exit(sub_name,2)
+
+  end subroutine export_triangle_elements
+  
+!
+!##############################################################################
+!
+
+  subroutine export_triangle_nodes(num_vertices, vertex_xyz, EXNODEFILE, groupname)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TRIANGLE_NODES" :: EXPORT_TRIANGLE_NODES
+
+!!! Parameters
+    integer :: num_vertices
+    real(dp) :: vertex_xyz(:,:)
+    character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
+    character(len=MAX_STRING_LEN),intent(in) :: groupname
+
+!!! Local Variables
+    integer :: i,nj
+    character(len=1) :: char1
+    character(len=100) :: writefile
+    character(len=60) :: sub_name
+    
+    ! --------------------------------------------------------------------------
+    
+    sub_name = 'export_triangle_nodes'
+    call enter_exit(sub_name,1)
+    
+    if(index(EXNODEFILE, ".exnode")> 0) then !full filename is given
+       writefile = EXNODEFILE
+    else ! need to append the correct filename extension
+       writefile = trim(EXNODEFILE)//'.exnode'
+    endif
+    open(10, file = writefile, status='replace')
+    !**    write the group name
+    write(10,'( '' Group name: '',A)') trim(groupname)
+    !*** Exporting Geometry
+    !*** Write the field information
+    write(10,'( '' #Fields=1'' )')
+    write(10,'('' 1) coordinates, coordinate, rectangular cartesian, '',&
+         &''#Components=3'')')
+    do nj = 1,3
+       if(nj.eq.1) write(10,'(2X,''x.  '')',advance="no")
+       if(nj.eq.2) write(10,'(2X,''y.  '')',advance="no")
+       if(nj.eq.3) write(10,'(2X,''z.  '')',advance="no")
+       write(10,'(''Value index='',I2,'', #Derivatives='',I1)', &
+            advance="no") nj,0
+       write(10,'()')
+    enddo
+    do i = 1,num_vertices
+       !***    write the node
+       write(10,'(1X,''Node: '',I12)') i
+       write(10,'(2x,3(f12.6))') vertex_xyz(:,i)
+    enddo
+    close(10)
+       
+    call enter_exit(sub_name,2)
+
+  end subroutine export_triangle_nodes
+
+!
+!##############################################################################
+!
 
   subroutine export_1d_elem_field(ne_field, EXELEMFILE, group_name, field_name )
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_1D_ELEM_FIELD" :: EXPORT_1D_ELEM_FIELD
