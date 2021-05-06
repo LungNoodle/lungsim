@@ -39,8 +39,32 @@ module growtree
   !Interfaces
   private
   public grow_tree,smooth_1d_tree
+  public grow_tree_wrap
 
 contains
+
+!!!#############################################################################
+  
+  subroutine grow_tree_wrap(surface_elems,parent_ne,angle_max,angle_min,&
+       branch_fraction,length_limit,shortest_length,rotation_limit)
+    !temporary interface to the grow_tree subroutine until bindings sorted out 
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE_WRAP" :: GROW_TREE_WRAP
+
+!    use growtree,only: grow_tree
+    
+    integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
+    integer,intent(in)  :: parent_ne                ! stem branch that supplies 'parents' to grow from
+    real(dp),intent(in) :: angle_max                ! maximum branch angle with parent; in degrees
+    real(dp),intent(in) :: angle_min                ! minimum branch angle with parent; in degrees
+    real(dp),intent(in) :: branch_fraction          ! fraction of distance (to COFM) to branch
+    real(dp),intent(in) :: length_limit             ! minimum length of a generated branch (shorter == terminal)
+    real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
+    real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
+
+    call grow_tree(surface_elems,parent_ne,angle_max,angle_min, &
+         branch_fraction,length_limit,shortest_length,rotation_limit)
+    
+  end subroutine grow_tree_wrap
 
   !###############################################################
   !
@@ -770,8 +794,8 @@ contains
   !*grow_tree:* the main growing subroutine (public). Genertes a volume-filling
   ! tree into a closed surface.
   !
-  subroutine grow_tree(parent_ne,surface_elems,angle_max,angle_min,&
-       branch_fraction,length_limit,shortest_length,rotation_limit,to_export,filename)
+  subroutine grow_tree(surface_elems,parent_ne,angle_max,angle_min,&
+       branch_fraction,length_limit,shortest_length,rotation_limit)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
 
     integer,intent(in)  :: parent_ne                ! list of end branch elements to grow from
@@ -782,8 +806,8 @@ contains
     real(dp),intent(in) :: length_limit             ! minimum length of a generated branch (shorter == terminal)
     real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
     real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
-    logical,intent(in) :: to_export                 ! option to export terminal element mapping to datapoints
-    character(len=*),intent(in) :: filename
+!    logical,intent(in) :: to_export                 ! option to export terminal element mapping to datapoints
+!    character(len=*),intent(in) :: filename
 
     !Local variables
     integer,allocatable :: local_parent(:)          ! stores current generation of local parent elements
@@ -812,12 +836,12 @@ contains
     call enter_exit(sub_name,1)
 
 
-    if(to_export)then
-       !!! export vertices as nodes
-       writefile = trim(filename)//'.txt'
-       open(40, file = writefile, status='replace')
-       write(40,'('' Data point number          Terminal element number'')')
-    endif
+!    if(to_export)then
+!       !!! export vertices as nodes
+!       writefile = trim(filename)//'.txt'
+!       open(40, file = writefile, status='replace')
+!       write(40,'('' Data point number          Terminal element number'')')
+!    endif
 
 
     call triangles_from_surface(num_triangles,num_vertices,surface_elems,triangle,vertex_xyz)
@@ -974,9 +998,9 @@ contains
                          map_seed_to_elem(nd_min) = 0 ! remove seed point from list
                          map_seed_to_space(nd_min) = ne ! recording element number
 
-                         if(to_export) then
-                           write(40,*) nd_min,ne
-                         endif
+!                         if(to_export) then
+!                           write(40,*) nd_min,ne
+!                         endif
 
                       endif
                    endif !.not.internal
@@ -1019,9 +1043,9 @@ contains
                          map_seed_to_elem(nd_min) = 0 ! remove seed point from list
                          map_seed_to_space(nd_min) = ne ! recording element number
 
-                         if(to_export) then
-                           write(40,*) nd_min,ne
-                         endif
+!                         if(to_export) then
+!                           write(40,*) nd_min,ne
+!                         endif
                       endif
                    endif ! .not.internal
 
@@ -1061,9 +1085,9 @@ contains
 
     enddo ! for each initial parent
 
-    if(to_export)then
-      close(40)
-    endif
+!    if(to_export)then
+!      close(40)
+!    endif
 
 !!! set new total numbers of nodes and elements
     num_nodes=np !highest node # in nr
