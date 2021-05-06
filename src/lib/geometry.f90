@@ -596,9 +596,14 @@ contains
     end do read_number_of_elements
     
     num_elems_2d=number_of_elements
-    if(.not.allocated(elems_2d)) allocate(elems_2d(num_elems_2d))
-    if(.not.allocated(elem_nodes_2d)) allocate(elem_nodes_2d(4,num_elems_2d))
-    if(.not.allocated(elem_versn_2d)) allocate(elem_versn_2d(4,num_elems_2d))
+    if(allocated(elems_2d))then
+       deallocate(elems_2d)
+       deallocate(elem_nodes_2d)
+       deallocate(elem_versn_2d)
+    endif
+    allocate(elems_2d(num_elems_2d))
+    allocate(elem_nodes_2d(4,num_elems_2d))
+    allocate(elem_versn_2d(4,num_elems_2d))
     
     ne = 0
     
@@ -931,9 +936,14 @@ contains
     end do read_number_of_nodes
     
 !!!allocate memory to arrays that require node number
-    if(.not.allocated(nodes_2d)) allocate(nodes_2d(num_nodes_2d))
-    if(.not.allocated(node_xyz_2d)) allocate(node_xyz_2d(4,10,16,num_nodes_2d))
-    if(.not.allocated(node_versn_2d)) allocate(node_versn_2d(num_nodes_2d))
+    if(allocated(nodes_2d))then ! deallocate
+       deallocate(nodes_2d)
+       deallocate(node_xyz_2d)
+       deallocate(node_versn_2d)
+    endif
+    allocate(nodes_2d(num_nodes_2d))
+    allocate(node_xyz_2d(4,10,3,num_nodes_2d))
+    allocate(node_versn_2d(num_nodes_2d))
     
     !.....read the coordinate, derivative, and version information for each node. 
     np=0
@@ -1009,12 +1019,15 @@ contains
     sub_name = 'define_data_geometry'
     call enter_exit(sub_name,1)
     
+    if(index(datafile, ".ipdata")> 0) then !full filename is given
+       readfile = datafile
+    else ! need to append the correct filename extension
+       readfile = trim(datafile)//'.ipdata'
+    endif    !readfile = trim(datafile)//'.ipdata'
+    open(10, file=readfile, status='old')
+    
     !set the counted number of data points to zero
     ncount = 0
-    
-    !readfile = trim(datafile)//'.ipdata'
-    open(10, file=datafile, status='old')
-    read(unit=10, fmt="(a)", iostat=ierror) buffer
     
 !!! first run through to count the number of data points
     read_line_to_count : do
@@ -1033,8 +1046,7 @@ contains
     allocate(data_weight(3,num_data))
     
 !!! read the data point information
-    !readfile = trim(datafile)//'.ipdata'
-    open(10, file=datafile, status='old')
+    open(10, file=readfile, status='old')
     read(unit=10, fmt="(a)", iostat=ierror) buffer
     
     !set the counted number of data points to zero
@@ -1217,21 +1229,23 @@ contains
 
 !!!#############################################################################
   
-  subroutine make_data_grid(surface_elems,spacing,to_export,filename,groupname)
+  subroutine make_data_grid(surface_elems, offset, spacing, filename, groupname)
     !*make_data_grid:* makes a regularly-spaced 3D grid of data points to
     ! fill a bounding surface 
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_MAKE_DATA_GRID" :: MAKE_DATA_GRID
+
+    use exports,only: export_triangle_elements,export_triangle_nodes
     
     integer,intent(in) :: surface_elems(:)
-    real(dp),intent(in) :: spacing
-    logical,intent(in) :: to_export
+     real(dp),intent(in) :: offset, spacing
+    logical :: to_export = .true.
     character(len=*),intent(in) :: filename
     character(len=*),intent(in) :: groupname
     ! Local Variables
     integer :: i,j,k,ne,nj,nline,nn,num_data_estimate,num_triangles,num_vertices
-    integer,allocatable :: triangle(:,:)
-    real(dp) :: cofm_surfaces(3),boxrange(3),max_bound(3),min_bound(3), &
-         offset=-2.0_dp,point_xyz(3),scale_mesh,translate(3)
+    integer,allocatable :: elem_list(:),triangle(:,:)
+    real(dp) :: cofm1(3),cofm2(3),boxrange(3),max_bound(3),min_bound(3), &
+         point_xyz(3),scale_mesh
     real(dp),allocatable :: data_temp(:,:),vertex_xyz(:,:)
     logical :: internal
     character(len=1) :: char1
@@ -1243,19 +1257,29 @@ contains
     sub_name = 'make_data_grid'
     call enter_exit(sub_name,1)
     
-    call triangles_from_surface(num_triangles,num_vertices,surface_elems, &
+    allocate(elem_list(count(surface_elems.ne.0)))
+    do i = 1,count(surface_elems.ne.0)
+       elem_list(i) = get_local_elem_2d(surface_elems(i))
+    enddo
+
+    call triangles_from_surface(num_triangles,num_vertices,elem_list, &
          triangle,vertex_xyz)
 
-    if(offset.gt.0.0_dp)then
-!!! generate within a scaled mesh, then return to original size afterwards
-!!! this option is used when we don't want the seed points too close to the boundary
-       scale_mesh = 1.0_dp-(offset/100.0_dp)
-       cofm_surfaces = sum(vertex_xyz,dim=2)/size(vertex_xyz,dim=2)
-       translate = cofm_surfaces * (scale_mesh - 1.0_dp)
-       forall (i=1:num_vertices) vertex_xyz(1:3,i) = &
-            vertex_xyz(1:3,i)*scale_mesh + translate(1:3)
+    if(to_export)then
+!!! export vertices as nodes
+       call export_triangle_nodes(num_vertices,vertex_xyz,filename,groupname)
+!!! export the triangles as surface elements
+       call export_triangle_elements(num_triangles,triangle,filename,groupname)
     endif
     
+    scale_mesh = 1.0_dp-(offset/100.0_dp)
+    cofm1 = sum(vertex_xyz,dim=2)/num_vertices
+    forall (i = 1:num_vertices) vertex_xyz(1:3,i) = &
+         vertex_xyz(1:3,i)*scale_mesh
+    cofm2 = cofm1 * scale_mesh
+    forall (i = 1:num_vertices) vertex_xyz(1:3,i) = &
+         vertex_xyz(1:3,i) - (cofm2(1:3)-cofm1(1:3))
+
 !!! find the bounding coordinates for the surface mesh
     
     min_bound = minval(vertex_xyz,2)
@@ -1319,96 +1343,11 @@ contains
     if(allocated(data_weight)) deallocate(data_weight)
     allocate(data_weight(3,num_data))
     data_weight(:,1:num_data) = 1.0_dp
-    if(offset .gt. 0.0_dp)then
-!!! return the triangles to their original size and location
-       forall (i=1:3) vertex_xyz(1:3,i) = (vertex_xyz(1:3,i) - &
-            translate(1:3))/scale_mesh
-    endif
-    
-    if(to_export)then
-!!! export vertices as nodes
-       writefile = trim(filename)//'.exnode'
-       open(10, file = writefile, status='replace')
-       !**    write the group name
-       write(10,'( '' Group name: '',A)') trim(groupname)
-       !*** Exporting Geometry
-       !*** Write the field information
-       write(10,'( '' #Fields=1'' )')
-       write(10,'('' 1) coordinates, coordinate, rectangular cartesian, '',&
-            &''#Components=3'')')
-       do nj=1,3
-          if(nj.eq.1) write(10,'(2X,''x.  '')',advance="no")
-          if(nj.eq.2) write(10,'(2X,''y.  '')',advance="no")
-          if(nj.eq.3) write(10,'(2X,''z.  '')',advance="no")
-          write(10,'(''Value index='',I2,'', #Derivatives='',I1)', &
-               advance="no") nj,0
-          write(10,'()')
-       enddo
-       do i = 1,num_vertices
-          !***    write the node
-          write(10,'(1X,''Node: '',I12)') i
-          write(10,'(2x,3(f12.6))') vertex_xyz(:,i)
-       enddo
-       close(10)
-       
-!!! export the triangles as surface elements
-       writefile = trim(filename)//'.exelem'
-       open(10, file=writefile, status='replace')
-       !**     write the group name
-       write(10,'( '' Group name: '',a10)') groupname
-       !**     write the lines
-       write(10,'( '' Shape. Dimension=1'' )')
-       nline=0
-       do ne = 1,num_triangles
-          write(10,'( '' Element: 0 0 '',I5)') nline+1
-          write(10,'( '' Element: 0 0 '',I5)') nline+2
-          write(10,'( '' Element: 0 0 '',I5)') nline+3
-          nline=nline+3
-       enddo !ne
-       
-       !**        write the elements
-       write(10,'( '' Shape. Dimension=2, line*line'' )')
-       write(10,'( '' #Scale factor sets=1'' )')
-       write(10,'( '' l.Lagrange*l.Lagrange, #Scale factors=4'' )')
-       write(10,'( '' #Nodes= '',I2 )') 4
-       write(10,'( '' #Fields=1'' )')
-       write(10,'( '' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
-       
-       do nj=1,3
-          if(nj==1) char1='x'; if(nj==2) char1='y'; if(nj==3) char1='z';
-          write(10,'(''  '',A2,''. l.Lagrange*l.Lagrange, no modify, standard node based.'')') char1
-          write(10,'( ''   #Nodes=4'')')
-          do nn=1,4
-             write(10,'(''   '',I1,''. #Values=1'')') nn
-             write(10,'(''     Value indices: '',I4)') 1
-             write(10,'(''     Scale factor indices: '',I4)') nn
-          enddo !nn
-       enddo !nj
-       
-       nline=0
-       do ne=1,num_triangles
-          !**         write the element
-          write(10,'(1X,''Element: '',I12,'' 0 0'' )') ne
-          !**          write the faces
-          WRITE(10,'(3X,''Faces: '' )')
-          WRITE(10,'(5X,''0 0'',I6)') nline+1
-          WRITE(10,'(5X,''0 0'',I6)') nline+2
-          WRITE(10,'(5X,''0 0'',I6)') nline+3
-          WRITE(10,'(5X,''0 0'',I6)') 0
-          nline=nline+3
-          !**          write the nodes
-          write(10,'(3X,''Nodes:'' )')
-          write(10,'(4X,4(1X,I12))') triangle(:,ne),triangle(3,ne)
-          !**          write the scale factors
-          write(10,'(3X,''Scale factors:'' )')
-          write(10,'(4X,4(1X,E12.5))') 1.0_dp,1.0_dp,1.0_dp,1.0_dp
-       enddo
-       close(10)
-    endif
-    
+
     deallocate(triangle)
     deallocate(vertex_xyz)
-    
+    deallocate(elem_list)
+   
     call enter_exit(sub_name,2)
     
   end subroutine make_data_grid
