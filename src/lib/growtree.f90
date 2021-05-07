@@ -22,7 +22,6 @@ module growtree
 
   use arrays
   use diagnostics
-  use geometry
   use indices
   use other_consts   !! pi
   use mesh_utilities   !! general functions for geometric/mesh calculations
@@ -38,33 +37,9 @@ module growtree
 
   !Interfaces
   private
-  public grow_tree,smooth_1d_tree
-  public grow_tree_wrap
+  public grow_recursive_tree,smooth_1d_tree
 
 contains
-
-!!!#############################################################################
-  
-  subroutine grow_tree_wrap(surface_elems,parent_ne,angle_max,angle_min,&
-       branch_fraction,length_limit,shortest_length,rotation_limit)
-    !temporary interface to the grow_tree subroutine until bindings sorted out 
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE_WRAP" :: GROW_TREE_WRAP
-
-!    use growtree,only: grow_tree
-    
-    integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
-    integer,intent(in)  :: parent_ne                ! stem branch that supplies 'parents' to grow from
-    real(dp),intent(in) :: angle_max                ! maximum branch angle with parent; in degrees
-    real(dp),intent(in) :: angle_min                ! minimum branch angle with parent; in degrees
-    real(dp),intent(in) :: branch_fraction          ! fraction of distance (to COFM) to branch
-    real(dp),intent(in) :: length_limit             ! minimum length of a generated branch (shorter == terminal)
-    real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
-    real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
-
-    call grow_tree(surface_elems,parent_ne,angle_max,angle_min, &
-         branch_fraction,length_limit,shortest_length,rotation_limit)
-    
-  end subroutine grow_tree_wrap
 
   !###############################################################
   !
@@ -791,23 +766,26 @@ contains
 
   !###############################################################
   !
-  !*grow_tree:* the main growing subroutine (public). Genertes a volume-filling
+  !*grow_recursive_tree:* the main growing subroutine (public). Genertes a volume-filling
   ! tree into a closed surface.
   !
-  subroutine grow_tree(surface_elems,parent_ne,angle_max,angle_min,&
-       branch_fraction,length_limit,shortest_length,rotation_limit)
+  subroutine grow_recursive_tree(num_elems_new,num_vertices,surface_elems,parent_list, &
+       parent_ne,triangle,angle_max,angle_min, &
+       branch_fraction,length_limit,shortest_length,rotation_limit,vertex_xyz)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
 
-    integer,intent(in)  :: parent_ne                ! list of end branch elements to grow from
+    integer,intent(in)  :: num_vertices,num_elems_new
+    integer,intent(in)  :: parent_list(:)           ! list of end branch elements to grow from
+    integer,intent(in)  :: parent_ne                ! the stem branch element (e.g. lobar) that subtends the list
     integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
+    integer,intent(in)  :: triangle(:,:)
     real(dp),intent(in) :: angle_max                ! maximum branch angle with parent; in degrees
     real(dp),intent(in) :: angle_min                ! minimum branch angle with parent; in degrees
     real(dp),intent(in) :: branch_fraction          ! fraction of distance (to COFM) to branch
     real(dp),intent(in) :: length_limit             ! minimum length of a generated branch (shorter == terminal)
     real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
     real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
-!    logical,intent(in) :: to_export                 ! option to export terminal element mapping to datapoints
-!    character(len=*),intent(in) :: filename
+    real(dp),intent(in) :: vertex_xyz(:,:)
 
     !Local variables
     integer,allocatable :: local_parent(:)          ! stores current generation of local parent elements
@@ -815,14 +793,12 @@ contains
     integer,allocatable :: map_seed_to_elem(:)      ! records current elem associated w. data points
     integer,allocatable :: map_seed_to_space(:)     ! records initial elem associated w. data points (the 'space')
     integer,allocatable :: num_seeds_from_elem(:)   ! records # of seeds currently grouped with an elem
-    integer,allocatable :: triangle(:,:)
     character(len=100) :: writefile
 
     integer :: i,j,kount,M,N,nd,nd_min,ne,ne_grnd_parent,ne_parent,ne_stem,&
          noelem_parent,np,np_start,np_prnt_start,np_grnd_start,num_seeds_in_space,num_next_parents, &
-         num_parents,num_triangles,num_vertices,num_elems_new,num_nodes_new,num_terminal
+         num_parents,num_terminal
 
-    real(dp),allocatable :: vertex_xyz(:,:)
     real(dp),dimension(3) :: COFM,candidate_xyz
     real(dp) :: distance_limit = 300.0_dp,length_parent
 
@@ -832,27 +808,8 @@ contains
 
     character(len=60) :: sub_name
 
-    sub_name = 'grow_tree'
+    sub_name = 'grow_recursive_tree'
     call enter_exit(sub_name,1)
-
-
-!    if(to_export)then
-!       !!! export vertices as nodes
-!       writefile = trim(filename)//'.txt'
-!       open(40, file = writefile, status='replace')
-!       write(40,'('' Data point number          Terminal element number'')')
-!    endif
-
-
-    call triangles_from_surface(num_triangles,num_vertices,surface_elems,triangle,vertex_xyz)
-
-!!! We can estimate the number of elements in the generated model based on the
-!!! number of data (seed) points. i.e. N = 2*N_data - 1. So the total number of
-!!! elements following tree generation will be ~ num_elems + 2*num_data. Use this estimate
-!!! to increase the node and element arrays.
-    num_elems_new = num_elems + 2*num_data + 100
-    num_nodes_new = num_nodes + 2*num_data + 100
-    call reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
 
 !!! Allocate memory for temporary arrays (need a more intelligent way of estimating size!)
     allocate(local_parent_temp(num_elems_new))
@@ -863,12 +820,11 @@ contains
 
 !!! Initialise local_parent to the list of parent elements, and num_parents (current
 !!! number of parent branches) to the number of parent branches.
-    local_parent(1:size(parentlist)) = parentlist(1:size(parentlist))
-    num_parents = count(parentlist.ne.0) !initial number of 'terminal' parent branches
+    local_parent(1:size(parent_list)) = parent_list(1:size(parent_list))
+    num_parents = count(parent_list.ne.0) !initial number of 'terminal' parent branches
 
     NUM_SEEDS_FROM_ELEM = 0
     num_next_parents = num_parents
-
 
 !!! Calculate the initial grouping of data points with terminal elements
 !!! this defines the 'space' with which each seed is associated
@@ -876,13 +832,11 @@ contains
 !!! it; for multiple parents 'group_seeds_with_branch' used to be called to calculate
 !!! the closest parent end-point to each seed point. This has been replaced by splitting
 !!! seed points using the orthogonal to branching planes of the upper tree.
-    map_seed_to_space(1:num_data) = parentlist(1) !#! this is done for the new-style growing (full grow per terminal)
+    map_seed_to_space(1:num_data) = parent_list(1) !#! this is done for the new-style growing (full grow per terminal)
     if(num_parents.gt.1)then
        first_group = .true.
-!       call group_seeds_with_branch(map_seed_to_space,num_next_parents,num_seeds_from_elem,&
-       !            num_terminal,local_parent,500.0_dp,first_group)
        call split_seed_points_initial(map_seed_to_space,parent_ne)
-    endif !parentlist.gt.1
+    endif !parent_list.gt.1
     first_group = .false.
 
     WRITE(*,'(''  parent  #seeds  #terminal'')')
@@ -897,7 +851,7 @@ contains
 !!! the size of the initial terminal branches. e.g. smaller diameter --> smaller set of seeds
 
     do noelem_parent = 1,num_parents
-       ne_stem = parentlist(noelem_parent) ! the 'stem' parent element for the 'space'
+       ne_stem = parent_list(noelem_parent) ! the 'stem' parent element for the 'space'
        map_seed_to_elem = 0 ! initialise the seed mapping array
        num_seeds_in_space = 0 !initialise the number of seed points in the 'space'
        do nd = 1,num_data ! for all of the seed points (stored in data_xyz array)
@@ -997,11 +951,6 @@ contains
                          nd_min = closest_seed_to_node_in_group(map_seed_to_elem,ne,np) ! closest seed point
                          map_seed_to_elem(nd_min) = 0 ! remove seed point from list
                          map_seed_to_space(nd_min) = ne ! recording element number
-
-!                         if(to_export) then
-!                           write(40,*) nd_min,ne
-!                         endif
-
                       endif
                    endif !.not.internal
 
@@ -1042,10 +991,6 @@ contains
                          nd_min = closest_seed_to_node_in_group(map_seed_to_elem,ne-1,np-1) ! closest seed point
                          map_seed_to_elem(nd_min) = 0 ! remove seed point from list
                          map_seed_to_space(nd_min) = ne ! recording element number
-
-!                         if(to_export) then
-!                           write(40,*) nd_min,ne
-!                         endif
                       endif
                    endif ! .not.internal
 
@@ -1085,21 +1030,11 @@ contains
 
     enddo ! for each initial parent
 
-!    if(to_export)then
-!      close(40)
-!    endif
-
 !!! set new total numbers of nodes and elements
     num_nodes=np !highest node # in nr
     num_elems=ne !highest element # in nr
 
-!!! update the tree connectivity
-    call element_connectivity_1d
-!!! calculate branch generations and orders
-    call evaluate_ordering
 !!! deallocate temporary arrays
-    deallocate(vertex_xyz)
-    deallocate(triangle)
     deallocate(local_parent_temp)
     deallocate(local_parent)
     deallocate(map_seed_to_elem)
@@ -1107,7 +1042,8 @@ contains
     deallocate(num_seeds_from_elem)
 
     call enter_exit(sub_name,2)
-  end subroutine grow_tree
+    
+  end subroutine grow_recursive_tree
 
 
   !###############################################################

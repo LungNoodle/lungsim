@@ -13,7 +13,7 @@ SHO_PUBLIC void define_mesh_geometry_test();
 SHO_PUBLIC void define_node_geometry(const char *NODEFILE);
 SHO_PUBLIC void define_node_geometry_2d(const char *NODEFILE);
 SHO_PUBLIC void define_data_geometry(const char *DATAFILE);
-SHO_PUBLIC void group_elem_parent_term(int ne_parent);
+SHO_PUBLIC void grow_tree(int elemlist_len, int elemlist[], int parent_ne, double angle_max, double angle_min, double branch_fraction, double length_limit, double shortest_length, double rotation_limit);
 SHO_PUBLIC void make_data_grid(int elemlist_len, int elemlist[], double offset, double spacing, const char *filename, const char *groupname);
 SHO_PUBLIC void make_2d_vessel_from_1d(int elemlist_len, int elemlist[]);
 SHO_PUBLIC void define_rad_from_file(const char *FIELDFILE, const char *radius_type);

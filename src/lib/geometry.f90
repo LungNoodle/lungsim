@@ -1,5 +1,5 @@
 module geometry
-  !*Brief Description:* This module handles all geometry read/write/generation.
+  !*Brief Description:* This module handles all geometry read/write/tree generation.
   !
   !*LICENSE:*
   !
@@ -34,15 +34,15 @@ module geometry
   public define_node_geometry
   public define_node_geometry_2d
   public define_data_geometry
-  public group_elem_parent_term
   public define_rad_from_file
   public define_rad_from_geom
   public element_connectivity_1d
   public element_connectivity_2d
-  public inlist
   public evaluate_ordering
   public get_final_real
   public get_local_node_f
+  public group_elem_parent_term
+  public grow_tree
   public make_data_grid
   public make_2d_vessel_from_1d
   public reallocate_node_elem_arrays
@@ -1095,6 +1095,70 @@ contains
   end subroutine define_data_geometry
 
 !!!#############################################################################
+  
+  subroutine grow_tree(surface_elems,parent_ne,angle_max,angle_min,&
+       branch_fraction,length_limit,shortest_length,rotation_limit)
+    !interface to the grow_recursive_tree subroutine 
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
+
+    use growtree,only: grow_recursive_tree
+    
+    integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
+    integer,intent(in)  :: parent_ne                ! stem branch that supplies 'parents' to grow from
+    real(dp),intent(in) :: angle_max                ! maximum branch angle with parent; in degrees
+    real(dp),intent(in) :: angle_min                ! minimum branch angle with parent; in degrees
+    real(dp),intent(in) :: branch_fraction          ! fraction of distance (to COFM) to branch
+    real(dp),intent(in) :: length_limit             ! minimum length of a generated branch (shorter == terminal)
+    real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
+    real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
+
+    integer :: i,num_elems_new,num_nodes_new,num_triangles,num_vertices
+    integer,allocatable :: elem_list(:), parent_list(:), triangle(:,:)
+    real(dp),allocatable :: vertex_xyz(:,:)
+
+!!! allocate temporary arrays
+    allocate(parent_list(num_elems))
+    parent_list = 0
+    allocate(elem_list(count(surface_elems.ne.0)))
+
+!!! get the list of local surface element numbers from the global list
+    do i = 1,count(surface_elems.ne.0)
+       elem_list(i) = get_local_elem_2d(surface_elems(i))
+    enddo
+
+!!! get the list of current terminal elements that subtend parent_ne.
+!!! these will be the initial branches for growing
+    call group_elem_parent_term(parent_list,parent_ne) 
+
+!!! make a linear triangulated mesh over the surface elements
+    call triangles_from_surface(num_triangles,num_vertices,elem_list,triangle,vertex_xyz)
+
+!!! estimate the number of elements in the generated model based on the
+!!! number of data (seed) points. i.e. N = 2*N_data - 1.
+    num_elems_new = num_elems + 2*num_data + 100
+    num_nodes_new = num_nodes + 2*num_data + 100
+
+!!! reallocate arrays using the estimated generated model size
+    call reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
+
+!!! generate a branching tree inside the triangulated mesh
+    call grow_recursive_tree(num_elems_new,num_vertices,elem_list,parent_list, &
+         parent_ne,triangle,angle_max,angle_min, &
+         branch_fraction,length_limit,shortest_length,rotation_limit,vertex_xyz)
+
+!!! update the tree connectivity
+    call element_connectivity_1d
+    
+!!! calculate branch generations and orders
+    call evaluate_ordering
+
+!!! deallocate temporary arrays
+    deallocate(elem_list)
+    deallocate(parent_list)
+    
+  end subroutine grow_tree
+
+!!!#############################################################################
 
   subroutine triangles_from_surface(num_triangles,num_vertices,surface_elems, &
        triangle,vertex_xyz)
@@ -1118,7 +1182,7 @@ contains
 
     sub_name = 'triangles_from_surface'
     call enter_exit(sub_name,1)
-    
+
     if(allocated(triangle)) deallocate(triangle)
     allocate(triangle(3,2*num_elems_2d*ndiv**2))
     if(allocated(vertex_xyz)) deallocate(vertex_xyz)
@@ -1187,7 +1251,7 @@ contains
           index2 = 1
           index1 = 2
        end select
-       
+
        xi(index2) = 0.0_dp
        do i = 1,nmax_2
           xi(index1) = 0.0_dp
@@ -1230,6 +1294,51 @@ contains
     
   end subroutine triangles_from_surface
 
+!!!#############################################################################
+
+  subroutine group_elem_parent_term(parent_list,ne_parent)
+    !*group_elem_parent_term:* group the terminal elements that sit distal to
+    !  a given parent element (ne_parent)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_ELEM_PARENT_TERM" :: GROUP_ELEM_PARENT_TERM
+
+    use mesh_utilities,only: group_elem_by_parent
+    
+    integer :: parent_list(:) ! will contain terminal elements below ne_parent on exit
+    integer,intent(in) :: ne_parent  ! the parent element number
+    ! Local Variables
+    integer :: ne,ne_count,noelem,num_parents
+    integer,allocatable :: templist(:)
+    character(len=60) :: sub_name
+    
+    ! --------------------------------------------------------------------------
+
+    sub_name = 'group_elem_parent_term'
+    call enter_exit(sub_name,1)
+    
+    allocate(templist(num_elems))
+    !if(.not.allocated(parentlist)) allocate(parentlist(num_elems))
+    
+    ! get the list of elements that are subtended by ne_parent
+    call group_elem_by_parent(ne_parent,templist)
+    
+    ne_count = count(templist.ne.0) ! number of subtended elements
+    num_parents = 0
+!    parentlist=0
+    
+    do noelem = 1,ne_count
+       ne = templist(noelem)
+       if(elem_cnct(1,0,ne).eq.0)then
+          num_parents = num_parents+1
+          parent_list(num_parents)=ne
+       endif !elem_cnct
+    enddo !noelem
+    
+    deallocate(templist)
+    
+    call enter_exit(sub_name,2)
+    
+  end subroutine group_elem_parent_term
+  
 !!!#############################################################################
   
   subroutine make_data_grid(surface_elems, offset, spacing, filename, groupname)
@@ -3499,99 +3608,6 @@ contains
   end subroutine geo_node_offset
   
 !!!#############################################################################
-
-  subroutine group_elem_parent_term(ne_parent)
-    !*group_elem_parent_term:* group the terminal elements that sit distal to
-    !  a given parent element (ne_parent)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_ELEM_PARENT_TERM" :: GROUP_ELEM_PARENT_TERM
-    
-    integer,intent(in) :: ne_parent  ! the parent element number
-    ! Local Variables
-    integer :: ne,ne_count,noelem,num_parents
-    integer,allocatable :: templist(:)
-    character(len=60) :: sub_name
-    
-    ! --------------------------------------------------------------------------
-
-    sub_name = 'group_elem_parent_term'
-    call enter_exit(sub_name,1)
-    
-    allocate(templist(num_elems))
-    if(.not.allocated(parentlist)) allocate(parentlist(num_elems))
-    
-    !reset the list of parent elements to zero
-    call group_elem_by_parent(ne_parent,templist)
-    
-    ne_count=count(templist.ne.0)
-    num_parents=0
-    parentlist=0
-    
-    do noelem=1,ne_count
-       ne = templist(noelem)
-       if(elem_cnct(1,0,ne).eq.0)then
-          num_parents=num_parents+1
-          parentlist(num_parents)=ne
-       endif !elem_cnct
-    enddo !noelem
-    
-    deallocate(templist)
-    
-    call enter_exit(sub_name,2)
-    
-  end subroutine group_elem_parent_term
-  
-!!!#############################################################################
-
-  subroutine group_elem_by_parent(ne_parent,elemlist)
-    !*group_elem_by_parent:* group elements that sit distal to a given
-    ! parent element (ne_parent)
-
-    integer,intent(in) :: ne_parent  ! the parent element number
-    integer :: elemlist(:)
-    ! Local Variables
-    integer :: nt_bns,ne_count,num_nodes,m,n,ne0
-    integer,allocatable :: ne_old(:),ne_temp(:)
-    character(len=60) :: sub_name
-
-    ! --------------------------------------------------------------------------
-    
-    sub_name='group_elem_by_parent'
-    call enter_exit(sub_name,1)
-    
-    elemlist = 0
-    allocate(ne_old(size(elemlist)))
-    allocate(ne_temp(size(elemlist)))
-    
-    nt_bns=1
-    ne_old(1) = ne_parent
-    ne_count = 1
-    elemlist(ne_count)=ne_parent
-    
-    do while(nt_bns.ne.0)
-       num_nodes=nt_bns
-       nt_bns=0
-       do m=1,num_nodes
-          ne0=ne_old(m) !parent global element number
-          do n=1,elem_cnct(1,0,ne0) !for each daughter branch
-             nt_bns=nt_bns+1
-             ne_temp(nt_bns)=elem_cnct(1,n,ne0)
-          enddo !n
-       enddo !m
-       do n=1,nt_bns
-          ne_old(n)=ne_temp(n) !updates list of previous generation element numbers
-          ne_count=ne_count+1
-          elemlist(ne_count)=ne_temp(n)
-       enddo !n
-    enddo !while
-    
-    deallocate(ne_old)
-    deallocate(ne_temp)
-    
-    call enter_exit(sub_name,2)
-    
-  end subroutine group_elem_by_parent
-
-!!!#############################################################################
   
   subroutine reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
     !*reallocate_node_elem_arrays:* Reallocates the size of geometric
@@ -3951,24 +3967,6 @@ contains
     
   end subroutine redistribute_mesh_nodes_2d_from_1d
 
-!!!#############################################################################
-  
-  function inlist(item,ilist)
-    
-    integer :: item,ilist(:)
-    ! Local variables
-    integer :: n
-    logical :: inlist
-
-    ! --------------------------------------------------------------------------
-
-    inlist = .false.
-    do n=1,size(ilist)
-       if(item == ilist(n)) inlist = .true.
-    enddo
-    
-  end function inlist
-  
 !!!#############################################################################
   
   function coord_at_xi(ne,xi,basis)
