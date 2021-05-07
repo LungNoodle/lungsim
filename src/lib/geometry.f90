@@ -1023,8 +1023,10 @@ contains
        readfile = datafile
     else ! need to append the correct filename extension
        readfile = trim(datafile)//'.ipdata'
-    endif    !readfile = trim(datafile)//'.ipdata'
+    endif
+    
     open(10, file=readfile, status='old')
+    read(unit=10, fmt="(a)", iostat=ierror) buffer
     
     !set the counted number of data points to zero
     ncount = 0
@@ -1104,8 +1106,8 @@ contains
     integer,allocatable :: triangle(:,:)
     real(dp),allocatable :: vertex_xyz(:,:)
     ! Local variables
-    integer,parameter :: ndiv = 3
-    integer :: i,index1,index2,j,ne,nmax_1,nmax_2,num_surfaces, &
+    integer,parameter :: ndiv = 4 ! the number of triangle divisions in each direction
+    integer :: i,index1,index2,j,ne,nelem,nmax_1,nmax_2,num_surfaces, &
          num_tri_vert,nvertex_row,step_1,step_2
     real(dp) :: X(3),xi(3)
     logical :: four_nodes
@@ -1117,8 +1119,11 @@ contains
     sub_name = 'triangles_from_surface'
     call enter_exit(sub_name,1)
     
-    if(.not.allocated(triangle)) allocate(triangle(3,2*num_elems_2d*ndiv**2))
-    if(.not.allocated(vertex_xyz)) allocate(vertex_xyz(3,num_elems_2d*(ndiv+1)**2))
+    if(allocated(triangle)) deallocate(triangle)
+    allocate(triangle(3,2*num_elems_2d*ndiv**2))
+    if(allocated(vertex_xyz)) deallocate(vertex_xyz)
+    allocate(vertex_xyz(3,num_elems_2d*(ndiv+1)**2))
+
     triangle = 0
     vertex_xyz = 0.0_dp
     num_surfaces = count(surface_elems.ne.0)
@@ -1126,7 +1131,8 @@ contains
     num_vertices = 0
     num_tri_vert = 0 
 
-    do ne=1,num_elems_2d
+    do nelem = 1,num_surfaces
+       ne = surface_elems(nelem)
        four_nodes = .false.
        repeat = '0_0'
        if(elem_nodes_2d(1,ne).eq.elem_nodes_2d(2,ne)) repeat = '1_0'
@@ -1220,9 +1226,6 @@ contains
        enddo !i
     enddo
     
-    write(*,'('' Made'',I8,'' triangles to cover'',I6,'' surface elements'')') &
-         num_triangles,num_elems_2d
-    
     call enter_exit(sub_name,2)
     
   end subroutine triangles_from_surface
@@ -1237,7 +1240,7 @@ contains
     use exports,only: export_triangle_elements,export_triangle_nodes
     
     integer,intent(in) :: surface_elems(:)
-     real(dp),intent(in) :: offset, spacing
+    real(dp),intent(in) :: offset, spacing
     logical :: to_export = .true.
     character(len=*),intent(in) :: filename
     character(len=*),intent(in) :: groupname
@@ -2638,8 +2641,12 @@ contains
     sub_name = 'element_connectivity_2d'
     call enter_exit(sub_name,1)
     
-    if(.not.allocated(elem_cnct_2d)) allocate(elem_cnct_2d(-2:2,0:10,num_elems_2d))
-    if(.not.allocated(elems_at_node_2d)) allocate(elems_at_node_2d(num_nodes_2d,0:10))
+    if(allocated(elems_at_node_2d))then
+       deallocate(elem_cnct_2d)
+       deallocate(elems_at_node_2d)
+    endif
+    allocate(elem_cnct_2d(-2:2,0:10,num_elems_2d))
+    allocate(elems_at_node_2d(num_nodes_2d,0:10))
     
 !!! calculate elems_at_node_2d array: stores the elements that nodes are in
     
@@ -2720,8 +2727,11 @@ contains
     sub_name = 'line_segments_for_2d_mesh'
     call enter_exit(sub_name,1)
     
-    if(.not.allocated(elem_lines_2d)) allocate(elem_lines_2d(4,num_elems_2d))
-    if(.not.allocated(scale_factors_2d)) allocate(scale_factors_2d(16,num_elems_2d))
+    ! allocate elem_lines_2d, scale_factors_2d,lines_2d,line_versn_2d,lines_in_elem,nodes_in_line,arclength
+    if(allocated(elem_lines_2d)) deallocate(elem_lines_2d)
+    if(allocated(scale_factors_2d)) deallocate(scale_factors_2d)
+    allocate(elem_lines_2d(4,num_elems_2d))
+    allocate(scale_factors_2d(16,num_elems_2d))
     
     elem_lines_2d=0
     num_lines_2d = 0
@@ -2751,11 +2761,17 @@ contains
        
        elem_lines_2d = 0
        
-       if(.not.allocated(lines_2d)) allocate(lines_2d(0:num_lines_2d))
-       if(.not.allocated(line_versn_2d)) allocate(line_versn_2d(2,3,num_lines_2d))
-       if(.not.allocated(lines_in_elem)) allocate(lines_in_elem(0:4,num_lines_2d))
-       if(.not.allocated(nodes_in_line)) allocate(nodes_in_line(3,0:3,num_lines_2d))
-       if(.not.allocated(arclength)) allocate(arclength(3,num_lines_2d)) 
+       if(allocated(lines_2d)) deallocate(lines_2d)
+       if(allocated(line_versn_2d)) deallocate(line_versn_2d)
+       if(allocated(lines_in_elem)) deallocate(lines_in_elem)
+       if(allocated(nodes_in_line)) deallocate(nodes_in_line)
+       if(allocated(arclength)) deallocate(arclength)
+       allocate(lines_2d(0:num_lines_2d))
+       allocate(line_versn_2d(2,3,num_lines_2d))
+       allocate(lines_in_elem(0:4,num_lines_2d))
+       allocate(nodes_in_line(3,0:3,num_lines_2d))
+       !allocate(arclength(num_lines_2d)) 
+
        lines_in_elem=0
        lines_2d=0
        nodes_in_line=0
@@ -3580,6 +3596,8 @@ contains
   subroutine reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
     !*reallocate_node_elem_arrays:* Reallocates the size of geometric
     ! arrays when modifying geometries
+
+    use indices
 
     integer,intent(in) :: num_elems_new,num_nodes_new
     ! Local variables
