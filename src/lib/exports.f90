@@ -19,9 +19,20 @@ module exports
   implicit none
  
   private
-  public export_1d_elem_geometry,export_elem_geometry_2d,export_node_geometry,export_node_geometry_2d,&
-       export_node_field,export_elem_field,export_terminal_solution,export_terminal_perfusion,&
-       export_terminal_ssgexch,export_triangle_elements,export_triangle_nodes,export_1d_elem_field,export_data_geometry
+  public &
+       export_1d_elem_geometry, &
+       export_elem_geometry_2d, &
+       export_node_geometry, &
+       export_node_geometry_2d,&
+       export_node_field, &
+       export_elem_field, &
+       export_terminal_solution, &
+       export_terminal_perfusion,&
+       export_terminal_ssgexch, &
+       export_triangle_elements, &
+       export_triangle_nodes, &
+       export_1d_elem_field, &
+       export_data_geometry
 
 contains
 
@@ -396,7 +407,7 @@ contains
           enddo !nj
        endif
        !**               write the element
-       WRITE(10,'(1X,''Element: '',I12,'' 0 0'' )') ne+offset_elem
+       WRITE(10,'(1X,''Element: '',I12,'' 0 0'' )') elems_2d(ne)+offset_elem
        !**                 write the faces
        WRITE(10,'(3X,''Faces: '' )')
 
