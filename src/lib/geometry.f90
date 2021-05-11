@@ -43,6 +43,7 @@ module geometry
   public get_local_node_f
   public group_elem_parent_term
   public grow_tree
+  public import_node_geometry_2d
   public make_data_grid
   public make_2d_vessel_from_1d
   public reallocate_node_elem_arrays
@@ -1157,6 +1158,87 @@ contains
     deallocate(parent_list)
     
   end subroutine grow_tree
+
+!!!#############################################################################
+
+  subroutine import_node_geometry_2d(NODEFILE)
+    !*define_node_geometry_2d:* Reads in an exnode file to define surface nodes
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY_2D" :: DEFINE_NODE_GEOMETRY_2D
+    
+    character(len=*),intent(in) :: NODEFILE
+    !     Local Variables
+    integer :: i,ierror,index_location,np,np_global,num_versions,nv
+    character(len=132) :: ctemp1,readfile
+    character(len=60) :: sub_name
+    
+    ! --------------------------------------------------------------------------
+    
+    sub_name = 'import_node_geometry_2d'
+    call enter_exit(sub_name,1)
+    
+    if(index(NODEFILE, ".exnode")> 0) then !full filename is given
+       readfile = NODEFILE
+    else ! need to append the correct filename extension
+       readfile = trim(NODEFILE)//'.exnode'
+    endif
+    
+    open(10, file=readfile, status='old')
+
+    !.....get the total number of nodes.
+    num_nodes_2d = 0
+    read_number_of_nodes : do !define a do loop name
+       read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !read a line into ctemp1
+       if(ierror<0) exit !ierror<0 means end of file
+       if(index(ctemp1, "Node:")> 0) then !keyword "Node:" is found in ctemp1
+          num_nodes_2d = num_nodes_2d+1
+       endif
+    end do read_number_of_nodes
+    close(10)
+
+!!!allocate memory to arrays that require node number
+    if(.not.allocated(nodes_2d)) allocate(nodes_2d(num_nodes_2d))
+    if(.not.allocated(node_xyz_2d)) allocate(node_xyz_2d(4,10,3,num_nodes_2d))
+    if(.not.allocated(node_versn_2d)) allocate(node_versn_2d(num_nodes_2d))
+    nodes_2d = 0
+    node_xyz_2d = 0.0_dp
+    node_versn_2d = 0
+    
+    !.....read the coordinate, derivative, and version information for each node. 
+    open(10, file=readfile, status='old')
+    np = 0
+    num_versions = 1
+    read_a_node : do !define a do loop name
+       !.......read node number
+       read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+       if(index(ctemp1, "Derivatives") > 0)then
+          index_location = index(ctemp1, "Versions")
+          if(index_location > 0) then
+             read(ctemp1(index_location+9:index_location+10), '(i2)', iostat=ierror) num_versions
+          else
+             num_versions = 1  ! the default
+          endif
+       endif
+       if(index(ctemp1, "Node:")> 0) then
+          np_global = get_final_integer(ctemp1) !get node number
+          np = np+1
+          nodes_2d(np) = np_global
+          node_versn_2d(np) = num_versions
+          
+          !.......read coordinates
+          do i =1,3 ! for the x,y,z coordinates
+             do nv = 1,node_versn_2d(np)
+                read(unit=10, fmt=*, iostat=ierror) node_xyz_2d(1:4,nv,i,np)
+             end do !nv
+          end do !i
+       endif !index
+       if(np.ge.num_nodes_2d) exit read_a_node
+    end do read_a_node
+    
+    close(10)
+    
+    call enter_exit(sub_name,2)
+    
+  end subroutine import_node_geometry_2d
 
 !!!#############################################################################
 

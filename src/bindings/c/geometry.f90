@@ -192,6 +192,31 @@ shortest_length, rotation_limit)
 !
 !###################################################################################
 !
+  subroutine import_node_geometry_2d_c(NODEFILE, filename_len) bind(C, name="import_node_geometry_2d_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry, only: import_node_geometry_2d
+    implicit none
+
+    integer,intent(in) :: filename_len
+    type(c_ptr), value, intent(in) :: NODEFILE
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, NODEFILE, filename_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_import_node_geometry_2d(filename_f)
+#else
+    call import_node_geometry_2d(filename_f)
+#endif
+
+  end subroutine import_node_geometry_2d_c
+
+!
+!###################################################################################
+!
   subroutine make_data_grid_c(surface_elems_len, surface_elems, offset, spacing, &
        filename, filename_len, groupname, groupname_len)&
  bind(C, name="make_data_grid_c")
