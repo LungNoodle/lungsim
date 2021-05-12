@@ -2961,7 +2961,7 @@ contains
        allocate(line_versn_2d(2,3,num_lines_2d))
        allocate(lines_in_elem(0:4,num_lines_2d))
        allocate(nodes_in_line(3,0:3,num_lines_2d))
-       !allocate(arclength(num_lines_2d)) 
+       allocate(arclength(num_lines_2d)) 
 
        lines_in_elem=0
        lines_2d=0

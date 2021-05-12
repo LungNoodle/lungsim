@@ -31,6 +31,7 @@ set(INTERFACE_SRCS
   ../interface/imports.i
   ../interface/pressure_resistance_flow.i
   ../interface/species_transport.i
+  ../interface/surface_fitting.i
   ../interface/ventilation.i
   ../interface/wave_transmission.i
 )

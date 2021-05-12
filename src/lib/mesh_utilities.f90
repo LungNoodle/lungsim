@@ -22,6 +22,7 @@ module mesh_utilities
        angle_btwn_points, &
        angle_btwn_vectors, &
        bifurcation_element, &
+       calc_arclengths, &
        calc_branch_direction, &
        calc_scale_factors_2d, &
        check_colinear_points, &
