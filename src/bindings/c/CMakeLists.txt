@@ -15,6 +15,7 @@ set(C_FORTRAN_LIB_SRCS
     imports.f90
     pressure_resistance_flow.f90
     species_transport.f90
+    surface_fitting.f90
     utils.f90
     ventilation.f90
     wave_transmission.f90
@@ -34,6 +35,7 @@ set(C_C_LIB_SRCS
     imports.c
     pressure_resistance_flow.c
     species_transport.c
+    surface_fitting.c
     utils.c
     ventilation.c
     wave_transmission.c
@@ -54,6 +56,7 @@ set(C_LIB_HDRS
   imports.h
   pressure_resistance_flow.h
   species_transport.h
+  surface_fitting.h
   utils.h
   ventilation.h
   wave_transmission.h

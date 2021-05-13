@@ -20,6 +20,7 @@ set(LIB_SRCS
   pressure_resistance_flow.f90
   solve.f90
   species_transport.f90
+  surface_fitting.f90
   ventilation.f90
   wave_transmission.f90
 )
