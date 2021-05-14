@@ -138,7 +138,7 @@ contains
     logical :: make_branch
 
     !Local variables
-    integer :: N,NCLOSEST(100),nd,nsp,NUM_CLOSEST,NUM_ND,number_of_points
+    integer :: N,NCLOSEST(100),nd,nsp,NUM_CLOSEST,NUM_ND
     real(dp) :: CLOSEST(100),DIST,L_COFM,LENGTH,MIN_DIST,VECTOR(3)
 
     character(len=60) :: sub_name
@@ -237,7 +237,12 @@ contains
           COFM(1:3)=COFM(1:3)+data_xyz(1:3,nd)
        endif
     enddo !nd
-    if(DAT.ne.0) COFM(1:3) = COFM(1:3)/DAT !centre of mass
+    if(DAT.ne.0) COFM(1:3) = COFM(1:3)/real(DAT,kind=dp) !centre of mass
+
+    if(diagnostics_on) then
+       write(*,'('' COFM for element'',i7,'':'',3(f12.5),'' for'',i6,'' seeds'')') &
+            nen,cofm,dat
+    endif
 
     call enter_exit(sub_name,2)
 
@@ -417,10 +422,12 @@ contains
 
     if(abs(ANGLE_BETWEEN).gt.ROTATION_LIMIT.and.abs(ANGLE_BETWEEN) &
          .lt.PI/2.0_dp-ROTATION_LIMIT)then
-       if(ANGLE.lt.0.0_dp)then
+       if(ANGLE.lt.-zero_tol)then
           ROT_ANGLE=-(ANGLE+ROTATION_LIMIT)
-       else
+       else if(ANGLE.gt.zero_tol)then
           ROT_ANGLE=-(ANGLE-ROTATION_LIMIT)
+       else
+          ROT_ANGLE = 0.0_dp
        endif
 
        ANGLE0=ANGLE
@@ -434,15 +441,15 @@ contains
        Q2=DSIN(ROT_ANGLE/2.0_dp)*AXIS(2)
        Q3=DSIN(ROT_ANGLE/2.0_dp)*AXIS(3)
 
-       Q(1,1)=Q0**2+Q1**2-Q2**2-Q3**2
-       Q(1,2)=2*(Q1*Q2-Q0*Q3)
-       Q(1,3)=2*(Q1*Q3+Q0*Q2)
-       Q(2,1)=2*(Q2*Q1+Q0*Q3)
-       Q(2,2)=Q0**2-Q1**2+Q2**2-Q3**2
-       Q(2,3)=2*(Q2*Q3-Q0*Q1)
-       Q(3,1)=2*(Q3*Q1-Q0*Q2)
-       Q(3,2)=2*(Q3*Q2+Q0*Q1)
-       Q(3,3)=Q0**2-Q1**2-Q2**2+Q3**2
+       Q(1,1) = Q0**2.0_dp + Q1**2.0_dp-Q2**2.0_dp-Q3**2.0_dp
+       Q(1,2) = 2.0_dp*(Q1*Q2-Q0*Q3)
+       Q(1,3) = 2.0_dp*(Q1*Q3+Q0*Q2)
+       Q(2,1) = 2.0_dp*(Q2*Q1+Q0*Q3)
+       Q(2,2) = Q0**2.0_dp-Q1**2.0_dp+Q2**2.0_dp-Q3**2.0_dp
+       Q(2,3) = 2.0_dp*(Q2*Q3-Q0*Q1)
+       Q(3,1) = 2.0_dp*(Q3*Q1-Q0*Q2)
+       Q(3,2) = 2.0_dp*(Q3*Q2+Q0*Q1)
+       Q(3,3) = Q0**2.0_dp-Q1**2.0_dp-Q2**2.0_dp+Q3**2.0_dp
 
 !       X(1:3) = elem_direction(1:3,np3) ! unit vector
        X(1:3) = elem_direction(1:3,ne) ! unit vector
@@ -486,10 +493,12 @@ contains
           IT=IT+1
           ANGLE_BETWEEN=ANGLE
           ANGLE=PI/2.0_dp-ANGLE
-          if(ANGLE.lt.0.0_dp)then
+          if(ANGLE.lt.-zero_tol)then
              ROT_ANGLE=-(ANGLE+ROTATION_LIMIT)
-          else
+          else if(ANGLE.gt.zero_tol)then
              ROT_ANGLE=-(ANGLE-ROTATION_LIMIT)
+          else
+             ROT_ANGLE = 0.0_dp
           endif
 
           Q0=DCOS(ROT_ANGLE/2.0_dp)
@@ -497,15 +506,15 @@ contains
           Q2=DSIN(ROT_ANGLE/2.0_dp)*AXIS(2)
           Q3=DSIN(ROT_ANGLE/2.0_dp)*AXIS(3)
 
-          Q(1,1)=Q0**2+Q1**2-Q2**2-Q3**2
-          Q(1,2)=2*(Q1*Q2-Q0*Q3)
-          Q(1,3)=2*(Q1*Q3+Q0*Q2)
-          Q(2,1)=2*(Q2*Q1+Q0*Q3)
-          Q(2,2)=Q0**2-Q1**2+Q2**2-Q3**2
-          Q(2,3)=2*(Q2*Q3-Q0*Q1)
-          Q(3,1)=2*(Q3*Q1-Q0*Q2)
-          Q(3,2)=2*(Q3*Q2+Q0*Q1)
-          Q(3,3)=Q0**2-Q1**2-Q2**2+Q3**2
+          Q(1,1) = Q0**2.0_dp+Q1**2.0_dp-Q2**2.0_dp-Q3**2.0_dp
+          Q(1,2) = 2.0_dp*(Q1*Q2-Q0*Q3)
+          Q(1,3) = 2.0_dp*(Q1*Q3+Q0*Q2)
+          Q(2,1) = 2.0_dp*(Q2*Q1+Q0*Q3)
+          Q(2,2) = Q0**2.0_dp-Q1**2.0_dp+Q2**2.0_dp-Q3**2.0_dp
+          Q(2,3) = 2.0_dp*(Q2*Q3-Q0*Q1)
+          Q(3,1) = 2.0_dp*(Q3*Q1-Q0*Q2)
+          Q(3,2) = 2.0_dp*(Q3*Q2+Q0*Q1)
+          Q(3,3) = Q0**2.0_dp-Q1**2.0_dp-Q2**2.0_dp+Q3**2.0_dp
 
 !          X(1:3)=elem_direction(1:3,np3) !unit vector
           X(1:3)=elem_direction(1:3,ne) !unit vector
@@ -664,8 +673,11 @@ contains
                    MIN_DIST=DIST
                 endif
              enddo
-             if(min_dist.lt.distance_limit/dble(elem_ordrs(no_gen,ne_min)))then !keep seed points
+             if(min_dist.lt.distance_limit/real(elem_ordrs(no_gen,ne_min),kind=dp))then !keep seed points
                 map_array(nd)=ne_min
+                if(ne_min.eq.2404)then
+                   write(*,*) nd,min_dist
+                endif
              else
                 map_array(nd)=0 !too far from branch ends, so discard
              endif
@@ -763,7 +775,6 @@ contains
     integer,allocatable :: map_seed_to_elem(:)      ! records current elem associated w. data points
     integer,allocatable :: map_seed_to_space(:)     ! records initial elem associated w. data points (the 'space')
     integer,allocatable :: num_seeds_from_elem(:)   ! records # of seeds currently grouped with an elem
-    character(len=100) :: writefile
 
     integer :: i,j,kount,M,N,nd,nd_min,ne,ne_grnd_parent,ne_parent,ne_start,ne_stem,&
          noelem_parent,np,np_start,np_prnt_start,np_grnd_start,num_seeds_in_space,num_next_parents, &
@@ -772,7 +783,7 @@ contains
     real(dp),dimension(3) :: COFM,candidate_xyz
     real(dp) :: distance_limit = 300.0_dp,length_parent
 
-    logical :: make_branch,enough_points(2),first_group,internal, &
+    logical :: make_branch,enough_points(2),internal, &
          limit_branching_angle = .true., &  ! option to restrict branch angle
          limit_branching_plane = .false.    ! option to restrict angle between branching planes
 
@@ -864,6 +875,7 @@ contains
                    ! after create_new_node the current element == ne and current node == np
                    call create_new_node(ne,ne_parent,np,np_start,.TRUE.)
                    ! find the centre of mass of seed points
+                   if(diagnostics_on) write(*,'('' New node'',i7)') np
                    call calculate_seed_cofm(map_seed_to_elem,ne,COFM)
                    ! Generate a branch directed towards the centre of mass. Returns location
                    ! of end node in candidate_xyz (adjusted below based on length and shape criteria)
@@ -871,14 +883,17 @@ contains
                         COFM,branch_fraction,length_limit,length_parent,shortest_length,&
                         candidate_xyz,make_branch)
                    node_xyz(1:3,np) = candidate_xyz(1:3) ! the new node location is as returned by 'branch_to_cofm'
+                   if(diagnostics_on) write(*,'('' New node initial coords:'',3(f12.5))') node_xyz(1:3,np)
                    call calc_branch_direction(ne) ! calculate direction of the new branch
                    elem_field(ne_length,ne) = distance_between_points(node_xyz(1,np_start),node_xyz(1,np))
+                   if(diagnostics_on) write(*,'('' Element length'',f12.5)') elem_field(ne_length,ne)
                    ! Check whether this is a new parent branch or a terminal branch
                    if(make_branch)then ! meets all criteria for continuing branching
                       num_next_parents = num_next_parents+1 ! increment the number of next parents
                       local_parent_temp(num_next_parents) = ne !records the elements that are parents
                    else ! this is a terminal branch
                       num_terminal = num_terminal+1 ! increment the number of terminal branches
+                      if(diagnostics_on) write(*,'('' Terminal'')')
                    endif
                 enddo !N (for both new branches)
 
@@ -887,6 +902,7 @@ contains
                    ! Correct such that branches stay in the original branching plane
                    call limit_branch_angles(ne,ne_parent,np,&
                         np_prnt_start,np_start,angle_max,angle_min)
+                   if(diagnostics_on) write(*,'('' After limit branch angle:'',3(f12.5))') node_xyz(1:3,np)
 
                    internal = point_internal_to_surface(num_vertices,triangle,node_xyz(1:3,np),&
                         vertex_xyz)
@@ -921,6 +937,7 @@ contains
                          map_seed_to_elem(nd_min) = 0 ! remove seed point from list
                          map_seed_to_space(nd_min) = ne ! recording element number
                       endif
+                      if(diagnostics_on) write(*,'('' Not internal,adjusted:'',3(f12.5))') node_xyz(1:3,np)
                    endif !.not.internal
 
                    internal = point_internal_to_surface(num_vertices,triangle,node_xyz(1:3,np-1),&
@@ -961,6 +978,7 @@ contains
                          map_seed_to_elem(nd_min) = 0 ! remove seed point from list
                          map_seed_to_space(nd_min) = ne ! recording element number
                       endif
+                      if(diagnostics_on) write(*,'('' Not internal,adjusted:'',3(f12.5))') node_xyz(1:3,np-1)
                    endif ! .not.internal
 
                 endif
@@ -1010,7 +1028,14 @@ contains
     deallocate(map_seed_to_space)
     deallocate(num_seeds_from_elem)
 
-    call smooth_1d_tree(ne_start,length_limit)
+!    write(*,*) 'before smooth'
+!    write(*,*) 'node 73: ',node_xyz(1:3,73)
+!    write(*,*) 'node 79: ',node_xyz(1:3,79)
+!    call smooth_1d_tree(ne_start,length_limit)
+    
+!    write(*,*) 'after smooth'
+!    write(*,*) 'node 73: ',node_xyz(1:3,73)
+!    write(*,*) 'node 79: ',node_xyz(1:3,79)
     
     call enter_exit(sub_name,2)
     
@@ -1207,6 +1232,8 @@ contains
     sub_name = 'smooth_1d_tree'
     call enter_exit(sub_name,1)
 
+    write(*,*) 'start smooth: ',node_xyz(1:3,79)
+    write(*,*) 'term node entry',node_xyz(:,63097)
     do n = 1,n_smoothing_steps
        do ne = num_elems,num_elem_start,-1
           if(elem_cnct(1,0,ne).eq.2)then
@@ -1218,11 +1245,17 @@ contains
              np2 = elem_nodes(2,ne2)
              new_xyz(:) = node_xyz(:,np0)*0.5_dp + node_xyz(:,np1)*0.25_dp + node_xyz(:,np2)*0.25_dp
              node_xyz(:,np) = new_xyz(:)
+             if(np.eq.73.or.np.eq.79)then
+                write(*,*) 'smoothing',np,np0,node_xyz(3,np0),np1,node_xyz(3,np1),np2,node_xyz(3,np2)
+                write(*,*) 'result =',node_xyz(:,np)
+             endif
           endif
        enddo
     enddo
     do ne = num_elems,num_elem_start,-1
        if(elem_cnct(1,0,ne).eq.0)then ! terminal, check branch length
+!          write(*,*) 'term node before',ne,node_xyz(:,63097)
+
           if(elem_field(ne_length,ne).lt.0.75_dp*length_limit)then
              elem_field(ne_length,ne) = 0.75_dp*length_limit
              np1 = elem_nodes(1,ne) ! the start node
@@ -1236,6 +1269,7 @@ contains
           endif
        endif
     enddo
+    write(*,*) 'term node after',node_xyz(:,63097)
 
     call enter_exit(sub_name,2)
 
@@ -1288,11 +1322,11 @@ contains
        nsp=map_seed_to_elem(nd) !space # that random point belongs to
        if(nsp.eq.ne1)then !random point belongs to this element space
           dist = -scalar_product_3(norml,data_xyz(1,nd)) - norml(4) ! distance between two planes
-          if(dist.ge.0.0_dp)then
+          if(dist.ge.zero_tol)then
              if(dat1.eq.0) nd1_1st = nd
              DAT1=DAT1+1
              map_seed_to_elem(nd)=ne+1
-          else if(DIST.lt.0.0_dp)then
+          else 
              if(DAT2.eq.0) ND2_1ST=nd
              DAT2=DAT2+1
              map_seed_to_elem(nd)=ne+2
@@ -1318,6 +1352,11 @@ contains
           enough_points(1) = .true.
           enough_points(2) = .false.
        endif
+    endif
+
+    if(diagnostics_on)then
+       write(*,'( ''  '',i6,'' seeds for element'',i7,'' and'',i6,'' for element'',i7)') &
+            dat1,ne+1,dat2,ne+2
     endif
 
     call enter_exit(sub_name,2)
@@ -1394,19 +1433,32 @@ contains
              nsp = map_array(nd) !space # that random point belongs to
              if(nsp.eq.ne_parent)then !random point belongs to this element space
                 dist = -scalar_product_3(norml,data_xyz(1,nd)) - norml(4) ! distance between two planes
-                if(dist.ge.0.0_dp.and.dist_p1.ge.0.0_dp)then
+                if(dist.ge.zero_tol.and.dist_p1.ge.zero_tol)then
                    map_array(nd) = ne1
-                else if(dist.ge.0.0_dp.and.dist_p1.lt.0.0_dp)then
+                else if(dist.ge.zero_tol.and.dist_p1.lt.zero_tol)then
                    map_array(nd) = ne2
-                else if(dist.le.0.0_dp.and.dist_p2.le.0.0_dp)then
+                else if(dist.lt.zero_tol.and.dist_p2.le.zero_tol)then
                    map_array(nd) = ne2
-                else if(dist.le.0.0_dp.and.dist_p2.gt.0.0_dp)then
+                else if(dist.lt.zero_tol.and.dist_p2.gt.zero_tol)then
                    map_array(nd) = ne1
                 endif
+!                if(dist.ge.0.0_dp.and.dist_p1.ge.0.0_dp)then
+!                   map_array(nd) = ne1
+!                else if(dist.ge.0.0_dp.and.dist_p1.lt.0.0_dp)then
+!                   map_array(nd) = ne2
+!                else if(dist.le.0.0_dp.and.dist_p2.le.0.0_dp)then
+!                   map_array(nd) = ne2
+!                else if(dist.le.0.0_dp.and.dist_p2.gt.0.0_dp)then
+!                   map_array(nd) = ne1
+!                endif
              endif
           enddo !nd
 
           num_points = count(map_array.eq.ne1)
+          if(diagnostics_on)then
+             write(*,'(i6,'' initial seeds for element'',i7)') num_points,ne1
+          endif
+          
           if(num_points.eq.0)then
              write(*,'('' Warning: number of points for element'',i6,'' is zero'')') ne1
              write(*,'('' Press enter to continue; however the code is likely to fail'')')

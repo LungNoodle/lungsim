@@ -60,7 +60,7 @@ contains
     call enter_exit(sub_name,1)
     
     if(index(EXELEMFILE, ".exelem")> 0) then !full filename is given
-       writefile = EXELEMFILE
+       writefile = EXELEMFILE(1:100)
     else ! need to append the correct filename extension
        writefile = trim(EXELEMFILE)//'.exelem'
     endif
@@ -135,7 +135,6 @@ contains
 
 !!! Local Variables
     integer :: i,nj
-    character(len=1) :: char1
     character(len=100) :: writefile
     character(len=60) :: sub_name
     
@@ -145,7 +144,7 @@ contains
     call enter_exit(sub_name,1)
     
     if(index(EXNODEFILE, ".exnode")> 0) then !full filename is given
-       writefile = EXNODEFILE
+       writefile = EXNODEFILE(1:100)
     else ! need to append the correct filename extension
        writefile = trim(EXNODEFILE)//'.exnode'
     endif

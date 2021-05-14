@@ -186,8 +186,8 @@ contains
                 enddo
              enddo
              
-             SUM1=XA_LOCAL(2,1)**2+XA_LOCAL(2,2)**2+XA_LOCAL(2,3)**2
-             SUM2=SUM2+W*DSQRT(SUM1)
+             SUM1=XA_LOCAL(2,1)**2.0_dp+XA_LOCAL(2,2)**2.0_dp+XA_LOCAL(2,3)**2.0_dp
+             SUM2=SUM2+W*sqrt(SUM1)
           enddo !ng
           
           arclength(1:3,nl)=SUM2
@@ -221,13 +221,13 @@ contains
                            PH3(n,2,1,XI)*XN_LOCAL(2,nj,n)
                    enddo
                 enddo
-                SUM1=XA_LOCAL(2,1)**2+XA_LOCAL(2,2)**2+XA_LOCAL(2,3)**2
+                SUM1=XA_LOCAL(2,1)**2.0_dp+XA_LOCAL(2,2)**2.0_dp+XA_LOCAL(2,3)**2.0_dp
                 SUM2=0.0_dp
                 do nj=1,3
                    SUM2=SUM2+XA_LOCAL(2,nj)*XA_LOCAL(3,nj)
                 enddo                  !nj
                 SUM3=SUM3+W*DSQRT(SUM1)
-                if(SUM1.GT.1.0e-6_dp) SUM4=SUM4+W*SUM2/DSQRT(SUM1)
+                if(SUM1.GT.1.0e-6_dp) SUM4=SUM4+W*SUM2/sqrt(SUM1)
              enddo                     !ng
              DA=-(arclength(3,nl)-SUM3)/(1.0_dp-SUM4)
              if(DABS(DA).GT.1.0e+6_dp) then
@@ -722,7 +722,7 @@ contains
     
     distance_between_points = 0.0_dp
     do i=1,3
-       distance_between_points = distance_between_points + (point1(i)-point2(i))**2
+       distance_between_points = distance_between_points + (point1(i)-point2(i))**2.0_dp
     enddo
     distance_between_points = dsqrt(distance_between_points)
     
@@ -845,9 +845,9 @@ contains
     integer :: ntri,num_triangles
     real(dp) :: volume,V1(3),V2(3),V3(3),P4(3)
 
-    num_triangles = count(triangles(:,:).ne.0)/3
+    num_triangles = count(triangles(:,:).ne.0)/3.0_dp
 
-    P4 = sum(vertex_xyz,dim=2)/size(vertex_xyz,dim=2)
+    P4 = sum(vertex_xyz,dim=2)/real(size(vertex_xyz,dim=2),kind=dp)
 
     volume = 0.0_dp
 
@@ -880,9 +880,10 @@ contains
     real(dp),parameter :: dist_tol = 1.0e-4_dp, user_tol = 1.0e-14_dp
     logical :: cross_any
 
-    num_triangles = count(triangles(:,:).ne.0)/3
+    num_triangles = count(triangles(:,:).ne.0)/3.0_dp
 
-    forall (i=1:3) cofm_surfaces(i) = sum(vertex_xyz(i,1:num_vertices))/num_vertices
+    forall (i=1:3) cofm_surfaces(i) = sum(vertex_xyz(i,1:num_vertices))/ &
+         real(num_vertices,kind=dp)
 !    write(*,*) 'cofm',cofm_surfaces
 
 ! check whether the line that joins the centre of mass of the surface mesh and the point

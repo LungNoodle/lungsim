@@ -1354,14 +1354,12 @@ contains
     character(len=*),intent(in) :: filename
     character(len=*),intent(in) :: groupname
     ! Local Variables
-    integer :: i,j,k,ne,nj,nline,nn,num_data_estimate,num_triangles,num_vertices
+    integer :: i,j,k,num_data_estimate,num_triangles,num_vertices
     integer,allocatable :: elem_list(:),triangle(:,:)
     real(dp) :: cofm1(3),cofm2(3),boxrange(3),max_bound(3),min_bound(3), &
          point_xyz(3),scale_mesh
     real(dp),allocatable :: data_temp(:,:),vertex_xyz(:,:)
     logical :: internal
-    character(len=1) :: char1
-    character(len=100) :: writefile
     character(len=60) :: sub_name
     
     ! --------------------------------------------------------------------------
@@ -1482,8 +1480,8 @@ contains
     integer :: template_vrsn_map(2,8)           ! versions of nodes for the templated elements
     integer :: template_vrsns(5)                ! # of versions of derivatives for 'template' bifurcation
     integer :: i,j,k,np_side1,np_side2,ne,ne_child,ne_count,ne_global,ne_new, &
-         ne0,nj,nk,nmax,nn,np_crux,np_new,np_now,np0,np1,np2,np_close(2), &
-         num_short,nv,nvb
+         ne0,nmax,nn,np_crux,np_new,np_now,np0,np1,np2,np_close(2), &
+         num_short,nvb
     real(dp) :: new_coords_derivs(4,10,3,5)     ! coordinates of translated and rotated template
     real(dp) :: ring_coords(3,5)                ! the coordinates of nodes in a current 'ring'
     real(dp),allocatable :: ring_distance(:)    ! distance of new 'ring' of nodes from 1d start node
@@ -1842,7 +1840,7 @@ contains
 
     real(dp) :: template_coords(:,:,:,:)
     !     Local Variables
-    integer :: i,j,nj
+    integer :: i,nj
     real(dp) :: angle,s1_dir(3)=0.0_dp,s2_dir(3)=0.0_dp
     character(len=60) :: sub_name
 
@@ -2419,7 +2417,7 @@ contains
     endif
     
     if(index(FIELDFILE, ".ipfiel")> 0) then !full filename is given
-       readfile = FIELDFILE
+       readfile = FIELDFILE(1:250)
     else ! need to append the correct filename extension
        readfile = trim(FIELDFILE)//'.ipfiel'
     endif
@@ -2579,10 +2577,10 @@ contains
     character(LEN=*), optional :: group_type_in, group_option_in
     !Input options ORDER_SYSTEM=STRAHLER (CONTROL_PARAM=RDS), HORSFIELD (CONTROL_PARAM=RDH)
     ! Local variables
-    integer :: inlet_count,n,ne,ne0,ne_max,ne_min,ne_start,nindex,norder,n_max_ord
+    integer :: inlet_count,ne,ne0,ne_max,ne_min,ne_start,nindex,norder,n_max_ord
     real(dp) :: max_radius,radius,ratio_diameter
     logical :: found
-    character(LEN=100) :: group_type, group_options
+    character(LEN=100) :: group_type
     character(len=60) :: sub_name
 
     ! --------------------------------------------------------------------------
@@ -2641,7 +2639,7 @@ contains
                    elem_field(ne_radius,ne) = radius
                    if(ne_vol.gt.0)then
                      elem_field(ne_vol,ne) = pi*radius**2*elem_field(ne_length,ne)
- 				   endif
+                  endif
                 else
                    ne0 = elem_cnct(-1,1,ne0)
                 endif
@@ -3037,7 +3035,7 @@ contains
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_ORDERING" :: EVALUATE_ORDERING
 
     ! Local Variables
-    integer :: INLETS,ne,ne0,ne2,noelem2,np,np2,nn,num_attach,n_children, &
+    integer :: INLETS,ne,ne0,ne2,noelem2,np,np2,num_attach,n_children, &
          n_generation,n_horsfield,OUTLETS,STRAHLER,STRAHLER_ADD,temp1
     LOGICAL :: DISCONNECT,DUPLICATE
     character(len=60) :: sub_name
@@ -3862,7 +3860,7 @@ contains
 
     integer :: i,j,k,ne,nelist(20),ne_adjacent,np,nplist(20),np_adjacent,np_last,num_list, &
          ring1_nodes(4)
-    real(dp) :: displace_length,distance_to_crux,distance_to_crux_last,line_length, &
+    real(dp) :: displace_length,line_length, &
          nedirection(3,20),point1(3),point2(3),point3(3),point4(3),vector(3)
     logical :: continue
     character(len=60) :: sub_name
@@ -4375,7 +4373,7 @@ contains
     ! Local variables
     integer :: i,j,k,line1,line2,line3,line4,ncount_cap_entry=0,ncount_cap_exit=0, &
          ncount_inner=0,ncount_centre=0,ncount_phys_vol=0,ncount_spline_0, &
-         ncount_surface=0,ncount_volume=0,ncount_wall=0,ne,ne_next,np_highest,np1,np2
+         ncount_volume=0,ncount_wall=0,ne,ne_next,np_highest,np1,np2
     integer,allocatable :: centre_points(:),ncap_entry(:),ncap_exit(:), &
          ncentre(:),ninner(:),nphys_vol(:),node_spoke(:,:),nwall(:)
     real(dp) :: point_xyz_centre(3), xidivn(3)
