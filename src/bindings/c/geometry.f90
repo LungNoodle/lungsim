@@ -157,7 +157,43 @@ contains
 !
 !###################################################################################
 !
-  subroutine make_data_grid_c(surface_elems, spacing, to_export, filename, filename_len, groupname, groupname_len)&
+! the main growing subroutine. Generates a volume-filling tree into a closed surface.
+  subroutine grow_tree_c(surface_elems_len, surface_elems, parent_ne, &
+       angle_max, angle_min, branch_fraction, length_limit, &
+       shortest_length, rotation_limit) bind(C, name="grow_tree_c")
+    
+    use arrays,only: dp
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry,only: grow_tree
+    implicit none
+
+    integer,intent(in) :: surface_elems_len
+    integer,intent(in) :: surface_elems(surface_elems_len)
+    integer,intent(in) :: parent_ne
+    real(dp),intent(in) :: angle_max
+    real(dp),intent(in) :: angle_min
+    real(dp),intent(in) :: branch_fraction
+    real(dp),intent(in) :: length_limit
+    real(dp),intent(in) :: shortest_length
+    real(dp),intent(in) :: rotation_limit
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_grow_tree(surface_elems, parent_ne, angle_max, angle_min, branch_fraction, length_limit,&
+shortest_length, rotation_limit)
+#else
+    call grow_tree(surface_elems, parent_ne, angle_max, angle_min, branch_fraction, length_limit,&
+shortest_length, rotation_limit)
+#endif
+
+  end subroutine grow_tree_c
+
+!
+!###################################################################################
+!
+  subroutine make_data_grid_c(surface_elems_len, surface_elems, offset, spacing, &
+       filename, filename_len, groupname, groupname_len)&
  bind(C, name="make_data_grid_c")
     
     use arrays,only: dp
@@ -167,9 +203,9 @@ contains
     use geometry, only: make_data_grid
     implicit none
 
-    integer,intent(in) :: surface_elems(:)
-    real(dp),intent(in) :: spacing
-    logical,intent(in) :: to_export
+    integer,intent(in) :: surface_elems_len
+    integer,intent(in) :: surface_elems(surface_elems_len)
+    real(dp),intent(in) :: offset, spacing
     integer,intent(in) :: filename_len, groupname_len
     type(c_ptr), value, intent(in) :: filename, groupname
     character(len=MAX_FILENAME_LEN) :: filename_f
@@ -179,9 +215,9 @@ contains
     call strncpy(groupname_f, groupname, groupname_len)
 
 #if defined _WIN32 && defined __INTEL_COMPILER
-    call so_make_data_grid(surface_elems, spacing, to_export, filename_f, groupname_f)
+    call so_make_data_grid(surface_elems, offset, spacing, filename_f, groupname_f)
 #else
-    call make_data_grid(surface_elems, spacing, to_export, filename_f, groupname_f)
+    call make_data_grid(surface_elems, offset, spacing, filename_f, groupname_f)
 #endif
 
   end subroutine make_data_grid_c
@@ -203,25 +239,6 @@ contains
 
   end subroutine make_2d_vessel_from_1d_c
   
-!
-!###################################################################################
-!
-  subroutine group_elem_parent_term_c(ne_parent) bind(C, name="group_elem_parent_term_c")
-
-    use iso_c_binding, only: c_ptr
-    use geometry, only: group_elem_parent_term
-    implicit none
-
-    integer,intent(in) :: ne_parent
-
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_group_elem_parent_term(ne_parent)
-#else
-    call group_elem_parent_term(ne_parent)
-#endif
-
-  end subroutine group_elem_parent_term_c
-
 !
 !###################################################################################
 !

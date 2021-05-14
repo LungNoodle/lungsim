@@ -8,21 +8,46 @@ module mesh_utilities
 
 
   use arrays
+  use diagnostics
   use other_consts
+  use precision ! sets dp for precision
 
   implicit none
 
   private
 
-  public  area_between_three_points,area_between_two_vectors,angle_btwn_points, &
-       angle_btwn_vectors,bifurcation_element,calc_branch_direction, &
-       calc_scale_factors_2d,check_colinear_points,cross_product,&
-       direction_point_to_point,distance_between_points, &
-       distance_from_plane_to_point,make_plane_from_3points, &
-       mesh_a_x_eq_b,ph3,pl1,point_internal_to_surface,scalar_product_3, &
-       scalar_triple_product,scale_mesh,stem_element,terminal_element, &
-       unit_norm_to_plane_two_vectors,unit_norm_to_three_points,unit_vector, &
-       vector_length,volume_internal_to_surface,which_child
+  public &  ! subroutines
+       area_between_three_points, &
+       area_between_two_vectors, &
+       angle_btwn_points, &
+       angle_btwn_vectors, &
+       bifurcation_element, &
+       calc_branch_direction, &
+       calc_scale_factors_2d, &
+       check_colinear_points, &
+       cross_product,&
+       direction_point_to_point, &
+       distance_between_points, &
+       distance_from_plane_to_point, &
+       get_local_elem_2d, &
+       group_elem_by_parent, &
+       inlist, &
+       make_plane_from_3points, &
+       mesh_a_x_eq_b, &
+       ph3, &
+       pl1, &
+       point_internal_to_surface, &
+       scalar_product_3, &
+       scalar_triple_product, &
+       scale_mesh, &
+       stem_element, &
+       terminal_element, &
+       unit_norm_to_plane_two_vectors, &
+       unit_norm_to_three_points, &
+       unit_vector, &
+       vector_length, &
+       volume_internal_to_surface, &
+       which_child
 
 contains
 
@@ -161,8 +186,8 @@ contains
                 enddo
              enddo
              
-             SUM1=XA_LOCAL(2,1)**2+XA_LOCAL(2,2)**2+XA_LOCAL(2,3)**2
-             SUM2=SUM2+W*DSQRT(SUM1)
+             SUM1=XA_LOCAL(2,1)**2.0_dp+XA_LOCAL(2,2)**2.0_dp+XA_LOCAL(2,3)**2.0_dp
+             SUM2=SUM2+W*sqrt(SUM1)
           enddo !ng
           
           arclength(1:3,nl)=SUM2
@@ -196,13 +221,13 @@ contains
                            PH3(n,2,1,XI)*XN_LOCAL(2,nj,n)
                    enddo
                 enddo
-                SUM1=XA_LOCAL(2,1)**2+XA_LOCAL(2,2)**2+XA_LOCAL(2,3)**2
+                SUM1=XA_LOCAL(2,1)**2.0_dp+XA_LOCAL(2,2)**2.0_dp+XA_LOCAL(2,3)**2.0_dp
                 SUM2=0.0_dp
                 do nj=1,3
                    SUM2=SUM2+XA_LOCAL(2,nj)*XA_LOCAL(3,nj)
                 enddo                  !nj
                 SUM3=SUM3+W*DSQRT(SUM1)
-                if(SUM1.GT.1.0e-6_dp) SUM4=SUM4+W*SUM2/DSQRT(SUM1)
+                if(SUM1.GT.1.0e-6_dp) SUM4=SUM4+W*SUM2/sqrt(SUM1)
              enddo                     !ng
              DA=-(arclength(3,nl)-SUM3)/(1.0_dp-SUM4)
              if(DABS(DA).GT.1.0e+6_dp) then
@@ -272,6 +297,57 @@ contains
     
   end function distance_from_plane_to_point
   
+!!!#############################################################################
+
+  subroutine group_elem_by_parent(ne_parent,elemlist)
+    !*group_elem_by_parent:* group elements that sit distal to a given
+    ! parent element (ne_parent)
+
+    integer,intent(in) :: ne_parent  ! the parent element number
+    integer :: elemlist(:)
+    ! Local Variables
+    integer :: nt_bns,ne_count,num_nodes,m,n,ne0
+    integer,allocatable :: ne_old(:),ne_temp(:)
+    character(len=60) :: sub_name
+
+    ! --------------------------------------------------------------------------
+    
+    sub_name='group_elem_by_parent'
+    call enter_exit(sub_name,1)
+    
+    elemlist = 0
+    allocate(ne_old(size(elemlist)))
+    allocate(ne_temp(size(elemlist)))
+    
+    nt_bns=1
+    ne_old(1) = ne_parent
+    ne_count = 1
+    elemlist(ne_count)=ne_parent
+    
+    do while(nt_bns.ne.0)
+       num_nodes=nt_bns
+       nt_bns=0
+       do m=1,num_nodes
+          ne0=ne_old(m) !parent global element number
+          do n=1,elem_cnct(1,0,ne0) !for each daughter branch
+             nt_bns=nt_bns+1
+             ne_temp(nt_bns)=elem_cnct(1,n,ne0)
+          enddo !n
+       enddo !m
+       do n=1,nt_bns
+          ne_old(n)=ne_temp(n) !updates list of previous generation element numbers
+          ne_count=ne_count+1
+          elemlist(ne_count)=ne_temp(n)
+       enddo !n
+    enddo !while
+    
+    deallocate(ne_old)
+    deallocate(ne_temp)
+    
+    call enter_exit(sub_name,2)
+    
+  end subroutine group_elem_by_parent
+
 !!!###############################################################
   
   subroutine make_plane_from_3points(NORML,NORMALTYPE,POINT1,POINT2,POINT3)
@@ -375,6 +451,24 @@ contains
   end function area_between_three_points
   
 
+!!!#############################################################################
+  
+  function inlist(item,ilist)
+    
+    integer :: item,ilist(:)
+    ! Local variables
+    integer :: n
+    logical :: inlist
+
+    ! --------------------------------------------------------------------------
+
+    inlist = .false.
+    do n=1,size(ilist)
+       if(item == ilist(n)) inlist = .true.
+    enddo
+    
+  end function inlist
+  
 !!! ##########################################################################      
 
   function ph3(I,J,K,XI)
@@ -582,6 +676,24 @@ contains
 
   end function direction_point_to_point
 
+!!!#############################################################################
+
+  function get_local_elem_2d(ne_global)
+
+    integer,intent(in) :: ne_global
+    ! Local variables
+    integer :: ne
+    integer :: get_local_elem_2d
+
+    ! --------------------------------------------------------------------------
+
+    get_local_elem_2d = 0
+    do ne = 1,num_elems_2d
+       if(ne_global.eq.elems_2d(ne)) get_local_elem_2d = ne
+    enddo
+
+  end function get_local_elem_2d
+
 !!!###############################################################
   
   function scalar_triple_product(A,B,C)
@@ -610,7 +722,7 @@ contains
     
     distance_between_points = 0.0_dp
     do i=1,3
-       distance_between_points = distance_between_points + (point1(i)-point2(i))**2
+       distance_between_points = distance_between_points + (point1(i)-point2(i))**2.0_dp
     enddo
     distance_between_points = dsqrt(distance_between_points)
     
@@ -733,9 +845,9 @@ contains
     integer :: ntri,num_triangles
     real(dp) :: volume,V1(3),V2(3),V3(3),P4(3)
 
-    num_triangles = count(triangles(:,:).ne.0)/3
+    num_triangles = count(triangles(:,:).ne.0)/3.0_dp
 
-    P4 = sum(vertex_xyz,dim=2)/size(vertex_xyz,dim=2)
+    P4 = sum(vertex_xyz,dim=2)/real(size(vertex_xyz,dim=2),kind=dp)
 
     volume = 0.0_dp
 
@@ -768,9 +880,10 @@ contains
     real(dp),parameter :: dist_tol = 1.0e-4_dp, user_tol = 1.0e-14_dp
     logical :: cross_any
 
-    num_triangles = count(triangles(:,:).ne.0)/3
+    num_triangles = count(triangles(:,:).ne.0)/3.0_dp
 
-    forall (i=1:3) cofm_surfaces(i) = sum(vertex_xyz(i,1:num_vertices))/num_vertices
+    forall (i=1:3) cofm_surfaces(i) = sum(vertex_xyz(i,1:num_vertices))/ &
+         real(num_vertices,kind=dp)
 !    write(*,*) 'cofm',cofm_surfaces
 
 ! check whether the line that joins the centre of mass of the surface mesh and the point

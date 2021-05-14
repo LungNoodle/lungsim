@@ -15,7 +15,7 @@ module diagnostics
   
   implicit none
 
-  logical :: diagnostics_on
+  logical,public :: diagnostics_on
 
   private
   public enter_exit, get_diagnostics_on, set_diagnostics_on
