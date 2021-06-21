@@ -46,6 +46,8 @@ module geometry
   public make_data_grid
   public make_2d_vessel_from_1d
   public reallocate_node_elem_arrays
+  public refine_1d_elements
+  public renumber_tree_in_order
   public set_initial_volume
   public triangles_from_surface
   public volume_of_mesh
@@ -3605,6 +3607,231 @@ contains
     
   end subroutine geo_node_offset
   
+!!!#############################################################################
+  
+  subroutine refine_1d_elements(elem_list_refine,num_refinements)
+!!! Refines all elements from 1 up to num_elem_refine. Should be doing
+!!! this for a list of specific elements only.    
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_REFINE_1D_ELEMENTS :: REFINE_1D_ELEMENTS
+
+    integer,intent(in) :: elem_list_refine(:)
+    integer,intent(in) :: num_refinements
+
+    integer, allocatable :: node_list (:,:),new_units(:),temp_elem_units_below(:)
+    
+    integer :: num_elem_refine,i,ne,ne_new,node_end,node_start,np_new,&
+         nunits,num_elems_new,num_nodes_new,n_refine
+    real(dp) :: increment(3),refined_length
+
+    num_elem_refine = count(elem_list_refine.ne.0)
+
+    allocate(node_list(2,num_elems))
+    node_list(1:2,1:num_elems) = elem_nodes(1:2,1:num_elems)
+
+    num_nodes_new = num_nodes + num_refinements*num_elem_refine
+    num_elems_new = num_elems + num_refinements*num_elem_refine
+
+    if(num_units.gt.0)then
+       allocate(new_units(num_units))
+       new_units = 0
+       nunits = 0
+       allocate(temp_elem_units_below(num_elems_new))
+       temp_elem_units_below(1:num_elems) = elem_units_below(1:num_elems)
+    endif
+
+    call reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
+    
+    np_new = num_nodes
+    ne_new = num_elems
+    
+    do i = 1,num_elem_refine
+       ne = elem_list_refine(i)
+       node_start = node_list(1,ne)
+       node_end = node_list(2,ne)
+       refined_length = elem_field(ne_length,ne)/dble(num_refinements+1)
+       increment(1:3) = elem_direction(1:3,ne)*refined_length
+       ! adjust the current element end node, length and volume
+       elem_nodes(2,ne) = np_new+1
+       elem_field(ne_length,ne) = refined_length
+       elem_field(ne_vol,ne) = elem_field(ne_vol,ne)/dble(num_refinements+1)
+       
+       do n_refine = 1,num_refinements
+          np_new = np_new+1
+          nodes(np_new) = np_new
+          node_xyz(1:3,np_new) = node_xyz(1:3,node_start) + increment(1:3)
+          
+          ne_new = ne_new+1
+          elems(ne_new) = ne_new
+          elem_nodes(1,ne_new) = np_new
+          elem_nodes(2,ne_new) = np_new+1 ! is overwritten if 'last' element
+          
+          elem_field(ne_length,ne_new) = refined_length
+          elem_field(ne_radius,ne_new) = elem_field(ne_radius,ne)
+          elem_field(ne_vol,ne_new) = elem_field(ne_vol,ne)
+          elem_field(ne_vd_bel,ne_new) = elem_field(ne_vd_bel,ne) - elem_field(ne_vol,ne)*n_refine
+          elem_field(ne_vol_bel,ne_new) = elem_field(ne_vol_bel,ne) - elem_field(ne_vol,ne)*n_refine
+          elem_field(ne_a_A,ne_new) = elem_field(ne_a_A,ne)
+          elem_direction(1:3,ne_new) = elem_direction(1:3,ne)
+          elem_ordrs(1,ne_new) = elem_ordrs(1,ne)
+          if(num_units.gt.0) temp_elem_units_below(ne_new) = elem_units_below(ne)
+          node_start = np_new
+          
+       enddo
+       elem_nodes(2,ne_new) = node_end ! overwrites for just the 'last' element
+    enddo
+    
+    num_nodes = np_new
+    num_elems = ne_new
+
+    if(num_units.gt.0)then
+       units = new_units
+       deallocate(elem_units_below)
+       allocate(elem_units_below(num_elems))
+       elem_units_below = temp_elem_units_below
+       deallocate(new_units)
+       deallocate(temp_elem_units_below)
+    endif
+
+    deallocate(node_list)
+    call element_connectivity_1d
+    elem_ordrs(no_type,:) = 1 ! 0 for respiratory, 1 for conducting
+
+  end subroutine refine_1d_elements
+
+!!!#############################################################################
+  
+  subroutine renumber_tree_in_order
+    ! reorders a 1D tree network so that elements and nodes increase with order.
+    use math_utilities
+
+    integer :: i,nchild,ne,ne0,ne_start,np,num_sorted,num_to_order,num_to_order_prev,&
+         nunit,old_ne,old_np
+    integer,allocatable :: elem_list(:),elem_back(:),elems_to_order(:), &
+         elems_to_order_next(:)
+    logical :: single
+    integer, allocatable :: temp_elem_ordrs(:,:),temp_elem_units_below(:), &
+         temp_elem_nodes(:,:),temp_elem_symmetry(:),temp_inv_node(:),temp_map_node(:)
+    real(dp),allocatable :: temp_elem_direction(:,:),temp_elem_field(:,:),temp_node_xyz(:,:)
+
+    allocate (elem_list(num_elems))
+    allocate (elem_back(num_elems))
+    allocate (elems_to_order(num_elems))
+    allocate (elems_to_order_next(num_elems))
+
+    ne_start = 1 ! this should be the stem element of current tree
+    elem_list(1) = ne_start ! the first element in the tree
+    elem_back(ne_start) = 1
+    num_sorted = 0
+
+!!! Set up the list of correctly ordered elements and nodes.
+    num_to_order = 1
+    elems_to_order(1) = ne_start
+    do while(num_to_order.ne.0) !while still some to reorder
+        num_to_order_prev = num_to_order
+        num_to_order = 0
+        do i = 1,num_to_order_prev !for parents in previous gen
+          ne0 = elems_to_order(i)
+          num_sorted = num_sorted+1 !increment counter
+          elem_list(num_sorted) = ne0 !store element #
+          elem_back(ne0) = num_sorted
+          single = .true.
+          do while (single)
+             if(elem_cnct(1,0,ne0).eq.1)then
+                ne = elem_cnct(1,1,ne0) !daughter element #
+                num_sorted = num_sorted+1 !increment counter
+                elem_list(num_sorted) = ne !store element #
+                elem_back(ne) = num_sorted
+                ne0 = ne
+             else if(elem_cnct(1,0,ne0).ge.2)then
+                do nchild = 1,elem_cnct(1,0,ne0) !for each child
+                   ne = elem_cnct(1,nchild,ne0) !daughter element #
+                   num_to_order = num_to_order+1
+                   elems_to_order_next(num_to_order) = ne
+                enddo !nchild
+                single = .false.
+             else if (elem_cnct(1,0,ne0).eq.0)then
+                single = .false.
+             endif
+          enddo !while
+       enddo !nz1
+       elems_to_order = elems_to_order_next
+    enddo !while
+
+!!!  Put values into temporary arrays; move to correct array positions.
+!!!  Assumes that new element and node numbering will start from 1.
+
+!!! at this point temp_elem_list has the order that we want. now transfer to arrays
+    allocate(temp_elem_ordrs(num_ord,num_elems))
+    if(num_units.gt.0)then
+       allocate(temp_elem_units_below(num_elems))
+    endif
+    allocate(temp_elem_nodes(2,num_elems))
+    allocate(temp_elem_direction(3,num_elems))
+    allocate(temp_elem_field(num_ne,num_elems))
+    allocate(temp_elem_symmetry(num_elems))
+    allocate(temp_inv_node(num_nodes))
+    allocate(temp_map_node(num_nodes))
+    allocate(temp_node_xyz(1:3,num_nodes))
+
+    temp_map_node(1) = 1
+    temp_inv_node(1) = 1
+
+    do ne = 1,num_elems
+       old_ne = elem_list(ne)
+       temp_elem_ordrs(1:4,ne) = elem_ordrs(1:4,old_ne)
+       temp_elem_direction(1:3,ne) = elem_direction(1:3,old_ne)
+       temp_elem_field(:,ne) = elem_field(:,old_ne)
+       temp_elem_symmetry(ne) = elem_symmetry(old_ne)
+       temp_map_node(ne+1) = elem_nodes(2,old_ne)
+       temp_inv_node(elem_nodes(2,old_ne)) = ne+1
+       if(num_units.gt.0)then
+          temp_elem_units_below(ne) = elem_units_below(old_ne)
+       endif
+    enddo
+
+!!! map the unordered node info to temporary node arrays
+    temp_node_xyz(1:3,1) = node_xyz(1:3,1)
+    do ne = 1,num_elems
+       np = ne+1
+       old_ne = elem_list(ne)
+       old_np = temp_map_node(np)
+       temp_node_xyz(1:3,np) = node_xyz(1:3,old_np)
+       temp_elem_nodes(1,ne) = temp_inv_node(elem_nodes(1,old_ne))
+       temp_elem_nodes(2,ne) = temp_inv_node(elem_nodes(2,old_ne))
+    enddo
+
+    if(num_units.gt.0)then
+       do nunit = 1,num_units
+          old_ne = units(nunit)
+          ne = elem_back(old_ne)
+          units(nunit) = ne
+       enddo
+       elem_units_below = temp_elem_units_below
+    endif
+    elem_ordrs = temp_elem_ordrs
+    elem_nodes = temp_elem_nodes
+    elem_direction = temp_elem_direction
+    elem_field = temp_elem_field
+    node_xyz = temp_node_xyz
+
+    call element_connectivity_1d
+
+    deallocate(elem_list)
+    deallocate(elem_back)
+    deallocate(elems_to_order)
+    deallocate(elems_to_order_next)
+    deallocate(temp_elem_ordrs)
+    if(num_units.gt.0) deallocate(temp_elem_units_below)
+    deallocate(temp_elem_nodes)
+    deallocate(temp_elem_direction)
+    deallocate(temp_elem_field)
+    deallocate(temp_elem_symmetry)
+    deallocate(temp_inv_node)
+    deallocate(temp_map_node)
+    deallocate(temp_node_xyz)
+
+  end subroutine renumber_tree_in_order
+
 !!!#############################################################################
   
   subroutine reallocate_node_elem_arrays(num_elems_new,num_nodes_new)

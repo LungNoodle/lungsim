@@ -379,6 +379,42 @@ shortest_length, rotation_limit)
 
   end subroutine evaluate_ordering_c
 
+!
+!###################################################################################
+!
+
+  subroutine refine_1d_elements_c(elemlist, elemlist_len, nrefinements) bind(C, name="refine_1d_elements_c")
+    use geometry, only: refine_1d_elements
+    implicit none
+
+    integer,intent(in) :: elemlist_len
+    integer,intent(in) :: elemlist(elemlist_len)
+    integer,intent(in) :: nrefinements
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_refine_1d_elements(elemlist, nrefinements)
+#else
+    call refine_1d_elements(elemlist, nrefinements)
+#endif
+
+  end subroutine refine_1d_elements_c
+  
+!
+!###################################################################################
+!
+!
+  subroutine renumber_tree_in_order_c() bind(C, name="renumber_tree_in_order_c")
+    use geometry, only: renumber_tree_in_order
+    implicit none
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_renumber_tree_in_order
+#else
+    call renumber_tree_in_order
+#endif
+
+  end subroutine renumber_tree_in_order_c
+
 !###################################################################################
 !
 !>*set_initial_volume:* assigns a volume to terminal units appended on a tree structure
