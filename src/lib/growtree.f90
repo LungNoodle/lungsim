@@ -668,16 +668,15 @@ contains
                 ne = local_parent(noelem)
                 np = elem_nodes(2,ne)
                 dist = distance_between_points(data_xyz(1,nd),node_xyz(1,np))
-                if(DIST.lt.MIN_DIST)then
+                if(dist.lt.(min_dist+zero_tol))then
+!                if(DIST.lt.MIN_DIST)then
                    ne_min = ne
                    MIN_DIST=DIST
                 endif
              enddo
-             if(min_dist.lt.distance_limit/real(elem_ordrs(no_gen,ne_min),kind=dp))then !keep seed points
+             if(min_dist.lt.distance_limit/real(elem_ordrs(no_gen,ne_min),kind=dp)+zero_tol)then !keep seed points
+!             if(min_dist.lt.distance_limit/real(elem_ordrs(no_gen,ne_min),kind=dp))then !keep seed points
                 map_array(nd)=ne_min
-                if(ne_min.eq.2404)then
-                   write(*,*) nd,min_dist
-                endif
              else
                 map_array(nd)=0 !too far from branch ends, so discard
              endif
@@ -717,6 +716,7 @@ contains
           enddo !nd
           
        endif !num_seeds_from_elem
+!       write(*,'('' '',i6,'','')', advance = "no") num_seeds_from_elem(ne_min)
     enddo !N
     
     do N=1,num_next_parents
@@ -1013,7 +1013,7 @@ contains
 
        enddo ! while still parent branches
 
-       write(*,'(I7,I8,I9)') ne_parent,num_seeds_in_space,num_terminal
+       write(*,'(I7,I8,I9)') ne_stem,num_seeds_in_space,num_terminal
 
     enddo ! for each initial parent
 
@@ -1028,14 +1028,7 @@ contains
     deallocate(map_seed_to_space)
     deallocate(num_seeds_from_elem)
 
-!    write(*,*) 'before smooth'
-!    write(*,*) 'node 73: ',node_xyz(1:3,73)
-!    write(*,*) 'node 79: ',node_xyz(1:3,79)
 !    call smooth_1d_tree(ne_start,length_limit)
-    
-!    write(*,*) 'after smooth'
-!    write(*,*) 'node 73: ',node_xyz(1:3,73)
-!    write(*,*) 'node 79: ',node_xyz(1:3,79)
     
     call enter_exit(sub_name,2)
     
@@ -1355,8 +1348,8 @@ contains
     endif
 
     if(diagnostics_on)then
-       write(*,'( ''  '',i6,'' seeds for element'',i7,'' and'',i6,'' for element'',i7)') &
-            dat1,ne+1,dat2,ne+2
+       write(*,'( ''Parent '',i6,'' with '',i6,'' seeds for element'',i7,'' and'',i6,'' for element'',i7)') &
+            ne1,dat1,ne+1,dat2,ne+2
     endif
 
     call enter_exit(sub_name,2)
