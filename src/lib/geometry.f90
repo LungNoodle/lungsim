@@ -126,8 +126,7 @@ contains
     elseif(index(branchtype, "RESP")>0 .or. index(branchtype, "resp")>0)then
        ntype = 0
     endif
-    write(*,*) ntype ! = 1
-    read(*,*)
+
     ! ios is negative if an end of record condition is encountered or if
     ! an endfile condition was detected.  It is positive if an error was
     ! detected.  ios is zero otherwise.
