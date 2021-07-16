@@ -25,6 +25,7 @@ module mesh_utilities
        calc_branch_direction, &
        calc_scale_factors_2d, &
        check_colinear_points, &
+       check_vectors_same, &
        cross_product,&
        direction_point_to_point, &
        distance_between_points, &
@@ -644,6 +645,29 @@ contains
   end function check_colinear_points
   
 
+!!!###############################################################
+
+  function check_vectors_same(vector1, vector2)
+
+    ! check whether two vectors have the same direction
+
+    real(dp) :: vector1(3),vector2(3)
+
+    real(dp) :: norm_v1(3),norm_v2(3),u(3),v(3)
+    logical :: check_vectors_same
+
+    check_vectors_same = .false.
+    norm_v1 = unit_vector(vector1)
+    norm_v2 = unit_vector(vector2)
+    u(1:3) = norm_v1(1:3) - norm_v2(1:3)
+    v(1:3) = norm_v1(1:3) + norm_v2(1:3)
+
+    if((abs(u(1))+abs(u(2))+abs(u(3)).lt.zero_tol).or. &
+         (abs(v(1))+abs(v(2))+abs(v(3)).lt.zero_tol)) &
+         check_vectors_same = .true.
+
+  end function check_vectors_same
+  
 !!!###############################################################
   
   function cross_product(A,B)

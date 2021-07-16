@@ -87,34 +87,47 @@ contains
   
 !!!#############################################################################
 
-  subroutine add_mesh(AIRWAY_MESHFILE)
+  subroutine add_mesh(meshfile, branchtype, n_refine)
     !*add_mesh:* Reads in an ipmesh file and adds this mesh to the terminal
     ! branches of an existing tree geometry
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADD_MESH" :: ADD_MESH
 
-    character(len=MAX_FILENAME_LEN), intent(in) :: AIRWAY_MESHFILE
-    ! Local parameters
-    character(len=100) :: buffer
+    integer,intent(in) :: n_refine
+    character(len=*), intent(in) :: meshfile
+    character(len=*), intent(in) :: branchtype
+    logical :: scale_to_unit = .false.
+
+    integer,dimension(1000) :: element_temp,generation,parent_element,symmetry_temp
+    integer :: i,ibeg,iend,i_ss_end,j,n,nbranch,ne,ne0,ne_global,ne_grandparent, &
+         ne_parent,ne_parent0, &
+         ne_start,ne_u,ne_u0,ngen_parent,nlabel,np,np0,np_global,ntype,num_elems_new, &
+         num_nodes_new,num_parents,num_elems_to_add,nunit
+    integer :: ios = 0
+    integer :: line = 0
     integer, parameter :: fh = 15
-    integer :: ios
-    integer :: line
-    integer :: i,ibeg,iend,i_ss_end,j,ne,ne0,ne_global,ne_parent,ne_start, &
-         ngen_parent,np,np0,np_global,&
-         num_elems_new,num_elems_to_add,num_nodes_new,nunit,nlabel
-    integer,dimension(1000) :: element_temp,generation, &
-         parent_element,symmetry_temp
+    integer :: np1,np2
+    integer, allocatable :: parentlist(:)
+    real(dp) :: ratio
     real(dp),dimension(1000) :: length,radius,a_A
-    character(len=60) :: sub_name
+    real(dp) :: A(3,3),B(3),branch_angle,direction(3),dirn_parent(3), &
+         dirn_grandparent(3),normal(3),normal2(3)
+    real(dp),allocatable :: volume_below(:)
+    character(len=100) :: buffer,readfile
 
-    ! --------------------------------------------------------------------------
-    
-    sub_name = 'add_mesh'
-    call enter_exit(sub_name,1)
+    if(index(meshfile, ".ipmesh")> 0) then !full filename is given
+       readfile = meshfile
+    else ! need to append the correct filename extension
+       readfile = trim(meshfile)//'.ipmesh'
+    endif
+    open(fh, file=readfile)
 
-    ios = 0
-    line = 0
-    open(fh, file=AIRWAY_MESHFILE)
-    
+    if(index(branchtype, "COND")>0 .or. index(branchtype, "cond")>0)then
+       ntype = 1
+    elseif(index(branchtype, "RESP")>0 .or. index(branchtype, "resp")>0)then
+       ntype = 0
+    endif
+    write(*,*) ntype ! = 1
+    read(*,*)
     ! ios is negative if an end of record condition is encountered or if
     ! an endfile condition was detected.  It is positive if an error was
     ! detected.  ios is zero otherwise.
@@ -124,7 +137,7 @@ contains
     
     do while (ios == 0)
        read(fh, '(A)', iostat=ios) buffer
-       ! line contains: element, parent element, generation,
+       ! line contains: element, parent element, generation, 
        !                symmetry, length, outer radius, a/A ratio
        ! note that a/A ratio is always 1 for the conducting airways
        if (ios == 0) then
@@ -156,14 +169,26 @@ contains
        endif
     enddo
     close(fh)
-    
+
     num_elems_to_add = i
-    
+
+    allocate(parentlist(num_elems))
+    parentlist = 0
+    num_parents = 0
+    do ne = 1,num_elems
+       if(elem_cnct(1,0,ne).eq.0)then
+          num_parents = num_parents + 1
+          parentlist(num_parents) = ne
+       endif
+    enddo
+
+    !num_parents = count(parentlist.ne.0)
+
 !!! increase the size of node and element arrays to accommodate the additional elements
     ! the number of nodes after adding mesh will be:
-    num_nodes_new = num_nodes + num_units*num_elems_to_add
+    num_nodes_new = num_nodes + num_parents*num_elems_to_add*n_refine
     ! the number of elems after adding mesh will be:
-    num_elems_new = num_elems + num_units*num_elems_to_add
+    num_elems_new = num_elems + num_parents*num_elems_to_add*n_refine
     call reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
     
     ne = num_elems ! the starting local element number
@@ -171,68 +196,152 @@ contains
     np = num_nodes ! the starting local node number
     np_global = nodes(np) ! assumes this is the highest node number (!!!)
     
-    do nunit = 1,num_units ! for all terminal branches, append the mesh
-       
-       ne_parent = units(nunit) ! local element number of terminal, to append to
-       ngen_parent = elem_ordrs(1,ne_parent)
+    do nbranch = 1,num_parents ! for all listed branches, append the mesh
        ne_start = ne !starting element number for the unit
        
-       do i=1,num_elems_to_add
+       do i = 1,num_elems_to_add
           
-          if(parent_element(i).eq.0)then
-             ne_parent = units(nunit)
+          if(parent_element(i).eq.0)then !first new elem to append; add to existing
+             ne_parent = parentlist(nbranch) ! local element number of terminal, to append to
+             ne_parent0 = ne_parent
           else
-             ne_parent = ne_start+parent_element(i)
+             ne_parent = ne_start+parent_element(i) & !adding to new
+                  *n_refine !+(nunit-1)*num_elems_to_add*n_refine !!new line
           endif
           
+          ngen_parent = elem_ordrs(1,ne_parent)
           ne0 = ne_parent
-          np0 = elem_nodes(2,ne0)
+
+          ! for the branching angle and direction -
+          if(symmetry_temp(i).eq.1)then ! same as parent if symmetric
+             direction(:) = elem_direction(:,ne_parent)
+          else
+             ne_grandparent = get_parent_branch(ne_parent)
+             dirn_parent(:) = elem_direction(:,ne_parent)
+             if(ne_grandparent.eq.0)then
+                normal(1) = 0.0_dp
+                normal(2) = -1.0_dp/sqrt(2.0_dp)
+                normal(3) = 1.0_dp/sqrt(2.0_dp)
+             else
+                dirn_grandparent(:) = elem_direction(:,ne_grandparent)
+                if(check_vectors_same(dirn_parent,dirn_grandparent))then
+                   normal(1) = 0.0_dp
+                   normal(2) = -1.0_dp/sqrt(2.0_dp)
+                   normal(3) = 1.0_dp/sqrt(2.0_dp)
+                else
+                   normal = cross_product(dirn_parent,dirn_grandparent) !get normal to parent-grandparent
+                   normal = unit_vector(normal) ! normalise
+                endif
+             endif
+             branch_angle = 25.0_dp * pi/180.0_dp
+             normal2 = cross_product(dirn_parent,normal) ! equation for the branching plane
+             normal2 = unit_vector(normal2) ! normalise
+             ! set up a mini linear system to solve:
+             A(1,:) = dirn_parent(:) !dotprod parent and new element
+             A(2,:) = normal(:) !dotprod normal and new element
+             A(3,:) = normal2(:) !dotprod plane and new element
+             B(1) = cos(branch_angle) !angle between parent & element
+             
+             if(elem_cnct(1,0,ne_parent).eq.0)then ! is the first child branch
+                B(2) = cos(pi/2.0_dp - branch_angle) !angle btwn normal & element
+             else !for second child
+                B(2) = cos(pi/2.0_dp + branch_angle) !angle btwn normal & element
+             endif
+             B(3) = 0.0_dp !on plane:(w-p).nrml=const;nrml.p=const
           
-          ne_global = ne_global + 1 ! new global element number
-          ne = ne + 1 ! new local element number
-          np_global = np_global + 1 !new global node number
-          np = np + 1 ! new local node number
+             direction = mesh_a_x_eq_b(A,B) !solve ax=b
+             direction = unit_vector(direction)
+          endif
           
-          nodes(np) = np_global
-          elems(ne) = ne_global
-          
-          elem_nodes(1,ne) = np0
-          elem_nodes(2,ne) = np
-          
-          elem_ordrs(1,ne) = ngen_parent + generation(i)
-          elem_ordrs(no_type,ne) = 1   ! ntype ! 0 for respiratory, 1 for conducting
-          elem_symmetry(ne) = symmetry_temp(i)+1 ! uses 0/1 in file; 1/2 in code
-          
-          ! record the element connectivity
-          elem_cnct(-1,0,ne) = 1 ! one parent branch
-          elem_cnct(-1,1,ne) = ne0 ! store parent element
-          elem_cnct(1,0,ne0) = elem_cnct(1,0,ne0) + 1
-          elem_cnct(1,elem_cnct(1,0,ne0),ne0) = ne
-          
-          ! record the direction and location of the branch
-          do j=1,3
-             elem_direction(j,ne) = elem_direction(j,ne0)
-             node_xyz(j,np) = node_xyz(j,np0) + &
-                  elem_direction(j,ne)*length(i)
-          enddo !j
-          
-          elem_field(ne_length,ne) = length(i)
-          elem_field(ne_radius,ne) = radius(i)
-          elem_field(ne_a_A,ne) = a_A(i)
-          elem_field(ne_vol,ne) = PI*radius(i)**2*length(i)
-          
+          do n = 1,n_refine
+             
+             np0 = elem_nodes(2,ne0)
+             
+             ne_global = ne_global + 1 ! new global element number
+             ne = ne + 1 ! new local element number
+             np_global = np_global + 1 !new global node number
+             np = np + 1 ! new local node number
+             
+             nodes(np) = np_global
+             elems(ne) = ne_global
+             
+             elem_nodes(1,ne) = np0
+             elem_nodes(2,ne) = np
+             
+             elem_ordrs(no_gen,ne) = ngen_parent + 1 !generation(i)
+             elem_ordrs(no_type,ne) = ntype ! 0 for respiratory, 1 for conducting
+             
+             if(n.eq.1)then
+                elem_symmetry(ne) = symmetry_temp(i)+1 ! uses 0/1 in file; 1/2 in code
+             else
+                elem_symmetry(ne) = 1 !not symmetric if a refined branch
+             endif
+             
+             ! record the element connectivity
+             elem_cnct(-1,0,ne) = 1 ! one parent branch
+             elem_cnct(-1,1,ne) = ne0 ! store parent element
+             elem_cnct(1,0,ne0) = elem_cnct(1,0,ne0) + 1
+             elem_cnct(1,elem_cnct(1,0,ne0),ne0) = ne
+
+             ! record the direction and location of the branch
+             do j=1,3
+                elem_direction(j,ne) = direction(j) !!! WAS parent_direction(j)
+                node_xyz(j,np) = node_xyz(j,np0) + &
+                     elem_direction(j,ne)*length(i)/dble(n_refine)
+             enddo !j
+             
+             elem_field(ne_length,ne) = length(i)/dble(n_refine)
+             elem_field(ne_radius,ne) = radius(i)
+             elem_field(ne_a_A,ne) = a_A(i)
+
+             elem_field(ne_vol,ne) = pi*radius(i)**2 * length(i)/dble(n_refine)
+
+             ne0 = ne
+          enddo !n
        enddo !i
+
+       if(scale_to_unit)then
+          allocate(volume_below(ne))
+          volume_below = 0.0_dp
+!!! scale the mesh branch sizes such that total volume is the same as the unit volume
+          ! elements in unit are from ne_start+1 to ne
+          volume_below(ne_start+1:ne) = elem_field(ne_vol,ne_start+1:ne) ! initialise
+          do ne_u = ne,ne_start+1,-1
+             ne_u0 = elem_cnct(-1,1,ne_u)
+             volume_below(ne_u0) = volume_below(ne_u0) &
+                  + dble(elem_symmetry(ne_u))*volume_below(ne_u)
+          enddo
+          nunit = where_inlist(ne_parent0,units)
+          ratio = unit_field(nu_vol,nunit)/volume_below(ne_parent0)
+          elem_field(ne_vol,ne_start+1:ne) = elem_field(ne_vol,ne_start+1:ne)*ratio
+
+!!! scale the length and radius by the cube root of volume ratio
+          do ne_u = ne_start+1,ne  ! scale both the length and the radius
+             elem_field(ne_radius,ne_u) = elem_field(ne_radius,ne_u)*ratio**0.333_dp
+             elem_field(ne_length,ne_u) = elem_field(ne_length,ne_u)*ratio**0.333_dp
+          enddo
+!!! move the nodes to match the length scaling
+          do ne_u = ne_start,ne
+             np1 = elem_nodes(1,ne_u)
+             np2 = elem_nodes(2,ne_u)
+             node_xyz(:,np2) = node_xyz(:,np1) + elem_field(ne_length,ne_u) * &
+                  elem_direction(:,ne_u)
+          enddo
+
+          deallocate(volume_below)
+       endif
+       
     enddo !nunit
     
     num_nodes = np
     num_elems = ne
-    
+
     call element_connectivity_1d
-    call evaluate_ordering ! calculate new ordering of tree
-    
-    call enter_exit(sub_name,2)
+
+    deallocate(parentlist)
 
   end subroutine add_mesh
+  
 
 !!!#############################################################################
 
@@ -432,7 +541,7 @@ contains
        elem_units_below(ne0) = elem_units_below(ne0) &
             + elem_units_below(ne)*elem_symmetry(ne)
     enddo !ne
-    
+
     call enter_exit(sub_name,2)
 
   end subroutine append_units
@@ -2660,11 +2769,12 @@ contains
           elem_field(ne_radius,ne) = USER_RAD
        endif
        n_max_ord=elem_ordrs(nindex,ne)
-    
+
        do ne=ne_min,ne_max
           radius = 10.0_dp**(log10(CONTROL_PARAM)*dble(elem_ordrs(nindex,ne) &
                -n_max_ord)+log10(USER_RAD))
           elem_field(ne_radius,ne)=radius
+
           if(ne_vol.gt.0)then
             elem_field(ne_vol,ne) = pi*radius**2*elem_field(ne_length,ne)
           endif
@@ -2674,7 +2784,7 @@ contains
           endif
        enddo
     endif
-    
+
     call enter_exit(sub_name,2)
     
   end subroutine define_rad_from_geom
@@ -3454,6 +3564,32 @@ contains
 
   end subroutine get_local_node
   
+!!!#############################################################################
+
+  function get_parent_branch(ne)
+    ! gets the elements number of the first proximal element that is a
+    ! different generation number to the current elements
+
+    integer,intent(in) :: ne
+
+    integer :: ne_gen,ne_temp,ne_temp_gen
+    integer :: get_parent_branch
+
+    ne_gen = elem_ordrs(1,ne) !generation of element
+    if(ne_gen.eq.1)then ! can't have a grandparent
+       get_parent_branch = 0
+    else
+       ne_temp = elem_cnct(-1,1,ne)
+       ne_temp_gen = elem_ordrs(1,ne_temp)
+       do while(ne_gen.eq.ne_temp_gen)
+          ne_temp = elem_cnct(-1,1,ne_temp)
+          ne_temp_gen = elem_ordrs(1,ne_temp)
+       enddo
+       get_parent_branch = ne_temp
+    endif
+
+  end function get_parent_branch
+    
 !!!#############################################################################
 
   subroutine geo_entry_exit_cap(element_spline,ifile,ncount_loop, &
@@ -4286,6 +4422,20 @@ contains
 
   end function get_local_elem_1d
 
+!!!#############################################################################
+
+  function where_inlist(item,ilist)
+    
+    integer :: item,ilist(:)
+    integer :: n
+    integer :: where_inlist
+
+    do n=1,size(ilist)
+       if(item == ilist(n)) where_inlist = n
+    enddo
+    
+  end function where_inlist
+  
 !!!###########################################################################
 
   subroutine write_elem_geometry_2d(elemfile)

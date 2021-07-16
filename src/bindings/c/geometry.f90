@@ -14,22 +14,24 @@ contains
 !###################################################################################
 !
 !*add_mesh:* Reads in an ipmesh file and adds this mesh to the terminal branches of an existing tree geometry
-  subroutine add_mesh_c(AIRWAY_MESHFILE, filename_len) bind(C, name="add_mesh_c")
+  subroutine add_mesh_c(AIRWAY_MESHFILE, filename_len, BRANCHTYPE, branchtype_len, n_refine) bind(C, name="add_mesh_c")
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
     use other_consts, only: MAX_FILENAME_LEN
     use geometry, only: add_mesh
     implicit none
 
-    integer,intent(in) :: filename_len
-    type(c_ptr), value, intent(in) :: AIRWAY_MESHFILE
+    integer,intent(in) :: filename_len, branchtype_len, n_refine
+    type(c_ptr), value, intent(in) :: AIRWAY_MESHFILE, BRANCHTYPE
     character(len=MAX_FILENAME_LEN) :: filename_f
+    character(len=MAX_FILENAME_LEN) :: branchtype_f
 
     call strncpy(filename_f, AIRWAY_MESHFILE, filename_len)
+    call strncpy(branchtype_f, BRANCHTYPE, branchtype_len)
 #if defined _WIN32 && defined __INTEL_COMPILER
-    call so_add_mesh(filename_f)
+    call so_add_mesh(filename_f, branchtype_f, n_refine)
 #else
-    call add_mesh(filename_f)
+    call add_mesh(filename_f, branchtype_f, n_refine)
 #endif
 
   end subroutine add_mesh_c
