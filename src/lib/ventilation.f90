@@ -34,8 +34,8 @@ module ventilation
 
   real(dp),parameter,private :: gravity = 9.81e3_dp         ! mm/s2
 !!! for air
-  real(dp),parameter,private :: gas_density =   1.146e-6_dp ! g.mm^-3
-  real(dp),parameter,private :: gas_viscosity = 1.8e-5_dp   ! Pa.s
+  !real(dp),parameter,private :: gas_density =   1.146e-6_dp ! g.mm^-3
+  !real(dp),parameter,private :: gas_viscosity = 1.8e-5_dp   ! Pa.s
 
 contains
 
@@ -86,7 +86,6 @@ contains
 
     sub_name = 'evaluate_vent'
     call enter_exit(sub_name,1)
-    write(*,*) elem_ordrs(1:4,1),no_type
     
 !!! Initialise variables:
     pmus_factor_in = 1.0_dp
@@ -118,7 +117,7 @@ contains
     call volume_of_mesh(init_vol,volume_tree)
     
 !!! distribute the initial tissue unit volumes along the gravitational axis.
-    call set_initial_volume(gdirn,COV,FRC*1.0e+6_dp,RMaxMean,RMinMean)
+    call initialise_lung_volume(gdirn,COV,FRC*1.0e+6_dp,RMaxMean,RMinMean)
     undef = refvol * (FRC*1.0e+6_dp-volume_tree)/dble(elem_units_below(1))
 
 !!! calculate the total model volume
@@ -534,7 +533,7 @@ contains
     real(dp), intent(in) :: chest_wall_compliance,undef
     ! Local variables
     integer :: ne,nunit
-    real(dp),parameter :: a = 0.433_dp, b = -0.611_dp, cc = 2500.0_dp
+    type(lung_mechanics) :: mechanics
     real(dp) :: exp_term,lambda,ratio
     character(len=60) :: sub_name
 
@@ -550,17 +549,17 @@ contains
        !calculate a compliance for the tissue unit
        ratio = unit_field(nu_vol,nunit)/undef
        lambda = ratio**(1.0_dp/3.0_dp) !uniform extension ratio
-       exp_term = exp(0.75_dp*(3.0_dp*a+b)*(lambda**2-1.0_dp)**2)
+       exp_term = exp(0.75_dp*(3.0_dp*mechanics%a+mechanics%b)*(lambda**2.0_dp-1.0_dp)**2.0_dp)
 
-       unit_field(nu_comp,nunit) = cc*exp_term/6.0_dp*(3.0_dp*(3.0_dp*a+b)**2 &
-            *(lambda**2-1.0_dp)**2/lambda**2+(3.0_dp*a+b) &
-            *(lambda**2+1.0_dp)/lambda**4)
+       unit_field(nu_comp,nunit) = mechanics%c*exp_term/6.0_dp*(3.0_dp*(3.0_dp*mechanics%a+mechanics%b)**2.0_dp &
+            *(lambda**2.0_dp-1.0_dp)**2.0_dp/lambda**2.0_dp+(3.0_dp*mechanics%a+mechanics%b) &
+            *(lambda**2.0_dp+1.0_dp)/lambda**4.0_dp)
        unit_field(nu_comp,nunit) = undef/unit_field(nu_comp,nunit) ! V/P
        ! add the chest wall (proportionately) in parallel
        unit_field(nu_comp,nunit) = 1.0_dp/(1.0_dp/unit_field(nu_comp,nunit)&
             +1.0_dp/(chest_wall_compliance/dble(num_units)))
        !estimate an elastic recoil pressure for the unit
-       unit_field(nu_pe,nunit) = cc/2.0_dp*(3.0_dp*a+b)*(lambda**2.0_dp &
+       unit_field(nu_pe,nunit) = mechanics%c/2.0_dp*(3.0_dp*mechanics%a+mechanics%b)*(lambda**2.0_dp &
             -1.0_dp)*exp_term/lambda
     enddo !nunit
 
@@ -672,6 +671,7 @@ contains
 
   subroutine update_resistance
 
+    type(fluid_properties) :: fluid_param
     ! Local variables
     integer :: i,ne,ne2,np1,np2,nunit
     real(dp) :: ett_resistance,gamma,le,rad,resistance,reynolds,sum,zeta
@@ -700,15 +700,15 @@ contains
        rad = elem_field(ne_radius,ne)
 
        ! element Poiseuille (laminar) resistance in units of Pa.s.mm-3   
-       resistance = 8.0_dp*GAS_VISCOSITY*elem_field(ne_length,ne)/ &
+       resistance = 8.0_dp*fluid_param%air_viscosity*elem_field(ne_length,ne)/ &
             (PI*elem_field(ne_radius,ne)**4) !laminar resistance
        
        ! element turbulent resistance (flow in bifurcating tubes)
        gamma = 0.357_dp !inspiration
        if(elem_field(ne_Vdot,ne).lt.0.0_dp) gamma = 0.46_dp !expiration
        
-       reynolds = abs(elem_field(ne_Vdot,ne)*2.0_dp*GAS_DENSITY/ &
-            (pi*elem_field(ne_radius,ne)*GAS_VISCOSITY))
+       reynolds = abs(elem_field(ne_Vdot,ne)*2.0_dp*fluid_param%air_density/ &
+            (pi*elem_field(ne_radius,ne)*fluid_param%air_viscosity))
        zeta = MAX(1.0_dp,dsqrt(2.0_dp*elem_field(ne_radius,ne)* &
             reynolds/elem_field(ne_length,ne))*gamma)
        elem_field(ne_resist,ne) = resistance * zeta

@@ -48,7 +48,7 @@ module geometry
   public reallocate_node_elem_arrays
   public refine_1d_elements
   public renumber_tree_in_order
-  public set_initial_volume
+  public initialise_lung_volume
   public triangles_from_surface
   public volume_of_mesh
   public write_geo_file
@@ -213,6 +213,8 @@ contains
 
           ! for the branching angle and direction -
           if(symmetry_temp(i).eq.1)then ! same as parent if symmetric
+             direction(:) = elem_direction(:,ne_parent)
+          elseif(nbranch.eq.1)then
              direction(:) = elem_direction(:,ne_parent)
           else
              ne_grandparent = get_parent_branch(ne_parent)
@@ -3240,11 +3242,11 @@ contains
 
 !!!#############################################################################
 
-  subroutine set_initial_volume(Gdirn,COV,total_volume,Rmax,Rmin)
-    !*set_initial_volume:* assigns a volume to terminal units appended on a
+  subroutine initialise_lung_volume(Gdirn,COV,total_volume,Rmax,Rmin)
+    !*initialise_lung_volume:* assigns a volume to terminal units appended on a
     ! tree structure based on an assumption of a linear gradient in the
     ! gravitational direction with max, min, and COV values defined.
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SET_INITIAL_VOLUME" :: SET_INITIAL_VOLUME
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_LUNG_VOLUME" :: INITIALISE_LUNG_VOLUME
     
     integer,intent(in) :: Gdirn
     real(dp),intent(in) :: COV,total_volume,Rmax,Rmin
@@ -3256,7 +3258,7 @@ contains
 
     ! --------------------------------------------------------------------------
     
-    sub_name = 'set_initial_volume'
+    sub_name = 'initialise_lung_volume'
     call enter_exit(sub_name,1)
     
     volume_estimate = 1.0_dp
@@ -3307,7 +3309,7 @@ contains
     
     call enter_exit(sub_name,2)
     
-  end subroutine set_initial_volume
+  end subroutine initialise_lung_volume
 
 !!!#############################################################################
 

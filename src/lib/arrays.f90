@@ -102,11 +102,28 @@ module arrays
   end type elasticity_param
 
   type fluid_properties
-    real(dp) :: blood_viscosity=0.33600e-02_dp !Pa.s
-    real(dp) :: blood_density=0.10500e-02_dp !kg/cm3
-    real(dp) :: air_viscosity
-    real(dp) :: air_density
+     real(dp) :: blood_viscosity=0.33600e-02_dp !Pa.s
+     real(dp) :: blood_density=0.10500e-02_dp !kg/cm3
+     real(dp) :: air_viscosity = 1.8e-5_dp   ! Pa.s
+     real(dp) :: air_density = 1.146e-6_dp ! g.mm^-3
   end type fluid_properties
+  
+  type lung_mechanics
+     ! default values for Fung exponential, as per Tawhai et al (2009)
+     real(dp) :: a = 0.433_dp 
+     real(dp) :: b = -0.611_dp
+     real(dp) :: c = 2500.0_dp
+     real(dp) :: refvol_ratio = 0.5_dp
+     real(dp) :: chest_wall_compliance = 2000.0_dp
+  end type lung_mechanics
+  
+  type lung_volumes
+     ! default values for the 'typical' upright lung
+     real(dp) :: frc = 3.0e+6_dp  ! frc in mm3
+     real(dp) :: Rmax = 0.79_dp   ! ratio of density in non-dependent tissue to mean density 
+     real(dp) :: Rmin = 1.29_dp   ! ratio of density in dependent tissue to mean density
+     real(dp) :: COV = 0.1_dp     ! coefficient of variation for density
+  end type lung_volumes
 
 ! temporary, for debugging:
   real(dp) :: unit_before
@@ -121,7 +138,7 @@ module arrays
          num_lines_2d, lines_2d, line_versn_2d, lines_in_elem, nodes_in_line, elems_2d, &
          elem_cnct_2d, elem_nodes_2d, elem_versn_2d, elem_lines_2d, elems_at_node_2d, arclength, &
          scale_factors_2d, parentlist, fluid_properties, elasticity_vessels, admittance_param, &
-         elasticity_param, all_admit_param
+         elasticity_param, all_admit_param, lung_mechanics, lung_volumes
 
 contains
   subroutine set_node_field_value(row, col, value)

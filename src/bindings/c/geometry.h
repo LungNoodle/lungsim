@@ -24,7 +24,7 @@ SHO_PUBLIC void element_connectivity_1d();
 SHO_PUBLIC void evaluate_ordering();
 SHO_PUBLIC void refine_1d_elements(int elemlist_len, int elemlist[], int nrefinements);
 SHO_PUBLIC void renumber_tree_in_order();
-SHO_PUBLIC void set_initial_volume(int Gdirn, double COV, double total_volume, double Rmax, double Rmin);
+SHO_PUBLIC void initialise_lung_volume(int Gdirn, double COV, double total_volume, double Rmax, double Rmin);
 SHO_PUBLIC void volume_of_mesh(double *volume_model, double *volume_tree);
 SHO_PUBLIC void write_elem_geometry_2d(const char *ELEMFILE);
 SHO_PUBLIC void write_geo_file(int ntype, const char *GEOFILE);

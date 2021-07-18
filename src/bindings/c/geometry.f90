@@ -419,12 +419,12 @@ shortest_length, rotation_limit)
 
 !###################################################################################
 !
-!>*set_initial_volume:* assigns a volume to terminal units appended on a tree structure
+!>*initialise_lung_volume:* assigns a volume to terminal units appended on a tree structure
 !>based on an assumption of a linear gradient in the gravitational direction with max
 !> min and COV values defined.
-  subroutine set_initial_volume_c(Gdirn, COV, total_volume, Rmax, Rmin) bind(C, name="set_initial_volume_c")
+  subroutine initialise_lung_volume_c(Gdirn, COV, total_volume, Rmax, Rmin) bind(C, name="initialise_lung_volume_c")
 
-    use geometry, only: set_initial_volume
+    use geometry, only: initialise_lung_volume
     use arrays, only: dp
     implicit none
 
@@ -433,12 +433,12 @@ shortest_length, rotation_limit)
     real(dp),intent(in) :: COV, total_volume, Rmax, Rmin
 
 #if defined _WIN32 && defined __INTEL_COMPILER
-    call so_set_initial_volume(Gdirn, COV, total_volume, Rmax, Rmin)
+    call so_initialise_lung_volume(Gdirn, COV, total_volume, Rmax, Rmin)
 #else
-    call set_initial_volume(Gdirn, COV, total_volume, Rmax, Rmin)
+    call initialise_lung_volume(Gdirn, COV, total_volume, Rmax, Rmin)
 #endif
 
-  end subroutine set_initial_volume_c
+  end subroutine initialise_lung_volume_c
 
 !
 !###################################################################################
