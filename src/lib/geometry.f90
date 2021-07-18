@@ -3251,6 +3251,7 @@ contains
     integer,intent(in) :: Gdirn
     real(dp),intent(in) :: COV,total_volume,Rmax,Rmin
     !     Local parameters
+    !type(lung_volumes) :: volumes ! has the default values, and is updated to use in other modules
     integer :: ne,np2,nunit
     real(dp) ::  factor_adjust,max_z,min_z,random_number,range_z,&
          volume_estimate,volume_of_tree,Vmax,Vmin,Xi
@@ -3260,7 +3261,13 @@ contains
     
     sub_name = 'initialise_lung_volume'
     call enter_exit(sub_name,1)
-    
+
+    ! update the default parameters
+    lung_volumes%frc = total_volume
+    lung_volumes%Rmax = Rmax
+    lung_volumes%Rmin = Rmin
+    lung_volumes%COV = COV
+
     volume_estimate = 1.0_dp
     volume_of_tree = 0.0_dp
     

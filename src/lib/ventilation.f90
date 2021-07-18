@@ -33,51 +33,31 @@ module ventilation
   public sum_elem_field_from_periphery
 
   real(dp),parameter,private :: gravity = 9.81e3_dp         ! mm/s2
-!!! for air
-  !real(dp),parameter,private :: gas_density =   1.146e-6_dp ! g.mm^-3
-  !real(dp),parameter,private :: gas_viscosity = 1.8e-5_dp   ! Pa.s
 
 contains
 
 !!!#############################################################################
 
-  subroutine evaluate_vent
+  subroutine evaluate_vent(num_breaths, dt)
     !*evaluate_vent:* Sets up and solves dynamic ventilation model
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_VENT" :: EVALUATE_VENT
 
+    integer, intent(in) :: num_breaths
+    real(dp), intent(in) :: dt
     ! Local variables
-    integer :: gdirn                  ! 1(x), 2(y), 3(z); upright lung (for our
-    !                                   models) is z, supine is y.
-    integer :: iter_step,n,ne,num_brths,num_itns,nunit
+    integer :: iter_step,n,ne,nunit
     real(dp) :: chestwall_restvol     ! resting volume of chest wall
-    real(dp) :: chest_wall_compliance ! constant compliance of chest wall
-    real(dp) :: constrict             ! for applying uniform constriction
-    real(dp) :: COV                   ! COV of tissue compliance
-    real(dp) :: i_to_e_ratio          ! ratio inspiration to expiration time
     real(dp) :: p_mus                 ! muscle (driving) pressure
-    real(dp) :: pmus_factor_ex        ! pmus_factor (_in and _ex) used to scale 
-    real(dp) :: pmus_factor_in        ! modifies driving pressures to converge 
-    !                                   tidal volume and expired volume to the 
-    !                                   target volume.
-    real(dp) :: pmus_step             ! change in Ppl for driving flow (Pa)
-    real(dp) :: press_in              ! constant pressure at entry to model (Pa)
-    real(dp) :: press_in_total        ! dynamic pressure at entry to model (Pa)
-    real(dp) :: refvol                ! proportion of model for 'zero stress'
-    real(dp) :: RMaxMean              ! ratio max to mean volume
-    real(dp) :: RMinMean              ! ratio min to mean volume
     real(dp) :: sum_expid             ! sum of expired volume  (mm^3)
     real(dp) :: sum_tidal             ! sum of inspired volume  (mm^3)
     real(dp) :: Texpn                 ! time for expiration (s)
-    real(dp) :: T_interval            ! the total length of the breath (s)
     real(dp) :: Tinsp                 ! time for inspiration (s)
     real(dp) :: undef                 ! the zero stress volume. undef < RV 
-    real(dp) :: volume_target         ! the target tidal volume (mm^3)
 
-    real(dp) :: dpmus,dt,endtime,err_est,err_tol,FRC,init_vol,last_vol, &
+    real(dp) :: dpmus,endtime,err_est,FRC,init_vol,last_vol, &
          current_vol,Pcw,ppl_current,pptrans,prev_flow,ptrans_frc, &
          sum_dpmus,sum_dpmus_ei,time,totalc,Tpass,ttime,volume_tree,WOBe,WOBr, &
          WOBe_insp,WOBr_insp,WOB_insp
-    character :: expiration_type*(10) ! active (sine wave), passive, pressure
     logical :: CONTINUE,converged
 
     character(len=60) :: sub_name
@@ -88,82 +68,65 @@ contains
     call enter_exit(sub_name,1)
     
 !!! Initialise variables:
-    pmus_factor_in = 1.0_dp
-    pmus_factor_ex = 1.0_dp
     time = 0.0_dp !initialise the simulation time.
     n = 0 !initialise the 'breath number'. incremented at start of each breath.
     sum_tidal = 0.0_dp ! initialise the inspired and expired volumes
     sum_expid = 0.0_dp
     last_vol = 0.0_dp
 
-!!! set default values for the parameters that control the breathing simulation
-!!! these should be controlled by user input (showing hard-coded for now)
-
-    call read_params_evaluate_flow(gdirn, chest_wall_compliance, &
-       constrict, COV, FRC, i_to_e_ratio, pmus_step, press_in,&
-       refvol, RMaxMean, RMinMean, T_interval, volume_target, expiration_type)
-    call read_params_main(num_brths, num_itns, dt, err_tol)
-
-!!! set dynamic pressure at entry. only changes for the 'pressure' option
-    press_in_total = press_in
-    
 !!! calculate key variables from the boundary conditions/problem parameters
-    Texpn = T_interval / (1.0_dp+i_to_e_ratio)
-    Tinsp = T_interval - Texpn
+    Texpn = ventilation_values%time_breath / (1.0_dp+ventilation_values%i_to_e_ratio)
+    Tinsp = ventilation_values%time_breath - Texpn
 
 !!! store initial branch lengths, radii, resistance etc. in array 'elem_field'
     call update_elem_field(1.0_dp)
     call update_resistance
     call volume_of_mesh(init_vol,volume_tree)
     
-!!! distribute the initial tissue unit volumes along the gravitational axis.
-    call initialise_lung_volume(gdirn,COV,FRC*1.0e+6_dp,RMaxMean,RMinMean)
-    undef = refvol * (FRC*1.0e+6_dp-volume_tree)/dble(elem_units_below(1))
+    undef = lung_mechanics%refvol_ratio * (lung_volumes%FRC-volume_tree)/dble(elem_units_below(1))
 
 !!! calculate the total model volume
     call volume_of_mesh(init_vol,volume_tree)
 
-    write(*,'('' Anatomical deadspace = '',F8.3,'' ml'')') &
-         volume_tree/1.0e+3_dp ! in mL
-    write(*,'('' Respiratory volume   = '',F8.3,'' L'')') &
-         (init_vol-volume_tree)/1.0e+6_dp !in L
-    write(*,'('' Total lung volume    = '',F8.3,'' L'')') &
-         init_vol/1.0e+6_dp !in L
+    write(*,'('' Anatomical deadspace = '',F8.3,'' ml'')') volume_tree/1.0e+3_dp ! in mL
+    write(*,'('' Respiratory volume   = '',F8.3,'' L'')') (init_vol-volume_tree)/1.0e+6_dp !in L
+    write(*,'('' Total lung volume    = '',F8.3,'' L'')') init_vol/1.0e+6_dp !in L
 
     unit_field(nu_dpdt,1:num_units) = 0.0_dp
 
 !!! calculate the compliance of each tissue unit
-    call tissue_compliance(chest_wall_compliance,undef)
+    call tissue_compliance(undef)
     totalc = SUM(unit_field(nu_comp,1:num_units)) !the total model compliance
     call update_pleural_pressure(ppl_current) !calculate new pleural pressure
     pptrans=SUM(unit_field(nu_pe,1:num_units))/num_units
 
-    chestwall_restvol = init_vol + chest_wall_compliance * (-ppl_current)
-    Pcw = (chestwall_restvol - init_vol)/chest_wall_compliance
+    chestwall_restvol = init_vol + lung_mechanics%chest_wall_compliance * (-ppl_current)
+    Pcw = (chestwall_restvol - init_vol)/lung_mechanics%chest_wall_compliance
     write(*,'('' Chest wall RV = '',F8.3,'' L'')') chestwall_restvol/1.0e+6_dp
         
-    call write_flow_step_results(chest_wall_compliance,init_vol, &
+    call write_flow_step_results(init_vol, &
          current_vol,ppl_current,pptrans,Pcw,p_mus,0.0_dp,0.0_dp)
     
     continue = .true.
     do while (continue)
        n = n + 1 ! increment the breath number
        ttime = 0.0_dp ! each breath starts with ttime=0
-       endtime = T_interval * n - 0.5_dp * dt ! the end time of this breath
+       endtime = ventilation_values%time_breath * dble(n) - 0.5_dp * dt ! the end time of this breath
        p_mus = 0.0_dp 
        ptrans_frc = SUM(unit_field(nu_pe,1:num_units))/num_units !ptrans at frc
 
        if(n.gt.1)then !write out 'end of breath' information
-          call write_end_of_breath(init_vol,current_vol,pmus_factor_in, &
-               pmus_step,sum_expid,sum_tidal,volume_target,WOBe_insp, &
+          call write_end_of_breath(init_vol,current_vol,sum_expid,sum_tidal,WOBe_insp, &
                WOBr_insp,WOB_insp)
           
-          if(abs(volume_target).gt.1.0e-5_dp)THEN
+          if(abs(ventilation_values%tidal_volume).gt.1.0e-5_dp)THEN
              ! modify driving muscle pressure by volume_target/sum_tidal
              ! this increases p_mus for volume_target>sum_tidal, and
              ! decreases p_mus for volume_target<sum_tidal
-             pmus_factor_in = pmus_factor_in * abs(volume_target/sum_tidal)
-             pmus_factor_ex = pmus_factor_ex * abs(volume_target/sum_expid)
+             ventilation_values%factor_P_muscle_insp = ventilation_values%factor_P_muscle_insp * &
+                  abs(ventilation_values%tidal_volume/sum_tidal)
+             ventilation_values%factor_P_muscle_expn = ventilation_values%factor_P_muscle_expn * &
+                  abs(ventilation_values%tidal_volume/sum_expid)
           endif
           sum_tidal = 0.0_dp !reset the tidal volume
           sum_expid = 0.0_dp !reset the expired volume
@@ -177,28 +140,28 @@ contains
           ttime = ttime + dt ! increment the breath time
           time = time + dt ! increment the whole simulation time
 !!!.......calculate the flow and pressure distribution for one time-step
-          call evaluate_vent_step(num_itns,chest_wall_compliance, &
-               chestwall_restvol,dt,err_tol,init_vol,last_vol,current_vol, &
-               Pcw,pmus_factor_ex,pmus_factor_in,pmus_step,p_mus,ppl_current, &
-               pptrans,press_in_total,prev_flow,ptrans_frc,sum_dpmus,sum_dpmus_ei, &
+          call evaluate_vent_step( &
+               chestwall_restvol,dt,init_vol,last_vol,current_vol, &
+               Pcw,p_mus,ppl_current, &
+               pptrans,prev_flow,ptrans_frc,sum_dpmus,sum_dpmus_ei, &
                sum_expid,sum_tidal,texpn,time,tinsp,ttime,undef,WOBe,WOBr, &
-               WOBe_insp,WOBr_insp,WOB_insp,expiration_type, &
+               WOBe_insp,WOBr_insp,WOB_insp, &
                dpmus,converged,iter_step)
 !!!.......update the estimate of pleural pressure
           call update_pleural_pressure(ppl_current) ! new pleural pressure
            
-          call write_flow_step_results(chest_wall_compliance,init_vol, &
+          call write_flow_step_results(init_vol, &
                current_vol,ppl_current,pptrans,Pcw,p_mus,time,ttime)
 
        enddo !while time<endtime
        
 !!!....check whether simulation continues
-       continue = ventilation_continue(n,num_brths,sum_tidal,volume_target)
+       continue = ventilation_continue(n,num_breaths,sum_tidal)
 
     enddo !...WHILE(CONTINUE)
 
-    call write_end_of_breath(init_vol,current_vol,pmus_factor_in,pmus_step, &
-         sum_expid,sum_tidal,volume_target,WOBe_insp,WOBr_insp,WOB_insp)
+    call write_end_of_breath(init_vol,current_vol, &
+         sum_expid,sum_tidal,WOBe_insp,WOBr_insp,WOB_insp)
 
 !!! Transfer the tidal volume for each elastic unit to the terminal branches,
 !!! and sum up the tree. Divide by inlet flow. This gives the time-averaged and
@@ -220,21 +183,19 @@ contains
 
 !!!#############################################################################
 
-  subroutine evaluate_vent_step(num_itns,chest_wall_compliance, &
-       chestwall_restvol,dt,err_tol,init_vol,last_vol,current_vol,Pcw, &
-       pmus_factor_ex,pmus_factor_in,pmus_step,p_mus,ppl_current,pptrans, &
-       press_in_total,prev_flow,ptrans_frc,sum_dpmus,sum_dpmus_ei,sum_expid, &
+  subroutine evaluate_vent_step( &
+       chestwall_restvol,dt,init_vol,last_vol,current_vol,Pcw, &
+       p_mus,ppl_current,pptrans, &
+       prev_flow,ptrans_frc,sum_dpmus,sum_dpmus_ei,sum_expid, &
        sum_tidal,texpn,time,tinsp,ttime,undef,WOBe,WOBr,WOBe_insp,WOBr_insp, &
-       WOB_insp,expiration_type,dpmus,converged,iter_step)
+       WOB_insp,dpmus,converged,iter_step)
 
-    integer,intent(in) :: num_itns
-    real(dp),intent(in) :: chest_wall_compliance,chestwall_restvol,dt, &
-         err_tol,init_vol,pmus_factor_ex,pmus_factor_in,pmus_step,pptrans, &
-         press_in_total,ptrans_frc,texpn,time,tinsp,ttime,undef
+    real(dp),intent(in) :: chestwall_restvol,dt, &
+         init_vol,pptrans, &
+         ptrans_frc,texpn,time,tinsp,ttime,undef
     real(dp) :: last_vol,current_vol,Pcw,ppl_current,prev_flow,p_mus, &
          sum_dpmus,sum_dpmus_ei,sum_expid,sum_tidal,WOBe,WOB_insp,WOBe_insp, &
          WOBr,WOBr_insp
-    character,intent(in) :: expiration_type*(*)
     ! Local variables
     integer :: iter_step
     real(dp) :: dpmus,err_est,totalC,Tpass,volume_tree
@@ -254,8 +215,7 @@ contains
 !!! the pressures throughout the tree.
 
     ! set the increment in driving (muscle) pressure
-    call set_driving_pressures(dpmus,dt,pmus_factor_ex,pmus_factor_in, &
-         pmus_step,p_mus,Texpn,Tinsp,ttime,expiration_type)
+    call set_driving_pressures(dpmus,dt,p_mus,Texpn,Tinsp,ttime)
     prev_flow = elem_field(ne_Vdot,1)
     
 !!! Solve for a new flow and pressure field
@@ -272,9 +232,9 @@ contains
     do while (.not.converged)
        iter_step = iter_step+1 !count the iterative steps
        call estimate_flow(dpmus,dt,err_est) !analytic solution for Q
-       if(iter_step.gt.1.and.err_est.lt.err_tol)then
+       if(iter_step.gt.1.and.err_est.lt.ventilation_solver%error_tolerance)then
           converged = .TRUE.
-       else if(iter_step.gt.num_itns)then
+       else if(iter_step.gt.ventilation_solver%num_iterations)then
           converged = .TRUE.
           write(*,'('' Warning: lower convergence '// &
                'tolerance and time step - check values, Error='',D10.3)') &
@@ -283,7 +243,7 @@ contains
        call sum_elem_field_from_periphery(ne_Vdot) !sum flows UP tree
        call update_elem_field(1.0_dp)
        call update_resistance ! updates resistances
-       call update_node_pressures(press_in_total) ! updates the pressures at nodes
+       call update_node_pressures ! updates the pressures at nodes
        call update_unit_dpdt(dt) ! update dP/dt at the terminal units
     enddo !converged
     
@@ -291,13 +251,13 @@ contains
     call volume_of_mesh(current_vol,volume_tree) ! calculate mesh volume
     call update_elem_field(1.0_dp)
     call update_resistance  !update element lengths, volumes, resistances
-    call tissue_compliance(chest_wall_compliance,undef) ! unit compliances
+    call tissue_compliance(undef) ! unit compliances
     totalc = SUM(unit_field(nu_comp,1:num_units)) !the total model compliance
     call update_proximal_pressure ! pressure at proximal nodes of end branches
     call calculate_work(current_vol-init_vol,current_vol-last_vol,WOBe,WOBr, &
          pptrans)!calculate work of breathing
     last_vol=current_vol
-    Pcw = (chestwall_restvol - current_vol)/chest_wall_compliance
+    Pcw = (chestwall_restvol - current_vol)/lung_mechanics%chest_wall_compliance
     
     ! increment the tidal volume, or the volume expired
     if(elem_field(ne_Vdot,1).gt.0.0_dp)then
@@ -354,13 +314,11 @@ contains
 
 !!!#############################################################################
 
-  subroutine set_driving_pressures(dpmus,dt,pmus_factor_ex,pmus_factor_in, &
-       pmus_step,p_mus,Texpn,Tinsp,ttime,expiration_type)
+  subroutine set_driving_pressures(dpmus,dt,p_mus,Texpn,Tinsp,ttime)
 
-    real(dp),intent(in) :: dt,pmus_factor_ex,pmus_factor_in,pmus_step,Texpn, &
+    real(dp),intent(in) :: dt,Texpn, &
          Tinsp,ttime
     real(dp) :: dpmus,p_mus
-    character(len=*),intent(in) :: expiration_type
     ! Local variables
     real(dp) :: sum_dpmus,sum_dpmus_ei,Tpass
     character(len=60) :: sub_name
@@ -370,21 +328,21 @@ contains
     sub_name = 'set_driving_pressures'
     call enter_exit(sub_name,1)
 
-    select case(expiration_type)
+    select case(ventilation_values%expiration_type)
        
     case("active")
        if(ttime.lt.Tinsp)then
-          dpmus = pmus_step*pmus_factor_in*PI* &
+          dpmus = ventilation_values%P_muscle_estimate*ventilation_values%factor_P_muscle_insp*PI* &
                sin(pi/Tinsp*ttime)/(2.0_dp*Tinsp)*dt
        elseif(ttime.le.Tinsp+Texpn)then
-          dpmus = pmus_step*pmus_factor_ex*PI* &
+          dpmus = ventilation_values%P_muscle_estimate*ventilation_values%factor_P_muscle_expn*PI* &
                sin(2.0_dp*pi*(0.5_dp+(ttime-Tinsp)/(2.0_dp*Texpn)))/ &
                (2.0_dp*Texpn)*dt
        endif
        
     case("passive")
        if(ttime.le.Tinsp+0.5_dp*dt)then
-          dpmus = pmus_step*pmus_factor_in*PI*dt* &
+          dpmus = ventilation_values%P_muscle_estimate*ventilation_values%factor_P_muscle_insp*PI*dt* &
                sin(pi*ttime/Tinsp)/(2.0_dp*Tinsp)
           sum_dpmus = sum_dpmus+dpmus
           sum_dpmus_ei = sum_dpmus
@@ -493,11 +451,10 @@ contains
 
 !!!#############################################################################
 
-  subroutine update_node_pressures(press_in)
+  subroutine update_node_pressures
     !*update_node_pressures:* Use the known resistances and flows to calculate
     ! nodal pressures through whole tree
 
-    real(dp),intent(in) :: press_in
     !Local parameters
     integer :: ne,np1,np2
     character(len=60) :: sub_name
@@ -510,7 +467,7 @@ contains
     ! set the initial node pressure to be the input pressure (usually zero)
     ne = 1 !element number at top of tree, usually = 1
     np1 = elem_nodes(1,ne) !first node in element
-    node_field(nj_aw_press,np1) = press_in !set pressure at top of tree
+    node_field(nj_aw_press,np1) = ventilation_values%P_air_inlet !set pressure at top of tree
 
     do ne = 1,num_elems !for each element
        np1 = elem_nodes(1,ne) !start node number
@@ -528,12 +485,12 @@ contains
 
 !!!#############################################################################
 
-  subroutine tissue_compliance(chest_wall_compliance,undef)
+  subroutine tissue_compliance(undef)
 
-    real(dp), intent(in) :: chest_wall_compliance,undef
+    real(dp), intent(in) :: undef
     ! Local variables
     integer :: ne,nunit
-    type(lung_mechanics) :: mechanics
+    !type(lung_mechanics) :: mechanics
     real(dp) :: exp_term,lambda,ratio
     character(len=60) :: sub_name
 
@@ -549,18 +506,18 @@ contains
        !calculate a compliance for the tissue unit
        ratio = unit_field(nu_vol,nunit)/undef
        lambda = ratio**(1.0_dp/3.0_dp) !uniform extension ratio
-       exp_term = exp(0.75_dp*(3.0_dp*mechanics%a+mechanics%b)*(lambda**2.0_dp-1.0_dp)**2.0_dp)
+       exp_term = exp(0.75_dp*(3.0_dp*lung_mechanics%a+lung_mechanics%b)*(lambda**2.0_dp-1.0_dp)**2.0_dp)
 
-       unit_field(nu_comp,nunit) = mechanics%c*exp_term/6.0_dp*(3.0_dp*(3.0_dp*mechanics%a+mechanics%b)**2.0_dp &
-            *(lambda**2.0_dp-1.0_dp)**2.0_dp/lambda**2.0_dp+(3.0_dp*mechanics%a+mechanics%b) &
-            *(lambda**2.0_dp+1.0_dp)/lambda**4.0_dp)
+       unit_field(nu_comp,nunit) = lung_mechanics%c*exp_term/6.0_dp*(3.0_dp*(3.0_dp*lung_mechanics%a + &
+            lung_mechanics%b)**2.0_dp *(lambda**2.0_dp-1.0_dp)**2.0_dp/lambda**2.0_dp+(3.0_dp* &
+            lung_mechanics%a+lung_mechanics%b) *(lambda**2.0_dp+1.0_dp)/lambda**4.0_dp)
        unit_field(nu_comp,nunit) = undef/unit_field(nu_comp,nunit) ! V/P
        ! add the chest wall (proportionately) in parallel
        unit_field(nu_comp,nunit) = 1.0_dp/(1.0_dp/unit_field(nu_comp,nunit)&
-            +1.0_dp/(chest_wall_compliance/dble(num_units)))
+            +1.0_dp/(lung_mechanics%chest_wall_compliance/dble(num_units)))
        !estimate an elastic recoil pressure for the unit
-       unit_field(nu_pe,nunit) = mechanics%c/2.0_dp*(3.0_dp*mechanics%a+mechanics%b)*(lambda**2.0_dp &
-            -1.0_dp)*exp_term/lambda
+       unit_field(nu_pe,nunit) = lung_mechanics%c/2.0_dp*(3.0_dp*lung_mechanics%a + &
+            lung_mechanics%b)*(lambda**2.0_dp -1.0_dp)*exp_term/lambda
     enddo !nunit
 
     call enter_exit(sub_name,2)
@@ -838,179 +795,6 @@ contains
 
 !!!#############################################################################
 
-  subroutine read_params_main(num_brths, num_itns, dt, err_tol)
-
-    integer,intent(out) :: num_brths, num_itns
-    real(dp) :: dt,err_tol
-
-    ! Local variables
-    character(len=100) :: buffer, label
-    integer :: pos
-    integer, parameter :: fh = 15
-    integer :: ios
-    integer :: line
-    character(len=60) :: sub_name
-
-    ! --------------------------------------------------------------------------
-
-    sub_name = 'read_params_main'
-    call enter_exit(sub_name,1)
-
-    ios = 0
-    line = 0
-    open(fh, file='Parameters/params_main.txt')
-
-    ! ios is negative if an end of record condition is encountered or if
-    ! an endfile condition was detected.  It is positive if an error was
-    ! detected.  ios is zero otherwise.
-
-    do while (ios == 0)
-       read(fh, '(A)', iostat=ios) buffer
-       if (ios == 0) then
-          line = line + 1
-
-          ! Find the first instance of whitespace.  Split label and data.
-          pos = scan(buffer, '    ')
-          label = buffer(1:pos)
-          buffer = buffer(pos+1:)
-
-          select case (label)
-          case ('num_brths')
-             read(buffer, *, iostat=ios) num_brths
-             print *, 'Read num_brths: ', num_brths
-          case ('num_itns')
-             read(buffer, *, iostat=ios) num_itns
-             print *, 'Read num_itns: ', num_itns
-          case ('dt')
-             read(buffer, *, iostat=ios) dt
-             print *, 'Read dt: ', dt
-          case ('err_tol')
-             read(buffer, *, iostat=ios) err_tol
-             print *, 'Read err_tol: ', err_tol
-          case default
-             print *, 'Skipping invalid label at line', line
-          end select
-       end if
-    end do
-
-    close(fh)
-    call enter_exit(sub_name,2)
-
-  end subroutine read_params_main
-
-!!!#############################################################################
-
-  subroutine read_params_evaluate_flow (gdirn, chest_wall_compliance, &
-       constrict, COV, FRC, i_to_e_ratio, pmus_step, press_in,&
-       refvol, RMaxMean, RMinMean, T_interval, volume_target, expiration_type)
-
-    integer,intent(out) :: gdirn
-    real(dp),intent(out) :: chest_wall_compliance, constrict, COV,&
-       FRC, i_to_e_ratio, pmus_step, press_in,&
-       refvol, RMaxMean, RMinMean, T_interval, volume_target
-    character,intent(out) :: expiration_type*(*)
-
-    ! Local variables
-    character(len=100) :: buffer, label
-    integer :: pos
-    integer, parameter :: fh = 15
-    integer :: ios
-    integer :: line
-    character(len=60) :: sub_name
-
-    ! --------------------------------------------------------------------------
-
-    ios = 0
-    line = 0
-    sub_name = 'read_params_evaluate_flow'
-    call enter_exit(sub_name,1)
-
-    ! following values are examples from control.txt
-    !    T_interval = 4.0_dp !s
-    !    gdirn = 3
-    !    press_in = 0.0_dp !Pa
-    !    COV = 0.2_dp
-    !    RMaxMean = 1.29_dp
-    !    RMinMean = 0.78_dp
-    !    i_to_e_ratio = 0.5_dp !dimensionless
-    !    refvol = 0.6_dp !dimensionless
-    !    volume_target = 8.0e5_dp !mm^3  800 ml
-    !    pmus_step = -5.4_dp * 98.0665_dp !-5.4 cmH2O converted to Pa
-    !    expiration_type = 'passive' ! or 'active'
-    !    chest_wall_compliance = 0.2e6_dp/98.0665_dp !(0.2 L/cmH2O --> mm^3/Pa)
-
-    open(fh, file='Parameters/params_evaluate_flow.txt')
-
-    ! ios is negative if an end of record condition is encountered or if
-    ! an endfile condition was detected.  It is positive if an error was
-    ! detected.  ios is zero otherwise.
-
-    do while (ios == 0)
-       read(fh, '(A)', iostat=ios) buffer
-       if (ios == 0) then
-          line = line + 1
-
-          ! Find the first instance of whitespace.  Split label and data.
-          pos = scan(buffer, '    ')
-          label = buffer(1:pos)
-          buffer = buffer(pos+1:)
-
-          select case (label)
-          case ('FRC')
-             read(buffer, *, iostat=ios) FRC
-             print *, 'Read FRC: ', FRC
-          case ('constrict')
-             read(buffer, *, iostat=ios) constrict
-             print *, 'Read constrict: ', constrict
-          case ('T_interval')
-             read(buffer, *, iostat=ios) T_interval
-             print *, 'Read T_interval: ', T_interval
-          case ('Gdirn')
-             read(buffer, *, iostat=ios) gdirn
-             print *, 'Read Gdirn: ', gdirn
-          case ('press_in')
-             read(buffer, *, iostat=ios) press_in
-             print *, 'Read press_in: ', press_in
-          case ('COV')
-             read(buffer, *, iostat=ios) COV
-             print *, 'Read COV: ', COV
-          case ('RMaxMean')
-             read(buffer, *, iostat=ios) RMaxMean
-             print *, 'Read RMaxMean: ', RMaxMean
-          case ('RMinMean')
-             read(buffer, *, iostat=ios) RMinMean
-             print *, 'Read RMinMean: ', RMinMean
-          case ('i_to_e_ratio')
-             read(buffer, *, iostat=ios) i_to_e_ratio
-             print *, 'Read i_to_e_ratio: ', i_to_e_ratio
-          case ('refvol')
-             read(buffer, *, iostat=ios) refvol
-             print *, 'Read refvol: ', refvol
-          case ('volume_target')
-             read(buffer, *, iostat=ios) volume_target
-             print *, 'Read volume_target: ', volume_target
-          case ('pmus_step')
-             read(buffer, *, iostat=ios) pmus_step
-             print *, 'Read pmus_step_coeff: ', pmus_step
-          case ('expiration_type')
-             read(buffer, *, iostat=ios) expiration_type
-             print *, 'Read expiration_type: ', expiration_type
-          case ('chest_wall_compliance')
-             read(buffer, *, iostat=ios) chest_wall_compliance
-             print *, 'Read chest_wall_compliance: ', chest_wall_compliance
-          case default
-             print *, 'Skipping invalid label at line', line
-          end select
-       end if
-    end do
-
-    close(fh)
-    call enter_exit(sub_name,2)
-
-  end subroutine read_params_evaluate_flow
-
-!!!#############################################################################
-
   subroutine two_unit_test
   !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_TWO_UNIT_TEST" :: TWO_UNIT_TEST
 
@@ -1113,11 +897,11 @@ contains
 
 !!!#############################################################################
 
-  subroutine write_end_of_breath(init_vol,current_vol,pmus_factor_in, &
-       pmus_step,sum_expid,sum_tidal,volume_target,WOBe_insp,WOBr_insp,WOB_insp)
+  subroutine write_end_of_breath(init_vol,current_vol, &
+       sum_expid,sum_tidal,WOBe_insp,WOBr_insp,WOB_insp)
 
-    real(dp),intent(in) :: init_vol,current_vol,pmus_factor_in,pmus_step, &
-         sum_expid,sum_tidal,volume_target,WOBe_insp,WOBr_insp,WOB_insp
+    real(dp),intent(in) :: init_vol,current_vol, &
+         sum_expid,sum_tidal,WOBe_insp,WOBr_insp,WOB_insp
     ! Local variables
     character(len=60) :: sub_name
 
@@ -1131,11 +915,11 @@ contains
     write(*,'('' End of breath, expired  = '',F10.2,'' L'')') &
          sum_expid/1.0e+6_dp
     write(*,'('' Peak muscle pressure    = '',F10.2,'' cmH2O'')') &
-         pmus_step*pmus_factor_in/98.0665_dp
+         ventilation_values%P_muscle_estimate*ventilation_values%factor_P_muscle_insp/98.0665_dp
     write(*,'('' Drift in FRC from start = '',F10.2,'' %'')') &
-         100*(current_vol-init_vol)/init_vol
+         100.0_dp*(current_vol-init_vol)/init_vol
     write(*,'('' Difference from target Vt = '',F8.2,'' %'')') &
-         100*(volume_target-sum_tidal)/volume_target
+         100.0_dp*(ventilation_values%tidal_volume-sum_tidal)/ventilation_values%tidal_volume
     write(*,'('' Total Work of Breathing ='',F7.3,''J/min'')')WOB_insp
     write(*,'('' elastic WOB ='',F7.3,''J/min'')')WOBe_insp
     write(*,'('' resistive WOB='',F7.3,''J/min'')')WOBr_insp
@@ -1146,10 +930,10 @@ contains
 
 !!!#############################################################################
 
-  subroutine write_flow_step_results(chest_wall_compliance,init_vol, &
+  subroutine write_flow_step_results(init_vol, &
        current_vol,ppl_current,pptrans,Pcw,p_mus,time,ttime)
 
-    real(dp),intent(in) :: chest_wall_compliance,init_vol,current_vol, &
+    real(dp),intent(in) :: init_vol,current_vol, &
          ppl_current,pptrans,Pcw,p_mus,time,ttime
     ! Local variables
     real(dp) :: totalC,Precoil
@@ -1162,7 +946,7 @@ contains
 
     !the total model compliance
     totalC = 1.0_dp/(1.0_dp/sum(unit_field(nu_comp,1:num_units))+ &
-         1.0_dp/chest_wall_compliance)
+         1.0_dp/lung_mechanics%chest_wall_compliance)
     Precoil = sum(unit_field(nu_pe,1:num_units))/num_units
     
     if(abs(time).lt.zero_tol)then
@@ -1206,21 +990,21 @@ contains
 
 !!!#############################################################################
 
-  function ventilation_continue(n,num_brths,sum_tidal,volume_target)
+  function ventilation_continue(n,num_breaths,sum_tidal)
 
-    integer,intent(in) :: n,num_brths
-    real(dp),intent(in) :: sum_tidal,volume_target
+    integer,intent(in) :: n,num_breaths
+    real(dp),intent(in) :: sum_tidal
     ! Local variables
     logical :: ventilation_continue
 
     ! --------------------------------------------------------------------------
 
     ventilation_continue = .true.
-    if(n.ge.num_brths)then
+    if(n.ge.num_breaths)then
        ventilation_continue = .false.
-    elseif(abs(volume_target).gt.1.0e-3_dp)then
-       if(abs(100.0_dp*(volume_target-sum_tidal) &
-            /volume_target).gt.0.1_dp.or.(n.lt.2))then
+    elseif(abs(ventilation_values%tidal_volume).gt.1.0e-3_dp)then
+       if(abs(100.0_dp*(ventilation_values%tidal_volume-sum_tidal) &
+            /ventilation_values%tidal_volume).gt.0.1_dp.or.(n.lt.2))then
           ventilation_continue = .true.
        else
           ventilation_continue = .false.

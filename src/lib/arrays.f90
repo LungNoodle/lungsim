@@ -108,22 +108,46 @@ module arrays
      real(dp) :: air_density = 1.146e-6_dp ! g.mm^-3
   end type fluid_properties
   
-  type lung_mechanics
+  type default_lung_mechanics
      ! default values for Fung exponential, as per Tawhai et al (2009)
      real(dp) :: a = 0.433_dp 
      real(dp) :: b = -0.611_dp
      real(dp) :: c = 2500.0_dp
      real(dp) :: refvol_ratio = 0.5_dp
      real(dp) :: chest_wall_compliance = 2000.0_dp
-  end type lung_mechanics
+  end type default_lung_mechanics
   
-  type lung_volumes
+  type default_lung_volumes
      ! default values for the 'typical' upright lung
      real(dp) :: frc = 3.0e+6_dp  ! frc in mm3
      real(dp) :: Rmax = 0.79_dp   ! ratio of density in non-dependent tissue to mean density 
      real(dp) :: Rmin = 1.29_dp   ! ratio of density in dependent tissue to mean density
      real(dp) :: COV = 0.1_dp     ! coefficient of variation for density
-  end type lung_volumes
+  end type default_lung_volumes
+
+  type default_ventilation
+     ! default values for ventilation
+     real(dp) :: tidal_volume = 4.0e+5_dp  ! mm^3
+     real(dp) :: i_to_e_ratio = 1.0_dp     ! dim.
+     real(dp) :: time_breath = 4.0_dp      ! sec
+     real(dp) :: P_air_inlet = 0.0_dp      ! Pa
+     real(dp) :: P_muscle_estimate = -98.0665_dp * 2.0_dp  ! 2 cmH2O converted to Pa
+     real(dp) :: factor_P_muscle_insp = 1.0_dp  ! multiplier to scale inspiratory pressure
+     real(dp) :: factor_P_muscle_expn = 1.0_dp  ! multiplier to scale expiratory pressure
+     character(len=7) :: expiration_type = 'active' ! or passive
+  end type default_ventilation
+
+  type default_ventilation_solver
+     ! default values for the iterative solution in ventilation code
+     integer :: num_iterations = 200
+     real(dp) :: error_tolerance = 1.0e-08_dp
+  end type default_ventilation_solver
+
+!!! arrays that start with default values, updated during simulations
+  type(default_lung_mechanics) :: lung_mechanics
+  type(default_lung_volumes) :: lung_volumes
+  type(default_ventilation) :: ventilation_values
+  type(default_ventilation_solver) :: ventilation_solver
 
 ! temporary, for debugging:
   real(dp) :: unit_before
@@ -138,7 +162,8 @@ module arrays
          num_lines_2d, lines_2d, line_versn_2d, lines_in_elem, nodes_in_line, elems_2d, &
          elem_cnct_2d, elem_nodes_2d, elem_versn_2d, elem_lines_2d, elems_at_node_2d, arclength, &
          scale_factors_2d, parentlist, fluid_properties, elasticity_vessels, admittance_param, &
-         elasticity_param, all_admit_param, lung_mechanics, lung_volumes
+         elasticity_param, all_admit_param, lung_mechanics, lung_volumes, ventilation_values, &
+         ventilation_solver, update_parameter
 
 contains
   subroutine set_node_field_value(row, col, value)
@@ -151,6 +176,58 @@ contains
     node_field(row, col) = value
 
   end subroutine set_node_field_value
+
+  subroutine update_parameter(parameter_name, parameter_value)
+  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_UPDATE_PARAMETER" :: UPDATE_PARAMETER
+    implicit none
+    real(dp), intent(in) :: parameter_value
+    character(len=*), intent(in) :: parameter_name
+
+    select case(parameter_name)
+       
+!!! lung_volumes
+    case('COV')
+       lung_volumes%COV = parameter_value
+    case('FRC')
+       lung_volumes%FRC = parameter_value
+    case('Rmax')
+       lung_volumes%Rmax = parameter_value
+    case('Rmin')
+       lung_volumes%Rmin = parameter_value
+
+!!! lung_mechanics
+    case('chest_wall_compliance')
+       lung_mechanics%chest_wall_compliance = parameter_value
+    case('mech_a')
+       lung_mechanics%a = parameter_value
+    case('mech_b')
+       lung_mechanics%b = parameter_value
+    case('mech_c')
+       lung_mechanics%c = parameter_value
+    case('refvol_ratio')
+       lung_mechanics%refvol_ratio = parameter_value
+
+!!! ventilation_values
+    case('i_to_e_ratio')
+       ventilation_values%i_to_e_ratio = parameter_value
+    case('tidal_volume')
+       ventilation_values%tidal_volume = parameter_value
+    case('time_breath')
+       ventilation_values%time_breath = parameter_value
+    case('P_muscle_estimate')
+       ventilation_values%P_muscle_estimate = parameter_value
+    case('P_air_inlet')
+       ventilation_values%P_air_inlet = parameter_value
+
+!!! ventilation_solver
+    case('vent_error_tol')
+       ventilation_solver%error_tolerance = parameter_value
+    case('vent_num_iterations')
+       ventilation_solver%num_iterations = int(parameter_value)
+       
+    end select
+    
+  end subroutine update_parameter
 
 
 end module arrays
