@@ -58,13 +58,16 @@ contains
          current_vol,Pcw,ppl_current,pptrans,prev_flow,ptrans_frc, &
          time,ttime,volume_tree,WOBe,WOBr,WOBe_insp,WOBr_insp,WOB_insp
     logical :: CONTINUE,converged
-
+    character(len=60) :: filename = 'ventilation.opvent'
+    
     character(len=60) :: sub_name
 
     ! --------------------------------------------------------------------------
 
     sub_name = 'evaluate_vent'
     call enter_exit(sub_name,1)
+
+    open(10, file=filename, status='replace')
     
 !!! Initialise variables:
     time = 0.0_dp !initialise the simulation time.
@@ -171,6 +174,8 @@ contains
     elem_field(ne_Vdot,1:num_elems) = &
          elem_field(ne_Vdot,1:num_elems)/elem_field(ne_Vdot,1)
 
+    close(10)
+    
     call enter_exit(sub_name,2)
 
   end subroutine evaluate_vent
@@ -314,7 +319,7 @@ contains
          Tinsp,ttime
     real(dp) :: dP_muscle,P_muscle
     ! Local variables
-    real(dp) :: sum_dP_muscle,sum_dP_muscle_ei,Tpass
+    real(dp) :: mu
     character(len=60) :: sub_name
     
     ! --------------------------------------------------------------------------
@@ -333,23 +338,26 @@ contains
                sin(2.0_dp*pi*(0.5_dp+(ttime-Tinsp)/(2.0_dp*Texpn)))/ &
                (2.0_dp*Texpn)*dt
        endif
+       P_muscle = P_muscle + dP_muscle !current value for muscle pressure
        
     case('passive')
        if(ttime.le.Tinsp+0.5_dp*dt)then
-          dP_muscle = ventilation_values%P_muscle_estimate*ventilation_values%factor_P_muscle_insp*PI*dt* &
-               sin(pi*ttime/Tinsp)/(2.0_dp*Tinsp)
-          sum_dP_muscle = sum_dP_muscle+dP_muscle
-          sum_dP_muscle_ei = sum_dP_muscle
+          dP_muscle = ventilation_values%P_muscle_estimate*ventilation_values%factor_P_muscle_insp*PI* &
+               sin(pi*ttime/Tinsp)/(2.0_dp*Tinsp)*dt
+!          sum_dP_muscle = sum_dP_muscle+dP_muscle
+!          sum_dP_muscle_ei = sum_dP_muscle
+          P_muscle = P_muscle + dP_muscle !current value for muscle pressure
+!          P_muscle_peak = P_muscle
        else
-          Tpass = 0.1_dp
-          dP_muscle = MIN(-sum_dP_muscle_ei/(Tpass*Texpn)*dt,-sum_dP_muscle)
-          sum_dP_muscle = sum_dP_muscle+dP_muscle
+!!! the following rate of reduction of inspiratory muscle pressure during expiration
+!!! is consistent with data from Baydur, JAP 72(2):712-720, 1992
+!          mu = -0.5_dp/(log(1.2_dp*98.0665_dp/P_muscle_peak))
+!          P_muscle = P_muscle_peak * exp(-(ttime-Tinsp)/mu)
        endif
+!       P_total = ventilation_values%P_air_inlet + (P_chestwall - P_recoil) + P_muscle
        
     end select
     
-    P_muscle = P_muscle + dP_muscle !current value for muscle pressure
-
     call enter_exit(sub_name,2)
 
   end subroutine set_driving_pressures
@@ -958,8 +966,30 @@ contains
             0.0_dp, & !Pmuscle (cmH2O)
             Pcw/98.0665_dp, & !Pchest_wall (cmH2O)
             (-Pcw)/98.0665_dp !Pmuscle - Pchest_wall (cmH2O)
+       write(10,'(F7.3,2(F8.1),8(F8.2))') &
+            0.0_dp,0.0_dp,0.0_dp, &  !time, flow, tidal
+            elem_field(ne_t_resist,1)*1.0e+6_dp/98.0665_dp, & !res (cmH2O/L.s)
+            totalC*98.0665_dp/1.0e+6_dp, & !total model compliance
+            ppl_current/98.0665_dp, & !Ppl (cmH2O)
+            -ppl_current/98.0665_dp, & !mean Ptp (cmH2O)
+            init_vol/1.0e+6_dp, & !total model volume (L)
+            0.0_dp, & !Pmuscle (cmH2O)
+            Pcw/98.0665_dp, & !Pchest_wall (cmH2O)
+            (-Pcw)/98.0665_dp !Pmuscle - Pchest_wall (cmH2O)
     else
        write(*,'(F7.3,2(F8.1),8(F8.2))') &
+            time, & !time through breath (s)
+            elem_field(ne_Vdot,1)/1.0e+3_dp, & !flow at the inlet (mL/s)
+            (current_vol - init_vol)/1.0e+3_dp, & !current tidal volume (mL)
+            elem_field(ne_t_resist,1)*1.0e+6_dp/98.0665_dp, & !res (cmH2O/L.s)
+            totalC*98.0665_dp/1.0e+6_dp, & !total model compliance
+            ppl_current/98.0665_dp, & !Ppl (cmH2O)
+            pptrans/98.0665_dp, & !mean Ptp (cmH2O)
+            current_vol/1.0e+6_dp, & !total model volume (L)
+            P_muscle/98.0665_dp, & !Pmuscle (cmH2O)
+            -Pcw/98.0665_dp, & !Pchest_wall (cmH2O)
+            (P_muscle+Pcw)/98.0665_dp !Pmuscle - Pchest_wall (cmH2O)
+       write(10,'(F7.3,2(F8.1),8(F8.2))') &
             time, & !time through breath (s)
             elem_field(ne_Vdot,1)/1.0e+3_dp, & !flow at the inlet (mL/s)
             (current_vol - init_vol)/1.0e+3_dp, & !current tidal volume (mL)
