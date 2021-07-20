@@ -134,7 +134,7 @@ module arrays
      real(dp) :: P_muscle_estimate = -98.0665_dp * 2.0_dp  ! 2 cmH2O converted to Pa
      real(dp) :: factor_P_muscle_insp = 1.0_dp  ! multiplier to scale inspiratory pressure
      real(dp) :: factor_P_muscle_expn = 1.0_dp  ! multiplier to scale expiratory pressure
-     character(len=7) :: expiration_type = 'active' ! or passive
+     character(len=7) :: expiration_type = 'passive'
   end type default_ventilation
 
   type default_ventilation_solver

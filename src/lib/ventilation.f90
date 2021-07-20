@@ -55,7 +55,8 @@ contains
     real(dp) :: undef                 ! the zero stress volume. undef < RV 
 
     real(dp) :: dP_muscle,endtime,err_est,init_vol,last_vol, &
-         current_vol,Pcw,ppl_current,pptrans,prev_flow,ptrans_frc, &
+         current_vol,Pcw,P_muscle_peak,ppl_current,P_recoil,P_residual, &
+         P_transp,prev_flow,ptrans_frc, &
          time,ttime,volume_tree,WOBe,WOBr,WOBe_insp,WOBr_insp,WOB_insp
     logical :: CONTINUE,converged
     character(len=60) :: filename = 'ventilation.opvent'
@@ -89,6 +90,7 @@ contains
 
 !!! calculate the total model volume
     call volume_of_mesh(init_vol,volume_tree)
+    current_vol = init_vol
 
     write(*,'('' Anatomical deadspace = '',F8.3,'' ml'')') volume_tree/1.0e+3_dp ! in mL
     write(*,'('' Respiratory volume   = '',F8.3,'' L'')') (init_vol-volume_tree)/1.0e+6_dp !in L
@@ -99,14 +101,15 @@ contains
 !!! calculate the compliance of each tissue unit
     call tissue_compliance(undef)
     call update_pleural_pressure(ppl_current) !calculate new pleural pressure
-    pptrans=SUM(unit_field(nu_pe,1:num_units))/num_units
+    P_transp=SUM(unit_field(nu_pe,1:num_units))/num_units
+    P_recoil = P_transp
+    P_residual = 0.0_dp
 
     chestwall_restvol = init_vol + lung_mechanics%chest_wall_compliance * (-ppl_current)
     Pcw = (chestwall_restvol - init_vol)/lung_mechanics%chest_wall_compliance
     write(*,'('' Chest wall RV = '',F8.3,'' L'')') chestwall_restvol/1.0e+6_dp
         
-    call write_flow_step_results(init_vol, &
-         current_vol,ppl_current,pptrans,Pcw,P_muscle,0.0_dp,0.0_dp)
+    call write_flow_step_results(init_vol,current_vol,ppl_current,P_transp,Pcw,P_muscle,0.0_dp,0.0_dp)
     
     continue = .true.
     do while (continue)
@@ -139,18 +142,17 @@ contains
           ttime = ttime + dt ! increment the breath time
           time = time + dt ! increment the whole simulation time
 !!!.......calculate the flow and pressure distribution for one time-step
-          call evaluate_vent_step( &
-               chestwall_restvol,dt,init_vol,last_vol,current_vol, &
-               Pcw,P_muscle,ppl_current, &
-               pptrans,prev_flow,ptrans_frc, &
+          call evaluate_vent_step(chestwall_restvol,dt,init_vol,last_vol,current_vol, &
+               Pcw,P_muscle,P_muscle_peak,ppl_current,P_recoil,P_residual,P_transp,prev_flow,ptrans_frc, &
                sum_expid,sum_tidal,texpn,time,tinsp,ttime,undef,WOBe,WOBr, &
                WOBe_insp,WOBr_insp,WOB_insp, &
                dP_muscle,converged,iter_step)
 !!!.......update the estimate of pleural pressure
           call update_pleural_pressure(ppl_current) ! new pleural pressure
+          P_recoil = SUM(unit_field(nu_pe,1:num_units))/num_units
            
           call write_flow_step_results(init_vol, &
-               current_vol,ppl_current,pptrans,Pcw,P_muscle,time,ttime)
+               current_vol,ppl_current,P_transp,Pcw,P_muscle,time,ttime)
 
        enddo !while time<endtime
        
@@ -182,22 +184,21 @@ contains
 
 !!!#############################################################################
 
-  subroutine evaluate_vent_step( &
-       chestwall_restvol,dt,init_vol,last_vol,current_vol,Pcw, &
-       P_muscle,ppl_current,pptrans, &
-       prev_flow,ptrans_frc,sum_expid, &
+  subroutine evaluate_vent_step(chestwall_restvol,dt,init_vol,last_vol, &
+       current_vol,Pcw,P_muscle,P_muscle_peak,ppl_current,P_recoil, &
+       P_residual,P_transp,prev_flow,ptrans_frc,sum_expid, &
        sum_tidal,texpn,time,tinsp,ttime,undef,WOBe,WOBr,WOBe_insp,WOBr_insp, &
        WOB_insp,dP_muscle,converged,iter_step)
 
-    real(dp),intent(in) :: chestwall_restvol,dt, &
-         init_vol,pptrans, &
+    real(dp),intent(in) :: chestwall_restvol,dt,init_vol,P_transp, &
          ptrans_frc,texpn,time,tinsp,ttime,undef
-    real(dp) :: last_vol,current_vol,Pcw,P_muscle,ppl_current,prev_flow, &
+    real(dp) :: last_vol,current_vol,Pcw,P_muscle,P_muscle_peak,ppl_current, &
+         P_recoil,P_residual,prev_flow, &
          sum_expid,sum_tidal,WOBe,WOB_insp,WOBe_insp, &
          WOBr,WOBr_insp
     ! Local variables
     integer :: iter_step
-    real(dp) :: dP_muscle,err_est,totalC,volume_tree
+    real(dp) :: dP_chest,dP_muscle,err_est,totalC,volume_tree
     logical :: converged
     character(len=60) :: sub_name
 
@@ -214,7 +215,8 @@ contains
 !!! the pressures throughout the tree.
 
     ! set the increment in driving (muscle) pressure
-    call set_driving_pressures(dP_muscle,dt,P_muscle,Texpn,Tinsp,ttime)
+    call set_driving_pressures(dP_muscle,dt,Pcw,P_muscle,P_muscle_peak, &
+         P_recoil,P_residual,Texpn,Tinsp,ttime)
     prev_flow = elem_field(ne_Vdot,1)
     
 !!! Solve for a new flow and pressure field
@@ -242,7 +244,7 @@ contains
        call sum_elem_field_from_periphery(ne_Vdot) !sum flows UP tree
        call update_elem_field(1.0_dp)
        call update_resistance ! updates resistances
-       call update_node_pressures ! updates the pressures at nodes
+       call update_node_pressures(P_residual) ! updates the pressures at nodes
        call update_unit_dpdt(dt) ! update dP/dt at the terminal units
     enddo !converged
     
@@ -254,7 +256,7 @@ contains
     totalc = SUM(unit_field(nu_comp,1:num_units)) !the total model compliance
     call update_proximal_pressure ! pressure at proximal nodes of end branches
     call calculate_work(current_vol-init_vol,current_vol-last_vol,WOBe,WOBr, &
-         pptrans)!calculate work of breathing
+         P_transp)!calculate work of breathing
     last_vol=current_vol
     Pcw = (chestwall_restvol - current_vol)/lung_mechanics%chest_wall_compliance
     
@@ -313,11 +315,11 @@ contains
 
 !!!#############################################################################
 
-  subroutine set_driving_pressures(dP_muscle,dt,P_muscle,Texpn,Tinsp,ttime)
+  subroutine set_driving_pressures(dP_muscle,dt,Pcw,P_muscle,P_muscle_peak, &
+       P_recoil,P_residual,Texpn,Tinsp,ttime)
 
-    real(dp),intent(in) :: dt,Texpn, &
-         Tinsp,ttime
-    real(dp) :: dP_muscle,P_muscle
+    real(dp),intent(in) :: dt,Pcw,P_recoil,Texpn,Tinsp,ttime
+    real(dp) :: dP_muscle,P_muscle,P_muscle_peak,P_residual
     ! Local variables
     real(dp) :: mu
     character(len=60) :: sub_name
@@ -331,33 +333,37 @@ contains
        
     case('active')
        if(ttime.lt.Tinsp)then
-          dP_muscle = ventilation_values%P_muscle_estimate*ventilation_values%factor_P_muscle_insp*PI* &
+          dP_muscle = ventilation_values%P_muscle_estimate* &
+               ventilation_values%factor_P_muscle_insp*PI* &
                sin(pi/Tinsp*ttime)/(2.0_dp*Tinsp)*dt
        elseif(ttime.le.Tinsp+Texpn)then
-          dP_muscle = ventilation_values%P_muscle_estimate*ventilation_values%factor_P_muscle_expn*PI* &
+          dP_muscle = ventilation_values%P_muscle_estimate* &
+               ventilation_values%factor_P_muscle_expn*PI* &
                sin(2.0_dp*pi*(0.5_dp+(ttime-Tinsp)/(2.0_dp*Texpn)))/ &
                (2.0_dp*Texpn)*dt
        endif
-       P_muscle = P_muscle + dP_muscle !current value for muscle pressure
        
     case('passive')
        if(ttime.le.Tinsp+0.5_dp*dt)then
-          dP_muscle = ventilation_values%P_muscle_estimate*ventilation_values%factor_P_muscle_insp*PI* &
-               sin(pi*ttime/Tinsp)/(2.0_dp*Tinsp)*dt
-!          sum_dP_muscle = sum_dP_muscle+dP_muscle
-!          sum_dP_muscle_ei = sum_dP_muscle
-          P_muscle = P_muscle + dP_muscle !current value for muscle pressure
-!          P_muscle_peak = P_muscle
+          mu = -0.5_dp/(log(1.2_dp*98.0665_dp/(-ventilation_values%P_muscle_estimate * &
+               ventilation_values%factor_P_muscle_insp)))
+          dP_muscle = ventilation_values%P_muscle_estimate * &
+               ventilation_values%factor_P_muscle_insp * &
+               (1.0_dp - exp(-(ttime)/mu)) - P_muscle
+          P_muscle_peak = P_muscle + dP_muscle
+
        else
 !!! the following rate of reduction of inspiratory muscle pressure during expiration
 !!! is consistent with data from Baydur, JAP 72(2):712-720, 1992
-!          mu = -0.5_dp/(log(1.2_dp*98.0665_dp/P_muscle_peak))
-!          P_muscle = P_muscle_peak * exp(-(ttime-Tinsp)/mu)
+          mu = -0.5_dp/(log(1.2_dp*98.0665_dp/(-P_muscle_peak)))
+          dP_muscle = P_muscle_peak * exp(-(ttime-Tinsp)/mu) - P_muscle
        endif
-!       P_total = ventilation_values%P_air_inlet + (P_chestwall - P_recoil) + P_muscle
        
     end select
-    
+
+    P_muscle = P_muscle + dP_muscle !current value for muscle pressure
+    P_residual = (P_recoil - Pcw)
+
     call enter_exit(sub_name,2)
 
   end subroutine set_driving_pressures
@@ -453,10 +459,11 @@ contains
 
 !!!#############################################################################
 
-  subroutine update_node_pressures
+  subroutine update_node_pressures(P_residual)
     !*update_node_pressures:* Use the known resistances and flows to calculate
     ! nodal pressures through whole tree
 
+    real(dp), intent(in) :: P_residual
     !Local parameters
     integer :: ne,np1,np2
     character(len=60) :: sub_name
@@ -469,7 +476,7 @@ contains
     ! set the initial node pressure to be the input pressure (usually zero)
     ne = 1 !element number at top of tree, usually = 1
     np1 = elem_nodes(1,ne) !first node in element
-    node_field(nj_aw_press,np1) = ventilation_values%P_air_inlet !set pressure at top of tree
+    node_field(nj_aw_press,np1) = ventilation_values%P_air_inlet - P_residual !set pressure at top of tree
 
     do ne = 1,num_elems !for each element
        np1 = elem_nodes(1,ne) !start node number
@@ -717,7 +724,7 @@ contains
        alpha = unit_field(nu_dpdt,nunit) !dPaw/dt, updated each iter
        Qinit = elem_field(ne_Vdot0,ne) !terminal element flow, updated each dt
        ! beta is rate of change of 'external' pressure, incl muscle and entrance
-       beta = dp_external/dt ! == dP_muscle/dt (-ve for insp), updated each dt
+       beta = dp_external/dt ! == (dP_muscle+dP_cw)/dt (-ve for insp), updated each dt
 
 !!!    Q = C*(alpha-beta)+(Qinit-C*(alpha-beta))*exp(-dt/(C*R))
        Q = unit_field(nu_comp,nunit)*(alpha-beta)+ &
@@ -759,9 +766,9 @@ contains
 
 !!!#############################################################################
 
-  subroutine calculate_work(breath_vol,dt_vol,WOBe,WOBr,pptrans)
+  subroutine calculate_work(breath_vol,dt_vol,WOBe,WOBr,P_transp)
 
-    real(dp) :: breath_vol,dt_vol,WOBe,WOBr,pptrans
+    real(dp) :: breath_vol,dt_vol,WOBe,WOBr,P_transp
     ! Local variables
     integer :: ne,np1,nunit
     real(dp) :: p_resis,p_trans
@@ -782,10 +789,10 @@ contains
     enddo
     p_resis=p_resis/num_units
     ! vol in mm3 *1e-9=m3, pressure in Pa, hence *1d-9 = P.m3 (Joules)
-    WOBe = WOBe+(p_trans-pptrans)*breath_vol*1.0e-9_dp
+    WOBe = WOBe+(p_trans-P_transp)*breath_vol*1.0e-9_dp
     WOBr = WOBr+p_resis*dt_vol*1.0e-9_dp
 
-    pptrans = p_trans
+    P_transp = p_trans
 
     call enter_exit(sub_name,2)
 
@@ -929,10 +936,10 @@ contains
 !!!#############################################################################
 
   subroutine write_flow_step_results(init_vol, &
-       current_vol,ppl_current,pptrans,Pcw,P_muscle,time,ttime)
+       current_vol,ppl_current,P_transp,Pcw,P_muscle,time,ttime)
 
     real(dp),intent(in) :: init_vol,current_vol, &
-         ppl_current,pptrans,Pcw,P_muscle,time,ttime
+         ppl_current,P_transp,Pcw,P_muscle,time,ttime
     ! Local variables
     real(dp) :: totalC,Precoil
     character(len=60) :: sub_name
@@ -984,7 +991,7 @@ contains
             elem_field(ne_t_resist,1)*1.0e+6_dp/98.0665_dp, & !res (cmH2O/L.s)
             totalC*98.0665_dp/1.0e+6_dp, & !total model compliance
             ppl_current/98.0665_dp, & !Ppl (cmH2O)
-            pptrans/98.0665_dp, & !mean Ptp (cmH2O)
+            P_transp/98.0665_dp, & !mean Ptp (cmH2O)
             current_vol/1.0e+6_dp, & !total model volume (L)
             P_muscle/98.0665_dp, & !Pmuscle (cmH2O)
             -Pcw/98.0665_dp, & !Pchest_wall (cmH2O)
@@ -996,7 +1003,7 @@ contains
             elem_field(ne_t_resist,1)*1.0e+6_dp/98.0665_dp, & !res (cmH2O/L.s)
             totalC*98.0665_dp/1.0e+6_dp, & !total model compliance
             ppl_current/98.0665_dp, & !Ppl (cmH2O)
-            pptrans/98.0665_dp, & !mean Ptp (cmH2O)
+            P_transp/98.0665_dp, & !mean Ptp (cmH2O)
             current_vol/1.0e+6_dp, & !total model volume (L)
             P_muscle/98.0665_dp, & !Pmuscle (cmH2O)
             -Pcw/98.0665_dp, & !Pchest_wall (cmH2O)
