@@ -3839,6 +3839,7 @@ contains
     deallocate(node_list)
     call element_connectivity_1d
     elem_ordrs(no_type,:) = 1 ! 0 for respiratory, 1 for conducting
+    call renumber_tree_in_order
 
   end subroutine refine_1d_elements
 
