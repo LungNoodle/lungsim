@@ -65,75 +65,152 @@ contains
 !
 !##############################################################################
 !
- subroutine initial_gasexchange(initial_concentration,surface_area,V_cap)
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIAL_GASEXCHANGE" :: INITIAL_GASEXCHANGE
-
-   !local variables
-   real(dp),intent(in) :: initial_concentration
-   real(dp), optional ::  surface_area,V_cap
-
+  subroutine initial_gasexchange(initial_concentration,surface_area,V_cap)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIAL_GASEXCHANGE" :: INITIAL_GASEXCHANGE
+    
+    !local variables
+    real(dp),intent(in) :: initial_concentration
+    real(dp), optional ::  surface_area,V_cap
+    
     integer :: nunit
     real(dp) :: Vcap_unit
     real(dp),parameter :: p_water = 47.0_dp
     real(dp),parameter :: press_atm=760.0_dp !atmospheric pressure, mmHg
-
-
-   character(len=60) :: sub_name
-
-   sub_name = 'initial_gasexchange'
-   call enter_exit(sub_name,1)
-
+    
+    
+    character(len=60) :: sub_name
+    
+    sub_name = 'initial_gasexchange'
+    call enter_exit(sub_name,1)
+    
 !!! allocate memory for the gasex_field array, if not already allocated
     if(.not.allocated(gasex_field)) allocate(gasex_field(num_gx,num_units))
-
+    
 !!! initialiase nj_conc2 (for CO2 concentration); currently hardcoded to 40 mmHg
     node_field(nj_conc2,1:num_nodes) = 40.0_dp/(o2molvol*(press_atm-p_water))
     write(*,'('' Initialising Palv_CO2 to 40 mmHg'')')
-
+    
 !!! initialise the gas exchange field for o2 partial pressures
     gasex_field(ng_p_alv_o2,1:num_units) = initial_concentration* &
          o2molvol*(press_atm-p_water)
     gasex_field(ng_p_cap_o2,1:num_units) = initial_concentration*&
          o2molvol*(press_atm-p_water)
-
+    
     gasex_field(ng_p_alv_co2,1:num_units) = 40.0_dp ! mmHg; should make this user defined
     gasex_field(ng_p_ven_o2,1:num_units) = 40.0_dp ! mmHg; should make this user defined
-
+    
     unit_field(nu_conc1,1:num_units) = gasex_field(ng_p_alv_o2,1:num_units)/&
          (o2molvol*(press_atm-p_water)) ! from mmHg to mmol/mm^3
     unit_field(nu_conc2,1:num_units) = gasex_field(ng_p_alv_co2,1:num_units)/&
          (o2molvol*(press_atm-p_water)) ! from mmHg to mmol/mm^3
-
+    
 !!! initialise the gas exchange field for co2 partial pressures
     gasex_field(ng_p_alv_co2,1:num_units) = 40.0_dp ! mmHg; should make this user defined
     gasex_field(ng_p_cap_co2,1:num_units) = 40.0_dp ! mmHg; should make this user defined
     gasex_field(ng_p_ven_co2,1:num_units) = 45.0_dp ! mmHg; should make this user defined
     if(present(surface_area))then
 !!! initialise the time blood has been in capillaries
-      gasex_field(ng_time,1:num_units) = 0.0_dp
-
+       gasex_field(ng_time,1:num_units) = 0.0_dp
+       
 !!! capillary volume per gas exchange unit = transit time * flow
-    ! elem_units_below is the EFFECTIVE number of units, so this is correct
-    !Note that these are calculated on a per unit basis in the perfusion model so can be read in for future iterations
-      Vcap_unit = V_cap/elem_units_below(1) ! the capillary volume per gas exchange unit
-      gasex_field(ng_Vc,1:num_units) = Vcap_unit
-      gasex_field(ng_sa,1:num_units) = surface_area/elem_units_below(1)
-
+       ! elem_units_below is the EFFECTIVE number of units, so this is correct
+       !Note that these are calculated on a per unit basis in the perfusion model so can be read in for future iterations
+       Vcap_unit = V_cap/elem_units_below(1) ! the capillary volume per gas exchange unit
+       gasex_field(ng_Vc,1:num_units) = Vcap_unit
+       gasex_field(ng_sa,1:num_units) = surface_area/elem_units_below(1)
+       
 !!! transit time through the gas exchange unit = capillary volume/flow
-      forall (nunit=1:num_units) gasex_field(ng_tt,nunit) = &
-           Vcap_unit/unit_field(nu_perf,nunit)
+       forall (nunit=1:num_units) gasex_field(ng_tt,nunit) = &
+            Vcap_unit/unit_field(nu_perf,nunit)
     endif
+    
+    call enter_exit(sub_name,2)
+  end subroutine initial_gasexchange
+  
+!!! ######################################################################
 
-   call enter_exit(sub_name,2)
- end subroutine initial_gasexchange
+  subroutine steadystate_gasexchange(Vdot_deadspace,p_i_o2,shunt_fraction, &
+       target_p_art_co2,target_p_ven_o2,VCO2,VO2)
+ !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_STEADYSTATE_GASEXCHANGE" :: STEADYSTATE_GASEXCHANGE
+
+    use field_utilities,only: scale_flow_to_inlet
+    
+!!! Parameters
+    real(dp),intent(in) :: Vdot_deadspace,p_i_o2,shunt_fraction, &
+         target_p_art_co2,target_p_ven_o2,VCO2,VO2
+!!! Local variables
+    integer :: k,nunit
+    real(dp) :: cardiac_temp,c_art_o2,c_ven_o2,Vdot_alv_temp
+    real(dp) :: p_art_co2,p_art_o2,p_ven_co2,p_ven_o2
+    character(len=60) :: sub_name
+    
+    sub_name = 'steadystate_gasexchange'
+    call enter_exit(sub_name,1)
+
+    cardiac_temp = elem_field(ne_Qdot,1)
+    Vdot_alv_temp = elem_field(ne_Vdot,1) - Vdot_deadspace
+
+    !temporarily scale the flow to alveolar ventilation
+    call scale_flow_to_inlet(Vdot_alv_temp,'V')
+    call steadystate_gasexchange_sub (c_art_o2,c_ven_o2,p_art_co2,p_art_o2,p_i_o2,&
+         p_ven_co2,p_ven_o2,shunt_fraction,VCO2,VO2)
+    
+!!! in the following loop the alveolar ventilation is incrementally adjusted
+!!! towards achieving the target p_art_co2; and the cardiac output is adjusted
+!!! to balance the metabolic demand for oxygen.
+    k = 0
+    do while (abs(p_art_co2-target_p_art_co2)/target_p_art_co2 .gt. 1.0e-4_dp )
+       k = k + 1
+
+       Vdot_alv_temp = p_art_co2/target_p_art_co2*Vdot_alv_temp
+       call scale_flow_to_inlet(Vdot_alv_temp,'V')
+       call steadystate_gasexchange_sub (c_art_o2,c_ven_o2,p_art_co2,p_art_o2,p_i_o2,&
+            p_ven_co2,p_ven_o2,shunt_fraction,VCO2,VO2)
+       if(k.gt.200)then
+          write(*,'('' Exiting alveolar ventilation calculation: not converged in 200 iterations'')')
+          return
+       endif
+    end do
+
+    write(*,'('' Alveolar ventilation = '',f8.3,'' L/min to match target P_art_CO2 of '',f8.3)') &
+         Vdot_alv_temp/1.0e+6_dp*60.0_dp,target_p_art_co2
+
+    k = 0
+    do while (abs(p_ven_o2-target_p_ven_o2)/target_p_ven_o2 .gt. 1.0e-4_dp )
+       k = k + 1
+
+       cardiac_temp = cardiac_temp * target_p_ven_o2/p_ven_o2 
+       call scale_flow_to_inlet(cardiac_temp,'Q')
+       call steadystate_gasexchange_sub (c_art_o2,c_ven_o2,p_art_co2,p_art_o2,p_i_o2,&
+            p_ven_co2,p_ven_o2,shunt_fraction,VCO2,VO2)
+       if(k.gt.200)then
+          write(*,'('' Exiting cardiac output calculation: not converged in 200 iterations'')')
+          return
+       endif
+    end do
+    if(k.le.200)then !converged
+!!! update transit time through the gas exchange unit = capillary volume/flow
+       forall (nunit=1:num_units) gasex_field(ng_tt,nunit) = &
+            gasex_field(ng_Vc,nunit)/unit_field(nu_perf,nunit)/&
+            (cardiac_temp*(1.0_dp-shunt_fraction))
+    endif
+    write(*,'('' Cardiac output = '',f8.3,'' L/min to match target P_ven_O2 of '',f7.2)') &
+         cardiac_temp/1.0e+6_dp*60.0_dp,target_p_ven_o2
+
+    ! scale the ventilation back to minute ventilation
+    Vdot_alv_temp = elem_field(ne_Vdot,1) + Vdot_deadspace
+    call scale_flow_to_inlet(Vdot_alv_temp,'V')
+
+    call enter_exit(sub_name,2)
+
+  end subroutine steadystate_gasexchange
 
 !
 !###########################################################################################
 !
- subroutine steadystate_gasexchange(c_art_o2,c_ven_o2,&
+ subroutine steadystate_gasexchange_sub(c_art_o2,c_ven_o2,&
        p_art_co2,p_art_o2,p_i_o2,p_ven_co2,p_ven_o2,shunt_fraction,&
        VCO2,VO2)
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_STEADYSTATE_GASEXCHANGE" :: STEADYSTATE_GASEXCHANGE
 
 !!! Parameter List
     real(dp),intent(in) :: p_i_o2,shunt_fraction,VCO2,VO2
@@ -149,9 +226,8 @@ contains
     logical :: continue
     character(len=60) :: sub_name
 
-    sub_name = 'steadystate_gasexchange'
+    sub_name = 'steadystate_gasexchange_sub'
     call enter_exit(sub_name,1)
-
 
 !!! Calculate steady state gas exchange for CO2
     p_ven_co2_last = p_ven_co2 ! updates at each iteration, until converged
@@ -182,7 +258,6 @@ contains
 
           Q_total = Q_total + elem_units_below(ne) * abs(unit_field(nu_perf,nunit)) !mm3/s
           V_total = V_total + elem_units_below(ne) * abs(unit_field(nu_Vdot0,nunit))
-
 
 !!! including a limitation that p_cap_co2 cannot be less than zero
           p_cap_co2 = max(p_cap_co2,0.0_dp)
@@ -232,7 +307,7 @@ contains
           fun_co2 = m*p_ven_co2/(1+m*p_ven_co2)-target_c_ven_co2
        enddo !while
 !!! now have updated values for p_art_co2 and p_ven_co2
-       write(*,'('' Interim PPs:'',4(f8.3))') p_art_o2,p_ven_o2,p_art_co2,p_ven_co2
+       !write(*,'('' Interim PPs:'',4(f8.3))') p_art_o2,p_ven_o2,p_art_co2,p_ven_co2
 !!! check whether p_ven_co2 and p_art_co2 have converged
        if(counter.gt.1)then
           if(abs(p_ven_co2-p_ven_co2_last)/p_ven_co2_last.lt.tol.and. &
@@ -251,14 +326,13 @@ contains
        endif
 
     enddo !while continue
-!    read(*,*)
 
-    write(*,'('' Total blood flow ='',F10.1,'' mm3/s,&
-         & alveolar ventilation='',F10.1,'' mm3/s'')') Q_total,V_total
-    write(*,'('' Steady-state P_art_CO2 ='',F6.1,'' mmHg,&
+    write(*,'('' Cardiac output ='',F8.3,'' L/min, alveolar ventilation ='',F8.3,'' L/min'')') &
+         Q_total/1.0e+6_dp*60.0_dp,V_total/1.0e+6_dp*60.0_dp
+    write(*,'('' Steady-state  P_art_CO2 ='',F6.1,'' mmHg,&
          & P_ven_CO2='',F6.1,'' mmHg'')') p_art_co2,p_ven_co2
     write(*,'(''               P_alv_CO2 ='',F6.1,'' mmHg,&
-         &  P(A-a)CO2='',F6.1,'' mmHg'')') p_alv_co2,p_alv_co2-p_art_co2
+         & P(A-a)CO2='',F6.1,'' mmHg'')') p_alv_co2,p_alv_co2-p_art_co2
 
 !!! Calculate steady state gas exchange for O2
     p_ven_o2_last = p_ven_o2
@@ -362,7 +436,7 @@ contains
 
     call enter_exit(sub_name,2)
 
-  end subroutine steadystate_gasexchange
+  end subroutine steadystate_gasexchange_sub
 
   !!! ####################################################
 

@@ -1,15 +1,15 @@
 module arrays
-!*Brief Description:* This module defines arrays.
-!
-!*LICENSE:*
-!
-!
-!*Contributor(s):* Merryn Tawhai, Alys Clark
-!
-!*Full Description:*
-!
-!This module defines arrays
-
+  !*Brief Description:* This module defines arrays.
+  !
+  !*LICENSE:*
+  !
+  !
+  !*Contributor(s):* Merryn Tawhai, Alys Clark
+  !
+  !*Full Description:*
+  !
+  !This module defines arrays
+  
   use precision
   
   implicit none
@@ -38,6 +38,19 @@ module arrays
   integer,allocatable :: elems_at_node(:,:)
   integer,allocatable :: elems_at_node_2d(:,:)
   integer,allocatable :: units(:)
+
+  ! from p-r-f
+  integer,allocatable :: mesh_from_depvar(:,:,:)
+  integer, allocatable :: depvar_at_node(:,:,:)
+  integer, allocatable :: depvar_at_elem(:,:,:)
+  integer, allocatable :: SparseCol(:)
+  integer, allocatable :: SparseRow(:)
+  integer, allocatable :: update_resistance_entries(:)
+  real(dp), allocatable :: SparseVal(:)
+  real(dp), allocatable :: RHS(:)
+  real(dp), allocatable :: prq_solution(:,:),solver_solution(:)
+  logical, allocatable :: FIX(:)
+  
 
   real(dp),allocatable :: arclength(:,:)
   real(dp),allocatable :: elem_field(:,:) !properties of elements
@@ -101,12 +114,12 @@ module arrays
     real(dp) :: elasticity_parameters(3)=0.0_dp
   end type elasticity_param
 
-  type fluid_properties
-     real(dp) :: blood_viscosity=0.33600e-02_dp !Pa.s
-     real(dp) :: blood_density=0.10500e-02_dp !kg/cm3
-     real(dp) :: air_viscosity = 1.8e-5_dp   ! Pa.s
-     real(dp) :: air_density = 1.146e-6_dp ! g.mm^-3
-  end type fluid_properties
+  type default_fluid_properties
+     real(dp) :: blood_viscosity = 0.33600e-02_dp ! Pa.s
+     real(dp) :: blood_density = 0.10500e-02_dp   ! kg/cm3
+     real(dp) :: air_viscosity = 1.8e-5_dp        ! Pa.s
+     real(dp) :: air_density = 1.146e-6_dp        ! g.mm^-3
+  end type default_fluid_properties
   
   type default_lung_mechanics
      ! default values for Fung exponential, as per Tawhai et al (2009)
@@ -144,6 +157,7 @@ module arrays
   end type default_ventilation_solver
 
 !!! arrays that start with default values, updated during simulations
+  type(default_fluid_properties) :: fluid_properties
   type(default_lung_mechanics) :: lung_mechanics
   type(default_lung_volumes) :: lung_volumes
   type(default_ventilation) :: ventilation_values
@@ -163,7 +177,9 @@ module arrays
          elem_cnct_2d, elem_nodes_2d, elem_versn_2d, elem_lines_2d, elems_at_node_2d, arclength, &
          scale_factors_2d, parentlist, fluid_properties, elasticity_vessels, admittance_param, &
          elasticity_param, all_admit_param, lung_mechanics, lung_volumes, ventilation_values, &
-         ventilation_solver, update_parameter
+         ventilation_solver, update_parameter, &
+         mesh_from_depvar, depvar_at_node, depvar_at_elem, SparseCol, SparseRow, update_resistance_entries, &
+         SparseVal, RHS, prq_solution, solver_solution, FIX
 
 contains
   subroutine set_node_field_value(row, col, value)
@@ -185,6 +201,16 @@ contains
 
     select case(parameter_name)
        
+!!! fluid_properties
+    case('blood_viscosity')
+       fluid_properties%blood_viscosity = parameter_value
+    case('blood_density')
+       fluid_properties%blood_density = parameter_value
+    case('air_viscosity')
+       fluid_properties%air_viscosity = parameter_value
+    case('air_density')
+       fluid_properties%air_density = parameter_value
+
 !!! lung_volumes
     case('COV')
        lung_volumes%COV = parameter_value

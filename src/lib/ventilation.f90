@@ -633,7 +633,6 @@ contains
 
   subroutine update_resistance
 
-    type(fluid_properties) :: fluid_param
     ! Local variables
     integer :: i,ne,ne2,np1,np2,nunit
     real(dp) :: ett_resistance,gamma,le,rad,resistance,reynolds,sum,zeta
@@ -662,15 +661,15 @@ contains
        rad = elem_field(ne_radius,ne)
 
        ! element Poiseuille (laminar) resistance in units of Pa.s.mm-3   
-       resistance = 8.0_dp*fluid_param%air_viscosity*elem_field(ne_length,ne)/ &
+       resistance = 8.0_dp*fluid_properties%air_viscosity*elem_field(ne_length,ne)/ &
             (PI*elem_field(ne_radius,ne)**4) !laminar resistance
        
        ! element turbulent resistance (flow in bifurcating tubes)
        gamma = 0.357_dp !inspiration
        if(elem_field(ne_Vdot,ne).lt.0.0_dp) gamma = 0.46_dp !expiration
        
-       reynolds = abs(elem_field(ne_Vdot,ne)*2.0_dp*fluid_param%air_density/ &
-            (pi*elem_field(ne_radius,ne)*fluid_param%air_viscosity))
+       reynolds = abs(elem_field(ne_Vdot,ne)*2.0_dp*fluid_properties%air_density/ &
+            (pi*elem_field(ne_radius,ne)*fluid_properties%air_viscosity))
        zeta = MAX(1.0_dp,dsqrt(2.0_dp*elem_field(ne_radius,ne)* &
             reynolds/elem_field(ne_length,ne))*gamma)
        elem_field(ne_resist,ne) = resistance * zeta
