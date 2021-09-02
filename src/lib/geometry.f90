@@ -28,6 +28,7 @@ module geometry
   public add_mesh
   public add_matching_mesh
   public append_units
+  public coord_at_xi
   public define_1d_elements
   public define_elem_geometry_2d
   public define_mesh_geometry_test
@@ -756,7 +757,7 @@ contains
     
     call element_connectivity_2d
     call line_segments_for_2d_mesh(sf_option)
-    
+
     call enter_exit(sub_name,2)
     
   end subroutine define_elem_geometry_2d
@@ -1458,11 +1459,8 @@ contains
     ! fill a bounding surface 
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_MAKE_DATA_GRID" :: MAKE_DATA_GRID
 
-    use exports,only: export_triangle_elements,export_triangle_nodes
-    
     integer,intent(in) :: surface_elems(:)
     real(dp),intent(in) :: offset, spacing
-    logical :: to_export = .true.
     character(len=*),intent(in) :: filename
     character(len=*),intent(in) :: groupname
     ! Local Variables
@@ -1487,13 +1485,6 @@ contains
     call triangles_from_surface(num_triangles,num_vertices,elem_list, &
          triangle,vertex_xyz)
 
-    if(to_export)then
-!!! export vertices as nodes
-       call export_triangle_nodes(num_vertices,vertex_xyz,filename,groupname)
-!!! export the triangles as surface elements
-       call export_triangle_elements(num_triangles,triangle,filename,groupname)
-    endif
-    
     scale_mesh = 1.0_dp-(offset/100.0_dp)
     cofm1 = sum(vertex_xyz,dim=2)/num_vertices
     forall (i = 1:num_vertices) vertex_xyz(1:3,i) = &
@@ -2937,48 +2928,29 @@ contains
     
     character(len=4),intent(in) :: sf_option
     ! Local variables
-    integer :: ne,ne_adjacent,ni1,nj,nl,nl_adj,npn(2)
+    integer :: index_nodes(2,4),j,line_nodes(2),ne,ne_adjacent,ni1,nj, &
+         nl,nline,nl_adj,nl_found,npn(2),np1,np2,nxi(4)
     logical :: MAKE
-    logical :: based_on_elems = .true.
+    logical :: based_on_elems = .true., found_nl
     character(len=60) :: sub_name
     
     ! --------------------------------------------------------------------------
     
     sub_name = 'line_segments_for_2d_mesh'
     call enter_exit(sub_name,1)
+
+    nxi = [1,1,2,2]
+    index_nodes = reshape([1,2,3,4,1,3,2,4],shape(index_nodes))
     
-    ! allocate elem_lines_2d, scale_factors_2d,lines_2d,line_versn_2d,lines_in_elem,nodes_in_line,arclength
     if(allocated(elem_lines_2d)) deallocate(elem_lines_2d)
     if(allocated(scale_factors_2d)) deallocate(scale_factors_2d)
     allocate(elem_lines_2d(4,num_elems_2d))
     allocate(scale_factors_2d(16,num_elems_2d))
     
-    elem_lines_2d=0
-    num_lines_2d = 0
+    elem_lines_2d = 0
+    num_lines_2d = 4 * num_elems_2d
     
     if(based_on_elems)then
-!!! estimate number of lines, for allocating memory to arrays
-!!! before setting up arrays, count the number of lines required
-       do ne=1,num_elems_2d
-          MAKE=.FALSE.
-          if(elem_cnct_2d(-1,0,ne) == 0) MAKE=.TRUE. !exterior, make line
-          ne_adjacent=elem_cnct_2d(-1,1,ne)
-          if(ne_adjacent > 0)then
-             if(elem_lines_2d(4,ne_adjacent) == 0) MAKE=.TRUE.
-          endif
-          if(MAKE) num_lines_2d = num_lines_2d+1
-          MAKE=.FALSE.
-          if(elem_cnct_2d(-2,0,ne) == 0) MAKE=.TRUE. !exterior, make line
-          ne_adjacent=elem_cnct_2d(-2,1,ne)
-          if(ne_adjacent > 0)then
-             if(elem_lines_2d(2,ne_adjacent) == 0) MAKE=.TRUE.
-          endif
-          if(MAKE) num_lines_2d=num_lines_2d+1
-          num_lines_2d = num_lines_2d+2
-          elem_lines_2d(2,ne) = 1 ! at this stage just to tag it for conditional above
-          elem_lines_2d(4,ne) = 1 ! at this stage just to tag it for conditional above
-       enddo !ne
-       
        elem_lines_2d = 0
        
        if(allocated(lines_2d)) deallocate(lines_2d)
@@ -2990,148 +2962,46 @@ contains
        allocate(line_versn_2d(2,3,num_lines_2d))
        allocate(lines_in_elem(0:4,num_lines_2d))
        allocate(nodes_in_line(3,0:3,num_lines_2d))
-       !allocate(arclength(num_lines_2d)) 
 
-       lines_in_elem=0
-       lines_2d=0
-       nodes_in_line=0
-       line_versn_2d=0
+       lines_in_elem = 0
+       lines_2d = 0
+       nodes_in_line = 0
+       line_versn_2d = 0
        num_lines_2d = 0 ! reset to zero for loop below
-       
-!!! Now run through the same as above, and set up the arrays
-       do ne=1,num_elems_2d
-          !check whether to make a line
-          MAKE=.FALSE.
-          if(elem_cnct_2d(-1,0,ne) == 0) MAKE=.TRUE. !exterior, make line
-          ne_adjacent=elem_cnct_2d(-1,1,ne)
-          if(ne_adjacent.gt.0)then
-             if(elem_lines_2d(4,ne_adjacent) == 0) MAKE=.TRUE.
-          endif
-          if(MAKE)then
-             num_lines_2d = num_lines_2d+1
-             lines_2d(num_lines_2d) = num_lines_2d !record a new line number
-             lines_in_elem(0,num_lines_2d) = lines_in_elem(0,num_lines_2d)+1
-             lines_in_elem(lines_in_elem(0,num_lines_2d),num_lines_2d) = ne !line num_lines_2d is in element ne
-             elem_lines_2d(3,ne) = num_lines_2d !num_lines_2d is global line # corresponding to local line 3 of ne
-             npn(1) = 1
-             npn(2) = 3
-             nodes_in_line(2,1,num_lines_2d)=elem_nodes_2d(1,ne) !records 1st node in line
-             nodes_in_line(3,1,num_lines_2d)=elem_nodes_2d(3,ne) !records 2nd node in line
-             nodes_in_line(1,0,num_lines_2d)=2 !Xi-direction of line segment num_lines_2d
-             do nj=1,3
-                nodes_in_line(1,nj,num_lines_2d)=4 !type of basis function (1 for linear,4 for cubicHermite)
-                do ni1=1,2
-                   line_versn_2d(ni1,nj,num_lines_2d)=elem_versn_2d(npn(ni1),ne)
-                enddo !n
-             enddo !nj
-          else !get adjacent element line number
-             !WARNING:: this only works if all Xi directions are consistent!!!!
-             ne_adjacent=elem_cnct_2d(-1,1,ne)
-             elem_lines_2d(3,ne)=elem_lines_2d(4,ne_adjacent)
-          endif
-          
-          !check whether to make a line
-          MAKE=.FALSE.
-          if(elem_cnct_2d(-2,0,ne) == 0) MAKE=.TRUE. !exterior, make line
-          ne_adjacent=elem_cnct_2d(-2,1,ne)
-          if(ne_adjacent.gt.0)then
-             if(elem_lines_2d(2,ne_adjacent) == 0) MAKE=.TRUE.
-          endif
-          
-          if(MAKE)then
-             num_lines_2d=num_lines_2d+1
-             lines_2d(num_lines_2d)=num_lines_2d !record a new line number
-             lines_in_elem(0,num_lines_2d)=lines_in_elem(0,num_lines_2d)+1
-             lines_in_elem(lines_in_elem(0,num_lines_2d),num_lines_2d)=ne !line num_lines_2d is in element ne
-             elem_lines_2d(1,ne)=num_lines_2d !num_lines_2d is global line # corresponding to local line 1 of ne
-             npn(1)=1
-             npn(2)=2
-             nodes_in_line(2,1,num_lines_2d)=elem_nodes_2d(1,ne) !records 1st node in line
-             nodes_in_line(3,1,num_lines_2d)=elem_nodes_2d(2,ne) !records 2nd node in line
-             nodes_in_line(1,0,num_lines_2d)=1 !Xi-direction of line segment num_lines_2d
-             do nj=1,3
-                nodes_in_line(1,nj,num_lines_2d)=4 !type of basis function (1 for linear,4 for cubicHermite)
-                do ni1=1,2
-                   line_versn_2d(ni1,nj,num_lines_2d)=elem_versn_2d(npn(ni1),ne)
-                enddo !n
-             enddo !nj
-          else !get adjacent element line number
-             !WARNING:: this only works if all Xi directions are consistent!!!!
-             ne_adjacent = elem_cnct_2d(-2,1,ne)
-             do nl_adj = 1,4
-                nl = elem_lines_2d(nl_adj,ne_adjacent)
-                if(nl /= 0)then
-                   if(nodes_in_line(2,1,nl) == elem_nodes_2d(1,ne) .and. &
-                        nodes_in_line(3,1,nl) == elem_nodes_2d(2,ne))then
-                      elem_lines_2d(1,ne) = nl
-                   elseif(nodes_in_line(2,1,nl) == elem_nodes_2d(2,ne) .and. &
-                        nodes_in_line(3,1,nl) == elem_nodes_2d(1,ne))then
-                      elem_lines_2d(1,ne) = nl
+
+       do ne = 1,num_elems_2d
+          do nline = 1,4
+             np1 = elem_nodes_2d(index_nodes(1,nline),ne)
+             np2 = elem_nodes_2d(index_nodes(2,nline),ne)
+             found_nl = .false.
+             if(np1.ne.np2)then
+                do nl = 1,num_lines_2d
+                   forall(j=1:2) line_nodes(j) = nodes_in_line(j+1,1,nl)
+                   if(inlist(np1,line_nodes) .and. inlist(np2,line_nodes))then
+                      found_nl = .true.
+                      nl_found = nl
                    endif
-                endif
-             enddo
-             !             elem_lines_2d(1,ne)=elem_lines_2d(2,ne_adjacent)
-          endif
-          
-          !*! new:       
-          MAKE=.TRUE.
-          ne_adjacent=elem_cnct_2d(1,1,ne)
-          if(ne_adjacent.gt.0)then
-             if(elem_lines_2d(3,ne_adjacent) /= 0) MAKE=.FALSE.
-          endif
-          
-          if(MAKE)then
-             num_lines_2d=num_lines_2d+1
-             lines_2d(num_lines_2d)=num_lines_2d !record a new line number
-             lines_in_elem(0,num_lines_2d)=lines_in_elem(0,num_lines_2d)+1
-             lines_in_elem(lines_in_elem(0,num_lines_2d),num_lines_2d)=ne !line num_lines_2d is in element ne
-             elem_lines_2d(4,ne)=num_lines_2d !num_lines_2d is global line # corresponding to local line 4 of ne
-             npn(1)=2
-             npn(2)=4
-             nodes_in_line(2,1,num_lines_2d)=elem_nodes_2d(2,ne) !records 1st node in line
-             nodes_in_line(3,1,num_lines_2d)=elem_nodes_2d(4,ne) !records 2nd node in line
-             nodes_in_line(1,0,num_lines_2d)=2 !Xi-direction of line segment num_lines_2d
-             do nj=1,3
-                nodes_in_line(1,nj,num_lines_2d)=4 !type of basis function (1 for linear,4 for cubicHermite)
-                do ni1=1,2
-                   line_versn_2d(ni1,nj,num_lines_2d)=elem_versn_2d(npn(ni1),ne)
-                enddo !n
-             enddo !nj
-          else !get adjacent element line number
-             !WARNING:: this only works if all Xi directions are consistent!!!!
-             ne_adjacent=elem_cnct_2d(1,1,ne)
-             elem_lines_2d(4,ne)=elem_lines_2d(3,ne_adjacent)
-          endif
-          
-          MAKE=.TRUE.
-          ne_adjacent=elem_cnct_2d(2,1,ne)
-          if(ne_adjacent.gt.0)then
-             if(elem_lines_2d(1,ne_adjacent) /= 0) MAKE=.FALSE.
-          endif
-          
-          if(MAKE)then
-             num_lines_2d = num_lines_2d+1
-             lines_2d(num_lines_2d) = num_lines_2d !record a new line number
-             lines_in_elem(0,num_lines_2d) = lines_in_elem(0,num_lines_2d)+1
-             lines_in_elem(lines_in_elem(0,num_lines_2d),num_lines_2d) = ne !line num_lines_2d is in element ne
-             elem_lines_2d(2,ne)=num_lines_2d !num_lines_2d is global line # corresponding to local line 2 of ne
-             npn(1) = 3
-             npn(2) = 4
-             nodes_in_line(2,1,num_lines_2d)=elem_nodes_2d(3,ne) !records 1st node in line
-             nodes_in_line(3,1,num_lines_2d)=elem_nodes_2d(4,ne) !records 2nd node in line
-             nodes_in_line(1,0,num_lines_2d)=1 !Xi-direction of line segment num_lines_2d
-             do nj=1,3
-                nodes_in_line(1,nj,num_lines_2d)=4 !type of basis function (1 for linear,4 for cubicHermite)
-                do ni1=1,2
-                   line_versn_2d(ni1,nj,num_lines_2d)=elem_versn_2d(npn(ni1),ne)
-                enddo !n
-             enddo !nj
-          else !get adjacent element line number
-             !WARNING:: this only works if all Xi directions are consistent!!!!
-             ne_adjacent=elem_cnct_2d(2,1,ne)
-             elem_lines_2d(2,ne)=elem_lines_2d(1,ne_adjacent)
-          endif
-       enddo !ne
+                enddo !nl
+             endif
+             if(found_nl)then
+                elem_lines_2d(nline,ne) = nl_found
+             else ! make a new line
+                num_lines_2d = num_lines_2d + 1
+                lines_2d(num_lines_2d) = num_lines_2d !record a new line number
+                lines_in_elem(0,num_lines_2d) = lines_in_elem(0,num_lines_2d) + 1
+                lines_in_elem(lines_in_elem(0,num_lines_2d),num_lines_2d) = ne !line num_lines_2d is in element ne
+                elem_lines_2d(nline,ne) = num_lines_2d 
+                nodes_in_line(2,1,num_lines_2d) = np1
+                nodes_in_line(3,1,num_lines_2d) = np2
+                nodes_in_line(1,0,num_lines_2d) = nxi(nline)
+                do nj = 1,3
+                   nodes_in_line(1,nj,num_lines_2d) = 4 !type of basis function (1 for linear,4 for cubicHermite)
+                   line_versn_2d(1,nj,num_lines_2d) = elem_versn_2d(np1,ne)
+                   line_versn_2d(2,nj,num_lines_2d) = elem_versn_2d(np2,ne)
+                enddo !nj
+             endif
+          enddo !nline
+       enddo ! ne
     endif
     
     call calc_scale_factors_2d(sf_option)
