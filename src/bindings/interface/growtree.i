@@ -1,8 +1,5 @@
-
 %module(package="aether") growtree
-%include symbol_export.h
-%include growtree.h
-
+  %include symbol_export.h
   
   %typemap(in) (int elemlist_len, int elemlist[]) {
   int i;
@@ -29,5 +26,6 @@
 
 %{
 #include "growtree.h"
-%}
+  %}
 
+%include growtree.h

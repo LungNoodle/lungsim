@@ -34,7 +34,7 @@ module growtree
 
   !Interfaces
   private
-  public grow_recursive_tree,smooth_1d_tree
+  public grow_tree,smooth_1d_tree
 
 contains
 
@@ -742,6 +742,72 @@ contains
   end subroutine group_seeds_with_branch
 
 
+!!!#############################################################################
+  
+  subroutine grow_tree(surface_elems,parent_ne,angle_max,angle_min,&
+       branch_fraction,length_limit,shortest_length,rotation_limit)
+    !interface to the grow_recursive_tree subroutine 
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
+
+    use geometry,only: element_connectivity_1d,evaluate_ordering, &
+         group_elem_parent_term,reallocate_node_elem_arrays,triangles_from_surface
+    use mesh_utilities,only: get_local_elem_2d
+    
+    integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
+    integer,intent(in)  :: parent_ne                ! stem branch that supplies 'parents' to grow from
+    real(dp),intent(in) :: angle_max                ! maximum branch angle with parent; in degrees
+    real(dp),intent(in) :: angle_min                ! minimum branch angle with parent; in degrees
+    real(dp),intent(in) :: branch_fraction          ! fraction of distance (to COFM) to branch
+    real(dp),intent(in) :: length_limit             ! minimum length of a generated branch (shorter == terminal)
+    real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
+    real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
+
+    integer :: i,num_elems_new,num_nodes_new,num_triangles,num_vertices
+    integer,allocatable :: elem_list(:), parent_list(:), triangle(:,:)
+    real(dp),allocatable :: vertex_xyz(:,:)
+
+!!! allocate temporary arrays
+    allocate(parent_list(num_elems))
+    parent_list = 0
+    allocate(elem_list(count(surface_elems.ne.0)))
+
+!!! get the list of local surface element numbers from the global list
+    do i = 1,count(surface_elems.ne.0)
+       elem_list(i) = get_local_elem_2d(surface_elems(i))
+    enddo
+
+!!! get the list of current terminal elements that subtend parent_ne.
+!!! these will be the initial branches for growing
+    call group_elem_parent_term(parent_list,parent_ne) 
+
+!!! make a linear triangulated mesh over the surface elements
+    call triangles_from_surface(num_triangles,num_vertices,elem_list,triangle,vertex_xyz)
+
+!!! estimate the number of elements in the generated model based on the
+!!! number of data (seed) points. i.e. N = 2*N_data - 1.
+    num_elems_new = num_elems + 2*num_data + 100
+    num_nodes_new = num_nodes + 2*num_data + 100
+
+!!! reallocate arrays using the estimated generated model size
+    call reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
+
+!!! generate a branching tree inside the triangulated mesh
+    call grow_recursive_tree(num_elems_new,num_vertices,elem_list,parent_list, &
+         parent_ne,triangle,angle_max,angle_min, &
+         branch_fraction,length_limit,shortest_length,rotation_limit,vertex_xyz)
+
+!!! update the tree connectivity
+    call element_connectivity_1d
+    
+!!! calculate branch generations and orders
+    call evaluate_ordering
+
+!!! deallocate temporary arrays
+    deallocate(elem_list)
+    deallocate(parent_list)
+    
+  end subroutine grow_tree
+
   !###############################################################
   !
   !*grow_recursive_tree:* the main growing subroutine (public). Genertes a volume-filling
@@ -750,7 +816,6 @@ contains
   subroutine grow_recursive_tree(num_elems_new,num_vertices,surface_elems,parent_list, &
        parent_ne,triangle,angle_max,angle_min, &
        branch_fraction,length_limit,shortest_length,rotation_limit,vertex_xyz)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
 
     use indices
     use mesh_utilities,only: calc_branch_direction,distance_between_points, &
@@ -1225,8 +1290,6 @@ contains
     sub_name = 'smooth_1d_tree'
     call enter_exit(sub_name,1)
 
-    write(*,*) 'start smooth: ',node_xyz(1:3,79)
-    write(*,*) 'term node entry',node_xyz(:,63097)
     do n = 1,n_smoothing_steps
        do ne = num_elems,num_elem_start,-1
           if(elem_cnct(1,0,ne).eq.2)then
