@@ -253,12 +253,15 @@ contains
     ! indices for node_field
     num_nj = 0 !number of nodal fields
     ! indices for elem_field
-    num_ne = 5 !number of element fields
-    ne_radius = 1 !radius of airway
-    ne_length = 2 !length of airway
-    ne_a_A = 3 !ratio of duct to total cross-section
-    ne_vd_bel = 4
-    ne_vol_bel = 5
+    num_ne = 8 !number of element fields
+    ne_radius = 1 !radius of branch
+    ne_radius_in = 2
+    ne_radius_out = 3
+    ne_length = 4 !length of branch
+    ne_vol = 5
+    ne_a_A = 6 !ratio of duct to total cross-section (airway)
+    ne_vd_bel = 7
+    ne_vol_bel = 8
     ! indices for unit_field
     num_nu = 0
     
