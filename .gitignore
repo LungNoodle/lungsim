@@ -52,3 +52,6 @@ __pycache__/
 # PyCharm
 .idea/
 
+# Notepad bak files
+*.bak
+

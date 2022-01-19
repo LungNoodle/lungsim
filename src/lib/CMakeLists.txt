@@ -35,7 +35,6 @@ add_library(aether_obj OBJECT ${LIB_SRCS})
 set_target_properties(aether_obj PROPERTIES
   Fortran_MODULE_DIRECTORY "${AETHER_MODULE_DIRECTORY}"
   POSITION_INDEPENDENT_CODE TRUE)
-
 if (MSVC)
   target_compile_options(aether_obj PRIVATE /heap-arrays0)
 endif ()
@@ -60,7 +59,10 @@ if (SUPERLU_FOUND)
 endif ()
 
 # Create the aether library from the object libraries.
-add_library(aether $<TARGET_OBJECTS:aether_obj> ${dummy_file})
+add_library(aether STATIC $<TARGET_OBJECTS:aether_obj> ${dummy_file})
+set_target_properties(aether PROPERTIES
+					LINKER_LANGUAGE Fortran)
+
 if (SUPERLU_FOUND)
   target_sources(aether PRIVATE $<TARGET_OBJECTS:aether_superlu_obj>)
   # The aether library actually needs to link against the SuperLU libraries.
