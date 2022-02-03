@@ -39,7 +39,7 @@ if (NOT TARGET blas)
     INTERFAVE_COMPILE_DEFINITIONS "${BLAS_DEFINITIONS}"
   )
 
-  #list(REMOVE_AT LIBS 0)
+  list(REMOVE_AT LIBS 0)
   # Add non-matched libraries as link libraries so nothing gets forgotten
   foreach(LIB ${LIBS})
     append_link_library(blas ${LIB})
