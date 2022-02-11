@@ -12,22 +12,22 @@ jobs:
         config:
         - {
             name: "Windows 2022 MSVC",
-            build_type: "Release"
+            build_type: "Release",
             os: windows-2022,
           }
         - {
             name: "Windows 2019 MSVC",
-            build_type: "Release"
+            build_type: "Release",
             os: windows-2019,
           }
         - {
             name: "Ubuntu 20.04",
-            build_type: "Release"
+            build_type: "Release",
             os: ubuntu-20.04,
           }
         - {
             name: "macOS Big Sur 11",
-            build_type: "Release"
+            build_type: "Release",
             os: macos-11,
           }
     steps:
