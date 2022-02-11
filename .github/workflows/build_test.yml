@@ -63,10 +63,12 @@ jobs:
         endif()
         
         if ("${{ runner.os }}" STREQUAL "Windows")
-          set(PYTHON_EXE "${{ steps.pwd.outputs.pwd }}/venv/Scripts/python.exe")
+          set(PYTHON_EXE "${{ steps.pwd.outputs.pwd }}/venv/Scripts/python3.exe")
+          file(GLOB contents "${{ steps.pwd.outputs.pwd }}/venv/Scripts/")
+          message(STATUS "contents: ${contents}")
         else()
           set(PYTHON_EXE "${{ steps.pwd.outputs.pwd }}/venv/bin/python")
-        endif()
+        endif()      
         
         execute_process(
           COMMAND ${PYTHON_EXE} -m pip install numpy
