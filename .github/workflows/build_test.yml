@@ -64,11 +64,11 @@ jobs:
         
         if ("${{ runner.os }}" STREQUAL "Windows")
           set(PYTHON_EXE "${{ steps.pwd.outputs.pwd }}/venv/Scripts/python3.exe")
-          file(GLOB contents "${{ steps.pwd.outputs.pwd }}/")
+          file(GLOB contents "${{ steps.pwd.outputs.pwd }}/*")
           message(STATUS "contents: ${contents}")
-          file(GLOB contents "${{ steps.pwd.outputs.pwd }}/venv/")
+          file(GLOB contents "${{ steps.pwd.outputs.pwd }}/venv/*")
           message(STATUS "contents: ${contents}")
-          file(GLOB contents "${{ steps.pwd.outputs.pwd }}/venv/Scripts/")
+          file(GLOB contents "${{ steps.pwd.outputs.pwd }}/venv/Scripts/*")
           message(STATUS "contents: ${contents}")
         else()
           set(PYTHON_EXE "${{ steps.pwd.outputs.pwd }}/venv/bin/python")
@@ -124,5 +124,13 @@ jobs:
           message("::error::${error_message}")
           message(FATAL_ERROR "Build failed")
         endif()
-
-
+    - name: test
+      shell: bash
+      run: |
+        python - <<EOF
+        from aether import diagnostics
+        
+        initial_state = diagnostics.get_diagnostics_on()
+        diagnostics.set_diagnostics_on(True)
+        final_state = diagnostics.get_diagnostics_on()
+        print("Initial state: {0}, Final state: {1}", initial_state, final_state)
