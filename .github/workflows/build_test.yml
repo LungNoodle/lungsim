@@ -47,7 +47,7 @@ jobs:
     - name: Install SuperLU
       if: ${{ matrix.config.super_lu }}
       shell: bash
-      run: apt install libsuperlu-dev
+      run: sudo apt-get install libsuperlu-dev
     - name: Create virtual environment
       shell: cmake -P {0}
       id: create-venv
