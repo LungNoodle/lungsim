@@ -127,6 +127,12 @@ jobs:
     - name: test
       shell: bash
       run: |
+        if [ ${{ runner.os }} = Windows ]; then
+          cd src/bindings/python/Release
+        else
+          cd src/bindings/python
+        fi
+        
         python - <<EOF
         from aether import diagnostics
         
