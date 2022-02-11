@@ -134,3 +134,4 @@ jobs:
         diagnostics.set_diagnostics_on(True)
         final_state = diagnostics.get_diagnostics_on()
         print("Initial state: {0}, Final state: {1}", initial_state, final_state)
+        EOF
