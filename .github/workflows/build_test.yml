@@ -59,7 +59,7 @@ jobs:
             -S .
             -B build
             -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
-            -D PYTHON_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
+            -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
