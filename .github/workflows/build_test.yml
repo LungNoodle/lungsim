@@ -122,9 +122,9 @@ jobs:
       shell: bash
       run: |
         if [ ${{ runner.os }} = Windows ]; then
-          cd src/bindings/python/Release
+          cd build/src/bindings/python/Release
         else
-          cd src/bindings/python
+          cd build/src/bindings/python
         fi
         
         python - <<EOF
