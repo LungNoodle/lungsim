@@ -48,18 +48,26 @@ jobs:
       shell: cmake -P {0}
       id: create-venv
       run: |
+        if ("${{ runner.os }}" STREQUAL "Windows")
+          set(SYS_PYTHON_EXE python)
+        else()
+          set(SYS_PYTHON_EXE python3)
+        endif()
+        
         execute_process(
-          COMMAND python3 -m venv venv
+          COMMAND ${SYS_PYTHON_EXE} -m venv venv
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
           message(FATAL_ERROR "Failed to create virtual environment.")
         endif()
+        
         if ("${{ runner.os }}" STREQUAL "Windows")
           set(PYTHON_EXE "${{ steps.pwd.outputs.pwd }}/venv/Scripts/python.exe")
         else()
           set(PYTHON_EXE "${{ steps.pwd.outputs.pwd }}/venv/bin/python")
         endif()
+        
         execute_process(
           COMMAND ${PYTHON_EXE} -m pip install numpy
           RESULT_VARIABLE result
@@ -71,11 +79,6 @@ jobs:
         execute_process(
           COMMAND echo "::set-output name=python_exe::${PYTHON_EXE}"
         )
-    - name: Debug state
-      shell: bash
-      run: |
-        ls
-        ls build
     - name: Generate build instructions
       env:
         FC: ${{ steps.setup-fortran.outputs.fc }}
@@ -94,6 +97,11 @@ jobs:
         if (NOT result EQUAL 0)
           message(FATAL_ERROR "Bad exit status")
         endif()
+    - name: Debug state
+      shell: bash
+      run: |
+        ls
+        ls build
     - name: Build
       shell: cmake -P {0}
       run: |
