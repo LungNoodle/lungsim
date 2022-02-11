@@ -1,0 +1,153 @@
+name: Build and Test Matrix
+
+on: [pull_request]
+
+jobs:
+  pipeline:
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+#        - {
+#            name: "Windows 2022 MSVC",
+#            build_type: "Release",
+#            os: windows-2022,
+#          }
+#        - {
+#            name: "Windows 2019 MSVC",
+#            build_type: "Release",
+#            os: windows-2019,
+#          }
+        - {
+            name: "Ubuntu 20.04",
+            build_type: "Release",
+            os: ubuntu-20.04,
+          }
+        - {
+            name: "Ubuntu 20.04 with SuperLU",
+            build_type: "Release",
+            super_lu: true,
+            os: ubuntu-20.04,
+          }
+        - {
+            name: "macOS Big Sur 11",
+            build_type: "Release",
+            os: macos-11,
+          }
+    steps:
+    - name: Setup Fortran
+      uses: awvwgk/setup-fortran@main
+      id: setup-fortran
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Report CMake version
+      run: cmake --version
+    - name: Install SuperLU
+      if: ${{ matrix.config.super_lu }}
+      shell: bash
+      run: sudo apt-get install libsuperlu-dev
+    - name: Create virtual environment
+      shell: cmake -P {0}
+      id: create-venv
+      run: |
+        if ("${{ runner.os }}" STREQUAL "Windows")
+          set(SYS_PYTHON_EXE python)
+        else()
+          set(SYS_PYTHON_EXE python3)
+        endif()
+        
+        execute_process(
+          COMMAND ${SYS_PYTHON_EXE} -m venv venv
+          RESULT_VARIABLE result
+        )
+        if (NOT result EQUAL 0)
+          message(FATAL_ERROR "Failed to create virtual environment.")
+        endif()
+        
+        if ("${{ runner.os }}" STREQUAL "Windows")
+          file(GLOB PYTHON_EXE venv/Scripts/python.exe)
+        else()
+          file(GLOB PYTHON_EXE venv/bin/python)
+        endif()      
+        
+        execute_process(
+          COMMAND ${PYTHON_EXE} -m pip install numpy
+          RESULT_VARIABLE result
+        )
+        if (NOT result EQUAL 0)
+          message(FATAL_ERROR "Failed to install numpy to virtual environment.")
+        endif()
+        
+        execute_process(
+          COMMAND echo "::set-output name=python_exe::${PYTHON_EXE}"
+        )
+    - name: Generate build instructions
+      env:
+        FC: ${{ steps.setup-fortran.outputs.fc }}
+      shell: cmake -P {0}
+      run: |
+        execute_process(
+          COMMAND cmake
+            -S .
+            -B build
+            -D AETHER_ENABLE_TESTS=FALSE
+            -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
+            -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
+          RESULT_VARIABLE result
+          OUTPUT_VARIABLE output
+          ERROR_VARIABLE output
+          ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
+        )
+        if (NOT result EQUAL 0)
+          string(REGEX MATCH "FAILED:.*$" error_message "${output}")
+          string(REPLACE "\n" "%0A" error_message "${error_message}")
+          message("::error::${error_message}")
+          message(FATAL_ERROR "Generating build instructions failed.")
+        endif()
+    - name: Build
+      shell: cmake -P {0}
+      run: |
+        execute_process(
+          COMMAND cmake --build build
+          RESULT_VARIABLE result
+          OUTPUT_VARIABLE output
+          ERROR_VARIABLE output
+          ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
+        )
+        if (NOT result EQUAL 0)
+          string(REGEX MATCH "FAILED:.*$" error_message "${output}")
+          string(REPLACE "\n" "%0A" error_message "${error_message}")
+          message("::error::${error_message}")
+          message(FATAL_ERROR "Build failed.")
+        endif()
+    - name: Test
+      shell: bash
+      run: |
+        if [ ${{ runner.os }} = Windows ]; then
+          cd build/src/bindings/python/Release
+        else
+          cd build/src/bindings/python
+        fi
+        
+        ${{ steps.create-venv.outputs.python_exe }} - <<EOF
+        
+        import sys
+
+        from aether import diagnostics
+
+        initial_state = diagnostics.get_diagnostics_on()
+        diagnostics.set_diagnostics_on(True)
+        final_state = diagnostics.get_diagnostics_on()
+        print("Initial state: {0}, Final state: {1}".format(initial_state, final_state))
+
+        if initial_state != 0 or final_state != 1:
+          print("Test failed.")
+          sys.exit(1)
+        else:
+          print("Test succeeded.")
+        
+        EOF
+        
+        exit $?
