@@ -45,7 +45,7 @@ setup(
     url='https://lung.bioeng.auckland.ac.nz/',
     license='http://www.apache.org/licenses/LICENSE-2.0',
     description='Aether library of routines for modelling the lung.',
-    classifiers = filter(None, classifiers.split("\n")),
+    classifiers=classifiers.split("\n"),
     long_description=doclines,
     distclass=BinaryDistribution,
     include_package_data=True,

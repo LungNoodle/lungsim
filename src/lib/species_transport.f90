@@ -33,7 +33,6 @@ contains
 !
  subroutine initialise_transport()
  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT" :: INITIALISE_TRANSPORT
-
    !local variables
 
    character(len=60) :: sub_name

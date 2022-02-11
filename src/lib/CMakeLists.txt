@@ -26,7 +26,10 @@ set(LIB_SRCS
 if (SUPERLU_FOUND)
   set_source_files_properties(capillaryflow.f90 PROPERTIES COMPILE_DEFINITIONS HAVE_SUPERLU)
 endif ()
-set_source_files_properties(capillaryflow.f90 PROPERTIES COMPILE_FLAGS -cpp)
+
+if (NOT CMAKE_Fortran_COMPILER_ID STREQUAL Intel)
+  set_source_files_properties(capillaryflow.f90 PROPERTIES COMPILE_FLAGS -cpp)
+endif ()
 
 set(AETHER_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules")
 
@@ -58,25 +61,8 @@ if (SUPERLU_FOUND)
   set_property(TARGET aether_superlu_obj PROPERTY POSITION_INDEPENDENT_CODE ON)
 endif ()
 
-# Create the aether library from the object libraries.
-add_library(aether STATIC $<TARGET_OBJECTS:aether_obj> ${dummy_file})
-set_target_properties(aether PROPERTIES
-					LINKER_LANGUAGE Fortran)
-
 if (SUPERLU_FOUND)
-  target_sources(aether PRIVATE $<TARGET_OBJECTS:aether_superlu_obj>)
+  target_sources(aether_obj PRIVATE $<TARGET_OBJECTS:aether_superlu_obj>)
   # The aether library actually needs to link against the SuperLU libraries.
-  target_link_libraries(aether PUBLIC superlu)
+  target_link_libraries(aether_obj PUBLIC superlu)
 endif ()
-
-set_target_properties(aether PROPERTIES
-  Fortran_VISIBILITY_PRESET hidden
-  C_VISIBILITY_PRESET hidden
-  VISIBILITY_INLINES_HIDDEN 1)
-
-target_include_directories(aether PUBLIC "${AETHER_MODULE_DIRECTORY}")
-
-install(TARGETS aether
-  RUNTIME DESTINATION bin
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib)

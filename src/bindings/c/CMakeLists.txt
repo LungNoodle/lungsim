@@ -92,4 +92,3 @@ install(TARGETS aether_c aether_c_fortran
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
-
