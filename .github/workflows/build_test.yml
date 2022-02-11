@@ -93,15 +93,16 @@ jobs:
             -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
             -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
           RESULT_VARIABLE result
+          OUTPUT_VARIABLE output
+          ERROR_VARIABLE output
+          ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
         )
         if (NOT result EQUAL 0)
-          message(FATAL_ERROR "Bad exit status")
+          string(REGEX MATCH "FAILED:.*$" error_message "${output}")
+          string(REPLACE "\n" "%0A" error_message "${error_message}")
+          message("::error::${error_message}")
+          message(FATAL_ERROR "Generating build instructions failed.")
         endif()
-    - name: Debug state
-      shell: bash
-      run: |
-        ls
-        ls build
     - name: Build
       shell: cmake -P {0}
       run: |
@@ -116,7 +117,7 @@ jobs:
           string(REGEX MATCH "FAILED:.*$" error_message "${output}")
           string(REPLACE "\n" "%0A" error_message "${error_message}")
           message("::error::${error_message}")
-          message(FATAL_ERROR "Build failed")
+          message(FATAL_ERROR "Build failed.")
         endif()
     - name: test
       shell: bash
