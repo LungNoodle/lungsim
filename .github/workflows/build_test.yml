@@ -134,11 +134,19 @@ jobs:
         fi
         
         python - <<EOF
-        from aether import diagnostics
         
+        import sys
+
+        from aether import diagnostics
+
         initial_state = diagnostics.get_diagnostics_on()
         diagnostics.set_diagnostics_on(True)
         final_state = diagnostics.get_diagnostics_on()
-        print("Initial state: {0}, Final state: {1}", initial_state, final_state)
+        print("Initial state: {0}, Final state: {1}".format(initial_state, final_state))
+
+        if initial_state != 0 or final_state != 1:
+          sys.exit(1)
         
         EOF
+        
+        exit $?
