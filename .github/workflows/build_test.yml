@@ -31,11 +31,16 @@ jobs:
             os: macos-11,
           }
     steps:
+    - name: Setup Fortran
+      uses: awvwgk/setup-fortran@main
+      id: setup-fortran
     - name: Checkout
       uses: actions/checkout@v2
     - name: Report CMake version
       run: cmake --version
     - name: Generate build instructions
+      env:
+        FC: ${{ steps.setup-fortran.outputs.fc }}
       shell: cmake -P {0}
       run: |
         execute_process(
