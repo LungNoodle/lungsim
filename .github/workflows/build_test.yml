@@ -65,7 +65,7 @@ jobs:
         if ("${{ runner.os }}" STREQUAL "Windows")
           file(GLOB PYTHON_EXE venv/Scripts/python.exe)
         else()
-          set(PYTHON_EXE "${{ steps.pwd.outputs.pwd }}/venv/bin/python")
+          file(GLOB PYTHON_EXE venv/bin/python)
         endif()      
         
         execute_process(
@@ -84,7 +84,6 @@ jobs:
         FC: ${{ steps.setup-fortran.outputs.fc }}
       shell: cmake -P {0}
       run: |
-        message(STATUS "Python executable: $ENV{PYTHON_EXE}")
         execute_process(
           COMMAND cmake
             -S .
@@ -119,7 +118,7 @@ jobs:
           message("::error::${error_message}")
           message(FATAL_ERROR "Build failed.")
         endif()
-    - name: test
+    - name: Test
       shell: bash
       run: |
         if [ ${{ runner.os }} = Windows ]; then
@@ -128,7 +127,7 @@ jobs:
           cd build/src/bindings/python
         fi
         
-        python - <<EOF
+        ${{ steps.create-venv.outputs.python_exe }} - <<EOF
         
         import sys
 
