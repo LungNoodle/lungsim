@@ -64,6 +64,10 @@ jobs:
         
         if ("${{ runner.os }}" STREQUAL "Windows")
           set(PYTHON_EXE "${{ steps.pwd.outputs.pwd }}/venv/Scripts/python3.exe")
+          file(GLOB contents "${{ steps.pwd.outputs.pwd }}/")
+          message(STATUS "contents: ${contents}")
+          file(GLOB contents "${{ steps.pwd.outputs.pwd }}/venv/")
+          message(STATUS "contents: ${contents}")
           file(GLOB contents "${{ steps.pwd.outputs.pwd }}/venv/Scripts/")
           message(STATUS "contents: ${contents}")
         else()
