@@ -50,15 +50,14 @@ jobs:
       id: setup-fortran
 
     - name: Checkout oneAPI scripts
-      uses: actions/checkout@v2
       if: runner.os == 'Windows'
+      uses: actions/checkout@v2
       with:
         repository: 'oneapi-src/oneapi-ci'
         path: 'oneapi'
 
     - name: Cache install oneAPI
       if: runner.os == 'Windows'
-      shell: bash
       id: cache-install
       uses: actions/cache@v2
       with:
