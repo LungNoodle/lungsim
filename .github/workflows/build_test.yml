@@ -3,7 +3,9 @@ name: Build and Test Matrix
 on: [pull_request]
 
 env:
+  WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18497/w_BaseKit_p_2022.1.2.154_offline.exe
   WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18529/w_HPCKit_p_2022.1.2.116_offline.exe
+  WINDOWS_DPCPP_COMPONENTS: intel.oneapi.win.dpcpp-compiler
   WINDOWS_FORTRAN_COMPONENTS: intel.oneapi.win.ifort-compiler
   SAMPLES_TAG: 2022.1.0
 
@@ -53,18 +55,28 @@ jobs:
       with:
         repository: 'oneapi-src/oneapi-ci'
         path: 'oneapi'
+    - name: Install oneAPI base kit
+      if: runner.os == 'Windows'
+      shell: bash
+      run: scripts/install_windows.bat $WINDOWS_BASEKIT_URL $WINDOWS_DPCPP_COMPONENTS
+    - name: Build oneAPI base kit
+      if: runner.os == 'Windows'
+      shell: bash
+      run: scripts/build_windows.bat dpc++ "" $SAMPLES_TAG
+
     - name: Cache install oneAPI
       if: runner.os == 'Windows'
+      shell: bash
       id: cache-install
       uses: actions/cache@v2
       with:
         path: C:\Program Files (x86)\Intel\oneAPI\compiler
         key: install-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_FORTRAN_COMPONENTS }}-compiler-${{ hashFiles('**/oneapi/scripts/cache_exclude_windows.sh') }}
-    - name: Install oneAPI
+    - name: Install oneAPI HPC kit
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
       shell: bash
       run: oneapi/scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
-    - name: Build oneAPI
+    - name: Build oneAPI HPC kit
       if: runner.os == 'Windows'
       shell: bash
       run: oneapi/scripts/build_windows.bat fortran "" $SAMPLES_TAG
