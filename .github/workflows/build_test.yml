@@ -78,15 +78,11 @@ jobs:
       run: oneapi/scripts/build_windows.bat fortran "" $SAMPLES_TAG
     - name: Exclude unused files from cache
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
-      shell: bash
-      run: oneapi/scripts/cache_exclude_windows.sh
+      run: oneapi/scripts/cache_exclude_windows.ps1
     - name: Get Fortran environment script
       id: setup-fortran-win
       if: runner.os == 'Windows'
-      run: |
-        for /f "tokens=* usebackq" %f in (`dir /b "C:\Program Files (x86)\Intel\oneAPI\compiler\" ^| findstr /V latest ^| sort`) do @set "LATEST_VERSION=%f"
-        echo "C:\Program Files (x86)\Intel\oneAPI\compiler\%LATEST_VERSION%\env\vars.bat"
-        echo "::set-output name=env_bat::C:\Program Files (x86)\Intel\oneAPI\compiler\%LATEST_VERSION%\env\vars.bat"
+      run: .github/scripts/oneapi-env-vars-location.bat
 
     - name: Checkout
       uses: actions/checkout@v2
