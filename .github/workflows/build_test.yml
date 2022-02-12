@@ -17,16 +17,11 @@ jobs:
       fail-fast: false
       matrix:
         config:
-#        - {
-#            name: "Windows 2022 MSVC",
-#            build_type: "Release",
-#            os: windows-2022,
-#          }
-       - {
-           name: "Windows 2019 MSVC",
-           build_type: "Release",
-           os: windows-2019,
-         }
+        - {
+            name: "Windows 2019 MSVC",
+            build_type: "Release",
+            os: windows-2019,
+          }
         - {
             name: "Ubuntu 20.04",
             build_type: "Release",
