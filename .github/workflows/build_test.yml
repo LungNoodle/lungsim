@@ -2,6 +2,11 @@ name: Build and Test Matrix
 
 on: [pull_request]
 
+env:
+  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18529/w_HPCKit_p_2022.1.2.116_offline.exe
+  WINDOWS_FORTRAN_COMPONENTS: intel.oneapi.win.ifort-compiler
+  SAMPLES_TAG: 2022.1.0
+
 jobs:
   pipeline:
     name: ${{ matrix.config.name }}
@@ -38,8 +43,36 @@ jobs:
           }
     steps:
     - name: Setup Fortran
+      if: ${{ runner.os }} != 'Windows'
       uses: awvwgk/setup-fortran@main
       id: setup-fortran
+
+    - name: Checkout oneAPI scripts
+      uses: actions/checkout@v2
+      if: ${{ runner.os }} == 'Windows'
+      with:
+        repository: 'oneapi-src/oneapi-ci'
+        path: 'oneapi'
+    - name: Cache install oneAPI
+      if: ${{ runner.os }} == 'Windows'
+      id: cache-install
+      uses: actions/cache@v2
+      with:
+        path: C:\Program Files (x86)\Intel\oneAPI\compiler
+        key: install-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_FORTRAN_COMPONENTS }}-compiler-${{ hashFiles('**/oneapi/scripts/cache_exclude_windows.sh') }}
+    - name: Install oneAPI
+      if: ${{ runner.os }} == 'Windows'
+      if: steps.cache-install.outputs.cache-hit != 'true'
+      run: scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
+    - name: Build oneAPI
+      if: ${{ runner.os }} == 'Windows'
+      run: scripts/build_windows.bat fortran "" $SAMPLES_TAG
+    - name: Exclude unused files from cache
+      if: ${{ runner.os }} == 'Windows'
+      if: steps.cache-install.outputs.cache-hit != 'true'
+      shell: bash
+      run: scripts/cache_exclude_windows.sh
+      
     - name: Checkout
       uses: actions/checkout@v2
     - name: Report CMake version
