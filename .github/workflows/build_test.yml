@@ -68,11 +68,11 @@ jobs:
     - name: Install oneAPI base kit
       if: runner.os == 'Windows'
       shell: bash
-      run: scripts/install_windows.bat $WINDOWS_BASEKIT_URL $WINDOWS_DPCPP_COMPONENTS
+      run: oneapi/scripts/install_windows.bat $WINDOWS_BASEKIT_URL $WINDOWS_DPCPP_COMPONENTS
     - name: Build oneAPI base kit
       if: runner.os == 'Windows'
       shell: bash
-      run: scripts/build_windows.bat dpc++ "" $SAMPLES_TAG
+      run: oneapi/scripts/build_windows.bat dpc++ "" $SAMPLES_TAG
 
     - name: Install oneAPI HPC kit
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
