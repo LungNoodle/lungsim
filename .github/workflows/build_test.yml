@@ -80,7 +80,14 @@ jobs:
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
       shell: bash
       run: oneapi/scripts/cache_exclude_windows.sh
-      
+    - name: Get Fortran environment script
+      id: setup-fortran-win
+      if: 
+      run: |
+        for /f "tokens=* usebackq" %%f in (`dir /b "C:\Program Files (x86)\Intel\oneAPI\compiler\" ^| findstr /V latest ^| sort`) do @set "LATEST_VERSION=%%f"
+        echo "C:\Program Files (x86)\Intel\oneAPI\compiler\%LATEST_VERSION%\env\vars.bat"
+        echo "::set-output name=env_bat::C:\Program Files (x86)\Intel\oneAPI\compiler\%LATEST_VERSION%\env\vars.bat"
+
     - name: Checkout
       uses: actions/checkout@v2
     - name: Report CMake version
@@ -129,6 +136,12 @@ jobs:
         FC: ${{ steps.setup-fortran.outputs.fc }}
       shell: cmake -P {0}
       run: |
+        if ("${{ runner.os }}" STREQUAL "Windows")
+          execute_process(
+            COMMAND @call ${{ steps.setup-fortran-win.outputs.env_bat }}
+          )
+        endif()
+        
         execute_process(
           COMMAND cmake
             -S .
