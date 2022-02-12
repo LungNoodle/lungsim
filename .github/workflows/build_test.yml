@@ -42,7 +42,7 @@ jobs:
             os: macos-11,
           }
     steps:
-    - name: Setup Fortran
+    - name: Setup GCC Fortran
       if: runner.os != 'Windows'
       uses: awvwgk/setup-fortran@main
       id: setup-fortran
@@ -62,9 +62,11 @@ jobs:
         key: install-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_FORTRAN_COMPONENTS }}-compiler-${{ hashFiles('**/oneapi/scripts/cache_exclude_windows.sh') }}
     - name: Install oneAPI
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
+      shell: bash
       run: oneapi/scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
     - name: Build oneAPI
       if: runner.os == 'Windows'
+      shell: bash
       run: oneapi/scripts/build_windows.bat fortran "" $SAMPLES_TAG
     - name: Exclude unused files from cache
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
