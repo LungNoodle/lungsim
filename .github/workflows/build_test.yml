@@ -61,15 +61,13 @@ jobs:
         path: C:\Program Files (x86)\Intel\oneAPI\compiler
         key: install-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_FORTRAN_COMPONENTS }}-compiler-${{ hashFiles('**/oneapi/scripts/cache_exclude_windows.sh') }}
     - name: Install oneAPI
-      if: ${{ runner.os }} == 'Windows'
-      if: steps.cache-install.outputs.cache-hit != 'true'
+      if: ${{ runner.os }} == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
       run: scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
     - name: Build oneAPI
       if: ${{ runner.os }} == 'Windows'
       run: scripts/build_windows.bat fortran "" $SAMPLES_TAG
     - name: Exclude unused files from cache
-      if: ${{ runner.os }} == 'Windows'
-      if: steps.cache-install.outputs.cache-hit != 'true'
+      if: ${{ runner.os }} == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
       shell: bash
       run: scripts/cache_exclude_windows.sh
       
