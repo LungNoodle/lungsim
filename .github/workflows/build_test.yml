@@ -17,16 +17,16 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - {
-            name: "Windows 2022 MSVC",
-            build_type: "Release",
-            os: windows-2022,
-          }
 #        - {
-#            name: "Windows 2019 MSVC",
+#            name: "Windows 2022 MSVC",
 #            build_type: "Release",
-#            os: windows-2019,
+#            os: windows-2022,
 #          }
+       - {
+           name: "Windows 2019 MSVC",
+           build_type: "Release",
+           os: windows-2019,
+         }
         - {
             name: "Ubuntu 20.04",
             build_type: "Release",
@@ -67,11 +67,11 @@ jobs:
     - name: Install oneAPI base kit
       if: runner.os == 'Windows'
       shell: bash
-      run: oneapi/scripts/install_windows.bat $WINDOWS_BASEKIT_URL $WINDOWS_DPCPP_COMPONENTS
+      run: oneapi/scripts/install_windows.bat $WINDOWS_BASEKIT_URL $WINDOWS_FORTRAN_COMPONENTS
     - name: Build oneAPI base kit
       if: runner.os == 'Windows'
       shell: bash
-      run: oneapi/scripts/build_windows.bat dpc++ "" $SAMPLES_TAG
+      run: oneapi/scripts/build_windows.bat fortran "" $SAMPLES_TAG
 
     - name: Install oneAPI HPC kit
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
