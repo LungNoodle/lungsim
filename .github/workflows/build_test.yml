@@ -72,10 +72,10 @@ jobs:
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
       shell: bash
       run: oneapi/scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
-    - name: Build oneAPI HPC kit
-      if: runner.os == 'Windows'
-      shell: bash
-      run: oneapi/scripts/build_windows.bat fortran "" $SAMPLES_TAG
+#   - name: Build oneAPI HPC kit
+#      if: runner.os == 'Windows'
+#      shell: bash
+#      run: oneapi/scripts/build_windows.bat fortran "" $SAMPLES_TAG
     - name: Exclude unused files from cache
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
       run: oneapi/scripts/cache_exclude_windows.ps1
@@ -83,7 +83,15 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Get Fortran environment script
+    - name: Debug
+      shell: bash
+      run: |
+        ls
+        ls -A
+        ls .github
+        ls .github/scripts
+
+    - name: Run get Fortran environment script
       id: setup-fortran-win
       if: runner.os == 'Windows'
       shell: bash
