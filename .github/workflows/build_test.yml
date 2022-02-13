@@ -49,7 +49,7 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: 'oneapi-src/oneapi-ci'
-        path: '../oneapi'
+        path: 'oneapi'
 
     - name: Cache install oneAPI
       if: runner.os == 'Windows'
@@ -70,7 +70,7 @@ jobs:
 
     - name: Install oneAPI HPC kit
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
-      working-directory: ../oneapi
+      working-directory: oneapi
       shell: bash
       run: scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
 #   - name: Build oneAPI HPC kit
@@ -79,16 +79,19 @@ jobs:
 #      run: oneapi/scripts/build_windows.bat fortran "" $SAMPLES_TAG
     - name: Exclude unused files from cache
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
-      working-directory: ../oneapi
+      working-directory: oneapi
       run: scripts/cache_exclude_windows.ps1
 
     - name: Checkout lungsim
       uses: actions/checkout@v2
+      with:
+        path: lungsim
 
     - name: Run get Fortran environment script
       id: setup-fortran-win
       if: runner.os == 'Windows'
       shell: bash
+      working-directory: lungsim
       run: |
         latest_version=`.github/scripts/oneapi-env-vars-location.bat`
         echo $latest_version
@@ -141,6 +144,7 @@ jobs:
       env:
         FC: ${{ steps.setup-fortran.outputs.fc }}
       shell: cmake -P {0}
+      working-directory: lungsim
       run: |
         if ("${{ runner.os }}" STREQUAL "Windows")
           # ${{ steps.setup-fortran-win.outputs.env_bat }}
@@ -170,6 +174,7 @@ jobs:
         endif()
     - name: Build
       shell: cmake -P {0}
+      working-directory: lungsim
       run: |
         execute_process(
           COMMAND cmake --build build
