@@ -146,7 +146,7 @@ jobs:
       run: |
         "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
-        ${{ steps.setup-fortran-win.outputs.fc }}
+        ${{ steps.setup-fortran-win.outputs.fc }} /QV
         echo "==============="
         echo %PATH%
         echo "==============="
