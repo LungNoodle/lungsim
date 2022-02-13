@@ -151,7 +151,7 @@ jobs:
             COMMAND cmake
               -S lungsim
               -B build-lungsim
-              -D CMAKE_Fortran_COMPILER=$ENV{FC}
+              -D CMAKE_Fortran_COMPILER=${{ steps.setup-fortran-win.outputs.fc }}
               -D AETHER_ENABLE_TESTS=FALSE
               -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
               -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
