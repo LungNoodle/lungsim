@@ -152,11 +152,11 @@ jobs:
           ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
         )
         message(STATUS "output: ${output}")
-    - name: Generate build instructions
-      shell: cmake -P {0}
+    - name: Generate build instructions - Windows
+      shell: cmd
       if: runner.os == 'Windows'
       run: |
-        call "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
+        "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
         cmake -S lungsim -D build-lungsim -D AETHER_ENABLE_TESTS=FALSE -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
     - name: Generate build instructions
       shell: cmake -P {0}
