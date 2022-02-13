@@ -147,7 +147,7 @@ jobs:
       shell: cmake -P {0}
       run: |
         if ("${{ runner.os }}" STREQUAL "Windows")
-          set(FORTRAN_COMPILER_DEFINITION -D CMAKE_Fortran_COMPILER="$ENV{FC}")
+          set(FORTRAN_COMPILER_DEFINITION -D CMAKE_Fortran_COMPILER=$ENV{FC})
         endif()
         message(STATUS "${FORTRAN_COMPILER_DEFINITION}")
         execute_process(
