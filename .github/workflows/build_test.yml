@@ -151,13 +151,13 @@ jobs:
         echo "============="
         ls "C:\Program Files (x86)\Microsoft Visual Studio\2019"
         echo "============="
-        ls "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools"
+        ls "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise"
         echo "============="
-        ls "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC"
+        ls "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC"
         echo "============="
-        ls "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary"
+        ls "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary"
         echo "============="
-        ls "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build"
+        ls "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build"
         echo "============="
         ls "C:\Program Files (x86)\Intel"
         echo "============="
@@ -169,7 +169,7 @@ jobs:
         echo "============="
         ls "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env"
         echo "============="
-        "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+        "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
         where ifort.exe
         ifort.exe
@@ -177,7 +177,7 @@ jobs:
     - name: Generate build instructions - Windows
       if: runner.os == 'Windows'
       run: |
-        "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+        "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
         cmake -S lungsim -B build-lungsim -D AETHER_ENABLE_TESTS=FALSE -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
     - name: Generate build instructions - Linux
