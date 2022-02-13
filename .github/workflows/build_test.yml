@@ -82,6 +82,21 @@ jobs:
       working-directory: oneapi
       run: scripts/cache_exclude_windows.ps1
 
+    - name: Checkout test Fortran programme
+      if: runner.os == 'Windows'
+      uses: actions/checkout@v2
+      with:
+        repository: 'hsorby/intel-openmp-sample'
+        path: 'intel-openmp-sample'
+
+    - name: Debug - Generate sample build instructions - Windows
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        call "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
+        cmake -S intel-openmp-sample -B build-intel-openmp-sample
+        cmake --build build-intel-openmp-sample --config Release
+
     - name: Checkout lungsim
       uses: actions/checkout@v2
       with:
