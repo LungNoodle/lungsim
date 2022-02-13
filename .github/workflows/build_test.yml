@@ -141,10 +141,28 @@ jobs:
         execute_process(
           COMMAND echo "::set-output name=python_exe::${PYTHON_EXE}"
         )
+    - name: Debug Generate build instructions
+      shell: cmake -P {0}
+      run: |
+          execute_process(
+            COMMAND ${{ steps.setup-fortran-win.outputs.fc }} /help
+            RESULT_VARIABLE result
+            OUTPUT_VARIABLE output
+            ERROR_VARIABLE output
+            ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
+          )
     - name: Generate build instructions
       shell: cmake -P {0}
       run: |
         if ("${{ runner.os }}" STREQUAL "Windows")
+          execute_process(
+            COMMAND ${{ steps.setup-fortran-win.outputs.fc }} /help
+            RESULT_VARIABLE result
+            OUTPUT_VARIABLE output
+            ERROR_VARIABLE output
+            ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
+          )
+          message(STATUS "output: ${output}")
           execute_process(
             COMMAND cmake
               -S lungsim
