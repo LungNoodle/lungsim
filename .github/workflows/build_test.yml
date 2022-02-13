@@ -90,7 +90,7 @@ jobs:
       run: |
         latest_version=`.github/scripts/oneapi-env-vars-location.bat`
         echo $latest_version
-        echo "::set-output name=env_bat::C:\Program Files (x86)\Intel\oneAPI\compiler\${latest_version}\env\vars.bat"
+        echo "::set-output name=env_bat::${latest_version}"
 
     - name: Report CMake version
       run: cmake --version
@@ -141,7 +141,7 @@ jobs:
         if ("${{ runner.os }}" STREQUAL "Windows")
           # ${{ steps.setup-fortran-win.outputs.env_bat }}
           execute_process(
-            COMMAND @call C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat
+            COMMAND @call "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
           )
         endif()
         
