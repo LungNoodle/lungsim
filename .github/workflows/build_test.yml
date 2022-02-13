@@ -79,18 +79,20 @@ jobs:
     - name: Exclude unused files from cache
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
       run: oneapi/scripts/cache_exclude_windows.ps1
+
+    - name: Checkout
+      uses: actions/checkout@v2
+
     - name: Get Fortran environment script
       id: setup-fortran-win
       if: runner.os == 'Windows'
       shell: bash
       run: .github/scripts/oneapi-env-vars-location.bat
 
-    - name: Checkout
-      uses: actions/checkout@v2
     - name: Report CMake version
       run: cmake --version
     - name: Install SuperLU
-      if: ${{ matrix.config.super_lu }}
+      if: matrix.config.super_lu
       shell: bash
       run: sudo apt-get install libsuperlu-dev
     - name: Create virtual environment
