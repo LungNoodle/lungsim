@@ -142,8 +142,6 @@ jobs:
           COMMAND echo "::set-output name=python_exe::${PYTHON_EXE}"
         )
     - name: Generate build instructions
-      env:
-        FC: ${{ steps.setup-fortran.outputs.fc }}${{ steps.setup-fortran-win.outputs.fc }}
       shell: cmake -P {0}
       run: |
         if ("${{ runner.os }}" STREQUAL "Windows")
@@ -179,6 +177,7 @@ jobs:
             COMMAND cmake
               -S lungsim
               -B build-lungsim
+              -D CMAKE_Fortran_COMPILER=gfortran
               -D AETHER_ENABLE_TESTS=FALSE
               -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
               -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
