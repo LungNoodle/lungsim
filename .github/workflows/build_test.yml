@@ -95,9 +95,9 @@ jobs:
       run: |
         latest_version=`.github/scripts/oneapi-env-vars-location.bat`
         echo "ifort compiler: $latest_version"
-        latest_version=`echo $latest_version | tr '\' '/'`
-        echo $latest_version
-        #echo "::set-output name=env_bat::${latest_version}"
+        # latest_version=`echo $latest_version | tr '\' '/'`
+        # echo $latest_version
+        # echo "::set-output name=env_bat::${latest_version}"
         echo "::set-output name=fc::${latest_version}"
 
     - name: Report CMake version
