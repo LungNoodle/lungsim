@@ -146,8 +146,8 @@ jobs:
       run: |
         "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
         "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
-        where ifort
-        ifort
+        where ifort.exe
+        ifort.exe
         cmake -S lungsim -B build-lungsim -D CMAKE_Fortran_COMPILER=ifort -D AETHER_ENABLE_TESTS=FALSE -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
     - name: Generate build instructions - Windows
       if: runner.os == 'Windows'
