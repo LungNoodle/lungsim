@@ -148,13 +148,11 @@ jobs:
       run: |
         if ("${{ runner.os }}" STREQUAL "Windows")
           # ${{ steps.setup-fortran-win.outputs.env_bat }}
-          file(TO_CMAKE_PATH ${{ steps.setup-fortran-win.outputs.env_bat }} BATCH_FILE)
-          execute_process(
-            COMMAND @call "${BATCH_FILE}"
-          )
+          set(ONEAPI_ENV_COMMMAND COMMAND ${{ steps.setup-fortran-win.outputs.env_bat }})
         endif()
         
         execute_process(
+          ${ONEAPI_ENV_COMMMAND}
           COMMAND cmake
             -S .
             -B build
@@ -191,6 +189,7 @@ jobs:
         endif()
     - name: Test
       shell: bash
+      working-directory: lungsim
       run: |
         if [ ${{ runner.os }} = Windows ]; then
           cd build/src/bindings/python/Release
