@@ -39,10 +39,10 @@ jobs:
             os: macos-11,
           }
     steps:
-    - name: Setup GCC Fortran
-      if: runner.os != 'Windows'
-      uses: awvwgk/setup-fortran@main
-      id: setup-fortran
+#    - name: Setup GCC Fortran
+#      if: runner.os != 'Windows'
+#      uses: awvwgk/setup-fortran@main
+#      id: setup-fortran
 
     - name: Checkout oneAPI scripts
       if: runner.os == 'Windows'
@@ -147,22 +147,33 @@ jobs:
       shell: cmake -P {0}
       run: |
         if ("${{ runner.os }}" STREQUAL "Windows")
-          set(FORTRAN_COMPILER_DEFINITION -D CMAKE_Fortran_COMPILER=$ENV{FC})
+          execute_process(
+            COMMAND cmake
+              -S lungsim
+              -B build-lungsim
+              -D CMAKE_Fortran_COMPILER=$ENV{FC}
+              -D AETHER_ENABLE_TESTS=FALSE
+              -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
+              -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
+            RESULT_VARIABLE result
+            OUTPUT_VARIABLE output
+            ERROR_VARIABLE output
+            ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
+          )
+        else()
+          execute_process(
+            COMMAND cmake
+              -S lungsim
+              -B build-lungsim
+              -D AETHER_ENABLE_TESTS=FALSE
+              -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
+              -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
+            RESULT_VARIABLE result
+            OUTPUT_VARIABLE output
+            ERROR_VARIABLE output
+            ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
+          )
         endif()
-        message(STATUS "${FORTRAN_COMPILER_DEFINITION}")
-        execute_process(
-          COMMAND cmake
-            -S lungsim
-            -B build-lungsim
-            ${FORTRAN_COMPILER_DEFINITION}
-            -D AETHER_ENABLE_TESTS=FALSE
-            -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
-            -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
-          RESULT_VARIABLE result
-          OUTPUT_VARIABLE output
-          ERROR_VARIABLE output
-          ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
-        )
         if (NOT result EQUAL 0)
           string(REGEX MATCH "FAILED:.*$" error_message "${output}")
           string(REPLACE "\n" "%0A" error_message "${error_message}")
