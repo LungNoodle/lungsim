@@ -95,8 +95,8 @@ jobs:
       run: |
         latest_version=`.github/scripts/oneapi-env-vars-location.bat`
         echo "ifort compiler: $latest_version"
-        #latest_version=`echo $latest_version | tr '\' '/'`
-        #echo $latest_version
+        latest_version=`echo $latest_version | tr '\' '/'`
+        echo $latest_version
         #echo "::set-output name=env_bat::${latest_version}"
         echo "::set-output name=fc::${latest_version}"
 
@@ -145,12 +145,12 @@ jobs:
       env:
         FC: ${{ steps.setup-fortran.outputs.fc }}${{ steps.setup-fortran-win.outputs.fc }}
       shell: cmake -P {0}
-      working-directory: lungsim
       run: |        
         execute_process(
           COMMAND cmake
-            -S .
-            -B build
+            -S lungsim
+            -B build-lungsim
+            -D CMAKE_Fortran_COMPILER=$ENV{FC}
             -D AETHER_ENABLE_TESTS=FALSE
             -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
             -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
@@ -167,10 +167,9 @@ jobs:
         endif()
     - name: Build lungsim
       shell: cmake -P {0}
-      working-directory: lungsim
       run: |
         execute_process(
-          COMMAND cmake --build build
+          COMMAND cmake --build build-lungsim
           RESULT_VARIABLE result
           OUTPUT_VARIABLE output
           ERROR_VARIABLE output
@@ -184,7 +183,7 @@ jobs:
         endif()
     - name: Test lungsim
       shell: bash
-      working-directory: lungsim
+      working-directory: build-lungsim
       run: |
         if [ ${{ runner.os }} = Windows ]; then
           cd build/src/bindings/python/Release
