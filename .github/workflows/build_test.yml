@@ -49,7 +49,7 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: 'oneapi-src/oneapi-ci'
-        path: 'oneapi'
+        path: '../oneapi'
 
     - name: Cache install oneAPI
       if: runner.os == 'Windows'
@@ -70,15 +70,17 @@ jobs:
 
     - name: Install oneAPI HPC kit
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
+      working-directory: ../oneapi
       shell: bash
-      run: oneapi/scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
+      run: scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
 #   - name: Build oneAPI HPC kit
 #      if: runner.os == 'Windows'
 #      shell: bash
 #      run: oneapi/scripts/build_windows.bat fortran "" $SAMPLES_TAG
     - name: Exclude unused files from cache
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
-      run: oneapi/scripts/cache_exclude_windows.ps1
+      working-directory: ../oneapi
+      run: scripts/cache_exclude_windows.ps1
 
     - name: Checkout lungsim
       uses: actions/checkout@v2
@@ -89,6 +91,8 @@ jobs:
       shell: bash
       run: |
         latest_version=`.github/scripts/oneapi-env-vars-location.bat`
+        echo $latest_version
+        latest_version=`echo $latest_version | tr '\' '/'`
         echo $latest_version
         echo "::set-output name=env_bat::${latest_version}"
 
