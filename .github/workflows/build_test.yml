@@ -144,13 +144,14 @@ jobs:
     - name: Debug Generate build instructions
       shell: cmake -P {0}
       run: |
-          execute_process(
-            COMMAND ${{ steps.setup-fortran-win.outputs.fc }} /help
-            RESULT_VARIABLE result
-            OUTPUT_VARIABLE output
-            ERROR_VARIABLE output
-            ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
-          )
+        execute_process(
+          COMMAND ${{ steps.setup-fortran-win.outputs.fc }} /help
+          RESULT_VARIABLE result
+          OUTPUT_VARIABLE output
+          ERROR_VARIABLE output
+          ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
+        )
+        message(STATUS "output: ${output}")
     - name: Generate build instructions
       shell: cmake -P {0}
       run: |
