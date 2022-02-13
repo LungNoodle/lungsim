@@ -147,11 +147,11 @@ jobs:
       run: |
         "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
-        ${{ steps.setup-fortran-win.outputs.fc }} /QV
         echo "==============="
         echo %PATH%
         echo "==============="
         cmake -S lungsim -B build-lungsim -D CMAKE_Fortran_COMPILER=${{ steps.setup-fortran-win.outputs.fc }} -D AETHER_ENABLE_TESTS=FALSE -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
+        ${{ steps.setup-fortran-win.outputs.fc }} /QV
     - name: Generate build instructions - Windows
       if: runner.os == 'Windows'
       run: |
