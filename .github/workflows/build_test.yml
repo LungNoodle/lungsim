@@ -145,12 +145,13 @@ jobs:
       env:
         FC: ${{ steps.setup-fortran.outputs.fc }}${{ steps.setup-fortran-win.outputs.fc }}
       shell: cmake -P {0}
-      run: |        
+      run: |
+        message(STATUS "CMAKE_Fortran_COMPILER=$ENV{FC}")
         execute_process(
           COMMAND cmake
             -S lungsim
             -B build-lungsim
-            -D CMAKE_Fortran_COMPILER=$ENV{FC}
+            -D CMAKE_Fortran_COMPILER="$ENV{FC}"
             -D AETHER_ENABLE_TESTS=FALSE
             -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
             -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
@@ -186,9 +187,9 @@ jobs:
       working-directory: build-lungsim
       run: |
         if [ ${{ runner.os }} = Windows ]; then
-          cd build/src/bindings/python/Release
+          cd src/bindings/python/Release
         else
-          cd build/src/bindings/python
+          cd src/bindings/python
         fi
         
         ${{ steps.create-venv.outputs.python_exe }} - <<EOF
