@@ -158,59 +158,28 @@ jobs:
       run: |
         "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
         cmake -S lungsim -D build-lungsim -D AETHER_ENABLE_TESTS=FALSE -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
-    - name: Generate build instructions
-      shell: cmake -P {0}
-      if: runner.os != 'Windows'
+    - name: Generate build instructions - Linux
+      shell: bash
+      if: runner.os == 'Linux'
       run: |
-        if ("${{ runner.os }}" STREQUAL "Windows")
-          execute_process(
-            COMMAND cmake
-              -S lungsim
-              -B build-lungsim
-              -D CMAKE_Fortran_COMPILER=${{ steps.setup-fortran-win.outputs.fc }}
-              -D AETHER_ENABLE_TESTS=FALSE
-              -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
-              -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
-            RESULT_VARIABLE result
-            OUTPUT_VARIABLE output
-            ERROR_VARIABLE output
-            ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
-          )
-        elseif ("${{ runner.os }}" STREQUAL "macOS")
-          execute_process(
-            COMMAND cmake
-              -S lungsim
-              -B build-lungsim
-              -D CMAKE_Fortran_COMPILER=gfortran-9
-              -D AETHER_ENABLE_TESTS=FALSE
-              -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
-              -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
-            RESULT_VARIABLE result
-            OUTPUT_VARIABLE output
-            ERROR_VARIABLE output
-            ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
-          )
-        else()
-          execute_process(
-            COMMAND cmake
-              -S lungsim
-              -B build-lungsim
-              -D CMAKE_Fortran_COMPILER=gfortran
-              -D AETHER_ENABLE_TESTS=FALSE
-              -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
-              -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
-            RESULT_VARIABLE result
-            OUTPUT_VARIABLE output
-            ERROR_VARIABLE output
-            ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
-          )
-        endif()
-        if (NOT result EQUAL 0)
-          string(REGEX MATCH "FAILED:.*$" error_message "${output}")
-          string(REPLACE "\n" "%0A" error_message "${error_message}")
-          message("::error::${error_message}")
-          message(FATAL_ERROR "Generating build instructions failed.")
-        endif()
+        cmake \
+          -S lungsim \
+          -B build-lungsim \
+          -D CMAKE_Fortran_COMPILER=gfortran \
+          -D AETHER_ENABLE_TESTS=FALSE \
+          -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
+          -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
+    - name: Generate build instructions - macOS
+      shell: bash
+      if: runner.os == 'macOS'
+      run: |
+        cmake \
+          -S lungsim \
+          -B build-lungsim \
+          -D CMAKE_Fortran_COMPILER=gfortran-9 \
+          -D AETHER_ENABLE_TESTS=FALSE \
+          -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
+          -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
     - name: Build lungsim
       shell: cmake -P {0}
       run: |
