@@ -82,6 +82,7 @@ jobs:
     - name: Get Fortran environment script
       id: setup-fortran-win
       if: runner.os == 'Windows'
+      shell: bash
       run: .github/scripts/oneapi-env-vars-location.bat
 
     - name: Checkout
