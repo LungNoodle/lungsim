@@ -143,7 +143,7 @@ jobs:
         )
     - name: Generate build instructions
       env:
-        FC: ${{ steps.setup-fortran.outputs.fc }} || ${{ steps.setup-fortran-win.outputs.fc }}
+        FC: ${{ steps.setup-fortran.outputs.fc }} ${{ steps.setup-fortran-win.outputs.fc }}
       shell: cmake -P {0}
       working-directory: lungsim
       run: |
