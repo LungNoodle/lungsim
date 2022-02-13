@@ -94,11 +94,11 @@ jobs:
       working-directory: lungsim
       run: |
         latest_version=`.github/scripts/oneapi-env-vars-location.bat`
-        echo $latest_version
-        latest_version=`echo $latest_version | tr '\' '/'`
-        echo $latest_version
-        echo "::set-output name=env_bat::${latest_version}"
-        echo "::set-output name=fc::C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\windows\bin\intel64\ifort.exe"
+        echo "ifort compiler: $latest_version"
+        #latest_version=`echo $latest_version | tr '\' '/'`
+        #echo $latest_version
+        #echo "::set-output name=env_bat::${latest_version}"
+        echo "::set-output name=fc::${latest_version}"
 
     - name: Report CMake version
       run: cmake --version
@@ -143,17 +143,11 @@ jobs:
         )
     - name: Generate build instructions
       env:
-        FC: ${{ steps.setup-fortran.outputs.fc }} ${{ steps.setup-fortran-win.outputs.fc }}
+        FC: ${{ steps.setup-fortran.outputs.fc }}${{ steps.setup-fortran-win.outputs.fc }}
       shell: cmake -P {0}
       working-directory: lungsim
-      run: |
-        if ("${{ runner.os }}" STREQUAL "Windows")
-          # ${{ steps.setup-fortran-win.outputs.env_bat }}
-          set(ONEAPI_ENV_COMMMAND COMMAND ${{ steps.setup-fortran-win.outputs.env_bat }})
-        endif()
-        
+      run: |        
         execute_process(
-          ${ONEAPI_ENV_COMMMAND}
           COMMAND cmake
             -S .
             -B build
