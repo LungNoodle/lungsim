@@ -143,32 +143,7 @@ jobs:
         )
     - name: Debug - Generate build instructions - Windows
       if: runner.os == 'Windows'
-      shell: bash
       run: |
-        ls "C:\Program Files (x86)"
-        echo "============="
-        ls "C:\Program Files (x86)\Microsoft Visual Studio"
-        echo "============="
-        ls "C:\Program Files (x86)\Microsoft Visual Studio\2019"
-        echo "============="
-        ls "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise"
-        echo "============="
-        ls "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC"
-        echo "============="
-        ls "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary"
-        echo "============="
-        ls "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build"
-        echo "============="
-        ls "C:\Program Files (x86)\Intel"
-        echo "============="
-        ls "C:\Program Files (x86)\Intel\oneAPI"
-        echo "============="
-        ls "C:\Program Files (x86)\Intel\oneAPI\compiler"
-        echo "============="
-        ls "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2"
-        echo "============="
-        ls "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env"
-        echo "============="
         "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
         ${{ steps.setup-fortran-win.outputs.fc }}
