@@ -83,6 +83,19 @@ jobs:
       working-directory: oneapi
       run: scripts/cache_exclude_windows.ps1
 
+    - name: Run get Fortran environment script
+      id: setup-fortran-win
+      if: runner.os == 'Windows'
+      shell: bash
+      working-directory: lungsim
+      run: |
+        latest_version=`.github/scripts/oneapi-env-vars-location.bat`
+        echo "ifort compiler: $latest_version"
+        # latest_version=`echo $latest_version | tr '\' '/'`
+        # echo $latest_version
+        # echo "::set-output name=env_bat::${latest_version}"
+        echo "::set-output name=fc::${latest_version}"
+
     - name: Setup cmake
       uses: jwlawson/actions-setup-cmake@v1.12
       with:
@@ -110,19 +123,6 @@ jobs:
       uses: actions/checkout@v2
       with:
         path: lungsim
-
-    - name: Run get Fortran environment script
-      id: setup-fortran-win
-      if: runner.os == 'Windows'
-      shell: bash
-      working-directory: lungsim
-      run: |
-        latest_version=`.github/scripts/oneapi-env-vars-location.bat`
-        echo "ifort compiler: $latest_version"
-        # latest_version=`echo $latest_version | tr '\' '/'`
-        # echo $latest_version
-        # echo "::set-output name=env_bat::${latest_version}"
-        echo "::set-output name=fc::${latest_version}"
 
     - name: Install SuperLU
       if: matrix.config.super_lu
