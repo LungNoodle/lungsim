@@ -4,7 +4,7 @@ on: [pull_request]
 
 env:
   WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18497/w_BaseKit_p_2022.1.2.154_offline.exe
-  WINDOWS_HPCKIT_NEW_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18529/w_HPCKit_p_2022.1.2.116_offline.exe
+  WINDOWS_HPCKIT_LATEST_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18529/w_HPCKit_p_2022.1.2.116_offline.exe
   WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/17392/w_HPCKit_p_2021.1.0.2682_offline.exe
   WINDOWS_DPCPP_COMPONENTS: intel.oneapi.win.dpcpp-compiler
   WINDOWS_FORTRAN_COMPONENTS: intel.oneapi.win.ifort-compiler
@@ -100,29 +100,12 @@ jobs:
         # echo $latest_version
         # echo "::set-output name=env_bat::${latest_version}"
         echo "::set-output name=fc::${latest_version}"
-
-    - name: Setup cmake
-      uses: jwlawson/actions-setup-cmake@v1.12
-      with:
-        cmake-version: '3.23.x'
+        redist_location=`.github/scripts/oneapi-redist-location.bat`
+        echo "redist location: ${redist_location}"
+        echo "::set-output name=redist_loc::${redist_location}"
 
     - name: Report CMake version
       run: cmake --version
-
-    - name: Checkout test Fortran programme
-      if: runner.os == 'Windows'
-      uses: actions/checkout@v2
-      with:
-        repository: 'hsorby/intel-openmp-sample'
-        path: 'intel-openmp-sample'
-
-    - name: Debug - Generate sample build instructions - Windows
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: |
-        call "C:\Program Files (x86)\Intel\oneAPI\compiler\2021.1.1\env\vars.bat"
-        cmake -S intel-openmp-sample -B build-intel-openmp-sample
-        cmake --build build-intel-openmp-sample --config Release
 
     - name: Install SuperLU
       if: matrix.config.super_lu
@@ -163,22 +146,10 @@ jobs:
         execute_process(
           COMMAND echo "::set-output name=python_exe::${PYTHON_EXE}"
         )
-    - name: Debug - Generate build instructions - Windows
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: |
-        call "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
-        echo "==============="
-        echo %PATH%
-        echo "==============="
-        cmake -S lungsim -B build-lungsim -D CMAKE_Fortran_COMPILER=${{ steps.setup-fortran-win.outputs.fc }} -D AETHER_ENABLE_TESTS=FALSE -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
-        ${{ steps.setup-fortran-win.outputs.fc }} /QV
     - name: Generate build instructions - Windows
       if: runner.os == 'Windows'
       run: |
-        "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
-        cmake -S lungsim -B build-lungsim -D AETHER_ENABLE_TESTS=FALSE -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
+        cmake -S lungsim -B build-lungsim -D CMAKE_Fortran_COMPILER=ifort -D AETHER_ENABLE_TESTS=FALSE -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
     - name: Generate build instructions - Linux
       shell: bash
       if: runner.os == 'Linux'
@@ -226,15 +197,19 @@ jobs:
       working-directory: build-lungsim
       run: |
         if [ ${{ runner.os }} = Windows ]; then
-          cd src/bindings/python/Release
+          cd src/bindings/python/${{ matrix.config.build_type }}
         else
           cd src/bindings/python
         fi
         
         ${{ steps.create-venv.outputs.python_exe }} - <<EOF
         
+        import os
         import sys
 
+        if "${{ runner.os }}" == "Windows":
+          os.add_dll_directory(r${{ steps.setup-fortran-win.outputs.redist_loc }})
+ 
         from aether import diagnostics
 
         initial_state = diagnostics.get_diagnostics_on()
