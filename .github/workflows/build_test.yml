@@ -192,12 +192,18 @@ jobs:
           message("::error::${error_message}")
           message(FATAL_ERROR "Build failed.")
         endif()
+    - name: Debug Test lungsim
+      shell: bash
+      working-directory: build-lungsim
+      run: |
+        ls "C:/Program Files (x86)/Intel/oneAPI/compiler/2021.1.1/windows/redist/intel64_win/compiler"
     - name: Test lungsim
       shell: bash
       working-directory: build-lungsim
       run: |
         if [ ${{ runner.os }} = Windows ]; then
           cd src/bindings/python/${{ matrix.config.build_type }}
+          "C:/Program Files (x86)/Intel/oneAPI/compiler/2021.1.1/env/vars.bat"
         else
           cd src/bindings/python
         fi
