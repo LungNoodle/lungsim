@@ -120,7 +120,7 @@ jobs:
       if: runner.os == 'Windows'
       shell: cmd
       run: |
-        call "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
+        call "C:\Program Files (x86)\Intel\oneAPI\compiler\2021.1.1\env\vars.bat"
         cmake -S intel-openmp-sample -B build-intel-openmp-sample
         cmake --build build-intel-openmp-sample --config Release
 
