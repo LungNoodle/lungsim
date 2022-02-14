@@ -4,7 +4,8 @@ on: [pull_request]
 
 env:
   WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18497/w_BaseKit_p_2022.1.2.154_offline.exe
-  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18529/w_HPCKit_p_2022.1.2.116_offline.exe
+  WINDOWS_HPCKIT_NEW_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18529/w_HPCKit_p_2022.1.2.116_offline.exe
+  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/17392/w_HPCKit_p_2021.1.0.2682_offline.exe
   WINDOWS_DPCPP_COMPONENTS: intel.oneapi.win.dpcpp-compiler
   WINDOWS_FORTRAN_COMPONENTS: intel.oneapi.win.ifort-compiler
   SAMPLES_TAG: 2022.1.0
