@@ -49,7 +49,7 @@ jobs:
       if: runner.os == 'Windows'
       uses: actions/checkout@v2
       with:
-        repository: 'oneapi-src/oneapi-ci'
+        repository: 'hsorby/oneapi-ci'
         path: 'oneapi'
 
     - name: Cache install oneAPI
