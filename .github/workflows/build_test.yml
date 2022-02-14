@@ -204,8 +204,12 @@ jobs:
     - name: Build lungsim
       shell: cmake -P {0}
       run: |
+        if ("${{ runner.os }}" STREQUAL "Windows")
+          set(WINDOWS_BUILD_CONFIG --config ${{ matrix.config.build_type }})
+        endif()
+        
         execute_process(
-          COMMAND cmake --build build-lungsim
+          COMMAND cmake --build build-lungsim ${WINDOWS_BUILD_CONFIG}
           RESULT_VARIABLE result
           OUTPUT_VARIABLE output
           ERROR_VARIABLE output
