@@ -208,7 +208,11 @@ jobs:
         import sys
 
         if "${{ runner.os }}" == "Windows":
-          os.add_dll_directory(r${{ steps.setup-fortran-win.outputs.redist_loc }})
+          # Assuming Python 3 is being used.
+          if sys.version_info.minor < 8:
+            sys.path.insert(1, r${{ steps.setup-fortran-win.outputs.redist_loc }})
+          else:
+            os.add_dll_directory(r${{ steps.setup-fortran-win.outputs.redist_loc }})
  
         from aether import diagnostics
 
