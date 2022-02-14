@@ -83,6 +83,11 @@ jobs:
       working-directory: oneapi
       run: scripts/cache_exclude_windows.ps1
 
+    - name: Checkout lungsim
+      uses: actions/checkout@v2
+      with:
+        path: lungsim
+
     - name: Run get Fortran environment script
       id: setup-fortran-win
       if: runner.os == 'Windows'
@@ -118,11 +123,6 @@ jobs:
         call "C:\Program Files (x86)\Intel\oneAPI\compiler\2022.0.2\env\vars.bat"
         cmake -S intel-openmp-sample -B build-intel-openmp-sample
         cmake --build build-intel-openmp-sample --config Release
-
-    - name: Checkout lungsim
-      uses: actions/checkout@v2
-      with:
-        path: lungsim
 
     - name: Install SuperLU
       if: matrix.config.super_lu
