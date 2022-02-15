@@ -237,34 +237,23 @@ jobs:
         dir src\bindings\python\Release\aether
         ..\Dependencies.exe -depth 2 -chain src/bindings/python/Release/aether/_diagnostics.pyd
     - name: Test lungsim
-      shell: bash
+      shell: python
       working-directory: build-lungsim
       run: |
-        if [ ${{ runner.os }} = Windows ]; then
-          cd src/bindings/python/${{ matrix.config.build_type }}
-          "C:/Program Files (x86)/Intel/oneAPI/compiler/2021.1.1/env/vars.bat"
-        else
-          cd src/bindings/python
-        fi
-        
-        echo "=========="
-        echo $PATH
-        echo "=========="
-        PATH=${{ steps.setup-fortran-win.outputs.redist_loc }};$PATH
-        
-        ${{ steps.create-venv.outputs.python_exe }} - <<EOF
-        
         import os
         import sys
-
+        
         if "${{ runner.os }}" == "Windows":
+          os.chdir("src/bindings/python/${{ matrix.config.build_type }}")
           # Assuming Python 3 is being used.
           if sys.version_info.minor < 8:
             sys.path.insert(1, r${{ steps.setup-fortran-win.outputs.redist_loc }})
             sys.path.insert(1, r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Redist\MSVC\14.29.30133\x64\Microsoft.VC142.CRT")
           else:
             os.add_dll_directory(r${{ steps.setup-fortran-win.outputs.redist_loc }})
- 
+        else:
+          os.chdir("src/bindings/python")
+
         print("======================")
         print(sys.path)
         print("======================")
