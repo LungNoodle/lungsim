@@ -49,7 +49,7 @@ jobs:
       if: runner.os == 'Windows'
       shell: bash
       run: |
-        curl https://github.com/lucasg/Dependencies/releases/download/v1.11.1/Dependencies_x64_Release.zip
+        curl -L https://github.com/lucasg/Dependencies/releases/download/v1.11.1/Dependencies_x64_Release.zip
         ls
         unzip Dependencies_x64_Release.zip
         
