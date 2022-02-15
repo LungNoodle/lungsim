@@ -50,7 +50,13 @@ jobs:
       shell: bash
       run: |
         curl https://github.com/lucasg/Dependencies/releases/download/v1.11.1/Dependencies_x64_Release.zip
-        ldd
+        unzip Dependencies_x64_Release.zip
+        
+    - name: Run Dependencies
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        Dependencies_x64_Release\Dependencies.exe -depth 2 -chain "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Redist/MSVC/14.29.30133/x64/Microsoft.VC142.CRT/vcruntime140.dll"
     - name: Checkout oneAPI scripts
       if: runner.os == 'Windows'
       uses: actions/checkout@v2
