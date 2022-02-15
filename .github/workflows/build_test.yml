@@ -200,6 +200,8 @@ jobs:
         ls "C:/Program Files (x86)/Intel/oneAPI/compiler/2021.1.1/windows/redist/intel64_win/compiler"
         echo "==========="
         ls src/bindings/python/${{ matrix.config.build_type }}
+        echo "==========="
+        ls src/bindings/python/${{ matrix.config.build_type }}/aether
     - name: Test lungsim
       shell: bash
       working-directory: build-lungsim
