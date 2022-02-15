@@ -202,6 +202,8 @@ jobs:
         ls src/bindings/python/${{ matrix.config.build_type }}
         echo "==========="
         ls src/bindings/python/${{ matrix.config.build_type }}/aether
+        echo "==========="
+        ls "C:/Windows/System32/VCRUN*"
     - name: Test lungsim
       shell: bash
       working-directory: build-lungsim
