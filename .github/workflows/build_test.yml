@@ -242,6 +242,8 @@ jobs:
       working-directory: build-lungsim
       run: |
       
+        cd src/bindings/python
+      
         ${{ steps.create-venv.outputs.python_exe }} - <<EOF
 
         from aether import diagnostics
