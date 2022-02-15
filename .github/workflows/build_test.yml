@@ -227,6 +227,8 @@ jobs:
         ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Redist/MSVC/14.29.30133/x64/"
         echo "==========="
         ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Redist/MSVC/14.29.30133/x64/Microsoft.VC142.CRT"
+        echo "==========="
+        ls "C:/Program Files (x86)/Intel/oneAPI/compiler/2021.1.1/windows/redist/intel64_win/compiler"
     - name: Test with Dependencies
       if: runner.os == 'Windows'
       shell: cmd
@@ -244,6 +246,11 @@ jobs:
         else
           cd src/bindings/python
         fi
+        
+        echo "=========="
+        echo $PATH
+        echo "=========="
+        PATH=${{ steps.setup-fortran-win.outputs.redist_loc }};$PATH
         
         ${{ steps.create-venv.outputs.python_exe }} - <<EOF
         
