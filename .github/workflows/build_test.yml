@@ -244,22 +244,8 @@ jobs:
       
         cd src/bindings/python
       
-        ${{ steps.create-venv.outputs.python_exe }} - <<EOF
-
-        from aether import diagnostics
-
-        initial_state = diagnostics.get_diagnostics_on()
-        diagnostics.set_diagnostics_on(True)
-        final_state = diagnostics.get_diagnostics_on()
-        print("Initial state: {0}, Final state: {1}".format(initial_state, final_state))
-
-        if initial_state != 0 or final_state != 1:
-          print("Test failed.")
-          sys.exit(1)
-        else:
-          print("Test succeeded.")
-          
-        EOF
+        echo $GITHUB_WORKSPACE
+        ${{ steps.create-venv.outputs.python_exe }} $GITHUB_WORKSPACE/lungsim/.github/scripts/diagnostic_test.py
         
         exit $?
         
@@ -272,31 +258,6 @@ jobs:
         set PATH=${{ steps.setup-fortran-win.outputs.redist_loc }};%PATH%
         
         echo %PATH%
+        echo %GITHUB_WORKSPACE%
         
-        ${{ steps.create-venv.outputs.python_exe }} - ^
-        import os^
-        import sys^
-        ^
-        os.chdir("src/bindings/python/${{ matrix.config.build_type }}")^
-        # Assuming Python 3 is being used.^
-        if sys.version_info.minor < 8:^
-          sys.path.insert(1, r${{ steps.setup-fortran-win.outputs.redist_loc }})^
-          sys.path.insert(1, r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Redist\MSVC\14.29.30133\x64\Microsoft.VC142.CRT")^
-        else:^
-          os.add_dll_directory(r${{ steps.setup-fortran-win.outputs.redist_loc }})^
-        ^
-        print("======================")^
-        print(sys.path)^
-        print("======================")^
-        from aether import diagnostics^
-        ^
-        initial_state = diagnostics.get_diagnostics_on()^
-        diagnostics.set_diagnostics_on(True)^
-        final_state = diagnostics.get_diagnostics_on()^
-        print("Initial state: {0}, Final state: {1}".format(initial_state, final_state))^
-        ^
-        if initial_state != 0 or final_state != 1:^
-          print("Test failed.")^
-          sys.exit(1)^
-        else:^
-          print("Test succeeded.")^
+        ${{ steps.create-venv.outputs.python_exe }} %GITHUB_WORKSPACE%/lungsim/.github/scripts/diagnostic_test.py
