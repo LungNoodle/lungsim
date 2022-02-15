@@ -238,6 +238,9 @@ jobs:
           else:
             os.add_dll_directory(r${{ steps.setup-fortran-win.outputs.redist_loc }})
  
+        print("======================")
+        print(sys.path)
+        print("======================")
         from aether import diagnostics
 
         initial_state = diagnostics.get_diagnostics_on()
