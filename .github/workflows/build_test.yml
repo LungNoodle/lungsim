@@ -236,10 +236,38 @@ jobs:
       run: |
         dir src\bindings\python\Release\aether
         ..\Dependencies.exe -depth 2 -chain src/bindings/python/Release/aether/_diagnostics.pyd
-    - name: Test lungsim
-      shell: ${{ steps.create-venv.outputs.python_exe }} {0}
+    - name: Test lungsim - Linux, macOS
+      shell: bash
+      if: runner.os != 'Windows'
       working-directory: build-lungsim
       run: |
+      
+        ${{ steps.create-venv.outputs.python_exe }} - <<EOF
+
+        from aether import diagnostics
+
+        initial_state = diagnostics.get_diagnostics_on()
+        diagnostics.set_diagnostics_on(True)
+        final_state = diagnostics.get_diagnostics_on()
+        print("Initial state: {0}, Final state: {1}".format(initial_state, final_state))
+
+        if initial_state != 0 or final_state != 1:
+          print("Test failed.")
+          sys.exit(1)
+        else:
+          print("Test succeeded.")
+          
+        EOF
+        
+        exit $?
+        
+    - name: Test lungsim - Windows
+      shell: cmd
+      if: runner.os == 'Windows'
+      working-directory: build-lungsim
+      run: |
+      
+        ${{ steps.create-venv.outputs.python_exe }} - <<EOF
         import os
         import sys
         
@@ -269,3 +297,7 @@ jobs:
           sys.exit(1)
         else:
           print("Test succeeded.")
+          
+        EOF
+        
+        exit $?
