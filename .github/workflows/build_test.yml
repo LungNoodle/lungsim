@@ -237,7 +237,7 @@ jobs:
         dir src\bindings\python\Release\aether
         ..\Dependencies.exe -depth 2 -chain src/bindings/python/Release/aether/_diagnostics.pyd
     - name: Test lungsim
-      shell: ${{ steps.create-venv.outputs.python_exe }}
+      shell: ${{ steps.create-venv.outputs.python_exe }} {0}
       working-directory: build-lungsim
       run: |
         import os
