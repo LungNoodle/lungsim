@@ -230,6 +230,7 @@ jobs:
     - name: Test with Dependencies
       if: runner.os == 'Windows'
       shell: cmd
+      working-directory: build-lungsim
       run: |
         dir src\bindings\python\Release\aether
         Dependencies.exe -depth 2 -chain src/bindings/python/Release/aether/_diagnostics.pyd
