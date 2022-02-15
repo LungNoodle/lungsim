@@ -229,7 +229,7 @@ jobs:
         ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Redist/MSVC/14.29.30133/x64/Microsoft.VC142.CRT"
         echo "==========="
         ls "C:/Program Files (x86)/Intel/oneAPI/compiler/2021.1.1/windows/redist/intel64_win/compiler"
-    - name: Test with Dependencies
+    - name: Debug with Dependencies
       if: runner.os == 'Windows'
       shell: cmd
       working-directory: build-lungsim
@@ -269,37 +269,34 @@ jobs:
       working-directory: build-lungsim
       run: |
       
-        ${{ steps.create-venv.outputs.python_exe }} - <<EOF
-        import os
-        import sys
+        set PATH=${{ steps.setup-fortran-win.outputs.redist_loc }};%PATH%
         
-        if "${{ runner.os }}" == "Windows":
-          os.chdir("src/bindings/python/${{ matrix.config.build_type }}")
-          # Assuming Python 3 is being used.
-          if sys.version_info.minor < 8:
-            sys.path.insert(1, r${{ steps.setup-fortran-win.outputs.redist_loc }})
-            sys.path.insert(1, r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Redist\MSVC\14.29.30133\x64\Microsoft.VC142.CRT")
-          else:
-            os.add_dll_directory(r${{ steps.setup-fortran-win.outputs.redist_loc }})
-        else:
-          os.chdir("src/bindings/python")
-
-        print("======================")
-        print(sys.path)
-        print("======================")
-        from aether import diagnostics
-
-        initial_state = diagnostics.get_diagnostics_on()
-        diagnostics.set_diagnostics_on(True)
-        final_state = diagnostics.get_diagnostics_on()
-        print("Initial state: {0}, Final state: {1}".format(initial_state, final_state))
-
-        if initial_state != 0 or final_state != 1:
-          print("Test failed.")
-          sys.exit(1)
-        else:
-          print("Test succeeded.")
-          
-        EOF
+        echo %PATH%
         
-        exit $?
+        ${{ steps.create-venv.outputs.python_exe }} - ^
+        import os^
+        import sys^
+        ^
+        os.chdir("src/bindings/python/${{ matrix.config.build_type }}")^
+        # Assuming Python 3 is being used.^
+        if sys.version_info.minor < 8:^
+          sys.path.insert(1, r${{ steps.setup-fortran-win.outputs.redist_loc }})^
+          sys.path.insert(1, r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Redist\MSVC\14.29.30133\x64\Microsoft.VC142.CRT")^
+        else:^
+          os.add_dll_directory(r${{ steps.setup-fortran-win.outputs.redist_loc }})^
+        ^
+        print("======================")^
+        print(sys.path)^
+        print("======================")^
+        from aether import diagnostics^
+        ^
+        initial_state = diagnostics.get_diagnostics_on()^
+        diagnostics.set_diagnostics_on(True)^
+        final_state = diagnostics.get_diagnostics_on()^
+        print("Initial state: {0}, Final state: {1}".format(initial_state, final_state))^
+        ^
+        if initial_state != 0 or final_state != 1:^
+          print("Test failed.")^
+          sys.exit(1)^
+        else:^
+          print("Test succeeded.")^
