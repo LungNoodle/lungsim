@@ -203,7 +203,17 @@ jobs:
         echo "==========="
         ls src/bindings/python/${{ matrix.config.build_type }}/aether
         echo "==========="
-        ls "C:/Windows/System32/VCRUN*"
+        ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/"
+        echo "==========="
+        ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Redist/"
+        echo "==========="
+        ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Redist/MSVC/"
+        echo "==========="
+        ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Redist/MSVC/14.28.29910/"
+        echo "==========="
+        ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Redist/MSVC/14.28.29910/x64/"
+        echo "==========="
+        ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Redist/MSVC/14.28.29910/x64/Microsoft.VC142.CRT"
     - name: Test lungsim
       shell: bash
       working-directory: build-lungsim
@@ -224,6 +234,7 @@ jobs:
           # Assuming Python 3 is being used.
           if sys.version_info.minor < 8:
             sys.path.insert(1, r${{ steps.setup-fortran-win.outputs.redist_loc }})
+            sys.path.insert(1, r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.28.29910\x64\Microsoft.VC142.CRT")
           else:
             os.add_dll_directory(r${{ steps.setup-fortran-win.outputs.redist_loc }})
  
