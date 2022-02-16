@@ -83,7 +83,9 @@ jobs:
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
       working-directory: oneapi
       shell: bash
-      run: scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
+      run: |
+        scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
+        type C:\Program Files (x86)\Intel\oneAPI\logs\installer.install.intel.oneapi.win.hpckit.*
 
 # Add in for building a simple Fortran application to test the Fortran compiler is working.
 #   - name: Build oneAPI HPC kit
