@@ -245,7 +245,7 @@ jobs:
         cd src/bindings/python
       
         echo $GITHUB_WORKSPACE
-        ${{ steps.create-venv.outputs.python_exe }} $GITHUB_WORKSPACE/lungsim/.github/scripts/diagnostic_test.py
+        ${{ steps.create-venv.outputs.python_exe }} $GITHUB_WORKSPACE/lungsim/.github/scripts/diagnostics_test.py
         
         exit $?
         
@@ -260,4 +260,4 @@ jobs:
         echo %PATH%
         echo %GITHUB_WORKSPACE%
         
-        ${{ steps.create-venv.outputs.python_exe }} %GITHUB_WORKSPACE%/lungsim/.github/scripts/diagnostic_test.py
+        ${{ steps.create-venv.outputs.python_exe }} %GITHUB_WORKSPACE%/lungsim/.github/scripts/diagnostics_test.py
