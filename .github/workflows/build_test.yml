@@ -85,7 +85,18 @@ jobs:
       shell: bash
       run: |
         scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
-        type "C:\Program Files (x86)\Intel\oneAPI\logs\installer.install.intel.oneapi.win.hpckit.*""
+    - name: Debug oneAPI log file
+      if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
+      shell: python
+      run: |
+        import glob
+        path = "C:\Program Files (x86)\Intel\oneAPI\logs\installer.install.intel.oneapi.win.hpckit.*"
+        for filename in glob.glob(path):
+          print("=========")
+          print(filename)
+          with open(filename, 'r') as f:
+            for line in f:
+              print(line.rstrip())
 
 # Add in for building a simple Fortran application to test the Fortran compiler is working.
 #   - name: Build oneAPI HPC kit
