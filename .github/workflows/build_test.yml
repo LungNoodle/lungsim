@@ -239,12 +239,13 @@ jobs:
     - name: Test lungsim - Linux, macOS
       shell: bash
       if: runner.os != 'Windows'
-      working-directory: build-lungsim
       run: |
       
         cd src/bindings/python
       
+        export PYTHONPATH=$GITHUB_WORKSPACE/build-lungsim/src/bindings/python
         echo $GITHUB_WORKSPACE
+        echo $PYTHONPATH
         ${{ steps.create-venv.outputs.python_exe }} $GITHUB_WORKSPACE/lungsim/.github/scripts/diagnostics_test.py
         
         exit $?
@@ -252,12 +253,13 @@ jobs:
     - name: Test lungsim - Windows
       shell: cmd
       if: runner.os == 'Windows'
-      working-directory: build-lungsim
       run: |
       
         set PATH=${{ steps.setup-fortran-win.outputs.redist_loc }};%PATH%
+        set PYTHONPATH=%GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}
         
         echo %PATH%
         echo %GITHUB_WORKSPACE%
+        echo %PYTHONPATH%
         
         ${{ steps.create-venv.outputs.python_exe }} %GITHUB_WORKSPACE%/lungsim/.github/scripts/diagnostics_test.py
