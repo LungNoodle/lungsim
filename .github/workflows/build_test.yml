@@ -90,13 +90,12 @@ jobs:
     # Delete the following if you don't want to save install logs
     - name: Saving install logs
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
-      working-directory: oneapi
       uses: actions/upload-artifact@v2
       with:
         name: InstallLogs_${{ github.job }}
         path: |
-          bootstrapper*
-          installer*
+          oneapi/bootstrapper*
+          oneapi/installer*
         retention-days: 7
 
 # Add in for building a simple Fortran application to test the Fortran compiler is working.
