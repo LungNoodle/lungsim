@@ -40,25 +40,31 @@ jobs:
             os: macos-11,
           }
     steps:
-#   - name: Setup GCC Fortran
-#     if: runner.os == 'macOS'
-#     uses: awvwgk/setup-fortran@main
-#     id: setup-fortran
+# Useful for debugging dll load issues.
+#    - name: Download Dependencies
+#      if: runner.os == 'Windows'
+#      shell: bash
+#      run: |
+#        curl -L https://github.com/lucasg/Dependencies/releases/download/v1.11.1/Dependencies_x64_Release.zip -O
+#        ls
+#        unzip Dependencies_x64_Release.zip
+#    - name: Run Dependencies
+#      if: runner.os == 'Windows'
+#      shell: cmd
+#      run: |
+#        python -VV
+#        Dependencies.exe -depth 2 -chain "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Redist/MSVC/14.29.30133/x64/Microsoft.VC142.CRT/vcruntime140.dll"
 
-    - name: Download Dependencies
-      if: runner.os == 'Windows'
-      shell: bash
-      run: |
-        curl -L https://github.com/lucasg/Dependencies/releases/download/v1.11.1/Dependencies_x64_Release.zip -O
-        ls
-        unzip Dependencies_x64_Release.zip
-        
-    - name: Run Dependencies
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: |
-        python -VV
-        Dependencies.exe -depth 2 -chain "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Redist/MSVC/14.29.30133/x64/Microsoft.VC142.CRT/vcruntime140.dll"
+# This is not needed, we can just install the Fortran compiler for the HPC kit.
+#    - name: Install oneAPI base kit
+#      if: runner.os == 'Windows'
+#      shell: bash
+#      run: oneapi/scripts/install_windows.bat $WINDOWS_BASEKIT_URL $WINDOWS_DPCPP_COMPONENTS
+#    - name: Build oneAPI base kit
+#      if: runner.os == 'Windows'
+#      shell: bash
+#      run: oneapi/scripts/build_windows.bat dpc++ "" $SAMPLES_TAG
+
     - name: Checkout oneAPI scripts
       if: runner.os == 'Windows'
       uses: actions/checkout@v2
@@ -73,25 +79,18 @@ jobs:
       with:
         path: C:\Program Files (x86)\Intel\oneAPI\compiler
         key: install-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_FORTRAN_COMPONENTS }}-compiler-${{ hashFiles('**/oneapi/scripts/cache_exclude_windows.sh') }}
-
-#    - name: Install oneAPI base kit
-#      if: runner.os == 'Windows'
-#      shell: bash
-#      run: oneapi/scripts/install_windows.bat $WINDOWS_BASEKIT_URL $WINDOWS_DPCPP_COMPONENTS
-#    - name: Build oneAPI base kit
-#      if: runner.os == 'Windows'
-#      shell: bash
-#      run: oneapi/scripts/build_windows.bat dpc++ "" $SAMPLES_TAG
-
     - name: Install oneAPI HPC kit
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
       working-directory: oneapi
       shell: bash
       run: scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
+
+# Add in for building a simple Fortran application to test the Fortran compiler is working.
 #   - name: Build oneAPI HPC kit
 #      if: runner.os == 'Windows'
 #      shell: bash
 #      run: oneapi/scripts/build_windows.bat fortran "" $SAMPLES_TAG
+
     - name: Exclude unused files from cache
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
       working-directory: oneapi
@@ -125,6 +124,7 @@ jobs:
       if: matrix.config.super_lu
       shell: bash
       run: sudo apt-get install libsuperlu-dev
+
     - name: Create virtual environment
       shell: cmake -P {0}
       id: create-venv
@@ -160,6 +160,7 @@ jobs:
         execute_process(
           COMMAND echo "::set-output name=python_exe::${PYTHON_EXE}"
         )
+
     - name: Generate build instructions - Windows
       if: runner.os == 'Windows'
       run: |
@@ -206,37 +207,6 @@ jobs:
           message("::error::${error_message}")
           message(FATAL_ERROR "Build failed.")
         endif()
-    - name: Debug Test lungsim
-      if: runner.os == 'Windows'
-      shell: bash
-      working-directory: build-lungsim
-      run: |
-        ls "C:/Program Files (x86)/Intel/oneAPI/compiler/2021.1.1/windows/redist/intel64_win/compiler"
-        echo "==========="
-        ls src/bindings/python/${{ matrix.config.build_type }}
-        echo "==========="
-        ls src/bindings/python/${{ matrix.config.build_type }}/aether
-        echo "==========="
-        ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/"
-        echo "==========="
-        ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Redist/"
-        echo "==========="
-        ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Redist/MSVC/"
-        echo "==========="
-        ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Redist/MSVC/14.29.30133/"
-        echo "==========="
-        ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Redist/MSVC/14.29.30133/x64/"
-        echo "==========="
-        ls "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Redist/MSVC/14.29.30133/x64/Microsoft.VC142.CRT"
-        echo "==========="
-        ls "C:/Program Files (x86)/Intel/oneAPI/compiler/2021.1.1/windows/redist/intel64_win/compiler"
-    - name: Debug with Dependencies
-      if: runner.os == 'Windows'
-      shell: cmd
-      working-directory: build-lungsim
-      run: |
-        dir src\bindings\python\Release\aether
-        ..\Dependencies.exe -depth 2 -chain src/bindings/python/Release/aether/_diagnostics.pyd
     - name: Test lungsim - Linux, macOS
       shell: bash
       if: runner.os != 'Windows'
@@ -248,7 +218,6 @@ jobs:
         ${{ steps.create-venv.outputs.python_exe }} $GITHUB_WORKSPACE/lungsim/.github/scripts/diagnostics_test.py
         
         exit $?
-        
     - name: Test lungsim - Windows
       shell: cmd
       if: runner.os == 'Windows'
@@ -258,24 +227,12 @@ jobs:
         
         set PYTHONPATH=%GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}
         
-        echo "**************"
-        echo "C:\Program Files (x86)\Intel\oneAPI\compiler\latest\windows\redist\intel64_win\compiler\"
-        echo %PATH%
-        echo "**************"
-        echo %GITHUB_WORKSPACE%
-        echo "**************"
-        echo %PYTHONPATH%
-        echo "**************"
-        dir %PYTHONPATH%
-        echo "**************"
-        dir ${{ steps.setup-fortran-win.outputs.redist_loc }}
-        echo "**************"              
         copy ${{ steps.setup-fortran-win.outputs.redist_loc }}\libifcoremd.dll %GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}\aether
         copy ${{ steps.setup-fortran-win.outputs.redist_loc }}\libmmd.dll %GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}\aether
         copy ${{ steps.setup-fortran-win.outputs.redist_loc }}\svml_dispmd.dll %GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}\aether
-        Dependencies.exe -depth 2 -chain %GITHUB_WORKSPACE%\build-lungsim\src/bindings/python/Release/aether/_diagnostics.pyd
-        echo "**************"
         
         ${{ steps.create-venv.outputs.python_exe }} %GITHUB_WORKSPACE%/lungsim/.github/scripts/diagnostics_test.py
+        
+        exit %errorlevel%
         
         exit $errorlevel%
