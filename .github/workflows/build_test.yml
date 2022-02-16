@@ -57,6 +57,7 @@ jobs:
       if: runner.os == 'Windows'
       shell: cmd
       run: |
+        python -VV
         Dependencies.exe -depth 2 -chain "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Redist/MSVC/14.29.30133/x64/Microsoft.VC142.CRT/vcruntime140.dll"
     - name: Checkout oneAPI scripts
       if: runner.os == 'Windows'
