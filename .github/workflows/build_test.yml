@@ -78,7 +78,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: C:\Program Files (x86)\Intel\oneAPI\compiler
-        key: install-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_FORTRAN_COMPONENTS }}-mod-compiler-${{ hashFiles('**/oneapi/scripts/cache_exclude_windows.sh') }}
+        key: install-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_FORTRAN_COMPONENTS }}-modded-compiler-${{ hashFiles('**/oneapi/scripts/cache_exclude_windows.sh') }}
     - name: Install oneAPI HPC kit
       if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
       working-directory: oneapi
