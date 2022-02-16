@@ -253,16 +253,24 @@ jobs:
       if: runner.os == 'Windows'
       run: |
       
-        set PATH=${{ steps.setup-fortran-win.outputs.redist_loc }};%PATH%
+        set PATH=%PATH%;${{ steps.setup-fortran-win.outputs.redist_loc }}
+        
         set PYTHONPATH=%GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}
         
+        echo "**************"
+        echo "C:\Program Files (x86)\Intel\oneAPI\compiler\latest\windows\redist\intel64_win\compiler\"
         echo %PATH%
+        echo "**************"
         echo %GITHUB_WORKSPACE%
+        echo "**************"
         echo %PYTHONPATH%
-        
+        echo "**************"
         dir %PYTHONPATH%
-              
+        echo "**************"
+        dir ${{ steps.setup-fortran-win.outputs.redist_loc }}
+        echo "**************"              
         Dependencies.exe -depth 2 -chain %GITHUB_WORKSPACE%\build-lungsim\src/bindings/python/Release/aether/_diagnostics.pyd
+        echo "**************"
 
         
         ${{ steps.create-venv.outputs.python_exe }} %GITHUB_WORKSPACE%/lungsim/.github/scripts/diagnostics_test.py
