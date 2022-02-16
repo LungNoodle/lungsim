@@ -270,9 +270,11 @@ jobs:
         echo "**************"
         dir ${{ steps.setup-fortran-win.outputs.redist_loc }}
         echo "**************"              
+        copy ${{ steps.setup-fortran-win.outputs.redist_loc }}\libifcoremd.dll %GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}\aether
+        copy ${{ steps.setup-fortran-win.outputs.redist_loc }}\libmmd.dll %GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}\aether
+        copy ${{ steps.setup-fortran-win.outputs.redist_loc }}\svml_dispmd.dll %GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}\aether
         Dependencies.exe -depth 2 -chain %GITHUB_WORKSPACE%\build-lungsim\src/bindings/python/Release/aether/_diagnostics.pyd
         echo "**************"
-
         
         ${{ steps.create-venv.outputs.python_exe }} %GITHUB_WORKSPACE%/lungsim/.github/scripts/diagnostics_test.py
         
