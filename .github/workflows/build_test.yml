@@ -260,6 +260,11 @@ jobs:
         echo %GITHUB_WORKSPACE%
         echo %PYTHONPATH%
         
+        dir %PYTHONPATH%
+              
+        Dependencies.exe -depth 2 -chain %GITHUB_WORKSPACE%\build-lungsim\src/bindings/python/Release/aether/_diagnostics.pyd
+
+        
         ${{ steps.create-venv.outputs.python_exe }} %GITHUB_WORKSPACE%/lungsim/.github/scripts/diagnostics_test.py
         
         exit $errorlevel%
