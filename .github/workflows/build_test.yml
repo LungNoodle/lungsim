@@ -2,6 +2,14 @@ name: Build and Test Matrix
 
 on: [pull_request]
 
+env:
+  WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18497/w_BaseKit_p_2022.1.2.154_offline.exe
+  WINDOWS_HPCKIT_LATEST_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18529/w_HPCKit_p_2022.1.2.116_offline.exe
+  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/17392/w_HPCKit_p_2021.1.0.2682_offline.exe
+  WINDOWS_DPCPP_COMPONENTS: intel.oneapi.win.dpcpp-compiler
+  WINDOWS_FORTRAN_COMPONENTS: intel.oneapi.win.ifort-compiler
+  SAMPLES_TAG: 2022.1.0
+
 jobs:
   pipeline:
     name: ${{ matrix.config.name }}
@@ -10,16 +18,11 @@ jobs:
       fail-fast: false
       matrix:
         config:
-#        - {
-#            name: "Windows 2022 MSVC",
-#            build_type: "Release",
-#            os: windows-2022,
-#          }
-#        - {
-#            name: "Windows 2019 MSVC",
-#            build_type: "Release",
-#            os: windows-2019,
-#          }
+        - {
+            name: "Windows 2019 MSVC",
+            build_type: "Release",
+            os: windows-2019,
+          }
         - {
             name: "Ubuntu 20.04",
             build_type: "Release",
@@ -37,17 +40,104 @@ jobs:
             os: macos-11,
           }
     steps:
-    - name: Setup Fortran
-      uses: awvwgk/setup-fortran@main
-      id: setup-fortran
-    - name: Checkout
+# Useful for debugging dll load issues.
+#    - name: Download Dependencies
+#      if: runner.os == 'Windows'
+#      shell: bash
+#      run: |
+#        curl -L https://github.com/lucasg/Dependencies/releases/download/v1.11.1/Dependencies_x64_Release.zip -O
+#        ls
+#        unzip Dependencies_x64_Release.zip
+#    - name: Run Dependencies
+#      if: runner.os == 'Windows'
+#      shell: cmd
+#      run: |
+#        python -VV
+#        Dependencies.exe -depth 2 -chain "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Redist/MSVC/14.29.30133/x64/Microsoft.VC142.CRT/vcruntime140.dll"
+
+# This is not needed, we can just install the Fortran compiler for the HPC kit.
+#    - name: Install oneAPI base kit
+#      if: runner.os == 'Windows'
+#      shell: bash
+#      run: oneapi/scripts/install_windows.bat $WINDOWS_BASEKIT_URL $WINDOWS_DPCPP_COMPONENTS
+#    - name: Build oneAPI base kit
+#      if: runner.os == 'Windows'
+#      shell: bash
+#      run: oneapi/scripts/build_windows.bat dpc++ "" $SAMPLES_TAG
+
+    - name: Checkout oneAPI scripts
+      if: runner.os == 'Windows'
       uses: actions/checkout@v2
+      with:
+        repository: 'hsorby/oneapi-ci'
+        path: 'oneapi'
+
+# Caching doesn't work with Visual Studio integration on.
+#    - name: Cache install oneAPI
+#      if: runner.os == 'Windows'
+#      id: cache-install
+#      uses: actions/cache@v2
+#      with:
+#        path: C:\Program Files (x86)\Intel\oneAPI\compiler
+#        key: install-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_FORTRAN_COMPONENTS }}-compiler-${{ hashFiles('**/oneapi/scripts/cache_exclude_windows.sh') }}
+    - name: Install oneAPI HPC kit
+      if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
+      working-directory: oneapi
+      shell: bash
+      run: |
+        scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
+
+# Delete the following if you don't want to save install logs
+#    - name: Saving install logs
+#      if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
+#      uses: actions/upload-artifact@v2
+#      with:
+#        name: InstallLogs_${{ github.job }}
+#        path: |
+#          oneapi/bootstrapper*
+#          oneapi/installer*
+#        retention-days: 7
+
+# Add in for building a simple Fortran application to test the Fortran compiler is working.
+#   - name: Build oneAPI HPC kit
+#      if: runner.os == 'Windows'
+#      shell: bash
+#      run: oneapi/scripts/build_windows.bat fortran "" $SAMPLES_TAG
+
+    - name: Exclude unused files from cache
+      if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
+      working-directory: oneapi
+      run: scripts/cache_exclude_windows.ps1
+
+    - name: Checkout lungsim
+      uses: actions/checkout@v2
+      with:
+        path: lungsim
+
+    - name: Run get Fortran environment script
+      id: setup-fortran-win
+      if: runner.os == 'Windows'
+      shell: bash
+      working-directory: lungsim
+      run: |
+        latest_version=`.github/scripts/oneapi-env-vars-location.bat`
+        echo "ifort compiler: $latest_version"
+        # latest_version=`echo $latest_version | tr '\' '/'`
+        # echo $latest_version
+        # echo "::set-output name=env_bat::${latest_version}"
+        echo "::set-output name=fc::${latest_version}"
+        redist_location=`.github/scripts/oneapi-redist-location.bat`
+        echo "redist location: ${redist_location}"
+        echo "::set-output name=redist_loc::${redist_location}"
+
     - name: Report CMake version
       run: cmake --version
+
     - name: Install SuperLU
-      if: ${{ matrix.config.super_lu }}
+      if: matrix.config.super_lu
       shell: bash
       run: sudo apt-get install libsuperlu-dev
+
     - name: Create virtual environment
       shell: cmake -P {0}
       id: create-venv
@@ -57,7 +147,7 @@ jobs:
         else()
           set(SYS_PYTHON_EXE python3)
         endif()
-        
+
         execute_process(
           COMMAND ${SYS_PYTHON_EXE} -m venv venv
           RESULT_VARIABLE result
@@ -65,13 +155,13 @@ jobs:
         if (NOT result EQUAL 0)
           message(FATAL_ERROR "Failed to create virtual environment.")
         endif()
-        
+
         if ("${{ runner.os }}" STREQUAL "Windows")
           file(GLOB PYTHON_EXE venv/Scripts/python.exe)
         else()
           file(GLOB PYTHON_EXE venv/bin/python)
-        endif()      
-        
+        endif()
+
         execute_process(
           COMMAND ${PYTHON_EXE} -m pip install numpy
           RESULT_VARIABLE result
@@ -79,38 +169,46 @@ jobs:
         if (NOT result EQUAL 0)
           message(FATAL_ERROR "Failed to install numpy to virtual environment.")
         endif()
-        
+
         execute_process(
           COMMAND echo "::set-output name=python_exe::${PYTHON_EXE}"
         )
-    - name: Generate build instructions
-      env:
-        FC: ${{ steps.setup-fortran.outputs.fc }}
+
+    - name: Generate build instructions - Windows
+      if: runner.os == 'Windows'
+      run: |
+        cmake -S lungsim -B build-lungsim -D CMAKE_Fortran_COMPILER=ifort -D AETHER_ENABLE_TESTS=FALSE -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
+    - name: Generate build instructions - Linux
+      shell: bash
+      if: runner.os == 'Linux'
+      run: |
+        cmake \
+          -S lungsim \
+          -B build-lungsim \
+          -D CMAKE_Fortran_COMPILER=gfortran \
+          -D AETHER_ENABLE_TESTS=FALSE \
+          -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
+          -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
+    - name: Generate build instructions - macOS
+      shell: bash
+      if: runner.os == 'macOS'
+      run: |
+        cmake \
+          -S lungsim \
+          -B build-lungsim \
+          -D CMAKE_Fortran_COMPILER=gfortran-9 \
+          -D AETHER_ENABLE_TESTS=FALSE \
+          -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
+          -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
+    - name: Build lungsim
       shell: cmake -P {0}
       run: |
-        execute_process(
-          COMMAND cmake
-            -S .
-            -B build
-            -D AETHER_ENABLE_TESTS=FALSE
-            -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
-            -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
-          RESULT_VARIABLE result
-          OUTPUT_VARIABLE output
-          ERROR_VARIABLE output
-          ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
-        )
-        if (NOT result EQUAL 0)
-          string(REGEX MATCH "FAILED:.*$" error_message "${output}")
-          string(REPLACE "\n" "%0A" error_message "${error_message}")
-          message("::error::${error_message}")
-          message(FATAL_ERROR "Generating build instructions failed.")
+        if ("${{ runner.os }}" STREQUAL "Windows")
+          set(WINDOWS_BUILD_CONFIG --config ${{ matrix.config.build_type }})
         endif()
-    - name: Build
-      shell: cmake -P {0}
-      run: |
+
         execute_process(
-          COMMAND cmake --build build
+          COMMAND cmake --build build-lungsim ${WINDOWS_BUILD_CONFIG}
           RESULT_VARIABLE result
           OUTPUT_VARIABLE output
           ERROR_VARIABLE output
@@ -122,32 +220,30 @@ jobs:
           message("::error::${error_message}")
           message(FATAL_ERROR "Build failed.")
         endif()
-    - name: Test
+    - name: Test lungsim - Linux, macOS
       shell: bash
+      if: runner.os != 'Windows'
       run: |
-        if [ ${{ runner.os }} = Windows ]; then
-          cd build/src/bindings/python/Release
-        else
-          cd build/src/bindings/python
-        fi
-        
-        ${{ steps.create-venv.outputs.python_exe }} - <<EOF
-        
-        import sys
 
-        from aether import diagnostics
+        export PYTHONPATH=$GITHUB_WORKSPACE/build-lungsim/src/bindings/python
+        echo $GITHUB_WORKSPACE
+        echo $PYTHONPATH
+        ${{ steps.create-venv.outputs.python_exe }} $GITHUB_WORKSPACE/lungsim/.github/scripts/diagnostics_test.py
 
-        initial_state = diagnostics.get_diagnostics_on()
-        diagnostics.set_diagnostics_on(True)
-        final_state = diagnostics.get_diagnostics_on()
-        print("Initial state: {0}, Final state: {1}".format(initial_state, final_state))
-
-        if initial_state != 0 or final_state != 1:
-          print("Test failed.")
-          sys.exit(1)
-        else:
-          print("Test succeeded.")
-        
-        EOF
-        
         exit $?
+    - name: Test lungsim - Windows
+      shell: cmd
+      if: runner.os == 'Windows'
+      run: |
+
+        set PATH=%PATH%;${{ steps.setup-fortran-win.outputs.redist_loc }}
+
+        set PYTHONPATH=%GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}
+
+        copy ${{ steps.setup-fortran-win.outputs.redist_loc }}\libifcoremd.dll %GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}\aether
+        copy ${{ steps.setup-fortran-win.outputs.redist_loc }}\libmmd.dll %GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}\aether
+        copy ${{ steps.setup-fortran-win.outputs.redist_loc }}\svml_dispmd.dll %GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}\aether
+
+        ${{ steps.create-venv.outputs.python_exe }} %GITHUB_WORKSPACE%/lungsim/.github/scripts/diagnostics_test.py
+
+        exit %errorlevel%
