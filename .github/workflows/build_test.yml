@@ -229,7 +229,7 @@ jobs:
     - name: Test lungsim
       shell: bash
       run: |
-        if [ "${{ os.runner }}" == "Windows" ]; then
+        if [ "${{ runner.os }}" == "Windows" ]; then
           multi_config_dir=/${{ matrix.config.build_type }}
         fi
         
