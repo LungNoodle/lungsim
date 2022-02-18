@@ -162,7 +162,7 @@ jobs:
           file(GLOB PIP_EXE venv/Scripts/pip.exe)
         else()
           file(GLOB PYTHON_EXE venv/bin/python)
-          file(GLOB PIP_EXE venv/bin/pip
+          file(GLOB PIP_EXE venv/bin/pip)
         endif()
 
         execute_process(
