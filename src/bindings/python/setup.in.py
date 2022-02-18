@@ -33,7 +33,7 @@ doclines = __doc__#.split("\n")
 
 PLATFORM_PACKAGE_DATA = ["*.so", "*.pyd", ]
 if sys.platform.startswith('win32'):
-    PLATFORM_PACKAGE_DATA.extend(["aether.dll", "aether_c.dll"])
+    PLATFORM_PACKAGE_DATA.extend(["aether_c.dll"])
 
 setup(
     name='lungnoodle.aether',
@@ -48,5 +48,8 @@ setup(
     classifiers=classifiers.split("\n"),
     long_description=doclines,
     distclass=BinaryDistribution,
+    install_requires=[
+        'intel-fortran-rt ; platform_system=="Windows"';
+    ],
     include_package_data=True,
 )
