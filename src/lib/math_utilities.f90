@@ -417,7 +417,6 @@ subroutine diagonal_pointer_cr ( n, ia, ja, ua )
   ! exit N contains the number of unique elements in the list.
   !
   subroutine sort_integer_list(N,IDATA)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SORT_INTEGER_LIST" :: SORT_INTEGER_LIST
     integer :: IDATA(:),N
 
     !Local Variables
@@ -467,7 +466,6 @@ subroutine diagonal_pointer_cr ( n, ia, ja, ua )
   ! using a bubble sort algorithm.
 
   subroutine sort_real_list(n,RDATA,INDEX)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SORT_REAL_LIST" :: SORT_REAL_LIST
 
     integer :: INDEX(*),n
     real(dp) :: RDATA(*)

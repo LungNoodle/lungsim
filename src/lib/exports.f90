@@ -27,7 +27,6 @@ contains
 !!!################################################################
 
   subroutine export_1d_elem_field(ne_field, EXELEMFILE, group_name, field_name )
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_1D_ELEM_FIELD" :: EXPORT_1D_ELEM_FIELD
 
 !!! Parameters
     integer, intent(in) :: ne_field
@@ -89,7 +88,6 @@ contains
 !
 
   subroutine export_1d_elem_geometry(EXELEMFILE, name)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_1D_ELEM_GEOMETRY" :: EXPORT_1D_ELEM_GEOMETRY
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN), intent(in) :: EXELEMFILE
@@ -161,7 +159,6 @@ contains
 !
 
   subroutine export_elem_geometry_2d(EXELEMFILE, name, offset_elem, offset_node)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_ELEM_GEOMETRY_2D" :: EXPORT_ELEM_GEOMETRY_2D
 
 !!! Parameters
     integer :: offset_elem,offset_node
@@ -283,7 +280,6 @@ contains
 !
 
   subroutine export_node_geometry(EXNODEFILE, name)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_GEOMETRY" :: EXPORT_NODE_GEOMETRY
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
@@ -349,7 +345,6 @@ contains
 !
 
   subroutine export_node_geometry_2d(EXNODEFILE, name, offset)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_GEOMETRY_2D" :: EXPORT_NODE_GEOMETRY_2D
 
     integer :: offset
     character(len=*) :: EXNODEFILE
@@ -440,7 +435,6 @@ contains
 !
 
   subroutine export_data_geometry(EXDATAFILE, name, offset)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_DATA_GEOMETRY" :: EXPORT_DATA_GEOMETRY
 
 !!! dummy arguments
     integer :: offset
@@ -478,7 +472,6 @@ contains
 !
 
   subroutine export_terminal_solution(EXNODEFILE, name)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_SOLUTION" :: EXPORT_TERMINAL_SOLUTION
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
@@ -565,7 +558,6 @@ contains
 !
 
   subroutine export_terminal_perfusion(EXNODEFILE, name)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_PERFUSION" :: EXPORT_TERMINAL_PERFUSION
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
@@ -629,7 +621,6 @@ contains
 !
 
   subroutine export_terminal_ssgexch(EXNODEFILE, name)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TERMINAL_SSGEXCH" :: EXPORT_TERMINAL_SSGEXCH
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
@@ -705,7 +696,6 @@ contains
 !
 
   subroutine export_node_field(nj_field, EXNODEFIELD, name, field_name)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_NODE_FIELD" :: EXPORT_NODE_FIELD
 
 !!! Parameters
     integer,intent(in) :: nj_field
@@ -747,7 +737,6 @@ contains
 !
 
   subroutine export_elem_field(EXELEMFIELD, name, field_name)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_ELEM_FIELD" :: EXPORT_ELEM_FIELD
 
 !!! Parameters
     character(len=MAX_FILENAME_LEN), intent(in) :: EXELEMFIELD

@@ -51,7 +51,6 @@ contains
   ! branching plane.
   !
   subroutine adjust_branch_angle(Nth,ne,np1,np2,np,angle_max,angle_min)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADJUST_BRANCH_ANGLE" :: ADJUST_BRANCH_ANGLE
 
     integer :: Nth,ne,np1,np2,np
     real(dp) :: angle_max,angle_min
@@ -128,7 +127,6 @@ contains
   !
   subroutine branch_to_cofm(map_seed_to_elem,nen,np1,COFM,branch_fraction,length_limit,&
     length_parent,shortest_length,candidate_xyz,make_branch)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_BRANCH_TO_COFM" :: BRANCH_TO_COFM
 
     integer :: map_seed_to_elem(*),nen,np1
     real(dp) :: COFM(3),branch_fraction,length_limit,length_parent,&
@@ -216,7 +214,6 @@ contains
   ! points by averaging their coordinates and returns result in 'cofm'
   !
   subroutine calculate_seed_cofm(map_seed_to_elem,nen,COFM)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CALCULATE_SEED_COFM" :: CALCULATE_SEED_COFM
 
     integer :: map_seed_to_elem(*),nen
     real(dp) :: COFM(3)
@@ -255,7 +252,6 @@ contains
   subroutine check_branch_rotation_plane(map_seed_to_elem,ne,&
        ne_grnd_parent,ne_parent,local_parent_temp,num_next_parents,&
        np,np1,np2,np3,num_terminal,rotation_limit)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CHECK_BRANCH_ROTATION_PLANE" :: CHECK_BRANCH_ROTATION_PLANE
 
     integer :: map_seed_to_elem(*),ne,ne_grnd_parent,ne_parent, &
          num_next_parents,np,np1,np2,np3,num_terminal
@@ -369,7 +365,6 @@ contains
   ! vector a,b,c , calculate rotation matrix for arbitrary point.
   !
   subroutine check_rotation_angle(ne,np00,np0,np1,np2,np3,np4,rotation_limit)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CHECK_ROTATION_ANGLE" :: CHECK_ROTATION_ANGLE
 
     integer,intent(in) :: ne,np00,np0,np1,np2,np3,np4
     real(dp),intent(in) :: rotation_limit
@@ -560,7 +555,6 @@ contains
   !*create_new_node:* sets up arrays for a new mesh node and element.
   !
   subroutine create_new_node(ne,ne_start,np,np_start,MAKE)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CREATE_NEW_NODE" :: CREATE_NEW_NODE
 
     integer :: ne,ne_start,np,np_start
     logical :: MAKE
@@ -607,7 +601,6 @@ contains
   !
   subroutine group_seeds_with_branch(map_array,num_next_parents,num_seeds_from_elem, &
        num_terminal,local_parent,DISTANCE_LIMIT,FIRST)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_SEEDS_WITH_BRANCH" :: GROUP_SEEDS_WITH_BRANCH
 
     integer :: num_next_parents,local_parent(:),map_array(:),num_seeds_from_elem(*),&
          num_terminal
@@ -772,7 +765,6 @@ contains
   !
   subroutine grow_tree(parent_ne,surface_elems,angle_max,angle_min,&
        branch_fraction,length_limit,shortest_length,rotation_limit,to_export,filename)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
 
     integer,intent(in)  :: parent_ne                ! list of end branch elements to grow from
     integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
@@ -1095,7 +1087,6 @@ contains
   !
   subroutine limit_branch_angles(ne,ne_parent,np,&
        np_prnt_start,np_start,angle_max,angle_min)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_LIMIT_BRANCH_ANGLES" :: LIMIT_BRANCH_ANGLES
 
     integer,intent(in) :: ne,ne_parent,np,np_prnt_start,np_start
     real(dp) :: angle_max,angle_min
@@ -1175,7 +1166,6 @@ contains
   !*reduce_branch_angle:* calculates the direction of a branch for a given branch angle
 
   subroutine reduce_branch_angle(np1,np2,np,candidate_xyz,factor)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_REDUCE_BRANCH_ANGLE" :: REDUCE_BRANCH_ANGLE
 
     integer,intent(in) :: np1,np2,np
     real(dp),intent(in) :: factor
@@ -1212,7 +1202,6 @@ contains
   ! and their children
   !
   subroutine shorten_branch_and_children(ne)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SHORTEN_BRANCH_AND_CHILDREN" :: SHORTEN_BRANCH_AND_CHILDREN
 
     integer,intent(in) :: ne
 
@@ -1254,7 +1243,6 @@ contains
   ! improve the topology of generated trees, minimising the impact of 'odd' branching
   !
   subroutine smooth_1d_tree(num_elem_start,length_limit)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SMOOTH_1D_TREE" :: SMOOTH_1D_TREE
 
     integer,intent(in) :: num_elem_start
     real(dp),intent(in) :: length_limit
@@ -1310,7 +1298,6 @@ contains
   ! seed point.
   !
   subroutine split_seed_points(map_seed_to_elem,ne1,ne,np1,np2,np3,COFM,enough_points)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SPLIT_SEED_POINTS" :: SPLIT_SEED_POINTS
 
     integer :: map_seed_to_elem(*),ne,ne1,np1,np2,np3
     real(dp) :: COFM(3)
@@ -1388,7 +1375,6 @@ contains
   ! of child branches, and that passes mid-way between child branches.
   !
   subroutine split_seed_points_initial(map_array,ne_stem)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SPLIT_SEED_POINTS_INITIAL" :: SPLIT_SEED_POINTS_INITIAL
 
     integer :: map_array(:),ne_stem
 
@@ -1493,7 +1479,6 @@ contains
   !*closest_seed_to_node:* returns the closest seed point to a given branch node
   !
   function closest_seed_to_node(map_seed_to_elem,np)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CLOSEST_SEED_TO_NODE" :: CLOSEST_SEED_TO_NODE
 
     integer,intent(in) :: map_seed_to_elem(*),np
 
@@ -1522,7 +1507,6 @@ contains
   ! that is in a group of seed points currently associated with a specific element
   !
   function closest_seed_to_node_in_group(map_seed_to_elem,ne,np)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CLOSEST_SEED_TO_NODE_IN_GROUP" :: CLOSEST_SEED_TO_NODE_IN_GROUP
 
     integer,intent(in) :: map_seed_to_elem(*),ne,np
 
@@ -1550,7 +1534,6 @@ contains
   !*rotation_angle:* calculates angle between two branching planes
   !
   function rotation_angle(np1,np2,np3,np4,np5)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ROTATION_ANGLE" :: ROTATION_ANGLE
 
     integer,intent(in) :: np1,np2,np3,np4,np5
 
@@ -1575,7 +1558,6 @@ contains
   ! is defined (as v.w = cos(angle_with_v)).
   !
   function vector_for_angle_limit(U,V,angle_with_u,angle_with_v)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_VECTOR_FOR_ANGLE_LIMIT" :: VECTOR_FOR_ANGLE_LIMIT
 
     real(dp),intent(in) :: U(*),V(*),angle_with_u,angle_with_v
 

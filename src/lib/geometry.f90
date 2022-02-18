@@ -88,7 +88,6 @@ contains
   subroutine add_mesh(AIRWAY_MESHFILE)
     !*add_mesh:* Reads in an ipmesh file and adds this mesh to the terminal
     ! branches of an existing tree geometry
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADD_MESH" :: ADD_MESH
 
     character(len=MAX_FILENAME_LEN), intent(in) :: AIRWAY_MESHFILE
     ! Local parameters
@@ -236,7 +235,6 @@ contains
 
   subroutine add_matching_mesh()
     !*add_matching_mesh:* 
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADD_MATCHING_MESH" :: ADD_MATCHING_MESH
 
     !Parameters to become inputs
     real(dp) :: offset(3)
@@ -386,7 +384,6 @@ contains
 
   subroutine append_units()
     !*append_units:* Appends terminal units at the end of a tree structure
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_APPEND_UNITS" :: APPEND_UNITS
 
     ! Local parameters
     integer :: ne,ne0,nu
@@ -439,7 +436,6 @@ contains
 
   subroutine define_1d_elements(ELEMFILE)
     !*define_1d_elements:* Reads in an 1D element ipelem file to define a geometry
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_1D_ELEMENTS" :: DEFINE_1D_ELEMENTS
     
     character(len=MAX_FILENAME_LEN), intent(in) :: ELEMFILE
     !     Local Variables
@@ -565,7 +561,6 @@ contains
 
   subroutine define_elem_geometry_2d(ELEMFILE,sf_option)
     ! Reads in 2D ipelem file.
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_ELEM_GEOMETRY_2D" :: DEFINE_ELEM_GEOMETRY_2D
 
     character(len=*) :: ELEMFILE
     character(len=4) :: sf_option
@@ -648,7 +643,6 @@ contains
 
   subroutine define_mesh_geometry_test()
     !*define_mesh_geometry_test:*
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_MESH_GEOMETRY_TEST" :: DEFINE_MESH_GEOMETRY_TEST
 
     !     Local Variables
     integer :: j,ne,np,np1,np2
@@ -798,7 +792,6 @@ contains
   
   subroutine define_node_geometry(NODEFILE)
     !*define_node_geometry:* Reads in an ipnode file to define a tree geometry
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY" :: DEFINE_NODE_GEOMETRY
     
     character(len=MAX_FILENAME_LEN), intent(in) :: NODEFILE !Input nodefile
     !     Local Variables
@@ -896,7 +889,6 @@ contains
 
   subroutine define_node_geometry_2d(NODEFILE)
     !*define_node_geometry_2d:* Reads in an ipnode file to define surface nodes
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY_2D" :: DEFINE_NODE_GEOMETRY_2D
     
     character(len=*),intent(in) :: NODEFILE
     !     Local Variables
@@ -996,7 +988,6 @@ contains
 
   subroutine define_data_geometry(datafile)
     !*define_data_geometry:* reads data points from a file
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_DATA_GEOMETRY" :: DEFINE_DATA_GEOMETRY
 
     character(len=*) :: datafile
     ! Local variables
@@ -1220,7 +1211,6 @@ contains
   subroutine make_data_grid(surface_elems,spacing,to_export,filename,groupname)
     !*make_data_grid:* makes a regularly-spaced 3D grid of data points to
     ! fill a bounding surface 
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_MAKE_DATA_GRID" :: MAKE_DATA_GRID
     
     integer,intent(in) :: surface_elems(:)
     real(dp),intent(in) :: spacing
@@ -1420,7 +1410,6 @@ contains
     ! centrelines of a 1D tree, and located at distance 'radius' from the centre.
     ! a template for a set of 5 nodes (that together define a bifurcation) is
     ! scaled, rotated, translated to align with the 1d mesh and its radii. 
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_MAKE_2D_VESSEL_FROM_1D" :: MAKE_2D_VESSEL_FROM_1D
 
     integer,intent(in) :: elem_list(:)
     ! Local variables
@@ -2341,7 +2330,6 @@ contains
     !*define_rad_from_file:* reads in a radius field associated with an 
     ! airway tree and assigns radius information to each element, also 
     ! calculates volume of each element
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_FILE" :: DEFINE_RAD_FROM_FILE
 
     character(len=MAX_FILENAME_LEN), intent(in) :: FIELDFILE
     character(len=MAX_STRING_LEN), optional ::  radius_type_in
@@ -2518,7 +2506,6 @@ contains
     ! user-defined maximum radius and branching ratio; for == 'fit', uses pre-
     ! defined radii (read in) and a calculated branching ratio for each path so
     ! that the order 1 branches have radius = USER_RAD.
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_GEOM" :: DEFINE_RAD_FROM_GEOM
 
     real(dp), intent(in) :: CONTROL_PARAM
     real(dp), intent(in) :: USER_RAD   ! radius of largest branch when order_system
@@ -2633,7 +2620,6 @@ contains
   subroutine element_connectivity_1d()
     !*element_connectivity_1d:*  Calculates element connectivity in 1D and
     ! stores in array elem_cnct
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ELEMENT_CONNECTIVITY_1D" :: ELEMENT_CONNECTIVITY_1D
 
     !     Local Variables
     integer :: ne,ne2,nn,noelem,np,np2,np1
@@ -2970,7 +2956,6 @@ contains
   subroutine evaluate_ordering()
     !*evaluate_ordering:* calculates generations, Horsfield orders,
     ! Strahler orders for a given tree
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_ORDERING" :: EVALUATE_ORDERING
 
     ! Local Variables
     integer :: INLETS,ne,ne0,ne2,noelem2,np,np2,nn,num_attach,n_children, &
@@ -3071,7 +3056,6 @@ contains
     !*set_initial_volume:* assigns a volume to terminal units appended on a
     ! tree structure based on an assumption of a linear gradient in the
     ! gravitational direction with max, min, and COV values defined.
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SET_INITIAL_VOLUME" :: SET_INITIAL_VOLUME
     
     integer,intent(in) :: Gdirn
     real(dp),intent(in) :: COV,total_volume,Rmax,Rmin
@@ -3141,7 +3125,6 @@ contains
   subroutine volume_of_mesh(volume_model,volume_tree)
     !*volume_of_mesh:* calculates the volume of an airway mesh including
     ! conducting and respiratory airways
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_VOLUME_OF_MESH" :: VOLUME_OF_MESH
     
     real(dp) :: volume_model,volume_tree
     !     Local Variables
@@ -3193,7 +3176,6 @@ contains
     ! options on 'type': 1== single layered surface mesh of the vessel wall
     !                    2== double-layered thick-walled volume mesh of vessel wall
     !                    3== volume mesh of vessel lumen
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_WRITE_GEO_FILE" :: WRITE_GEO_FILE
 
     integer,intent(in) :: type
     character(len=*),intent(in) :: filename
@@ -3548,7 +3530,6 @@ contains
   subroutine group_elem_parent_term(ne_parent)
     !*group_elem_parent_term:* group the terminal elements that sit distal to
     !  a given parent element (ne_parent)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_ELEM_PARENT_TERM" :: GROUP_ELEM_PARENT_TERM
     
     integer,intent(in) :: ne_parent  ! the parent element number
     ! Local Variables
@@ -4109,7 +4090,6 @@ contains
 !!!###########################################################################
 
   subroutine write_elem_geometry_2d(elemfile)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_WRITE_ELEM_GEOMETRY_2D" :: WRITE_ELEM_GEOMETRY_2D
 
     character(len=*),intent(in) :: elemfile
     !     Local Variables
@@ -4169,7 +4149,6 @@ contains
 !!!#############################################################################
 
   subroutine write_node_geometry_2d(NODEFILE)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_WRITE_NODE_GEOMETRY_2D" :: WRITE_NODE_GEOMETRY_2D
 
     character(len=*),intent(in) :: NODEFILE
     !     Local Variables
