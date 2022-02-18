@@ -236,6 +236,15 @@ jobs:
         ${{ steps.create-venv.outputs.pip_exe }} install wheel
         ${{ steps.create-venv.outputs.pip_exe }} install $GITHUB_WORKSPACE/build-lungsim/src/bindings/python$multi_config_dir
         
+        if [ "${{ runner.os }}" == "Windows" ]; then
+          # Horrible hack for GitHub actions Windows virtual machine.
+          prefix_path=$(dirname $(dirname ${{ steps.create-venv.outputs.python_exe }}))
+          
+          cp $prefix_path/Library/bin/libifcoremd.dll $GITHUB_WORKSPACE/venv/Lib/site-packages/aether
+          cp $prefix_path/Library/bin/libmmd.dll $GITHUB_WORKSPACE/venv/Lib/site-packages/aether
+          cp $prefix_path/Library/bin/svml_dispmd.dll $GITHUB_WORKSPACE/venv/Lib/site-packages/aether
+        fi
+
         ${{ steps.create-venv.outputs.python_exe }} $GITHUB_WORKSPACE/lungsim/.github/scripts/diagnostics_test.py
         
         exit $?
