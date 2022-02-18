@@ -266,5 +266,5 @@ jobs:
         copy ${{ steps.setup-fortran-win.outputs.redist_loc }}\svml_dispmd.dll %GITHUB_WORKSPACE%\build-lungsim\src\bindings\python\${{ matrix.config.build_type }}\aether
 
         ${{ steps.create-venv.outputs.python_exe }} %GITHUB_WORKSPACE%/lungsim/.github/scripts/diagnostics_test.py
-
+        
         exit %errorlevel%
