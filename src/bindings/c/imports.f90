@@ -19,11 +19,7 @@ contains
 
     call strncpy(filename_f, FLOWFILE, filename_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_import_ventilation(filename_f)
-#else
     call import_ventilation(filename_f)
-#endif
 
   end subroutine import_ventilation_c
   
@@ -43,11 +39,7 @@ contains
 
     call strncpy(filename_f, FLOWFILE, filename_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_import_perfusion(filename_f)
-#else
     call import_perfusion(filename_f)
-#endif
 
   end subroutine import_perfusion_c
 

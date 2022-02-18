@@ -23,11 +23,7 @@ contains
     call strncpy(group_name_f, group_name, group_name_len)
     call strncpy(field_name_f, field_name, field_name_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_export_1d_elem_field(ne_field, filename_f, group_name_f, field_name_f)
-#else
     call export_1d_elem_field(ne_field, filename_f, group_name_f, field_name_f)
-#endif
 
   end subroutine export_1d_elem_field_c
 
@@ -48,11 +44,7 @@ contains
     call strncpy(filename_f, EXELEMFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_export_1d_elem_geometry(filename_f, name_f)
-#else
     call export_1d_elem_geometry(filename_f, name_f)
-#endif
 
   end subroutine export_1d_elem_geometry_c
 
@@ -74,11 +66,7 @@ contains
     call strncpy(filename_f, EXELEMFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_export_elem_geometry_2d(filename_f, name_f, offset_elem, offset_node)
-#else
     call export_elem_geometry_2d(filename_f, name_f, offset_elem, offset_node)
-#endif
 
   end subroutine export_elem_geometry_2d_c
 
@@ -101,11 +89,7 @@ contains
     call strncpy(filename_f, EXNODEFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_export_node_geometry(filename_f, name_f)
-#else
     call export_node_geometry(filename_f, name_f)
-#endif
 
   end subroutine export_node_geometry_c
 
@@ -130,12 +114,7 @@ contains
     call strncpy(filename_f, EXNODEFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_export_node_geometry_2d(filename_f, name_f, offset)
-#else
     call export_node_geometry_2d(filename_f, name_f, offset)
-#endif
 
   end subroutine export_node_geometry_2d_c
 
@@ -157,11 +136,7 @@ contains
     call strncpy(filename_f, EXDATAFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_export_data_geometry(filename_f, name_f, offset)
-#else
     call export_data_geometry(filename_f, name_f, offset)
-#endif
 
   end subroutine export_data_geometry_c
 
@@ -182,11 +157,7 @@ contains
     call strncpy(filename_f, EXNODEFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_export_terminal_solution(filename_f, name_f)
-#else
     call export_terminal_solution(filename_f, name_f)
-#endif
 
   end subroutine export_terminal_solution_c
 
@@ -207,11 +178,7 @@ contains
     call strncpy(filename_f, EXNODEFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_export_terminal_perfusion(filename_f, name_f)
-#else
     call export_terminal_perfusion(filename_f, name_f)
-#endif
 
   end subroutine export_terminal_perfusion_c
 
@@ -232,11 +199,7 @@ contains
     call strncpy(filename_f, EXNODEFILE, filename_len)
     call strncpy(name_f, name, name_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_export_terminal_ssgexch(filename_f, name_f)
-#else
     call export_terminal_ssgexch(filename_f, name_f)
-#endif
 
   end subroutine export_terminal_ssgexch_c
 
@@ -260,11 +223,7 @@ contains
     call strncpy(name_f, name, name_len)
     call strncpy(field_name_f, field_name, field_name_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_export_node_field(nj_field, filename_f, name_f, field_name_f)
-#else
     call export_node_field(nj_field, filename_f, name_f, field_name_f)
-#endif
 
   end subroutine export_node_field_c
 
@@ -289,11 +248,7 @@ contains
     call strncpy(name_f, name, name_len)
     call strncpy(field_name_f, field_name, field_name_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_export_elem_field(filename_f, name_f, field_name_f)
-#else
     call export_elem_field(filename_f, name_f, field_name_f)
-#endif
 
   end subroutine export_elem_field_c
 
