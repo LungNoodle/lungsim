@@ -247,6 +247,7 @@ jobs:
         export PYTHONPATH=$GITHUB_WORKSPACE/build-lungsim/src/bindings/python
         echo $GITHUB_WORKSPACE
         echo $PYTHONPATH
+        
         ${{ steps.create-venv.outputs.python_exe }} $GITHUB_WORKSPACE/lungsim/.github/scripts/diagnostics_test.py
 
         exit $?
