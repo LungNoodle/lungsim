@@ -159,8 +159,10 @@ jobs:
 
         if ("${{ runner.os }}" STREQUAL "Windows")
           file(GLOB PYTHON_EXE venv/Scripts/python.exe)
+          file(GLOB PIP_EXE venv/Scripts/pip.exe)
         else()
           file(GLOB PYTHON_EXE venv/bin/python)
+          file(GLOB PIP_EXE venv/bin/pip
         endif()
 
         execute_process(
@@ -173,6 +175,9 @@ jobs:
 
         execute_process(
           COMMAND echo "::set-output name=python_exe::${PYTHON_EXE}"
+        )
+        execute_process(
+          COMMAND echo "::set-output name=pip_exe::${PIP_EXE}"
         )
 
     - name: Generate build instructions - Windows
@@ -221,6 +226,19 @@ jobs:
           message("::error::${error_message}")
           message(FATAL_ERROR "Build failed.")
         endif()
+    - name: Test lungsim
+      shell: bash
+      run: |
+        if [ "${{ os.runner }}" == "Windows" ]; then
+          multi_config_dir=/${{ matrix.config.build_type }}
+        fi
+        
+        ${{ steps.create-venv.outputs.pip_exe }} install $GITHUB_WORKSPACE/build-lungsim/src/bindings/python$multi_config_dir
+        
+        ${{ steps.create-venv.outputs.python_exe }} $GITHUB_WORKSPACE/lungsim/.github/scripts/diagnostics_test.py
+        
+        exit $?
+        
     - name: Test lungsim - Linux, macOS
       shell: bash
       if: runner.os != 'Windows'
