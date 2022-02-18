@@ -233,6 +233,7 @@ jobs:
           multi_config_dir=/${{ matrix.config.build_type }}
         fi
         
+        ${{ steps.create-venv.outputs.pip_exe }} install wheel
         ${{ steps.create-venv.outputs.pip_exe }} install $GITHUB_WORKSPACE/build-lungsim/src/bindings/python$multi_config_dir
         
         ${{ steps.create-venv.outputs.python_exe }} $GITHUB_WORKSPACE/lungsim/.github/scripts/diagnostics_test.py
