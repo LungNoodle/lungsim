@@ -49,7 +49,7 @@ setup(
     long_description=doclines,
     distclass=BinaryDistribution,
     install_requires=[
-        'intel-fortran-rt ; platform_system=="Windows"';
+        'intel-fortran-rt ; platform_system=="Windows"',
     ],
     include_package_data=True,
 )
