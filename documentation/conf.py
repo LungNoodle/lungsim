@@ -54,7 +54,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Ventilation'
-copyright = '2015, Lung Group ABI'
+copyright = '2022, Lung Group ABI'
 author = 'Lung Group ABI'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -300,5 +300,5 @@ texinfo_documents = [
 #texinfo_no_detailmenu = False
 
 #----- fortran source files
-fortran_src = '../src/lib/'
+fortran_src = ['../src/lib/']
 
