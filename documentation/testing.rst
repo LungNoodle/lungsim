@@ -96,6 +96,7 @@ and add the following to create an executable test that will work with CTest (we
    add_pfunit_test(diagnostics_test ${DIAGNOSTICS_TEST_SRCS} "" "")
    # Link the test to the aether library target.
    target_link_libraries (diagnostics_test aether)
+   target_include_directories(diagnostics_test PRIVATE $<TARGET_PROPERTY:aether,Fortran_MODULE_DIRECTORY>)
 
 With our test added to the test framework we can now build and run our test.
 
