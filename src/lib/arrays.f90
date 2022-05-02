@@ -44,6 +44,7 @@ module arrays
   real(dp),allocatable :: elem_direction(:,:)
   real(dp),allocatable :: node_xyz(:,:)
   real(dp),allocatable :: data_xyz(:,:)
+  real(dp),allocatable :: field_xyz(:,:)
   real(dp),allocatable :: data_weight(:,:)
   real(dp),allocatable :: node_xyz_2d(:,:,:,:)
   real(dp),allocatable :: gasex_field(:,:) !gasexchange specific fields
@@ -115,7 +116,7 @@ module arrays
 
   public set_node_field_value, elem_field, num_elems, num_elems_2d, elem_nodes, node_xyz, &
          nodes,nodes_2d, elems, num_nodes, num_nodes_2d, num_data, data_xyz, data_weight, &
-         node_xyz_2d, node_versn_2d, units, num_units, unit_field, node_field, dp, &
+         field_xyz, node_xyz_2d, node_versn_2d, units, num_units, unit_field, node_field, dp, &
          elem_cnct, elem_ordrs, elem_direction, elems_at_node, elem_symmetry, expansile, &
          elem_units_below, maxgen,capillary_bf_parameters, zero_tol,loose_tol,gasex_field, &
          num_lines_2d, lines_2d, line_versn_2d, lines_in_elem, nodes_in_line, elems_2d, &

@@ -225,7 +225,7 @@ contains
 !
 !###################################################################################
 !
-  subroutine define_data_geometry_c(DATAFILE, filename_len) bind(C, name="define_data_geometry_c")
+  subroutine define_data_geometry_c(DATAFILE, filename_len, is_field, number_of_fields) bind(C, name="define_data_geometry_c")
 
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
@@ -233,16 +233,18 @@ contains
     use geometry, only: define_data_geometry
     implicit none
 
-    integer,intent(in) :: filename_len
+    integer,intent(in) :: filename_len, number_of_fields
     type(c_ptr), value, intent(in) :: DATAFILE
+    logical,intent(in) :: is_field
+
     character(len=MAX_FILENAME_LEN) :: filename_f
 
     call strncpy(filename_f, DATAFILE, filename_len)
 
 #if defined _WIN32 && defined __INTEL_COMPILER
-    call so_define_data_geometry(filename_f)
+    call so_define_data_geometry(filename_f, is_field, number_of_fields)
 #else
-    call define_data_geometry(filename_f)
+    call define_data_geometry(filename_f, is_field, number_of_fields)
 #endif
 
   end subroutine define_data_geometry_c
