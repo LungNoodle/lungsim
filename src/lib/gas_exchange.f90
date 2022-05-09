@@ -66,7 +66,6 @@ contains
 !##############################################################################
 !
  subroutine initial_gasexchange(initial_concentration,surface_area,V_cap)
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIAL_GASEXCHANGE" :: INITIAL_GASEXCHANGE
 
    !local variables
    real(dp),intent(in) :: initial_concentration
@@ -133,7 +132,6 @@ contains
  subroutine steadystate_gasexchange(c_art_o2,c_ven_o2,&
        p_art_co2,p_art_o2,p_i_o2,p_ven_co2,p_ven_o2,shunt_fraction,&
        VCO2,VO2)
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_STEADYSTATE_GASEXCHANGE" :: STEADYSTATE_GASEXCHANGE
 
 !!! Parameter List
     real(dp),intent(in) :: p_i_o2,shunt_fraction,VCO2,VO2

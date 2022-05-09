@@ -27,41 +27,46 @@ Create a virtual environment
 The second task is to create a Python virtual environment to install the Aether python modules into::
 
   cd virtual_environments # change directory to where the virtual environment should be created
-  virtualenv --system-site-packages develop
+  python -m venv venv-develop-release
   
-The *--system-site-packages* flag allows the virtual environment to access all the packages that the system python has installed.  This is useful for big packages which may be required, for example; numpy or scipy.  The name of the virtual environment (in this case *develop*) is determined from the branch of the Aether library that is going to be available.
+The name of the virtual environment (in this case *venv-develop-release*) is determined from the branch of the Aether library and the configuration that is going to be available.
 
 Activate virtual environment
 ----------------------------
 
 The third task is to activate the Python environment.  This can be done by executing a shell script made available in the installation, for POSIX systems execute the command::
 
-  source /path/to/env/bin/activate
+  source /path/to/virtual_environments/venv-develop-release/bin/activate
   
 for Windows the equivalent command is::
 
-  \path\to\env\Scripts\activate
+  \path\to\virtual_environments\venv-develop-release\Scripts\activate
   
-The activate script may alter the command prompt to indicate the active virtual environment.  This script will also make changes to your path variables.  To undo these changes execute the *deactivate* script::
+The activate script may alter the command prompt to indicate the active virtual environment.
+This script will also make changes to your path variables.
+To undo these changes execute the *deactivate* script::
 
   deactivate
   
 Install Aether into virtual environment
 ---------------------------------------
 
-With an active Python virtual environment change directory into the lungsim build directory::
+With the virtual environment activated from above, change directory into the lungsim build directory::
 
   cd /path/to/lungsim-build/
-  
-From this directory change into the *src/bindings/python* directory::
 
-  cd src/bindings/python
-  
-in this directory a Python file named *setup.py* should exist.  To make the Aether library available via the active virtual environment execute the following command::
+From this directory install the aether package with *pip* (POSIX systems)::
 
-  python setup.py develop
+  pip install -e src/bindings/python
+
+For Windows the command is slightly different::
+
+  pip install -e src/bindings/python/Release
+
+Here the *Release* directory is the configuration that was build previously, we may also build a *Debug* configuration and we would have to change the location if we were wanting to install that configuration to our virtual environment.
   
-This will create a link from the active virtual environment to the Aether library.  Thus making the Aether python library available from the the currently active Python environment.
+This will create a link from the active virtual environment to the Aether library.
+Thus making the Aether python library available from the the currently active Python environment.
 
 Test Aether in virtual environment
 ----------------------------------
@@ -83,4 +88,5 @@ If the above command was successful then the Python applications given above wil
 Finally
 -------
 
-This procedure of making the Aether library available through a python virtual environment can be repeated for different builds of the Aether library.  The virtual environment is lightweight and provides great encapsulation for development of the library.
+This procedure of making the Aether library available through a python virtual environment can be repeated for different builds of the Aether library.
+The virtual environment is lightweight and provides great encapsulation for development of the library.

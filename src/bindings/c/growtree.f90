@@ -32,13 +32,8 @@ shortest_length, rotation_limit, to_export, filename, filename_len) bind(C, name
 
     call strncpy(filename_f, filename, filename_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_grow_tree(parent_ne, surface_elems, angle_max, angle_min, branch_fraction, length_limit,&
-shortest_length, rotation_limit, to_export, filename_f)
-#else
     call grow_tree(parent_ne, surface_elems, angle_max, angle_min, branch_fraction, length_limit,&
-shortest_length, rotation_limit, to_export, filename_f)
-#endif
+      shortest_length, rotation_limit, to_export, filename_f)
 
   end subroutine grow_tree_c
 

@@ -32,7 +32,6 @@ contains
   
   subroutine scale_flow_to_inlet(inlet_flow,VorQ)
     !*scale_flow_field:* Scales a flow field to an 'inlet flow' value (real units).
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SCALE_FLOW_TO_INLET" :: SCALE_FLOW_TO_INLET
 
     real(dp),intent(in) :: inlet_flow
     character(len=1), intent(in) :: VorQ

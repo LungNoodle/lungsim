@@ -59,16 +59,14 @@ set(C_LIB_HDRS
   wave_transmission.h
 )
 
-add_library(aether_c_fortran STATIC ${C_FORTRAN_LIB_SRCS} $<TARGET_OBJECTS:aether_obj>)
+add_library(aether_c_fortran STATIC ${C_FORTRAN_LIB_SRCS})
+target_link_libraries(aether_c_fortran PUBLIC aether)
 set_target_properties(aether_c_fortran PROPERTIES
     POSITION_INDEPENDENT_CODE True
     Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules"
     FOLDER bindings/c)
-target_include_directories(aether_c_fortran PRIVATE $<TARGET_PROPERTY:aether_obj,Fortran_MODULE_DIRECTORY>)
+target_include_directories(aether_c_fortran PRIVATE $<TARGET_PROPERTY:aether,Fortran_MODULE_DIRECTORY>)
 add_library(aether_c SHARED ${C_C_LIB_SRCS} ${C_LIB_HDRS})
-if (SUPERLU_FOUND)
-  target_sources(aether_c PRIVATE $<TARGET_OBJECTS:aether_superlu_obj>)
-endif ()
 
 set_target_properties(aether_c PROPERTIES
     FOLDER bindings/c
@@ -92,4 +90,3 @@ install(TARGETS aether_c aether_c_fortran
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
-

@@ -83,7 +83,6 @@ contains
   
   !> Define problem type
   subroutine define_problem_type(PROBLEM_TYPE)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_PROBLEM_TYPE" :: DEFINE_PROBLEM_TYPE
     
     character(len=MAX_FILENAME_LEN),intent(in) :: PROBLEM_TYPE
     
@@ -117,7 +116,6 @@ contains
   
   !>Gas mixing indices
   subroutine exchange_indices
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GASMIX_INDICES" :: GASMIX_INDICES
     
     character(len=60) :: sub_name
     
@@ -157,7 +155,6 @@ contains
   
   !>Gas mixing indices
   subroutine gasmix_indices
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GASMIX_INDICES" :: GASMIX_INDICES
     
     character(len=60) :: sub_name
     
@@ -199,7 +196,6 @@ contains
   
   !> Ventilation indices
   subroutine ventilation_indices
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_VENTILATION_INDICES" :: VENTILATION_INDICES
     
     character(len=60) :: sub_name
     
@@ -240,7 +236,6 @@ contains
 
   subroutine growing_indices
     !* Growing indices:* set up indices for growing (1D tree) arrays
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROWING_INDICES" :: GROWING_INDICES
     
     character(len=60) :: sub_name
 
@@ -270,7 +265,6 @@ contains
   !
   !> Perfusion indices
   subroutine perfusion_indices
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_PERFUSION_INDICES" :: PERFUSION_INDICES
     
     character(len=60) :: sub_name
     
@@ -300,7 +294,6 @@ contains
   end subroutine perfusion_indices
   
   function get_ne_radius() result(res)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GET_NE_RADIUS" :: GET_NE_RADIUS
     
     implicit none
     character(len=60) :: sub_name
@@ -315,7 +308,6 @@ contains
   end function get_ne_radius
   
   function get_nj_conc1() result(res)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GET_NJ_CONC1" :: GET_NJ_CONC1
     
     character(len=60) :: sub_name
     integer :: res

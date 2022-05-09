@@ -43,7 +43,6 @@ contains
 
   subroutine evaluate_vent
     !*evaluate_vent:* Sets up and solves dynamic ventilation model
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_VENT" :: EVALUATE_VENT
 
     ! Local variables
     integer :: gdirn                  ! 1(x), 2(y), 3(z); upright lung (for our
@@ -319,7 +318,6 @@ contains
 
   subroutine evaluate_uniform_flow
     !*evaluate_uniform_flow:* Sets up and solves uniform ventilation model
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_UNIFORM_FLOW" :: EVALUATE_UNIFORM_FLOW
   
     ! Local variables
     integer :: ne,nunit
@@ -1011,7 +1009,6 @@ contains
 !!!#############################################################################
 
   subroutine two_unit_test
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_TWO_UNIT_TEST" :: TWO_UNIT_TEST
 
     ! Local variables
     integer ne,noelem,nonode,np
