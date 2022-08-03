@@ -591,9 +591,14 @@ contains
     end do read_number_of_elements
     
     num_elems_2d=number_of_elements
-    if(.not.allocated(elems_2d)) allocate(elems_2d(num_elems_2d))
-    if(.not.allocated(elem_nodes_2d)) allocate(elem_nodes_2d(4,num_elems_2d))
-    if(.not.allocated(elem_versn_2d)) allocate(elem_versn_2d(4,num_elems_2d))
+    if(allocated(elems_2d))then
+       deallocate(elems_2d)
+       deallocate(elem_nodes_2d)
+       deallocate(elem_versn_2d)
+    endif
+    allocate(elems_2d(num_elems_2d))
+    allocate(elem_nodes_2d(4,num_elems_2d))
+    allocate(elem_versn_2d(4,num_elems_2d))
     
     ne = 0
     
@@ -923,9 +928,14 @@ contains
     end do read_number_of_nodes
     
 !!!allocate memory to arrays that require node number
-    if(.not.allocated(nodes_2d)) allocate(nodes_2d(num_nodes_2d))
-    if(.not.allocated(node_xyz_2d)) allocate(node_xyz_2d(4,10,16,num_nodes_2d))
-    if(.not.allocated(node_versn_2d)) allocate(node_versn_2d(num_nodes_2d))
+    if(allocated(nodes_2d))then ! deallocate
+       deallocate(nodes_2d)
+       deallocate(node_xyz_2d)
+       deallocate(node_versn_2d)
+    endif
+    allocate(nodes_2d(num_nodes_2d))
+    allocate(node_xyz_2d(4,10,3,num_nodes_2d))
+    allocate(node_versn_2d(num_nodes_2d))
     
     !.....read the coordinate, derivative, and version information for each node. 
     np=0
@@ -1000,12 +1010,17 @@ contains
     sub_name = 'define_data_geometry'
     call enter_exit(sub_name,1)
     
+    if(index(datafile, ".ipdata")> 0) then !full filename is given
+       readfile = datafile
+    else ! need to append the correct filename extension
+       readfile = trim(datafile)//'.ipdata'
+    endif
+
+    open(10, file=readfile, status='old')
+    read(unit=10, fmt="(a)", iostat=ierror) buffer
+
     !set the counted number of data points to zero
     ncount = 0
-    
-    !readfile = trim(datafile)//'.ipdata'
-    open(10, file=datafile, status='old')
-    read(unit=10, fmt="(a)", iostat=ierror) buffer
     
 !!! first run through to count the number of data points
     read_line_to_count : do
@@ -1024,7 +1039,6 @@ contains
     allocate(data_weight(3,num_data))
     
 !!! read the data point information
-    !readfile = trim(datafile)//'.ipdata'
     open(10, file=datafile, status='old')
     read(unit=10, fmt="(a)", iostat=ierror) buffer
     
