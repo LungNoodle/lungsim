@@ -19,9 +19,18 @@ module exports
   implicit none
  
   private
-  public export_1d_elem_geometry,export_elem_geometry_2d,export_node_geometry,export_node_geometry_2d,&
-       export_node_field,export_elem_field,export_terminal_solution,export_terminal_perfusion,&
-       export_terminal_ssgexch,export_1d_elem_field,export_data_geometry
+  public &
+       export_1d_elem_geometry, &
+       export_elem_geometry_2d, &
+       export_node_geometry, &
+       export_node_geometry_2d,&
+       export_node_field, &
+       export_elem_field, &
+       export_terminal_solution, &
+       export_terminal_perfusion,&
+       export_terminal_ssgexch, &
+       export_1d_elem_field, &
+       export_data_geometry
 
 contains
 !!!################################################################

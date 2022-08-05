@@ -8,21 +8,43 @@ module mesh_utilities
 
 
   use arrays
+  use diagnostics
   use other_consts
+  use precision ! sets dp for precision
 
   implicit none
 
   private
 
-  public  area_between_three_points,area_between_two_vectors,angle_btwn_points, &
-       angle_btwn_vectors,bifurcation_element,calc_branch_direction, &
-       calc_scale_factors_2d,check_colinear_points,cross_product,&
-       direction_point_to_point,distance_between_points, &
-       distance_from_plane_to_point,make_plane_from_3points, &
-       mesh_a_x_eq_b,ph3,pl1,point_internal_to_surface,scalar_product_3, &
-       scalar_triple_product,scale_mesh,stem_element,terminal_element, &
-       unit_norm_to_plane_two_vectors,unit_norm_to_three_points,unit_vector, &
-       vector_length,volume_internal_to_surface,which_child
+  public &  ! subroutines
+       area_between_three_points, &
+       area_between_two_vectors, &
+       angle_btwn_points, &
+       angle_btwn_vectors, &
+       bifurcation_element, &
+       calc_branch_direction, &
+       calc_scale_factors_2d, &
+       check_colinear_points, &
+       cross_product,&
+       direction_point_to_point, &
+       distance_between_points, &
+       distance_from_plane_to_point, &
+       make_plane_from_3points, &
+       mesh_a_x_eq_b, &
+       ph3, &
+       pl1, &
+       point_internal_to_surface, &
+       scalar_product_3, &
+       scalar_triple_product, &
+       scale_mesh, &
+       stem_element, &
+       terminal_element, &
+       unit_norm_to_plane_two_vectors, &
+       unit_norm_to_three_points, &
+       unit_vector, &
+       vector_length, &
+       volume_internal_to_surface, &
+       which_child
 
 contains
 
@@ -161,7 +183,7 @@ contains
                 enddo
              enddo
              
-             SUM1=XA_LOCAL(2,1)**2+XA_LOCAL(2,2)**2+XA_LOCAL(2,3)**2
+             SUM1=XA_LOCAL(2,1)**2.0_dp+XA_LOCAL(2,2)**2.0_dp+XA_LOCAL(2,3)**2.0_dp
              SUM2=SUM2+W*DSQRT(SUM1)
           enddo !ng
           
@@ -610,7 +632,7 @@ contains
     
     distance_between_points = 0.0_dp
     do i=1,3
-       distance_between_points = distance_between_points + (point1(i)-point2(i))**2
+       distance_between_points = distance_between_points + (point1(i)-point2(i))**2.0_dp
     enddo
     distance_between_points = dsqrt(distance_between_points)
     
@@ -733,7 +755,7 @@ contains
     integer :: ntri,num_triangles
     real(dp) :: volume,V1(3),V2(3),V3(3),P4(3)
 
-    num_triangles = count(triangles(:,:).ne.0)/3
+    num_triangles = count(triangles(:,:).ne.0)/3.0_dp
 
     P4 = sum(vertex_xyz,dim=2)/size(vertex_xyz,dim=2)
 
@@ -770,7 +792,8 @@ contains
 
     num_triangles = count(triangles(:,:).ne.0)/3
 
-    forall (i=1:3) cofm_surfaces(i) = sum(vertex_xyz(i,1:num_vertices))/num_vertices
+    forall (i=1:3) cofm_surfaces(i) = sum(vertex_xyz(i,1:num_vertices))/ &
+         real(num_vertices,kind=dp)
 !    write(*,*) 'cofm',cofm_surfaces
 
 ! check whether the line that joins the centre of mass of the surface mesh and the point
