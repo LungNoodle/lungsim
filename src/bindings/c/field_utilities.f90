@@ -22,11 +22,7 @@ contains
 
     call strncpy(vq_f, VORQ, vq_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_scale_flow_to_inlet(INLET_FLOW,vq_f)
-#else
     call scale_flow_to_inlet(INLET_FLOW,vq_f)
-#endif
 
   end subroutine scale_flow_to_inlet_c
 

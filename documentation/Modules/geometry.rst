@@ -9,5 +9,3 @@ Geometry module (geometry.f90)
 .. f:module:: geometry
 
 .. f:automodule:: geometry
-
-
