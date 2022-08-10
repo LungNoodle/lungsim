@@ -11,6 +11,7 @@ module math_utilities
   use arrays
   use diagnostics
   use other_consts
+  use precision
 
   implicit none
   private

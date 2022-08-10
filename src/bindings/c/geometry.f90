@@ -130,7 +130,8 @@ contains
 !
 !###################################################################################
 !
-  subroutine make_data_grid_c(surface_elems, spacing, to_export, filename, filename_len, groupname, groupname_len)&
+  subroutine make_data_grid_c(surface_elems_len, surface_elems, offset, spacing, &
+       filename, filename_len, groupname, groupname_len)&
  bind(C, name="make_data_grid_c")
     
     use arrays,only: dp
@@ -140,9 +141,9 @@ contains
     use geometry, only: make_data_grid
     implicit none
 
-    integer,intent(in) :: surface_elems(:)
-    real(dp),intent(in) :: spacing
-    logical,intent(in) :: to_export
+    integer,intent(in) :: surface_elems_len
+    integer,intent(in) :: surface_elems(surface_elems_len)
+    real(dp),intent(in) :: offset, spacing
     integer,intent(in) :: filename_len, groupname_len
     type(c_ptr), value, intent(in) :: filename, groupname
     character(len=MAX_FILENAME_LEN) :: filename_f
@@ -151,7 +152,11 @@ contains
     call strncpy(filename_f, filename, filename_len)
     call strncpy(groupname_f, groupname, groupname_len)
 
-    call make_data_grid(surface_elems, spacing, to_export, filename_f, groupname_f)
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_make_data_grid(surface_elems, offset, spacing, filename_f, groupname_f)
+#else
+    call make_data_grid(surface_elems, offset, spacing, filename_f, groupname_f)
+#endif
 
   end subroutine make_data_grid_c
 
@@ -168,21 +173,6 @@ contains
 
   end subroutine make_2d_vessel_from_1d_c
   
-!
-!###################################################################################
-!
-  subroutine group_elem_parent_term_c(ne_parent) bind(C, name="group_elem_parent_term_c")
-
-    use iso_c_binding, only: c_ptr
-    use geometry, only: group_elem_parent_term
-    implicit none
-
-    integer,intent(in) :: ne_parent
-
-    call group_elem_parent_term(ne_parent)
-
-  end subroutine group_elem_parent_term_c
-
 !
 !###################################################################################
 !

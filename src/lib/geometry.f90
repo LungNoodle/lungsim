@@ -1,5 +1,5 @@
 module geometry
-  !*Brief Description:* This module handles all geometry read/write/generation.
+  !*Brief Description:* This module handles all geometry read/write/tree generation.
   !
   !*LICENSE:*
   !
@@ -34,15 +34,14 @@ module geometry
   public define_node_geometry
   public define_node_geometry_2d
   public define_data_geometry
-  public group_elem_parent_term
   public define_rad_from_file
   public define_rad_from_geom
   public element_connectivity_1d
   public element_connectivity_2d
-  public inlist
   public evaluate_ordering
   public get_final_real
   public get_local_node_f
+  public group_elem_parent_term
   public make_data_grid
   public make_2d_vessel_from_1d
   public reallocate_node_elem_arrays
@@ -1039,7 +1038,7 @@ contains
     allocate(data_weight(3,num_data))
     
 !!! read the data point information
-    open(10, file=datafile, status='old')
+    open(10, file=readfile, status='old')
     read(unit=10, fmt="(a)", iostat=ierror) buffer
     
     !set the counted number of data points to zero
@@ -1097,8 +1096,8 @@ contains
     integer,allocatable :: triangle(:,:)
     real(dp),allocatable :: vertex_xyz(:,:)
     ! Local variables
-    integer,parameter :: ndiv = 3
-    integer :: i,index1,index2,j,ne,nmax_1,nmax_2,num_surfaces, &
+    integer,parameter :: ndiv = 4 ! the number of triangle divisions in each direction
+    integer :: i,index1,index2,j,ne,nelem,nmax_1,nmax_2,num_surfaces, &
          num_tri_vert,nvertex_row,step_1,step_2
     real(dp) :: X(3),xi(3)
     logical :: four_nodes
@@ -1109,9 +1108,12 @@ contains
 
     sub_name = 'triangles_from_surface'
     call enter_exit(sub_name,1)
-    
-    if(.not.allocated(triangle)) allocate(triangle(3,2*num_elems_2d*ndiv**2))
-    if(.not.allocated(vertex_xyz)) allocate(vertex_xyz(3,num_elems_2d*(ndiv+1)**2))
+
+    if(allocated(triangle)) deallocate(triangle)
+    allocate(triangle(3,2*num_elems_2d*ndiv**2))
+    if(allocated(vertex_xyz)) deallocate(vertex_xyz)
+    allocate(vertex_xyz(3,num_elems_2d*(ndiv+1)**2))
+
     triangle = 0
     vertex_xyz = 0.0_dp
     num_surfaces = count(surface_elems.ne.0)
@@ -1119,7 +1121,8 @@ contains
     num_vertices = 0
     num_tri_vert = 0 
 
-    do ne=1,num_elems_2d
+    do nelem = 1,num_surfaces
+       ne = surface_elems(nelem)
        four_nodes = .false.
        repeat = '0_0'
        if(elem_nodes_2d(1,ne).eq.elem_nodes_2d(2,ne)) repeat = '1_0'
@@ -1174,7 +1177,7 @@ contains
           index2 = 1
           index1 = 2
        end select
-       
+
        xi(index2) = 0.0_dp
        do i = 1,nmax_2
           xi(index1) = 0.0_dp
@@ -1213,33 +1216,76 @@ contains
        enddo !i
     enddo
     
-    write(*,'('' Made'',I8,'' triangles to cover'',I6,'' surface elements'')') &
-         num_triangles,num_elems_2d
-    
     call enter_exit(sub_name,2)
     
   end subroutine triangles_from_surface
 
 !!!#############################################################################
+
+  subroutine group_elem_parent_term(parent_list,ne_parent)
+    !*group_elem_parent_term:* group the terminal elements that sit distal to
+    !  a given parent element (ne_parent)
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_ELEM_PARENT_TERM" :: GROUP_ELEM_PARENT_TERM
+
+    use mesh_utilities,only: group_elem_by_parent
+    
+    integer :: parent_list(:) ! will contain terminal elements below ne_parent on exit
+    integer,intent(in) :: ne_parent  ! the parent element number
+    ! Local Variables
+    integer :: ne,ne_count,noelem,num_parents
+    integer,allocatable :: templist(:)
+    character(len=60) :: sub_name
+    
+    ! --------------------------------------------------------------------------
+
+    sub_name = 'group_elem_parent_term'
+    call enter_exit(sub_name,1)
+    
+    allocate(templist(num_elems))
+    !if(.not.allocated(parentlist)) allocate(parentlist(num_elems))
+    
+    ! get the list of elements that are subtended by ne_parent
+    call group_elem_by_parent(ne_parent,templist)
+    
+    ne_count = count(templist.ne.0) ! number of subtended elements
+    num_parents = 0
+!    parentlist=0
+    
+    do noelem = 1,ne_count
+       ne = templist(noelem)
+       if(elem_cnct(1,0,ne).eq.0)then
+          num_parents = num_parents+1
+          parent_list(num_parents)=ne
+       endif !elem_cnct
+    enddo !noelem
+    
+    deallocate(templist)
+    
+    call enter_exit(sub_name,2)
+    
+  end subroutine group_elem_parent_term
   
-  subroutine make_data_grid(surface_elems,spacing,to_export,filename,groupname)
+!!!#############################################################################
+  
+  subroutine make_data_grid(surface_elems, offset, spacing, filename, groupname)
     !*make_data_grid:* makes a regularly-spaced 3D grid of data points to
     ! fill a bounding surface 
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_MAKE_DATA_GRID" :: MAKE_DATA_GRID
+
+    use exports,only: export_triangle_elements,export_triangle_nodes
     
     integer,intent(in) :: surface_elems(:)
-    real(dp),intent(in) :: spacing
-    logical,intent(in) :: to_export
+    real(dp),intent(in) :: offset, spacing
+    logical :: to_export = .true.
     character(len=*),intent(in) :: filename
     character(len=*),intent(in) :: groupname
     ! Local Variables
-    integer :: i,j,k,ne,nj,nline,nn,num_data_estimate,num_triangles,num_vertices
-    integer,allocatable :: triangle(:,:)
-    real(dp) :: cofm_surfaces(3),boxrange(3),max_bound(3),min_bound(3), &
-         offset=-2.0_dp,point_xyz(3),scale_mesh,translate(3)
+    integer :: i,j,k,num_data_estimate,num_triangles,num_vertices
+    integer,allocatable :: elem_list(:),triangle(:,:)
+    real(dp) :: cofm1(3),cofm2(3),boxrange(3),max_bound(3),min_bound(3), &
+         point_xyz(3),scale_mesh
     real(dp),allocatable :: data_temp(:,:),vertex_xyz(:,:)
     logical :: internal
-    character(len=1) :: char1
-    character(len=100) :: writefile
     character(len=60) :: sub_name
     
     ! --------------------------------------------------------------------------
@@ -1247,19 +1293,29 @@ contains
     sub_name = 'make_data_grid'
     call enter_exit(sub_name,1)
     
-    call triangles_from_surface(num_triangles,num_vertices,surface_elems, &
+    allocate(elem_list(count(surface_elems.ne.0)))
+    do i = 1,count(surface_elems.ne.0)
+       elem_list(i) = get_local_elem_2d(surface_elems(i))
+    enddo
+
+    call triangles_from_surface(num_triangles,num_vertices,elem_list, &
          triangle,vertex_xyz)
 
-    if(offset.gt.0.0_dp)then
-!!! generate within a scaled mesh, then return to original size afterwards
-!!! this option is used when we don't want the seed points too close to the boundary
-       scale_mesh = 1.0_dp-(offset/100.0_dp)
-       cofm_surfaces = sum(vertex_xyz,dim=2)/size(vertex_xyz,dim=2)
-       translate = cofm_surfaces * (scale_mesh - 1.0_dp)
-       forall (i=1:num_vertices) vertex_xyz(1:3,i) = &
-            vertex_xyz(1:3,i)*scale_mesh + translate(1:3)
+    if(to_export)then
+!!! export vertices as nodes
+       call export_triangle_nodes(num_vertices,vertex_xyz,filename,groupname)
+!!! export the triangles as surface elements
+       call export_triangle_elements(num_triangles,triangle,filename,groupname)
     endif
     
+    scale_mesh = 1.0_dp-(offset/100.0_dp)
+    cofm1 = sum(vertex_xyz,dim=2)/num_vertices
+    forall (i = 1:num_vertices) vertex_xyz(1:3,i) = &
+         vertex_xyz(1:3,i)*scale_mesh
+    cofm2 = cofm1 * scale_mesh
+    forall (i = 1:num_vertices) vertex_xyz(1:3,i) = &
+         vertex_xyz(1:3,i) - (cofm2(1:3)-cofm1(1:3))
+
 !!! find the bounding coordinates for the surface mesh
     
     min_bound = minval(vertex_xyz,2)
@@ -1323,96 +1379,11 @@ contains
     if(allocated(data_weight)) deallocate(data_weight)
     allocate(data_weight(3,num_data))
     data_weight(:,1:num_data) = 1.0_dp
-    if(offset .gt. 0.0_dp)then
-!!! return the triangles to their original size and location
-       forall (i=1:3) vertex_xyz(1:3,i) = (vertex_xyz(1:3,i) - &
-            translate(1:3))/scale_mesh
-    endif
-    
-    if(to_export)then
-!!! export vertices as nodes
-       writefile = trim(filename)//'.exnode'
-       open(10, file = writefile, status='replace')
-       !**    write the group name
-       write(10,'( '' Group name: '',A)') trim(groupname)
-       !*** Exporting Geometry
-       !*** Write the field information
-       write(10,'( '' #Fields=1'' )')
-       write(10,'('' 1) coordinates, coordinate, rectangular cartesian, '',&
-            &''#Components=3'')')
-       do nj=1,3
-          if(nj.eq.1) write(10,'(2X,''x.  '')',advance="no")
-          if(nj.eq.2) write(10,'(2X,''y.  '')',advance="no")
-          if(nj.eq.3) write(10,'(2X,''z.  '')',advance="no")
-          write(10,'(''Value index='',I2,'', #Derivatives='',I1)', &
-               advance="no") nj,0
-          write(10,'()')
-       enddo
-       do i = 1,num_vertices
-          !***    write the node
-          write(10,'(1X,''Node: '',I12)') i
-          write(10,'(2x,3(f12.6))') vertex_xyz(:,i)
-       enddo
-       close(10)
-       
-!!! export the triangles as surface elements
-       writefile = trim(filename)//'.exelem'
-       open(10, file=writefile, status='replace')
-       !**     write the group name
-       write(10,'( '' Group name: '',a10)') groupname
-       !**     write the lines
-       write(10,'( '' Shape. Dimension=1'' )')
-       nline=0
-       do ne = 1,num_triangles
-          write(10,'( '' Element: 0 0 '',I5)') nline+1
-          write(10,'( '' Element: 0 0 '',I5)') nline+2
-          write(10,'( '' Element: 0 0 '',I5)') nline+3
-          nline=nline+3
-       enddo !ne
-       
-       !**        write the elements
-       write(10,'( '' Shape. Dimension=2, line*line'' )')
-       write(10,'( '' #Scale factor sets=1'' )')
-       write(10,'( '' l.Lagrange*l.Lagrange, #Scale factors=4'' )')
-       write(10,'( '' #Nodes= '',I2 )') 4
-       write(10,'( '' #Fields=1'' )')
-       write(10,'( '' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
-       
-       do nj=1,3
-          if(nj==1) char1='x'; if(nj==2) char1='y'; if(nj==3) char1='z';
-          write(10,'(''  '',A2,''. l.Lagrange*l.Lagrange, no modify, standard node based.'')') char1
-          write(10,'( ''   #Nodes=4'')')
-          do nn=1,4
-             write(10,'(''   '',I1,''. #Values=1'')') nn
-             write(10,'(''     Value indices: '',I4)') 1
-             write(10,'(''     Scale factor indices: '',I4)') nn
-          enddo !nn
-       enddo !nj
-       
-       nline=0
-       do ne=1,num_triangles
-          !**         write the element
-          write(10,'(1X,''Element: '',I12,'' 0 0'' )') ne
-          !**          write the faces
-          WRITE(10,'(3X,''Faces: '' )')
-          WRITE(10,'(5X,''0 0'',I6)') nline+1
-          WRITE(10,'(5X,''0 0'',I6)') nline+2
-          WRITE(10,'(5X,''0 0'',I6)') nline+3
-          WRITE(10,'(5X,''0 0'',I6)') 0
-          nline=nline+3
-          !**          write the nodes
-          write(10,'(3X,''Nodes:'' )')
-          write(10,'(4X,4(1X,I12))') triangle(:,ne),triangle(3,ne)
-          !**          write the scale factors
-          write(10,'(3X,''Scale factors:'' )')
-          write(10,'(4X,4(1X,E12.5))') 1.0_dp,1.0_dp,1.0_dp,1.0_dp
-       enddo
-       close(10)
-    endif
-    
+
     deallocate(triangle)
     deallocate(vertex_xyz)
-    
+    deallocate(elem_list)
+   
     call enter_exit(sub_name,2)
     
   end subroutine make_data_grid
@@ -1434,8 +1405,8 @@ contains
     integer :: template_vrsn_map(2,8)           ! versions of nodes for the templated elements
     integer :: template_vrsns(5)                ! # of versions of derivatives for 'template' bifurcation
     integer :: i,j,k,np_side1,np_side2,ne,ne_child,ne_count,ne_global,ne_new, &
-         ne0,nj,nk,nmax,nn,np_crux,np_new,np_now,np0,np1,np2,np_close(2), &
-         num_short,nv,nvb
+         ne0,nmax,nn,np_crux,np_new,np_now,np0,np1,np2,np_close(2), &
+         num_short,nvb
     real(dp) :: new_coords_derivs(4,10,3,5)     ! coordinates of translated and rotated template
     real(dp) :: ring_coords(3,5)                ! the coordinates of nodes in a current 'ring'
     real(dp),allocatable :: ring_distance(:)    ! distance of new 'ring' of nodes from 1d start node
@@ -1794,7 +1765,7 @@ contains
 
     real(dp) :: template_coords(:,:,:,:)
     !     Local Variables
-    integer :: i,j,nj
+    integer :: i,nj
     real(dp) :: angle,s1_dir(3)=0.0_dp,s2_dir(3)=0.0_dp
     character(len=60) :: sub_name
 
@@ -2370,7 +2341,7 @@ contains
     endif
     
     if(index(FIELDFILE, ".ipfiel")> 0) then !full filename is given
-       readfile = FIELDFILE
+       readfile = FIELDFILE(1:250)
     else ! need to append the correct filename extension
        readfile = trim(FIELDFILE)//'.ipfiel'
     endif
@@ -2529,10 +2500,10 @@ contains
     character(LEN=*), optional :: group_type_in, group_option_in
     !Input options ORDER_SYSTEM=STRAHLER (CONTROL_PARAM=RDS), HORSFIELD (CONTROL_PARAM=RDH)
     ! Local variables
-    integer :: inlet_count,n,ne,ne0,ne_max,ne_min,ne_start,nindex,norder,n_max_ord
+    integer :: inlet_count,ne,ne0,ne_max,ne_min,ne_start,nindex,norder,n_max_ord
     real(dp) :: max_radius,radius,ratio_diameter
     logical :: found
-    character(LEN=100) :: group_type, group_options
+    character(LEN=100) :: group_type
     character(len=60) :: sub_name
 
     ! --------------------------------------------------------------------------
@@ -2591,7 +2562,7 @@ contains
                    elem_field(ne_radius,ne) = radius
                    if(ne_vol.gt.0)then
                      elem_field(ne_vol,ne) = pi*radius**2*elem_field(ne_length,ne)
- 				   endif
+                  endif
                 else
                    ne0 = elem_cnct(-1,1,ne0)
                 endif
@@ -2699,8 +2670,12 @@ contains
     sub_name = 'element_connectivity_2d'
     call enter_exit(sub_name,1)
     
-    if(.not.allocated(elem_cnct_2d)) allocate(elem_cnct_2d(-2:2,0:10,num_elems_2d))
-    if(.not.allocated(elems_at_node_2d)) allocate(elems_at_node_2d(num_nodes_2d,0:10))
+    if(allocated(elems_at_node_2d))then
+       deallocate(elem_cnct_2d)
+       deallocate(elems_at_node_2d)
+    endif
+    allocate(elem_cnct_2d(-2:2,0:10,num_elems_2d))
+    allocate(elems_at_node_2d(num_nodes_2d,0:10))
     
 !!! calculate elems_at_node_2d array: stores the elements that nodes are in
     
@@ -2781,8 +2756,11 @@ contains
     sub_name = 'line_segments_for_2d_mesh'
     call enter_exit(sub_name,1)
     
-    if(.not.allocated(elem_lines_2d)) allocate(elem_lines_2d(4,num_elems_2d))
-    if(.not.allocated(scale_factors_2d)) allocate(scale_factors_2d(16,num_elems_2d))
+    ! allocate elem_lines_2d, scale_factors_2d,lines_2d,line_versn_2d,lines_in_elem,nodes_in_line,arclength
+    if(allocated(elem_lines_2d)) deallocate(elem_lines_2d)
+    if(allocated(scale_factors_2d)) deallocate(scale_factors_2d)
+    allocate(elem_lines_2d(4,num_elems_2d))
+    allocate(scale_factors_2d(16,num_elems_2d))
     
     elem_lines_2d=0
     num_lines_2d = 0
@@ -2812,11 +2790,17 @@ contains
        
        elem_lines_2d = 0
        
-       if(.not.allocated(lines_2d)) allocate(lines_2d(0:num_lines_2d))
-       if(.not.allocated(line_versn_2d)) allocate(line_versn_2d(2,3,num_lines_2d))
-       if(.not.allocated(lines_in_elem)) allocate(lines_in_elem(0:4,num_lines_2d))
-       if(.not.allocated(nodes_in_line)) allocate(nodes_in_line(3,0:3,num_lines_2d))
-       if(.not.allocated(arclength)) allocate(arclength(3,num_lines_2d)) 
+       if(allocated(lines_2d)) deallocate(lines_2d)
+       if(allocated(line_versn_2d)) deallocate(line_versn_2d)
+       if(allocated(lines_in_elem)) deallocate(lines_in_elem)
+       if(allocated(nodes_in_line)) deallocate(nodes_in_line)
+       if(allocated(arclength)) deallocate(arclength)
+       allocate(lines_2d(0:num_lines_2d))
+       allocate(line_versn_2d(2,3,num_lines_2d))
+       allocate(lines_in_elem(0:4,num_lines_2d))
+       allocate(nodes_in_line(3,0:3,num_lines_2d))
+       !allocate(arclength(num_lines_2d)) 
+
        lines_in_elem=0
        lines_2d=0
        nodes_in_line=0
@@ -2972,7 +2956,7 @@ contains
     ! Strahler orders for a given tree
 
     ! Local Variables
-    integer :: INLETS,ne,ne0,ne2,noelem2,np,np2,nn,num_attach,n_children, &
+    integer :: INLETS,ne,ne0,ne2,noelem2,np,np2,num_attach,n_children, &
          n_generation,n_horsfield,OUTLETS,STRAHLER,STRAHLER_ADD,temp1
     LOGICAL :: DISCONNECT,DUPLICATE
     character(len=60) :: sub_name
@@ -3541,101 +3525,11 @@ contains
   
 !!!#############################################################################
 
-  subroutine group_elem_parent_term(ne_parent)
-    !*group_elem_parent_term:* group the terminal elements that sit distal to
-    !  a given parent element (ne_parent)
-    
-    integer,intent(in) :: ne_parent  ! the parent element number
-    ! Local Variables
-    integer :: ne,ne_count,noelem,num_parents
-    integer,allocatable :: templist(:)
-    character(len=60) :: sub_name
-    
-    ! --------------------------------------------------------------------------
-
-    sub_name = 'group_elem_parent_term'
-    call enter_exit(sub_name,1)
-    
-    allocate(templist(num_elems))
-    if(.not.allocated(parentlist)) allocate(parentlist(num_elems))
-    
-    !reset the list of parent elements to zero
-    call group_elem_by_parent(ne_parent,templist)
-    
-    ne_count=count(templist.ne.0)
-    num_parents=0
-    parentlist=0
-    
-    do noelem=1,ne_count
-       ne = templist(noelem)
-       if(elem_cnct(1,0,ne).eq.0)then
-          num_parents=num_parents+1
-          parentlist(num_parents)=ne
-       endif !elem_cnct
-    enddo !noelem
-    
-    deallocate(templist)
-    
-    call enter_exit(sub_name,2)
-    
-  end subroutine group_elem_parent_term
-  
-!!!#############################################################################
-
-  subroutine group_elem_by_parent(ne_parent,elemlist)
-    !*group_elem_by_parent:* group elements that sit distal to a given
-    ! parent element (ne_parent)
-
-    integer,intent(in) :: ne_parent  ! the parent element number
-    integer :: elemlist(:)
-    ! Local Variables
-    integer :: nt_bns,ne_count,num_nodes,m,n,ne0
-    integer,allocatable :: ne_old(:),ne_temp(:)
-    character(len=60) :: sub_name
-
-    ! --------------------------------------------------------------------------
-    
-    sub_name='group_elem_by_parent'
-    call enter_exit(sub_name,1)
-    
-    elemlist = 0
-    allocate(ne_old(size(elemlist)))
-    allocate(ne_temp(size(elemlist)))
-    
-    nt_bns=1
-    ne_old(1) = ne_parent
-    ne_count = 1
-    elemlist(ne_count)=ne_parent
-    
-    do while(nt_bns.ne.0)
-       num_nodes=nt_bns
-       nt_bns=0
-       do m=1,num_nodes
-          ne0=ne_old(m) !parent global element number
-          do n=1,elem_cnct(1,0,ne0) !for each daughter branch
-             nt_bns=nt_bns+1
-             ne_temp(nt_bns)=elem_cnct(1,n,ne0)
-          enddo !n
-       enddo !m
-       do n=1,nt_bns
-          ne_old(n)=ne_temp(n) !updates list of previous generation element numbers
-          ne_count=ne_count+1
-          elemlist(ne_count)=ne_temp(n)
-       enddo !n
-    enddo !while
-    
-    deallocate(ne_old)
-    deallocate(ne_temp)
-    
-    call enter_exit(sub_name,2)
-    
-  end subroutine group_elem_by_parent
-
-!!!#############################################################################
-  
   subroutine reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
     !*reallocate_node_elem_arrays:* Reallocates the size of geometric
     ! arrays when modifying geometries
+
+    use indices
 
     integer,intent(in) :: num_elems_new,num_nodes_new
     ! Local variables
@@ -3884,7 +3778,7 @@ contains
 
     integer :: i,j,k,ne,nelist(20),ne_adjacent,np,nplist(20),np_adjacent,np_last,num_list, &
          ring1_nodes(4)
-    real(dp) :: displace_length,distance_to_crux,distance_to_crux_last,line_length, &
+    real(dp) :: displace_length,line_length, &
          nedirection(3,20),point1(3),point2(3),point3(3),point4(3),vector(3)
     logical :: continue
     character(len=60) :: sub_name
@@ -3989,24 +3883,6 @@ contains
     
   end subroutine redistribute_mesh_nodes_2d_from_1d
 
-!!!#############################################################################
-  
-  function inlist(item,ilist)
-    
-    integer :: item,ilist(:)
-    ! Local variables
-    integer :: n
-    logical :: inlist
-
-    ! --------------------------------------------------------------------------
-
-    inlist = .false.
-    do n=1,size(ilist)
-       if(item == ilist(n)) inlist = .true.
-    enddo
-    
-  end function inlist
-  
 !!!#############################################################################
   
   function coord_at_xi(ne,xi,basis)
@@ -4413,7 +4289,7 @@ contains
     ! Local variables
     integer :: i,j,k,line1,line2,line3,line4,ncount_cap_entry=0,ncount_cap_exit=0, &
          ncount_inner=0,ncount_centre=0,ncount_phys_vol=0,ncount_spline_0, &
-         ncount_surface=0,ncount_volume=0,ncount_wall=0,ne,ne_next,np_highest,np1,np2
+         ncount_volume=0,ncount_wall=0,ne,ne_next,np_highest,np1,np2
     integer,allocatable :: centre_points(:),ncap_entry(:),ncap_exit(:), &
          ncentre(:),ninner(:),nphys_vol(:),node_spoke(:,:),nwall(:)
     real(dp) :: point_xyz_centre(3), xidivn(3)
