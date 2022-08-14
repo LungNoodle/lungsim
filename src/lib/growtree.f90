@@ -34,7 +34,7 @@ module growtree
 
   !Interfaces
   private
-  public grow_recursive_tree,smooth_1d_tree
+  public grow_tree,smooth_1d_tree
 
 contains
 
@@ -47,7 +47,6 @@ contains
   ! branching plane.
   !
   subroutine adjust_branch_angle(Nth,ne,np1,np2,np,angle_max,angle_min)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADJUST_BRANCH_ANGLE" :: ADJUST_BRANCH_ANGLE
 
     use indices
     use mesh_utilities,only: angle_btwn_vectors,unit_vector,vector_length
@@ -126,7 +125,6 @@ contains
   !
   subroutine branch_to_cofm(map_seed_to_elem,nen,np1,COFM,branch_fraction,length_limit,&
     length_parent,shortest_length,candidate_xyz,make_branch)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_BRANCH_TO_COFM" :: BRANCH_TO_COFM
 
     use indices
     use math_utilities,only: sort_real_list
@@ -214,7 +212,6 @@ contains
   ! points by averaging their coordinates and returns result in 'cofm'
   !
   subroutine calculate_seed_cofm(map_seed_to_elem,nen,COFM)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CALCULATE_SEED_COFM" :: CALCULATE_SEED_COFM
 
     integer :: map_seed_to_elem(*),nen
     real(dp) :: COFM(3)
@@ -258,7 +255,6 @@ contains
   subroutine check_branch_rotation_plane(map_seed_to_elem,ne,&
        ne_grnd_parent,ne_parent,local_parent_temp,num_next_parents,&
        np,np1,np2,np3,num_terminal,rotation_limit)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CHECK_BRANCH_ROTATION_PLANE" :: CHECK_BRANCH_ROTATION_PLANE
 
     use mesh_utilities,only: distance_between_points
     use other_consts
@@ -371,7 +367,6 @@ contains
   ! vector a,b,c , calculate rotation matrix for arbitrary point.
   !
   subroutine check_rotation_angle(ne,np00,np0,np1,np2,np3,np4,rotation_limit)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CHECK_ROTATION_ANGLE" :: CHECK_ROTATION_ANGLE
 
     use mesh_utilities,only: angle_btwn_vectors,cross_product,distance_between_points, &
          unit_vector
@@ -570,7 +565,6 @@ contains
   !*create_new_node:* sets up arrays for a new mesh node and element.
   !
   subroutine create_new_node(ne,ne_start,np,np_start,MAKE)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CREATE_NEW_NODE" :: CREATE_NEW_NODE
 
     integer :: ne,ne_start,np,np_start
     logical :: MAKE
@@ -742,6 +736,72 @@ contains
   end subroutine group_seeds_with_branch
 
 
+!!!#############################################################################
+  
+  subroutine grow_tree(surface_elems,parent_ne,angle_max,angle_min,&
+       branch_fraction,length_limit,shortest_length,rotation_limit)
+    !interface to the grow_recursive_tree subroutine 
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
+
+    use geometry,only: element_connectivity_1d,evaluate_ordering, &
+         group_elem_parent_term,reallocate_node_elem_arrays,triangles_from_surface
+    use mesh_utilities,only: get_local_elem_2d
+    
+    integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
+    integer,intent(in)  :: parent_ne                ! stem branch that supplies 'parents' to grow from
+    real(dp),intent(in) :: angle_max                ! maximum branch angle with parent; in degrees
+    real(dp),intent(in) :: angle_min                ! minimum branch angle with parent; in degrees
+    real(dp),intent(in) :: branch_fraction          ! fraction of distance (to COFM) to branch
+    real(dp),intent(in) :: length_limit             ! minimum length of a generated branch (shorter == terminal)
+    real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
+    real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
+
+    integer :: i,num_elems_new,num_nodes_new,num_triangles,num_vertices
+    integer,allocatable :: elem_list(:), parent_list(:), triangle(:,:)
+    real(dp),allocatable :: vertex_xyz(:,:)
+
+!!! allocate temporary arrays
+    allocate(parent_list(num_elems))
+    parent_list = 0
+    allocate(elem_list(count(surface_elems.ne.0)))
+
+!!! get the list of local surface element numbers from the global list
+    do i = 1,count(surface_elems.ne.0)
+       elem_list(i) = get_local_elem_2d(surface_elems(i))
+    enddo
+
+!!! get the list of current terminal elements that subtend parent_ne.
+!!! these will be the initial branches for growing
+    call group_elem_parent_term(parent_list,parent_ne) 
+
+!!! make a linear triangulated mesh over the surface elements
+    call triangles_from_surface(num_triangles,num_vertices,elem_list,triangle,vertex_xyz)
+
+!!! estimate the number of elements in the generated model based on the
+!!! number of data (seed) points. i.e. N = 2*N_data - 1.
+    num_elems_new = num_elems + 2*num_data + 100
+    num_nodes_new = num_nodes + 2*num_data + 100
+
+!!! reallocate arrays using the estimated generated model size
+    call reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
+
+!!! generate a branching tree inside the triangulated mesh
+    call grow_recursive_tree(num_elems_new,num_vertices,elem_list,parent_list, &
+         parent_ne,triangle,angle_max,angle_min, &
+         branch_fraction,length_limit,shortest_length,rotation_limit,vertex_xyz)
+
+!!! update the tree connectivity
+    call element_connectivity_1d
+    
+!!! calculate branch generations and orders
+    call evaluate_ordering
+
+!!! deallocate temporary arrays
+    deallocate(elem_list)
+    deallocate(parent_list)
+    
+  end subroutine grow_tree
+
   !###############################################################
   !
   !*grow_recursive_tree:* the main growing subroutine (public). Genertes a volume-filling
@@ -750,7 +810,6 @@ contains
   subroutine grow_recursive_tree(num_elems_new,num_vertices,surface_elems,parent_list, &
        parent_ne,triangle,angle_max,angle_min, &
        branch_fraction,length_limit,shortest_length,rotation_limit,vertex_xyz)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
 
     use indices
     use mesh_utilities,only: calc_branch_direction,distance_between_points, &
@@ -1044,7 +1103,6 @@ contains
   !
   subroutine limit_branch_angles(ne,ne_parent,np,&
        np_prnt_start,np_start,angle_max,angle_min)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_LIMIT_BRANCH_ANGLES" :: LIMIT_BRANCH_ANGLES
 
     use indices
     use mesh_utilities,only: angle_btwn_vectors,cross_product,distance_between_points, &
@@ -1128,7 +1186,6 @@ contains
   !*reduce_branch_angle:* calculates the direction of a branch for a given branch angle
 
   subroutine reduce_branch_angle(np1,np2,np,candidate_xyz,factor)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_REDUCE_BRANCH_ANGLE" :: REDUCE_BRANCH_ANGLE
 
     use mesh_utilities,only: angle_btwn_vectors,unit_vector,vector_length
     
@@ -1167,7 +1224,6 @@ contains
   ! and their children
   !
   subroutine shorten_branch_and_children(ne)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SHORTEN_BRANCH_AND_CHILDREN" :: SHORTEN_BRANCH_AND_CHILDREN
 
     use indices
     
@@ -1211,7 +1267,6 @@ contains
   ! improve the topology of generated trees, minimising the impact of 'odd' branching
   !
   subroutine smooth_1d_tree(num_elem_start,length_limit)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SMOOTH_1D_TREE" :: SMOOTH_1D_TREE
 
     use indices
     
@@ -1225,8 +1280,6 @@ contains
     sub_name = 'smooth_1d_tree'
     call enter_exit(sub_name,1)
 
-    write(*,*) 'start smooth: ',node_xyz(1:3,79)
-    write(*,*) 'term node entry',node_xyz(:,63097)
     do n = 1,n_smoothing_steps
        do ne = num_elems,num_elem_start,-1
           if(elem_cnct(1,0,ne).eq.2)then
@@ -1279,7 +1332,6 @@ contains
   ! seed point.
   !
   subroutine split_seed_points(map_seed_to_elem,ne1,ne,np1,np2,np3,COFM,enough_points)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SPLIT_SEED_POINTS" :: SPLIT_SEED_POINTS
 
     use mesh_utilities,only: check_colinear_points,make_plane_from_3points,scalar_product_3
     
@@ -1364,7 +1416,6 @@ contains
   ! of child branches, and that passes mid-way between child branches.
   !
   subroutine split_seed_points_initial(map_array,ne_stem)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SPLIT_SEED_POINTS_INITIAL" :: SPLIT_SEED_POINTS_INITIAL
 
     use mesh_utilities,only: make_plane_from_3points,scalar_product_3
 
@@ -1484,7 +1535,6 @@ contains
   !*closest_seed_to_node:* returns the closest seed point to a given branch node
   !
   function closest_seed_to_node(map_seed_to_elem,np)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CLOSEST_SEED_TO_NODE" :: CLOSEST_SEED_TO_NODE
 
     use mesh_utilities,only: distance_between_points
     
@@ -1515,7 +1565,6 @@ contains
   ! that is in a group of seed points currently associated with a specific element
   !
   function closest_seed_to_node_in_group(map_seed_to_elem,ne,np)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CLOSEST_SEED_TO_NODE_IN_GROUP" :: CLOSEST_SEED_TO_NODE_IN_GROUP
 
     use mesh_utilities,only: distance_between_points
     
@@ -1545,7 +1594,6 @@ contains
   !*rotation_angle:* calculates angle between two branching planes
   !
   function rotation_angle(np1,np2,np3,np4,np5)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ROTATION_ANGLE" :: ROTATION_ANGLE
 
     use mesh_utilities,only: angle_btwn_vectors,make_plane_from_3points
     
@@ -1572,7 +1620,6 @@ contains
   ! is defined (as v.w = cos(angle_with_v)).
   !
   function vector_for_angle_limit(U,V,angle_with_u,angle_with_v)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_VECTOR_FOR_ANGLE_LIMIT" :: VECTOR_FOR_ANGLE_LIMIT
 
     use mesh_utilities,only: cross_product,mesh_a_x_eq_b,unit_vector
     

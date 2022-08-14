@@ -36,7 +36,6 @@ contains
 !
 subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
     n_time,heartrate,a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition,cap_model)
-!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_WAVE_TRANSMISSION" :: EVALUATE_WAVE_TRANSMISSION
 
   integer, intent(in) :: n_time
   real(dp), intent(in) :: heartrate

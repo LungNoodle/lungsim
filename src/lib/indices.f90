@@ -83,7 +83,6 @@ contains
   
   !> Define problem type
   subroutine define_problem_type(PROBLEM_TYPE)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_PROBLEM_TYPE" :: DEFINE_PROBLEM_TYPE
     
     character(len=MAX_FILENAME_LEN),intent(in) :: PROBLEM_TYPE
     
@@ -117,7 +116,6 @@ contains
   
   !>Gas mixing indices
   subroutine exchange_indices
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GASMIX_INDICES" :: GASMIX_INDICES
     
     character(len=60) :: sub_name
     
@@ -167,7 +165,6 @@ contains
   
   !>Gas mixing indices
   subroutine gasmix_indices
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GASMIX_INDICES" :: GASMIX_INDICES
     
     character(len=60) :: sub_name
     
@@ -209,7 +206,6 @@ contains
   
   !> Ventilation indices
   subroutine ventilation_indices
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_VENTILATION_INDICES" :: VENTILATION_INDICES
     
     character(len=60) :: sub_name
     
@@ -250,7 +246,6 @@ contains
 
   subroutine growing_indices
     !* Growing indices:* set up indices for growing (1D tree) arrays
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROWING_INDICES" :: GROWING_INDICES
     
     character(len=60) :: sub_name
 
@@ -263,12 +258,15 @@ contains
     ! indices for node_field
     num_nj = 0 !number of nodal fields
     ! indices for elem_field
-    num_ne = 5 !number of element fields
-    ne_radius = 1 !radius of airway
-    ne_length = 2 !length of airway
-    ne_a_A = 3 !ratio of duct to total cross-section
-    ne_vd_bel = 4
-    ne_vol_bel = 5
+    num_ne = 8 !number of element fields
+    ne_radius = 1 !radius of branch
+    ne_radius_in = 2
+    ne_radius_out = 3
+    ne_length = 4 !length of branch
+    ne_vol = 5
+    ne_a_A = 6 !ratio of duct to total cross-section (airway)
+    ne_vd_bel = 7
+    ne_vol_bel = 8
     ! indices for unit_field
     num_nu = 0
     
@@ -280,7 +278,6 @@ contains
   !
   !> Perfusion indices
   subroutine perfusion_indices
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_PERFUSION_INDICES" :: PERFUSION_INDICES
     
     character(len=60) :: sub_name
     
@@ -310,7 +307,6 @@ contains
   end subroutine perfusion_indices
   
   function get_ne_radius() result(res)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GET_NE_RADIUS" :: GET_NE_RADIUS
     
     implicit none
     character(len=60) :: sub_name
@@ -325,7 +321,6 @@ contains
   end function get_ne_radius
   
   function get_nj_conc1() result(res)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GET_NJ_CONC1" :: GET_NJ_CONC1
     
     character(len=60) :: sub_name
     integer :: res

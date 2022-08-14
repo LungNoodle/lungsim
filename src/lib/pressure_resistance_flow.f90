@@ -32,7 +32,6 @@ contains
 !
 !*evaluate_PRQ:* Solves for pressure and flow in a rigid or compliant tree structure
   subroutine evaluate_prq(mesh_type,vessel_type,grav_dirn,grav_factor,bc_type,inlet_bc,outlet_bc)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_PRQ" :: EVALUATE_PRQ
 
     !local variables
     integer :: mesh_dof,depvar_types

@@ -12,7 +12,6 @@ void define_mesh_geometry_test_c(void);
 void define_node_geometry_c(const char *NODEFILE, int *filename_len);
 void define_node_geometry_2d_c(const char *NODEFILE, int *filename_len);
 void define_data_geometry_c(const char *DATAFILE, int *filename_len);
-extern void grow_tree_c(int *elemlist_len, int elemlist[], int *parent_ne, double *angle_max, double *angle_min, double *branch_fraction, double *length_limit, double *shortest_length, double *rotation_limit);
 extern void make_data_grid_c(int *elemlist_len, int elemlist[], double *offset, double *spacing, const char *filename, int *filename_len, const char *groupname, int *groupname_len);
 extern void make_2d_vessel_from_1d_c(int *elemlist_len, int elemlist[]);
 void define_rad_from_file_c(const char *FIELDFILE, int *filename_len, const char *radius_type, int *radius_type_len);
@@ -81,11 +80,6 @@ void define_data_geometry(const char *DATAFILE)
 {
   int filename_len = (int)strlen(DATAFILE);
   define_data_geometry_c(DATAFILE, &filename_len);
-}
-
-void grow_tree(int elemlist_len, int elemlist[], int parent_ne, double angle_max, double angle_min, double branch_fraction, double length_limit, double shortest_length, double rotation_limit)
-{
-  grow_tree_c(&elemlist_len, elemlist, &parent_ne, &angle_max, &angle_min, &branch_fraction, &length_limit, &shortest_length, &rotation_limit);
 }
 
 void make_data_grid(int elemlist_len, int elemlist[], double offset, double spacing, const char *filename, const char *groupname)

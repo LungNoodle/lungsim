@@ -43,7 +43,6 @@ module geometry
   public get_final_real
   public get_local_node_f
   public group_elem_parent_term
-  public grow_tree
   public make_data_grid
   public make_2d_vessel_from_1d
   public reallocate_node_elem_arrays
@@ -91,7 +90,6 @@ contains
   subroutine add_mesh(meshfile, branchtype, n_refine)
     !*add_mesh:* Reads in an ipmesh file and adds this mesh to the terminal
     ! branches of an existing tree geometry
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADD_MESH" :: ADD_MESH
 
     integer,intent(in) :: n_refine
     character(len=*), intent(in) :: meshfile
@@ -349,7 +347,6 @@ contains
 
   subroutine add_matching_mesh()
     !*add_matching_mesh:* 
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADD_MATCHING_MESH" :: ADD_MATCHING_MESH
 
     !Parameters to become inputs
     real(dp) :: offset(3)
@@ -499,7 +496,6 @@ contains
 
   subroutine append_units()
     !*append_units:* Appends terminal units at the end of a tree structure
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_APPEND_UNITS" :: APPEND_UNITS
 
     ! Local parameters
     integer :: ne,ne0,nu
@@ -552,7 +548,6 @@ contains
 
   subroutine define_1d_elements(ELEMFILE)
     !*define_1d_elements:* Reads in an 1D element ipelem file to define a geometry
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_1D_ELEMENTS" :: DEFINE_1D_ELEMENTS
     
     character(len=MAX_FILENAME_LEN), intent(in) :: ELEMFILE
     !     Local Variables
@@ -678,7 +673,6 @@ contains
 
   subroutine define_elem_geometry_2d(ELEMFILE,sf_option)
     ! Reads in 2D ipelem file.
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_ELEM_GEOMETRY_2D" :: DEFINE_ELEM_GEOMETRY_2D
 
     character(len=*) :: ELEMFILE
     character(len=4) :: sf_option
@@ -766,7 +760,6 @@ contains
 
   subroutine define_mesh_geometry_test()
     !*define_mesh_geometry_test:*
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_MESH_GEOMETRY_TEST" :: DEFINE_MESH_GEOMETRY_TEST
 
     !     Local Variables
     integer :: j,ne,np,np1,np2
@@ -916,7 +909,6 @@ contains
   
   subroutine define_node_geometry(NODEFILE)
     !*define_node_geometry:* Reads in an ipnode file to define a tree geometry
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY" :: DEFINE_NODE_GEOMETRY
     
     character(len=MAX_FILENAME_LEN), intent(in) :: NODEFILE !Input nodefile
     !     Local Variables
@@ -1014,7 +1006,6 @@ contains
 
   subroutine define_node_geometry_2d(NODEFILE)
     !*define_node_geometry_2d:* Reads in an ipnode file to define surface nodes
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_NODE_GEOMETRY_2D" :: DEFINE_NODE_GEOMETRY_2D
     
     character(len=*),intent(in) :: NODEFILE
     !     Local Variables
@@ -1119,7 +1110,6 @@ contains
 
   subroutine define_data_geometry(datafile)
     !*define_data_geometry:* reads data points from a file
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_DATA_GEOMETRY" :: DEFINE_DATA_GEOMETRY
 
     character(len=*) :: datafile
     ! Local variables
@@ -1137,10 +1127,10 @@ contains
     else ! need to append the correct filename extension
        readfile = trim(datafile)//'.ipdata'
     endif
-    
+
     open(10, file=readfile, status='old')
     read(unit=10, fmt="(a)", iostat=ierror) buffer
-    
+
     !set the counted number of data points to zero
     ncount = 0
     
@@ -1206,70 +1196,6 @@ contains
     call enter_exit(sub_name,2)
 
   end subroutine define_data_geometry
-
-!!!#############################################################################
-  
-  subroutine grow_tree(surface_elems,parent_ne,angle_max,angle_min,&
-       branch_fraction,length_limit,shortest_length,rotation_limit)
-    !interface to the grow_recursive_tree subroutine 
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
-
-    use growtree,only: grow_recursive_tree
-    
-    integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
-    integer,intent(in)  :: parent_ne                ! stem branch that supplies 'parents' to grow from
-    real(dp),intent(in) :: angle_max                ! maximum branch angle with parent; in degrees
-    real(dp),intent(in) :: angle_min                ! minimum branch angle with parent; in degrees
-    real(dp),intent(in) :: branch_fraction          ! fraction of distance (to COFM) to branch
-    real(dp),intent(in) :: length_limit             ! minimum length of a generated branch (shorter == terminal)
-    real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
-    real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
-
-    integer :: i,num_elems_new,num_nodes_new,num_triangles,num_vertices
-    integer,allocatable :: elem_list(:), parent_list(:), triangle(:,:)
-    real(dp),allocatable :: vertex_xyz(:,:)
-
-!!! allocate temporary arrays
-    allocate(parent_list(num_elems))
-    parent_list = 0
-    allocate(elem_list(count(surface_elems.ne.0)))
-
-!!! get the list of local surface element numbers from the global list
-    do i = 1,count(surface_elems.ne.0)
-       elem_list(i) = get_local_elem_2d(surface_elems(i))
-    enddo
-
-!!! get the list of current terminal elements that subtend parent_ne.
-!!! these will be the initial branches for growing
-    call group_elem_parent_term(parent_list,parent_ne) 
-
-!!! make a linear triangulated mesh over the surface elements
-    call triangles_from_surface(num_triangles,num_vertices,elem_list,triangle,vertex_xyz)
-
-!!! estimate the number of elements in the generated model based on the
-!!! number of data (seed) points. i.e. N = 2*N_data - 1.
-    num_elems_new = num_elems + 2*num_data + 100
-    num_nodes_new = num_nodes + 2*num_data + 100
-
-!!! reallocate arrays using the estimated generated model size
-    call reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
-
-!!! generate a branching tree inside the triangulated mesh
-    call grow_recursive_tree(num_elems_new,num_vertices,elem_list,parent_list, &
-         parent_ne,triangle,angle_max,angle_min, &
-         branch_fraction,length_limit,shortest_length,rotation_limit,vertex_xyz)
-
-!!! update the tree connectivity
-    call element_connectivity_1d
-    
-!!! calculate branch generations and orders
-    call evaluate_ordering
-
-!!! deallocate temporary arrays
-    deallocate(elem_list)
-    deallocate(parent_list)
-    
-  end subroutine grow_tree
 
 !!!#############################################################################
 
@@ -1572,7 +1498,6 @@ contains
     ! centrelines of a 1D tree, and located at distance 'radius' from the centre.
     ! a template for a set of 5 nodes (that together define a bifurcation) is
     ! scaled, rotated, translated to align with the 1d mesh and its radii. 
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_MAKE_2D_VESSEL_FROM_1D" :: MAKE_2D_VESSEL_FROM_1D
 
     integer,intent(in) :: elem_list(:)
     ! Local variables
@@ -2493,7 +2418,6 @@ contains
     !*define_rad_from_file:* reads in a radius field associated with an 
     ! airway tree and assigns radius information to each element, also 
     ! calculates volume of each element
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_FILE" :: DEFINE_RAD_FROM_FILE
 
     character(len=MAX_FILENAME_LEN), intent(in) :: FIELDFILE
     character(len=MAX_STRING_LEN), optional ::  radius_type_in
@@ -2670,7 +2594,6 @@ contains
     ! user-defined maximum radius and branching ratio; for == 'fit', uses pre-
     ! defined radii (read in) and a calculated branching ratio for each path so
     ! that the order 1 branches have radius = USER_RAD.
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_RAD_FROM_GEOM" :: DEFINE_RAD_FROM_GEOM
 
     real(dp), intent(in) :: CONTROL_PARAM
     real(dp), intent(in) :: USER_RAD   ! radius of largest branch when order_system
@@ -2786,7 +2709,6 @@ contains
   subroutine element_connectivity_1d()
     !*element_connectivity_1d:*  Calculates element connectivity in 1D and
     ! stores in array elem_cnct
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ELEMENT_CONNECTIVITY_1D" :: ELEMENT_CONNECTIVITY_1D
 
     !     Local Variables
     integer :: ne,ne2,nn,noelem,np,np2,np1
@@ -3015,7 +2937,6 @@ contains
   subroutine evaluate_ordering()
     !*evaluate_ordering:* calculates generations, Horsfield orders,
     ! Strahler orders for a given tree
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_ORDERING" :: EVALUATE_ORDERING
 
     ! Local Variables
     integer :: INLETS,ne,ne0,ne2,noelem2,np,np2,num_attach,n_children, &
@@ -3193,7 +3114,6 @@ contains
   subroutine volume_of_mesh(volume_model,volume_tree)
     !*volume_of_mesh:* calculates the volume of an airway mesh including
     ! conducting and respiratory airways
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_VOLUME_OF_MESH" :: VOLUME_OF_MESH
     
     real(dp) :: volume_model,volume_tree
     !     Local Variables
@@ -3245,7 +3165,6 @@ contains
     ! options on 'type': 1== single layered surface mesh of the vessel wall
     !                    2== double-layered thick-walled volume mesh of vessel wall
     !                    3== volume mesh of vessel lumen
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_WRITE_GEO_FILE" :: WRITE_GEO_FILE
 
     integer,intent(in) :: type
     character(len=*),intent(in) :: filename
@@ -4318,7 +4237,6 @@ contains
 !!!###########################################################################
 
   subroutine write_elem_geometry_2d(elemfile)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_WRITE_ELEM_GEOMETRY_2D" :: WRITE_ELEM_GEOMETRY_2D
 
     character(len=*),intent(in) :: elemfile
     !     Local Variables
@@ -4378,7 +4296,6 @@ contains
 !!!#############################################################################
 
   subroutine write_node_geometry_2d(NODEFILE)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_WRITE_NODE_GEOMETRY_2D" :: WRITE_NODE_GEOMETRY_2D
 
     character(len=*),intent(in) :: NODEFILE
     !     Local Variables
