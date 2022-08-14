@@ -123,9 +123,10 @@ contains
     call enter_exit(sub_name,1)
     ! indices for elem_ordrs. These dont usually change.
     ! indices for node_field
-    num_nj=3
+    num_nj=4
     nj_conc1=2
     nj_conc2=3
+    nj_aw_press=4 !air pressure
     
     ! indices for elem_field
     num_ne = 11
@@ -133,21 +134,30 @@ contains
     ne_length = 2
     ne_vol = 3
     ne_resist = 4
-    ne_Vdot = 5
-    ne_Qdot = 6
-    ne_dvdt = 7
-    ne_vd_bel = 8
-    ne_vol_bel = 9
+    ne_t_resist = 5
+    ne_Vdot = 6 !Air flow, current time step
+    ne_Vdot0 = 7 !air flow, last timestep
+    ne_dvdt = 8
+    ne_vd_bel = 9
+    ne_vol_bel = 10
+    ne_Qdot = 11
     
     ! indices for unit_field
-    num_nu=7
+    num_nu=14
     nu_vol=1
     nu_comp=2
     nu_Vdot0=3
-    nu_vd=4
-    nu_perf=5
-    nu_conc1=6
-    nu_conc2=7
+    nu_Vdot1=4
+    nu_Vdot2=5
+    nu_dpdt=6
+    nu_pe=7
+    nu_vt=8
+    nu_air_press=9
+    nu_vent=10
+    nu_vd=11
+    nu_perf=12
+    nu_conc1=13
+    nu_conc2=14
     
     
     call enter_exit(sub_name,2)

@@ -14,20 +14,25 @@ contains
 !###################################################################################
 !
 !*add_mesh:* Reads in an ipmesh file and adds this mesh to the terminal branches of an existing tree geometry
-  subroutine add_mesh_c(AIRWAY_MESHFILE, filename_len) bind(C, name="add_mesh_c")
+  subroutine add_mesh_c(AIRWAY_MESHFILE, filename_len, BRANCHTYPE, branchtype_len, n_refine) bind(C, name="add_mesh_c")
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
     use other_consts, only: MAX_FILENAME_LEN
     use geometry, only: add_mesh
     implicit none
 
-    integer,intent(in) :: filename_len
-    type(c_ptr), value, intent(in) :: AIRWAY_MESHFILE
+    integer,intent(in) :: filename_len, branchtype_len, n_refine
+    type(c_ptr), value, intent(in) :: AIRWAY_MESHFILE, BRANCHTYPE
     character(len=MAX_FILENAME_LEN) :: filename_f
+    character(len=MAX_FILENAME_LEN) :: branchtype_f
 
     call strncpy(filename_f, AIRWAY_MESHFILE, filename_len)
-
-    call add_mesh(filename_f)
+    call strncpy(branchtype_f, BRANCHTYPE, branchtype_len)
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_add_mesh(filename_f, branchtype_f, n_refine)
+#else
+    call add_mesh(filename_f, branchtype_f, n_refine)
+#endif
 
   end subroutine add_mesh_c
 !
@@ -289,14 +294,50 @@ contains
 
   end subroutine evaluate_ordering_c
 
+!
 !###################################################################################
 !
-!>*set_initial_volume:* assigns a volume to terminal units appended on a tree structure
+
+  subroutine refine_1d_elements_c(elemlist, elemlist_len, nrefinements) bind(C, name="refine_1d_elements_c")
+    use geometry, only: refine_1d_elements
+    implicit none
+
+    integer,intent(in) :: elemlist_len
+    integer,intent(in) :: elemlist(elemlist_len)
+    integer,intent(in) :: nrefinements
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_refine_1d_elements(elemlist, nrefinements)
+#else
+    call refine_1d_elements(elemlist, nrefinements)
+#endif
+
+  end subroutine refine_1d_elements_c
+  
+!
+!###################################################################################
+!
+!
+  subroutine renumber_tree_in_order_c() bind(C, name="renumber_tree_in_order_c")
+    use geometry, only: renumber_tree_in_order
+    implicit none
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_renumber_tree_in_order
+#else
+    call renumber_tree_in_order
+#endif
+
+  end subroutine renumber_tree_in_order_c
+
+!###################################################################################
+!
+!>*initialise_lung_volume:* assigns a volume to terminal units appended on a tree structure
 !>based on an assumption of a linear gradient in the gravitational direction with max
 !> min and COV values defined.
-  subroutine set_initial_volume_c(Gdirn, COV, total_volume, Rmax, Rmin) bind(C, name="set_initial_volume_c")
+  subroutine initialise_lung_volume_c(Gdirn, COV, total_volume, Rmax, Rmin) bind(C, name="initialise_lung_volume_c")
 
-    use geometry, only: set_initial_volume
+    use geometry, only: initialise_lung_volume
     use arrays, only: dp
     implicit none
 
@@ -304,9 +345,13 @@ contains
     integer,intent(in) :: Gdirn
     real(dp),intent(in) :: COV, total_volume, Rmax, Rmin
 
-    call set_initial_volume(Gdirn, COV, total_volume, Rmax, Rmin)
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_initialise_lung_volume(Gdirn, COV, total_volume, Rmax, Rmin)
+#else
+    call initialise_lung_volume(Gdirn, COV, total_volume, Rmax, Rmin)
+#endif
 
-  end subroutine set_initial_volume_c
+  end subroutine initialise_lung_volume_c
 
 !
 !###################################################################################
