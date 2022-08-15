@@ -13,11 +13,7 @@ contains
 
     real(dp),intent(in) :: initial_concentration,inlet_concentration
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_initial_gasmix(initial_concentration, inlet_concentration)
-#else
     call initial_gasmix(initial_concentration, inlet_concentration)
-#endif
 
   end subroutine initial_gasmix_c
 
@@ -36,15 +32,9 @@ contains
          inlet_concentration,inlet_flow,solve_tolerance,time_end,time_start
     logical,intent(in) :: inspiration
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_solve_gasmix(fileid,inr_itr_max,out_itr_max,diffusion_coeff,&
-      dt,initial_volume,inlet_concentration,inlet_flow,solve_tolerance,time_end,&
-      time_start,inspiration)
-#else
     call solve_gasmix(fileid,inr_itr_max,out_itr_max,diffusion_coeff,&
       dt,initial_volume,inlet_concentration,inlet_flow,solve_tolerance,time_end,&
       time_start,inspiration)
-#endif
 
   end subroutine solve_gasmix_c
 
@@ -55,11 +45,7 @@ contains
     use gasmix, only: transfer_flow_vol_from_units
     implicit none
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_transfer_flow_vol_from_units()
-#else
     call transfer_flow_vol_from_units()
-#endif
 
   end subroutine transfer_flow_vol_from_units_c
 

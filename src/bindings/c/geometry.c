@@ -3,7 +3,7 @@
 
 #include "string.h"
 
-void add_mesh_c(const char *AIRWAY_MESHFILE, int *filename_len);
+void add_mesh_c(const char *AIRWAY_MESHFILE, int *filename_len, const char *BRANCHTYPE, int *branchtype_len, int *n_refine);
 void add_matching_mesh_c(void);
 void append_units_c(void);
 void define_1d_elements_c(const char *ELEMFILE, int *filename_len);
@@ -12,7 +12,6 @@ void define_mesh_geometry_test_c(void);
 void define_node_geometry_c(const char *NODEFILE, int *filename_len);
 void define_node_geometry_2d_c(const char *NODEFILE, int *filename_len);
 void define_data_geometry_c(const char *DATAFILE, int *filename_len);
-extern void grow_tree_c(int *elemlist_len, int elemlist[], int *parent_ne, double *angle_max, double *angle_min, double *branch_fraction, double *length_limit, double *shortest_length, double *rotation_limit);
 void import_node_geometry_2d_c(const char *NODEFILE, int *filename_len);
 extern void make_data_grid_c(int *elemlist_len, int elemlist[], double *offset, double *spacing, const char *filename, int *filename_len, const char *groupname, int *groupname_len);
 extern void make_2d_vessel_from_1d_c(int *elemlist_len, int elemlist[]);
@@ -23,16 +22,19 @@ void define_rad_from_geom_c(const char *order_system, int *order_system_len, dou
                             const char *group_type, int *group_type_len, const char *group_options, int *group_options_len);
 void element_connectivity_1d_c(void);
 void evaluate_ordering_c(void);
-void set_initial_volume_c(int *Gdirn, double *COV, double *total_volume, double *Rmax, double *Rmin);
+void refine_1d_elements_c(int *elemlist_len, int elemlist[], int *nrefinements);
+void renumber_tree_in_order_c(void);
+void initialise_lung_volume_c(int *Gdirn, double *COV, double *total_volume, double *Rmax, double *Rmin);
 void volume_of_mesh_c(double *volume_model, double *volume_tree);
 void write_elem_geometry_2d_c(const char *ELEMFILE, int *filename_len);
 void write_geo_file_c(int *ntype, const char *GEOFILE, int *filename_len);
 void write_node_geometry_2d_c(const char *NODEFILE, int *filename_len);
 
-void add_mesh(const char *AIRWAY_MESHFILE)
+void add_mesh(const char *AIRWAY_MESHFILE, const char *BRANCHTYPE, int n_refine )
 {
   int filename_len = (int)strlen(AIRWAY_MESHFILE);
-  add_mesh_c(AIRWAY_MESHFILE, &filename_len);
+  int branchtype_len = (int)strlen(BRANCHTYPE);
+  add_mesh_c(AIRWAY_MESHFILE, &filename_len, BRANCHTYPE, &branchtype_len, &n_refine);
 }
 
 void add_matching_mesh()
@@ -79,11 +81,6 @@ void define_data_geometry(const char *DATAFILE)
 {
   int filename_len = (int)strlen(DATAFILE);
   define_data_geometry_c(DATAFILE, &filename_len);
-}
-
-void grow_tree(int elemlist_len, int elemlist[], int parent_ne, double angle_max, double angle_min, double branch_fraction, double length_limit, double shortest_length, double rotation_limit)
-{
-  grow_tree_c(&elemlist_len, elemlist, &parent_ne, &angle_max, &angle_min, &branch_fraction, &length_limit, &shortest_length, &rotation_limit);
 }
 
 void import_node_geometry_2d(const char *NODEFILE)
@@ -140,9 +137,19 @@ void evaluate_ordering()
   evaluate_ordering_c();
 }
 
-void set_initial_volume(int Gdirn, double COV, double total_volume, double Rmax, double Rmin)
+void refine_1d_elements(int elemlist_len, int elemlist[], int nrefinements)
 {
-  set_initial_volume_c(&Gdirn, &COV, &total_volume, &Rmax, &Rmin);
+  refine_1d_elements_c(&elemlist_len, elemlist, &nrefinements);
+}
+
+void renumber_tree_in_order()
+{
+  renumber_tree_in_order_c();
+}
+
+void initialise_lung_volume(int Gdirn, double COV, double total_volume, double Rmax, double Rmin)
+{
+  initialise_lung_volume_c(&Gdirn, &COV, &total_volume, &Rmax, &Rmin);
 }
 
 void volume_of_mesh(double *volume_model, double *volume_tree)

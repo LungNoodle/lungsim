@@ -12,4 +12,5 @@ set(DIAGNOSTICS_TEST_SRCS
 #                - extra_sources_c  : List of extra C/C++ source code used for testing (if none, input empty string "")
 add_pfunit_test(diagnostics_test ${DIAGNOSTICS_TEST_SRCS} "" "")
 # Link the test to the aether library target.
-target_link_libraries (diagnostics_test aether)
+target_link_libraries(diagnostics_test aether)
+target_include_directories(diagnostics_test PRIVATE $<TARGET_PROPERTY:aether,Fortran_MODULE_DIRECTORY>)

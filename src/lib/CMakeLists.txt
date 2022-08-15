@@ -26,56 +26,27 @@ set(LIB_SRCS
 )
 if (SUPERLU_FOUND)
   set_source_files_properties(capillaryflow.f90 PROPERTIES COMPILE_DEFINITIONS HAVE_SUPERLU)
+  list(APPEND LIB_SRCS c_fortran_dgssv.c)
+  if (SUPERLU_HAS_GLOBALLU_T)
+    set_source_files_properties(c_fortran_dgssv.c PROPERTIES COMPILE_DEFINITIONS SUPERLU_HAS_GLOBALLU_T)
+  endif()
 endif ()
-set_source_files_properties(capillaryflow.f90 PROPERTIES COMPILE_FLAGS -cpp)
+
+if (NOT CMAKE_Fortran_COMPILER_ID STREQUAL Intel)
+  set_source_files_properties(capillaryflow.f90 PROPERTIES COMPILE_FLAGS -cpp)
+endif ()
 
 set(AETHER_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Modules")
 
 # Create an object library so we can use the objects in two different libraries
-add_library(aether_obj OBJECT ${LIB_SRCS})
-set_target_properties(aether_obj PROPERTIES
+add_library(aether STATIC ${LIB_SRCS})
+set_target_properties(aether PROPERTIES
   Fortran_MODULE_DIRECTORY "${AETHER_MODULE_DIRECTORY}"
   POSITION_INDEPENDENT_CODE TRUE)
-
 if (MSVC)
-  target_compile_options(aether_obj PRIVATE /heap-arrays0)
+  target_compile_options(aether PRIVATE /heap-arrays0)
 endif ()
 
 if (SUPERLU_FOUND)
-  set(SUPERLU_FORTRAN_SRCS
-    c_fortran_dgssv.c
-    #c_fortran_cgssv.c
-  )
-  if (SUPERLU_HAS_GLOBALLU_T)
-    set_source_files_properties(c_fortran_dgssv.c PROPERTIES COMPILE_DEFINITIONS SUPERLU_HAS_GLOBALLU_T)
-  endif()
-  # Create an object library for the SuperLU C Fortran cgssv file.
-  add_library(aether_superlu_obj OBJECT ${SUPERLU_FORTRAN_SRCS})
-  # Our object library only needs the include directory information carried by the 'superlu' target
-  if (CMAKE_VERSION VERSION_LESS "3.12")
-    target_include_directories(aether_superlu_obj PRIVATE $<TARGET_PROPERTY:superlu,INTERFACE_INCLUDE_DIRECTORIES>)
-  else ()
-    target_link_libraries(aether_superlu_obj PRIVATE superlu)
-  endif ()
-  set_property(TARGET aether_superlu_obj PROPERTY POSITION_INDEPENDENT_CODE ON)
-endif ()
-
-# Create the aether library from the object libraries.
-add_library(aether $<TARGET_OBJECTS:aether_obj> ${dummy_file})
-if (SUPERLU_FOUND)
-  target_sources(aether PRIVATE $<TARGET_OBJECTS:aether_superlu_obj>)
-  # The aether library actually needs to link against the SuperLU libraries.
   target_link_libraries(aether PUBLIC superlu)
 endif ()
-
-set_target_properties(aether PROPERTIES
-  Fortran_VISIBILITY_PRESET hidden
-  C_VISIBILITY_PRESET hidden
-  VISIBILITY_INLINES_HIDDEN 1)
-
-target_include_directories(aether PUBLIC "${AETHER_MODULE_DIRECTORY}")
-
-install(TARGETS aether
-  RUNTIME DESTINATION bin
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib)

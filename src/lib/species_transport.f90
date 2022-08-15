@@ -32,8 +32,6 @@ contains
 !##############################################################################
 !
  subroutine initialise_transport()
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT" :: INITIALISE_TRANSPORT
-
    !local variables
 
    character(len=60) :: sub_name
@@ -57,8 +55,8 @@ contains
        !Note that as V, Q are prerequisites something needs to be added here that checks
        !these have been read in and if not sets up linear gradient based on some default parameters
        !note a linear q gradient should  be set up to scale for shunt fraction automatically
-       call initial_gasexchange(149.0_dp)
-       call solve_transport
+       !call initial_gasexchange(149.0_dp)
+       !call solve_transport
 
     end select
    call enter_exit(sub_name,2)
@@ -68,7 +66,6 @@ contains
 !##############################################################################
 !
  subroutine solve_transport()
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT" :: INITIALISE_TRANSPORT
 
    !local variables
    real(dp) c_art_o2, c_ven_o2,p_art_co2,p_art_o2, p_ven_co2,p_ven_o2
@@ -94,9 +91,9 @@ contains
        p_ven_co2=45.0_dp
        p_art_o2=100.0_dp
        p_ven_o2=40.0_dp
-       call steadystate_gasexchange(c_art_o2,c_ven_o2,&
-       p_art_co2,p_art_o2,149.0_dp,p_ven_co2,p_ven_o2,0.03_dp,&
-       0.8_dp*(260.0_dp*1.0e+3_dp/60.0_dp),260.0_dp*1.0e+3_dp/60.0_dp )
+!       call steadystate_gasexchange(c_art_o2,c_ven_o2,&
+!       p_art_co2,p_art_o2,149.0_dp,p_ven_co2,p_ven_o2,0.03_dp,&
+!       0.8_dp*(260.0_dp*1.0e+3_dp/60.0_dp),260.0_dp*1.0e+3_dp/60.0_dp )
 
     end select
    call enter_exit(sub_name,2)
@@ -107,7 +104,6 @@ contains
 !###########################################################################################
 !
  subroutine allocate_memory_speciestrans()
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_TRANSPORT" :: INITIALISE_TRANSPORT
 
    character(len=60) :: sub_name
    sub_name = 'allocate_memory_speciestrans'

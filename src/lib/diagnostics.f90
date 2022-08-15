@@ -15,7 +15,7 @@ module diagnostics
   
   implicit none
 
-  logical :: diagnostics_on
+  logical,public :: diagnostics_on
 
   private
   public enter_exit, get_diagnostics_on, set_diagnostics_on
@@ -25,7 +25,6 @@ contains
 !!!######################################################################
 
   subroutine enter_exit(sub_name, state)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ENTER_EXIT" :: ENTER_EXIT
 
     integer,intent(in) :: state
     character(len=MAX_SUBNAME_LEN), intent(in) :: sub_name
@@ -43,7 +42,6 @@ contains
 !!!######################################################################
 
   subroutine set_diagnostics_on(state)
-  !DEC$ ATTRIBUTES DLLEXPORT, ALIAS:"SO_SET_DIAGNOSTICS_ON":: SET_DIAGNOSTICS_ON
 
     logical, intent(in) :: state
 
@@ -52,7 +50,6 @@ contains
   end subroutine set_diagnostics_on
 
   subroutine get_diagnostics_on(state)
-  !DEC$ ATTRIBUTES DLLEXPORT, ALIAS:"SO_GET_DIAGNOSTICS_ON":: GET_DIAGNOSTICS_ON
     implicit none
 
     logical :: state

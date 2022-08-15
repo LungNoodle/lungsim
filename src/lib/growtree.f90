@@ -34,7 +34,7 @@ module growtree
 
   !Interfaces
   private
-  public grow_recursive_tree,smooth_1d_tree
+  public grow_tree,smooth_1d_tree
 
 contains
 
@@ -47,7 +47,6 @@ contains
   ! branching plane.
   !
   subroutine adjust_branch_angle(Nth,ne,np1,np2,np,angle_max,angle_min)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ADJUST_BRANCH_ANGLE" :: ADJUST_BRANCH_ANGLE
 
     use indices
     use mesh_utilities,only: angle_btwn_vectors,unit_vector,vector_length
@@ -126,7 +125,6 @@ contains
   !
   subroutine branch_to_cofm(map_seed_to_elem,nen,np1,COFM,branch_fraction,length_limit,&
     length_parent,shortest_length,candidate_xyz,make_branch)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_BRANCH_TO_COFM" :: BRANCH_TO_COFM
 
     use indices
     use math_utilities,only: sort_real_list
@@ -138,7 +136,7 @@ contains
     logical :: make_branch
 
     !Local variables
-    integer :: N,NCLOSEST(100),nd,nsp,NUM_CLOSEST,NUM_ND,number_of_points
+    integer :: N,NCLOSEST(100),nd,nsp,NUM_CLOSEST,NUM_ND
     real(dp) :: CLOSEST(100),DIST,L_COFM,LENGTH,MIN_DIST,VECTOR(3)
 
     character(len=60) :: sub_name
@@ -214,7 +212,6 @@ contains
   ! points by averaging their coordinates and returns result in 'cofm'
   !
   subroutine calculate_seed_cofm(map_seed_to_elem,nen,COFM)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CALCULATE_SEED_COFM" :: CALCULATE_SEED_COFM
 
     integer :: map_seed_to_elem(*),nen
     real(dp) :: COFM(3)
@@ -237,7 +234,12 @@ contains
           COFM(1:3)=COFM(1:3)+data_xyz(1:3,nd)
        endif
     enddo !nd
-    if(DAT.ne.0) COFM(1:3) = COFM(1:3)/DAT !centre of mass
+    if(DAT.ne.0) COFM(1:3) = COFM(1:3)/real(DAT,kind=dp) !centre of mass
+
+    if(diagnostics_on) then
+       write(*,'('' COFM for element'',i7,'':'',3(f12.5),'' for'',i6,'' seeds'')') &
+            nen,cofm,dat
+    endif
 
     call enter_exit(sub_name,2)
 
@@ -253,7 +255,6 @@ contains
   subroutine check_branch_rotation_plane(map_seed_to_elem,ne,&
        ne_grnd_parent,ne_parent,local_parent_temp,num_next_parents,&
        np,np1,np2,np3,num_terminal,rotation_limit)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CHECK_BRANCH_ROTATION_PLANE" :: CHECK_BRANCH_ROTATION_PLANE
 
     use mesh_utilities,only: distance_between_points
     use other_consts
@@ -366,7 +367,6 @@ contains
   ! vector a,b,c , calculate rotation matrix for arbitrary point.
   !
   subroutine check_rotation_angle(ne,np00,np0,np1,np2,np3,np4,rotation_limit)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CHECK_ROTATION_ANGLE" :: CHECK_ROTATION_ANGLE
 
     use mesh_utilities,only: angle_btwn_vectors,cross_product,distance_between_points, &
          unit_vector
@@ -417,10 +417,12 @@ contains
 
     if(abs(ANGLE_BETWEEN).gt.ROTATION_LIMIT.and.abs(ANGLE_BETWEEN) &
          .lt.PI/2.0_dp-ROTATION_LIMIT)then
-       if(ANGLE.lt.0.0_dp)then
+       if(ANGLE.lt.-zero_tol)then
           ROT_ANGLE=-(ANGLE+ROTATION_LIMIT)
-       else
+       else if(ANGLE.gt.zero_tol)then
           ROT_ANGLE=-(ANGLE-ROTATION_LIMIT)
+       else
+          ROT_ANGLE = 0.0_dp
        endif
 
        ANGLE0=ANGLE
@@ -434,15 +436,15 @@ contains
        Q2=DSIN(ROT_ANGLE/2.0_dp)*AXIS(2)
        Q3=DSIN(ROT_ANGLE/2.0_dp)*AXIS(3)
 
-       Q(1,1)=Q0**2+Q1**2-Q2**2-Q3**2
-       Q(1,2)=2*(Q1*Q2-Q0*Q3)
-       Q(1,3)=2*(Q1*Q3+Q0*Q2)
-       Q(2,1)=2*(Q2*Q1+Q0*Q3)
-       Q(2,2)=Q0**2-Q1**2+Q2**2-Q3**2
-       Q(2,3)=2*(Q2*Q3-Q0*Q1)
-       Q(3,1)=2*(Q3*Q1-Q0*Q2)
-       Q(3,2)=2*(Q3*Q2+Q0*Q1)
-       Q(3,3)=Q0**2-Q1**2-Q2**2+Q3**2
+       Q(1,1) = Q0**2.0_dp + Q1**2.0_dp-Q2**2.0_dp-Q3**2.0_dp
+       Q(1,2) = 2.0_dp*(Q1*Q2-Q0*Q3)
+       Q(1,3) = 2.0_dp*(Q1*Q3+Q0*Q2)
+       Q(2,1) = 2.0_dp*(Q2*Q1+Q0*Q3)
+       Q(2,2) = Q0**2.0_dp-Q1**2.0_dp+Q2**2.0_dp-Q3**2.0_dp
+       Q(2,3) = 2.0_dp*(Q2*Q3-Q0*Q1)
+       Q(3,1) = 2.0_dp*(Q3*Q1-Q0*Q2)
+       Q(3,2) = 2.0_dp*(Q3*Q2+Q0*Q1)
+       Q(3,3) = Q0**2.0_dp-Q1**2.0_dp-Q2**2.0_dp+Q3**2.0_dp
 
 !       X(1:3) = elem_direction(1:3,np3) ! unit vector
        X(1:3) = elem_direction(1:3,ne) ! unit vector
@@ -486,10 +488,12 @@ contains
           IT=IT+1
           ANGLE_BETWEEN=ANGLE
           ANGLE=PI/2.0_dp-ANGLE
-          if(ANGLE.lt.0.0_dp)then
+          if(ANGLE.lt.-zero_tol)then
              ROT_ANGLE=-(ANGLE+ROTATION_LIMIT)
-          else
+          else if(ANGLE.gt.zero_tol)then
              ROT_ANGLE=-(ANGLE-ROTATION_LIMIT)
+          else
+             ROT_ANGLE = 0.0_dp
           endif
 
           Q0=DCOS(ROT_ANGLE/2.0_dp)
@@ -497,15 +501,15 @@ contains
           Q2=DSIN(ROT_ANGLE/2.0_dp)*AXIS(2)
           Q3=DSIN(ROT_ANGLE/2.0_dp)*AXIS(3)
 
-          Q(1,1)=Q0**2+Q1**2-Q2**2-Q3**2
-          Q(1,2)=2*(Q1*Q2-Q0*Q3)
-          Q(1,3)=2*(Q1*Q3+Q0*Q2)
-          Q(2,1)=2*(Q2*Q1+Q0*Q3)
-          Q(2,2)=Q0**2-Q1**2+Q2**2-Q3**2
-          Q(2,3)=2*(Q2*Q3-Q0*Q1)
-          Q(3,1)=2*(Q3*Q1-Q0*Q2)
-          Q(3,2)=2*(Q3*Q2+Q0*Q1)
-          Q(3,3)=Q0**2-Q1**2-Q2**2+Q3**2
+          Q(1,1) = Q0**2.0_dp+Q1**2.0_dp-Q2**2.0_dp-Q3**2.0_dp
+          Q(1,2) = 2.0_dp*(Q1*Q2-Q0*Q3)
+          Q(1,3) = 2.0_dp*(Q1*Q3+Q0*Q2)
+          Q(2,1) = 2.0_dp*(Q2*Q1+Q0*Q3)
+          Q(2,2) = Q0**2.0_dp-Q1**2.0_dp+Q2**2.0_dp-Q3**2.0_dp
+          Q(2,3) = 2.0_dp*(Q2*Q3-Q0*Q1)
+          Q(3,1) = 2.0_dp*(Q3*Q1-Q0*Q2)
+          Q(3,2) = 2.0_dp*(Q3*Q2+Q0*Q1)
+          Q(3,3) = Q0**2.0_dp-Q1**2.0_dp-Q2**2.0_dp+Q3**2.0_dp
 
 !          X(1:3)=elem_direction(1:3,np3) !unit vector
           X(1:3)=elem_direction(1:3,ne) !unit vector
@@ -561,7 +565,6 @@ contains
   !*create_new_node:* sets up arrays for a new mesh node and element.
   !
   subroutine create_new_node(ne,ne_start,np,np_start,MAKE)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CREATE_NEW_NODE" :: CREATE_NEW_NODE
 
     integer :: ne,ne_start,np,np_start
     logical :: MAKE
@@ -659,12 +662,14 @@ contains
                 ne = local_parent(noelem)
                 np = elem_nodes(2,ne)
                 dist = distance_between_points(data_xyz(1,nd),node_xyz(1,np))
-                if(DIST.lt.MIN_DIST)then
+                if(dist.lt.(min_dist+zero_tol))then
+!                if(DIST.lt.MIN_DIST)then
                    ne_min = ne
                    MIN_DIST=DIST
                 endif
              enddo
-             if(min_dist.lt.distance_limit/dble(elem_ordrs(no_gen,ne_min)))then !keep seed points
+             if(min_dist.lt.distance_limit/real(elem_ordrs(no_gen,ne_min),kind=dp)+zero_tol)then !keep seed points
+!             if(min_dist.lt.distance_limit/real(elem_ordrs(no_gen,ne_min),kind=dp))then !keep seed points
                 map_array(nd)=ne_min
              else
                 map_array(nd)=0 !too far from branch ends, so discard
@@ -705,6 +710,7 @@ contains
           enddo !nd
           
        endif !num_seeds_from_elem
+!       write(*,'('' '',i6,'','')', advance = "no") num_seeds_from_elem(ne_min)
     enddo !N
     
     do N=1,num_next_parents
@@ -730,6 +736,72 @@ contains
   end subroutine group_seeds_with_branch
 
 
+!!!#############################################################################
+  
+  subroutine grow_tree(surface_elems,parent_ne,angle_max,angle_min,&
+       branch_fraction,length_limit,shortest_length,rotation_limit)
+    !interface to the grow_recursive_tree subroutine 
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
+
+    use geometry,only: element_connectivity_1d,evaluate_ordering, &
+         group_elem_parent_term,reallocate_node_elem_arrays,triangles_from_surface
+    use mesh_utilities,only: get_local_elem_2d
+    
+    integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
+    integer,intent(in)  :: parent_ne                ! stem branch that supplies 'parents' to grow from
+    real(dp),intent(in) :: angle_max                ! maximum branch angle with parent; in degrees
+    real(dp),intent(in) :: angle_min                ! minimum branch angle with parent; in degrees
+    real(dp),intent(in) :: branch_fraction          ! fraction of distance (to COFM) to branch
+    real(dp),intent(in) :: length_limit             ! minimum length of a generated branch (shorter == terminal)
+    real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
+    real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
+
+    integer :: i,num_elems_new,num_nodes_new,num_triangles,num_vertices
+    integer,allocatable :: elem_list(:), parent_list(:), triangle(:,:)
+    real(dp),allocatable :: vertex_xyz(:,:)
+
+!!! allocate temporary arrays
+    allocate(parent_list(num_elems))
+    parent_list = 0
+    allocate(elem_list(count(surface_elems.ne.0)))
+
+!!! get the list of local surface element numbers from the global list
+    do i = 1,count(surface_elems.ne.0)
+       elem_list(i) = get_local_elem_2d(surface_elems(i))
+    enddo
+
+!!! get the list of current terminal elements that subtend parent_ne.
+!!! these will be the initial branches for growing
+    call group_elem_parent_term(parent_list,parent_ne) 
+
+!!! make a linear triangulated mesh over the surface elements
+    call triangles_from_surface(num_triangles,num_vertices,elem_list,triangle,vertex_xyz)
+
+!!! estimate the number of elements in the generated model based on the
+!!! number of data (seed) points. i.e. N = 2*N_data - 1.
+    num_elems_new = num_elems + 2*num_data + 100
+    num_nodes_new = num_nodes + 2*num_data + 100
+
+!!! reallocate arrays using the estimated generated model size
+    call reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
+
+!!! generate a branching tree inside the triangulated mesh
+    call grow_recursive_tree(num_elems_new,num_vertices,elem_list,parent_list, &
+         parent_ne,triangle,angle_max,angle_min, &
+         branch_fraction,length_limit,shortest_length,rotation_limit,vertex_xyz)
+
+!!! update the tree connectivity
+    call element_connectivity_1d
+    
+!!! calculate branch generations and orders
+    call evaluate_ordering
+
+!!! deallocate temporary arrays
+    deallocate(elem_list)
+    deallocate(parent_list)
+    
+  end subroutine grow_tree
+
   !###############################################################
   !
   !*grow_recursive_tree:* the main growing subroutine (public). Genertes a volume-filling
@@ -738,7 +810,6 @@ contains
   subroutine grow_recursive_tree(num_elems_new,num_vertices,surface_elems,parent_list, &
        parent_ne,triangle,angle_max,angle_min, &
        branch_fraction,length_limit,shortest_length,rotation_limit,vertex_xyz)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
 
     use indices
     use mesh_utilities,only: calc_branch_direction,distance_between_points, &
@@ -763,7 +834,6 @@ contains
     integer,allocatable :: map_seed_to_elem(:)      ! records current elem associated w. data points
     integer,allocatable :: map_seed_to_space(:)     ! records initial elem associated w. data points (the 'space')
     integer,allocatable :: num_seeds_from_elem(:)   ! records # of seeds currently grouped with an elem
-    character(len=100) :: writefile
 
     integer :: i,j,kount,M,N,nd,nd_min,ne,ne_grnd_parent,ne_parent,ne_start,ne_stem,&
          noelem_parent,np,np_start,np_prnt_start,np_grnd_start,num_seeds_in_space,num_next_parents, &
@@ -772,7 +842,7 @@ contains
     real(dp),dimension(3) :: COFM,candidate_xyz
     real(dp) :: distance_limit = 300.0_dp,length_parent
 
-    logical :: make_branch,enough_points(2),first_group,internal, &
+    logical :: make_branch,enough_points(2),internal, &
          limit_branching_angle = .true., &  ! option to restrict branch angle
          limit_branching_plane = .false.    ! option to restrict angle between branching planes
 
@@ -864,6 +934,7 @@ contains
                    ! after create_new_node the current element == ne and current node == np
                    call create_new_node(ne,ne_parent,np,np_start,.TRUE.)
                    ! find the centre of mass of seed points
+                   if(diagnostics_on) write(*,'('' New node'',i7)') np
                    call calculate_seed_cofm(map_seed_to_elem,ne,COFM)
                    ! Generate a branch directed towards the centre of mass. Returns location
                    ! of end node in candidate_xyz (adjusted below based on length and shape criteria)
@@ -871,14 +942,17 @@ contains
                         COFM,branch_fraction,length_limit,length_parent,shortest_length,&
                         candidate_xyz,make_branch)
                    node_xyz(1:3,np) = candidate_xyz(1:3) ! the new node location is as returned by 'branch_to_cofm'
+                   if(diagnostics_on) write(*,'('' New node initial coords:'',3(f12.5))') node_xyz(1:3,np)
                    call calc_branch_direction(ne) ! calculate direction of the new branch
                    elem_field(ne_length,ne) = distance_between_points(node_xyz(1,np_start),node_xyz(1,np))
+                   if(diagnostics_on) write(*,'('' Element length'',f12.5)') elem_field(ne_length,ne)
                    ! Check whether this is a new parent branch or a terminal branch
                    if(make_branch)then ! meets all criteria for continuing branching
                       num_next_parents = num_next_parents+1 ! increment the number of next parents
                       local_parent_temp(num_next_parents) = ne !records the elements that are parents
                    else ! this is a terminal branch
                       num_terminal = num_terminal+1 ! increment the number of terminal branches
+                      if(diagnostics_on) write(*,'('' Terminal'')')
                    endif
                 enddo !N (for both new branches)
 
@@ -887,6 +961,7 @@ contains
                    ! Correct such that branches stay in the original branching plane
                    call limit_branch_angles(ne,ne_parent,np,&
                         np_prnt_start,np_start,angle_max,angle_min)
+                   if(diagnostics_on) write(*,'('' After limit branch angle:'',3(f12.5))') node_xyz(1:3,np)
 
                    internal = point_internal_to_surface(num_vertices,triangle,node_xyz(1:3,np),&
                         vertex_xyz)
@@ -921,6 +996,7 @@ contains
                          map_seed_to_elem(nd_min) = 0 ! remove seed point from list
                          map_seed_to_space(nd_min) = ne ! recording element number
                       endif
+                      if(diagnostics_on) write(*,'('' Not internal,adjusted:'',3(f12.5))') node_xyz(1:3,np)
                    endif !.not.internal
 
                    internal = point_internal_to_surface(num_vertices,triangle,node_xyz(1:3,np-1),&
@@ -961,6 +1037,7 @@ contains
                          map_seed_to_elem(nd_min) = 0 ! remove seed point from list
                          map_seed_to_space(nd_min) = ne ! recording element number
                       endif
+                      if(diagnostics_on) write(*,'('' Not internal,adjusted:'',3(f12.5))') node_xyz(1:3,np-1)
                    endif ! .not.internal
 
                 endif
@@ -995,7 +1072,7 @@ contains
 
        enddo ! while still parent branches
 
-       write(*,'(I7,I8,I9)') ne_parent,num_seeds_in_space,num_terminal
+       write(*,'(I7,I8,I9)') ne_stem,num_seeds_in_space,num_terminal
 
     enddo ! for each initial parent
 
@@ -1010,7 +1087,7 @@ contains
     deallocate(map_seed_to_space)
     deallocate(num_seeds_from_elem)
 
-    call smooth_1d_tree(ne_start,length_limit)
+!    call smooth_1d_tree(ne_start,length_limit)
     
     call enter_exit(sub_name,2)
     
@@ -1026,7 +1103,6 @@ contains
   !
   subroutine limit_branch_angles(ne,ne_parent,np,&
        np_prnt_start,np_start,angle_max,angle_min)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_LIMIT_BRANCH_ANGLES" :: LIMIT_BRANCH_ANGLES
 
     use indices
     use mesh_utilities,only: angle_btwn_vectors,cross_product,distance_between_points, &
@@ -1110,7 +1186,6 @@ contains
   !*reduce_branch_angle:* calculates the direction of a branch for a given branch angle
 
   subroutine reduce_branch_angle(np1,np2,np,candidate_xyz,factor)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_REDUCE_BRANCH_ANGLE" :: REDUCE_BRANCH_ANGLE
 
     use mesh_utilities,only: angle_btwn_vectors,unit_vector,vector_length
     
@@ -1149,7 +1224,6 @@ contains
   ! and their children
   !
   subroutine shorten_branch_and_children(ne)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SHORTEN_BRANCH_AND_CHILDREN" :: SHORTEN_BRANCH_AND_CHILDREN
 
     use indices
     
@@ -1193,7 +1267,6 @@ contains
   ! improve the topology of generated trees, minimising the impact of 'odd' branching
   !
   subroutine smooth_1d_tree(num_elem_start,length_limit)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SMOOTH_1D_TREE" :: SMOOTH_1D_TREE
 
     use indices
     
@@ -1218,11 +1291,17 @@ contains
              np2 = elem_nodes(2,ne2)
              new_xyz(:) = node_xyz(:,np0)*0.5_dp + node_xyz(:,np1)*0.25_dp + node_xyz(:,np2)*0.25_dp
              node_xyz(:,np) = new_xyz(:)
+             if(np.eq.73.or.np.eq.79)then
+                write(*,*) 'smoothing',np,np0,node_xyz(3,np0),np1,node_xyz(3,np1),np2,node_xyz(3,np2)
+                write(*,*) 'result =',node_xyz(:,np)
+             endif
           endif
        enddo
     enddo
     do ne = num_elems,num_elem_start,-1
        if(elem_cnct(1,0,ne).eq.0)then ! terminal, check branch length
+!          write(*,*) 'term node before',ne,node_xyz(:,63097)
+
           if(elem_field(ne_length,ne).lt.0.75_dp*length_limit)then
              elem_field(ne_length,ne) = 0.75_dp*length_limit
              np1 = elem_nodes(1,ne) ! the start node
@@ -1236,6 +1315,7 @@ contains
           endif
        endif
     enddo
+    write(*,*) 'term node after',node_xyz(:,63097)
 
     call enter_exit(sub_name,2)
 
@@ -1252,7 +1332,6 @@ contains
   ! seed point.
   !
   subroutine split_seed_points(map_seed_to_elem,ne1,ne,np1,np2,np3,COFM,enough_points)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SPLIT_SEED_POINTS" :: SPLIT_SEED_POINTS
 
     use mesh_utilities,only: check_colinear_points,make_plane_from_3points,scalar_product_3
     
@@ -1288,11 +1367,11 @@ contains
        nsp=map_seed_to_elem(nd) !space # that random point belongs to
        if(nsp.eq.ne1)then !random point belongs to this element space
           dist = -scalar_product_3(norml,data_xyz(1,nd)) - norml(4) ! distance between two planes
-          if(dist.ge.0.0_dp)then
+          if(dist.ge.zero_tol)then
              if(dat1.eq.0) nd1_1st = nd
              DAT1=DAT1+1
              map_seed_to_elem(nd)=ne+1
-          else if(DIST.lt.0.0_dp)then
+          else 
              if(DAT2.eq.0) ND2_1ST=nd
              DAT2=DAT2+1
              map_seed_to_elem(nd)=ne+2
@@ -1320,6 +1399,11 @@ contains
        endif
     endif
 
+    if(diagnostics_on)then
+       write(*,'( ''Parent '',i6,'' with '',i6,'' seeds for element'',i7,'' and'',i6,'' for element'',i7)') &
+            ne1,dat1,ne+1,dat2,ne+2
+    endif
+
     call enter_exit(sub_name,2)
 
   end subroutine split_seed_points
@@ -1332,7 +1416,6 @@ contains
   ! of child branches, and that passes mid-way between child branches.
   !
   subroutine split_seed_points_initial(map_array,ne_stem)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_SPLIT_SEED_POINTS_INITIAL" :: SPLIT_SEED_POINTS_INITIAL
 
     use mesh_utilities,only: make_plane_from_3points,scalar_product_3
 
@@ -1394,19 +1477,32 @@ contains
              nsp = map_array(nd) !space # that random point belongs to
              if(nsp.eq.ne_parent)then !random point belongs to this element space
                 dist = -scalar_product_3(norml,data_xyz(1,nd)) - norml(4) ! distance between two planes
-                if(dist.ge.0.0_dp.and.dist_p1.ge.0.0_dp)then
+                if(dist.ge.zero_tol.and.dist_p1.ge.zero_tol)then
                    map_array(nd) = ne1
-                else if(dist.ge.0.0_dp.and.dist_p1.lt.0.0_dp)then
+                else if(dist.ge.zero_tol.and.dist_p1.lt.zero_tol)then
                    map_array(nd) = ne2
-                else if(dist.le.0.0_dp.and.dist_p2.le.0.0_dp)then
+                else if(dist.lt.zero_tol.and.dist_p2.le.zero_tol)then
                    map_array(nd) = ne2
-                else if(dist.le.0.0_dp.and.dist_p2.gt.0.0_dp)then
+                else if(dist.lt.zero_tol.and.dist_p2.gt.zero_tol)then
                    map_array(nd) = ne1
                 endif
+!                if(dist.ge.0.0_dp.and.dist_p1.ge.0.0_dp)then
+!                   map_array(nd) = ne1
+!                else if(dist.ge.0.0_dp.and.dist_p1.lt.0.0_dp)then
+!                   map_array(nd) = ne2
+!                else if(dist.le.0.0_dp.and.dist_p2.le.0.0_dp)then
+!                   map_array(nd) = ne2
+!                else if(dist.le.0.0_dp.and.dist_p2.gt.0.0_dp)then
+!                   map_array(nd) = ne1
+!                endif
              endif
           enddo !nd
 
           num_points = count(map_array.eq.ne1)
+          if(diagnostics_on)then
+             write(*,'(i6,'' initial seeds for element'',i7)') num_points,ne1
+          endif
+          
           if(num_points.eq.0)then
              write(*,'('' Warning: number of points for element'',i6,'' is zero'')') ne1
              write(*,'('' Press enter to continue; however the code is likely to fail'')')
@@ -1439,7 +1535,6 @@ contains
   !*closest_seed_to_node:* returns the closest seed point to a given branch node
   !
   function closest_seed_to_node(map_seed_to_elem,np)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CLOSEST_SEED_TO_NODE" :: CLOSEST_SEED_TO_NODE
 
     use mesh_utilities,only: distance_between_points
     
@@ -1470,7 +1565,6 @@ contains
   ! that is in a group of seed points currently associated with a specific element
   !
   function closest_seed_to_node_in_group(map_seed_to_elem,ne,np)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_CLOSEST_SEED_TO_NODE_IN_GROUP" :: CLOSEST_SEED_TO_NODE_IN_GROUP
 
     use mesh_utilities,only: distance_between_points
     
@@ -1500,7 +1594,6 @@ contains
   !*rotation_angle:* calculates angle between two branching planes
   !
   function rotation_angle(np1,np2,np3,np4,np5)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_ROTATION_ANGLE" :: ROTATION_ANGLE
 
     use mesh_utilities,only: angle_btwn_vectors,make_plane_from_3points
     
@@ -1527,7 +1620,6 @@ contains
   ! is defined (as v.w = cos(angle_with_v)).
   !
   function vector_for_angle_limit(U,V,angle_with_u,angle_with_v)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_VECTOR_FOR_ANGLE_LIMIT" :: VECTOR_FOR_ANGLE_LIMIT
 
     use mesh_utilities,only: cross_product,mesh_a_x_eq_b,unit_vector
     

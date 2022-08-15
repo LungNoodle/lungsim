@@ -36,7 +36,6 @@ contains
 !
 subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
     n_time,heartrate,a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition,cap_model)
-!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_WAVE_TRANSMISSION" :: EVALUATE_WAVE_TRANSMISSION
 
   integer, intent(in) :: n_time
   real(dp), intent(in) :: heartrate
@@ -52,7 +51,6 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   integer, intent(in) :: cap_model
 
   type(all_admit_param) :: admit_param
-  type(fluid_properties) :: fluid
   type(elasticity_param) :: elast_param
 
   character(len=60) :: mesh_type
@@ -94,11 +92,11 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   endif
   !viscosity and density of fluid
   if(model_definition(2).eq.1.0_dp)then !BLOOD
-    viscosity=fluid%blood_viscosity
-    density=fluid%blood_density
+    viscosity=fluid_properties%blood_viscosity
+    density=fluid_properties%blood_density
   elseif(model_definition(2).eq.2.0_dp)then !AIR
-    viscosity=fluid%air_viscosity
-    density=fluid%air_density
+    viscosity=fluid_properties%air_viscosity
+    density=fluid_properties%air_density
   else
     viscosity=model_definition(3)
     density=model_definition(4)

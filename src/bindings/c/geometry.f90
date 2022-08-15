@@ -14,22 +14,24 @@ contains
 !###################################################################################
 !
 !*add_mesh:* Reads in an ipmesh file and adds this mesh to the terminal branches of an existing tree geometry
-  subroutine add_mesh_c(AIRWAY_MESHFILE, filename_len) bind(C, name="add_mesh_c")
+  subroutine add_mesh_c(AIRWAY_MESHFILE, filename_len, BRANCHTYPE, branchtype_len, n_refine) bind(C, name="add_mesh_c")
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
     use other_consts, only: MAX_FILENAME_LEN
     use geometry, only: add_mesh
     implicit none
 
-    integer,intent(in) :: filename_len
-    type(c_ptr), value, intent(in) :: AIRWAY_MESHFILE
+    integer,intent(in) :: filename_len, branchtype_len, n_refine
+    type(c_ptr), value, intent(in) :: AIRWAY_MESHFILE, BRANCHTYPE
     character(len=MAX_FILENAME_LEN) :: filename_f
+    character(len=MAX_FILENAME_LEN) :: branchtype_f
 
     call strncpy(filename_f, AIRWAY_MESHFILE, filename_len)
+    call strncpy(branchtype_f, BRANCHTYPE, branchtype_len)
 #if defined _WIN32 && defined __INTEL_COMPILER
-    call so_add_mesh(filename_f)
+    call so_add_mesh(filename_f, branchtype_f, n_refine)
 #else
-    call add_mesh(filename_f)
+    call add_mesh(filename_f, branchtype_f, n_refine)
 #endif
 
   end subroutine add_mesh_c
@@ -41,11 +43,7 @@ contains
     use geometry, only: add_matching_mesh
     implicit none
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_add_matching_mesh
-#else
     call add_matching_mesh
-#endif
 
   end subroutine add_matching_mesh_c
 
@@ -57,11 +55,7 @@ contains
     use geometry, only: append_units
     implicit none
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_append_units
-#else
     call append_units
-#endif
 
   end subroutine append_units_c
 
@@ -82,11 +76,7 @@ contains
 
     call strncpy(filename_f, ELEMFILE, filename_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_define_1d_elements(filename_f)
-#else
     call define_1d_elements(filename_f)
-#endif
 
   end subroutine define_1d_elements_c
 
@@ -107,11 +97,7 @@ contains
     call strncpy(filename_f, ELEMFILE, filename_len)
     call strncpy(sf_option_f, SF_OPTION, sf_option_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_define_elem_geometry_2d(filename_f,sf_option_f)
-#else
     call define_elem_geometry_2d(filename_f,sf_option_f)
-#endif
 
   end subroutine define_elem_geometry_2d_c
 !
@@ -122,11 +108,7 @@ contains
     use geometry, only: define_mesh_geometry_test
     implicit none
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_define_mesh_geometry_test
-#else
     call define_mesh_geometry_test
-#endif
 
   end subroutine define_mesh_geometry_test_c
 !
@@ -146,48 +128,9 @@ contains
 
     call strncpy(filename_f, NODEFILE, filename_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_define_node_geometry(filename_f)
-#else
     call define_node_geometry(filename_f)
-#endif
 
   end subroutine define_node_geometry_c
-
-!
-!###################################################################################
-!
-! the main growing subroutine. Generates a volume-filling tree into a closed surface.
-  subroutine grow_tree_c(surface_elems_len, surface_elems, parent_ne, &
-       angle_max, angle_min, branch_fraction, length_limit, &
-       shortest_length, rotation_limit) bind(C, name="grow_tree_c")
-    
-    use arrays,only: dp
-    use iso_c_binding, only: c_ptr
-    use utils_c, only: strncpy
-    use other_consts, only: MAX_FILENAME_LEN
-    use geometry,only: grow_tree
-    implicit none
-
-    integer,intent(in) :: surface_elems_len
-    integer,intent(in) :: surface_elems(surface_elems_len)
-    integer,intent(in) :: parent_ne
-    real(dp),intent(in) :: angle_max
-    real(dp),intent(in) :: angle_min
-    real(dp),intent(in) :: branch_fraction
-    real(dp),intent(in) :: length_limit
-    real(dp),intent(in) :: shortest_length
-    real(dp),intent(in) :: rotation_limit
-
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_grow_tree(surface_elems, parent_ne, angle_max, angle_min, branch_fraction, length_limit,&
-shortest_length, rotation_limit)
-#else
-    call grow_tree(surface_elems, parent_ne, angle_max, angle_min, branch_fraction, length_limit,&
-shortest_length, rotation_limit)
-#endif
-
-  end subroutine grow_tree_c
 
 !
 !###################################################################################
@@ -256,11 +199,7 @@ shortest_length, rotation_limit)
     integer,intent(in) :: elemlist_len
     integer,intent(in) :: elemlist(elemlist_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_make_2d_vessel_from_1d(elemlist)
-#else
     call make_2d_vessel_from_1d(elemlist)
-#endif
 
   end subroutine make_2d_vessel_from_1d_c
   
@@ -281,11 +220,7 @@ shortest_length, rotation_limit)
 
     call strncpy(filename_f, DATAFILE, filename_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_define_data_geometry(filename_f)
-#else
     call define_data_geometry(filename_f)
-#endif
 
   end subroutine define_data_geometry_c
 
@@ -306,11 +241,7 @@ shortest_length, rotation_limit)
 
     call strncpy(filename_f, NODEFILE, filename_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_define_node_geometry_2d(filename_f)
-#else
     call define_node_geometry_2d(filename_f)
-#endif
 
   end subroutine define_node_geometry_2d_c
 
@@ -333,11 +264,7 @@ shortest_length, rotation_limit)
     call strncpy(filename_f, FIELDFILE, filename_len)
     call strncpy(radius_type_f, radius_type, radius_type_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_define_rad_from_file(filename_f, radius_type_f)
-#else
     call define_rad_from_file(filename_f, radius_type_f)
-#endif
 
     end subroutine define_rad_from_file_c
 !
@@ -365,11 +292,7 @@ shortest_length, rotation_limit)
     call strncpy(group_options_f, group_options, group_options_len)
     call strncpy(group_type_f, group_type, group_type_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_define_rad_from_geom(order_system_f, control_param, start_from_f, start_rad, group_type_f, group_options_f)
-#else
     call define_rad_from_geom(order_system_f, control_param, start_from_f, start_rad, group_type_f, group_options_f)
-#endif
 
   end subroutine define_rad_from_geom_c
 !
@@ -380,11 +303,7 @@ shortest_length, rotation_limit)
     use geometry, only: element_connectivity_1d
     implicit none
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_element_connectivity_1d
-#else
     call element_connectivity_1d
-#endif
 
   end subroutine element_connectivity_1d_c
 
@@ -396,22 +315,54 @@ shortest_length, rotation_limit)
     use geometry, only: evaluate_ordering
     implicit none
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_evaluate_ordering
-#else
     call evaluate_ordering
-#endif
 
   end subroutine evaluate_ordering_c
 
+!
 !###################################################################################
 !
-!>*set_initial_volume:* assigns a volume to terminal units appended on a tree structure
+
+  subroutine refine_1d_elements_c(elemlist, elemlist_len, nrefinements) bind(C, name="refine_1d_elements_c")
+    use geometry, only: refine_1d_elements
+    implicit none
+
+    integer,intent(in) :: elemlist_len
+    integer,intent(in) :: elemlist(elemlist_len)
+    integer,intent(in) :: nrefinements
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_refine_1d_elements(elemlist, nrefinements)
+#else
+    call refine_1d_elements(elemlist, nrefinements)
+#endif
+
+  end subroutine refine_1d_elements_c
+  
+!
+!###################################################################################
+!
+!
+  subroutine renumber_tree_in_order_c() bind(C, name="renumber_tree_in_order_c")
+    use geometry, only: renumber_tree_in_order
+    implicit none
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_renumber_tree_in_order
+#else
+    call renumber_tree_in_order
+#endif
+
+  end subroutine renumber_tree_in_order_c
+
+!###################################################################################
+!
+!>*initialise_lung_volume:* assigns a volume to terminal units appended on a tree structure
 !>based on an assumption of a linear gradient in the gravitational direction with max
 !> min and COV values defined.
-  subroutine set_initial_volume_c(Gdirn, COV, total_volume, Rmax, Rmin) bind(C, name="set_initial_volume_c")
+  subroutine initialise_lung_volume_c(Gdirn, COV, total_volume, Rmax, Rmin) bind(C, name="initialise_lung_volume_c")
 
-    use geometry, only: set_initial_volume
+    use geometry, only: initialise_lung_volume
     use arrays, only: dp
     implicit none
 
@@ -420,12 +371,12 @@ shortest_length, rotation_limit)
     real(dp),intent(in) :: COV, total_volume, Rmax, Rmin
 
 #if defined _WIN32 && defined __INTEL_COMPILER
-    call so_set_initial_volume(Gdirn, COV, total_volume, Rmax, Rmin)
+    call so_initialise_lung_volume(Gdirn, COV, total_volume, Rmax, Rmin)
 #else
-    call set_initial_volume(Gdirn, COV, total_volume, Rmax, Rmin)
+    call initialise_lung_volume(Gdirn, COV, total_volume, Rmax, Rmin)
 #endif
 
-  end subroutine set_initial_volume_c
+  end subroutine initialise_lung_volume_c
 
 !
 !###################################################################################
@@ -438,11 +389,7 @@ shortest_length, rotation_limit)
 
     real(dp) :: volume_model,volume_tree
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_volume_of_mesh(volume_model, volume_tree)
-#else
     call volume_of_mesh(volume_model, volume_tree)
-#endif
 
   end subroutine volume_of_mesh_c
 
@@ -474,11 +421,8 @@ shortest_length, rotation_limit)
     character(len=MAX_FILENAME_LEN) :: filename_f
 
     call strncpy(filename_f, elemfile, filename_len)
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_write_elem_geometry_2d(filename_f)
-#else
+
     call write_elem_geometry_2d(filename_f)
-#endif
 
   end subroutine write_elem_geometry_2d_c
 !
@@ -496,11 +440,8 @@ shortest_length, rotation_limit)
     character(len=MAX_FILENAME_LEN) :: filename_f
 
     call strncpy(filename_f, geofile, filename_len)
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_write_geo_file(ntype, filename_f)
-#else
+
     call write_geo_file(ntype, filename_f)
-#endif
 
   end subroutine write_geo_file_c
 !
@@ -518,11 +459,8 @@ shortest_length, rotation_limit)
     character(len=MAX_FILENAME_LEN) :: filename_f
 
     call strncpy(filename_f, nodefile, filename_len)
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_write_node_geometry_2d(filename_f)
-#else
+
     call write_node_geometry_2d(filename_f)
-#endif
 
   end subroutine write_node_geometry_2d_c
 !
