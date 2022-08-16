@@ -1225,7 +1225,6 @@ contains
   subroutine group_elem_parent_term(parent_list,ne_parent)
     !*group_elem_parent_term:* group the terminal elements that sit distal to
     !  a given parent element (ne_parent)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_ELEM_PARENT_TERM" :: GROUP_ELEM_PARENT_TERM
 
     use mesh_utilities,only: group_elem_by_parent
     
@@ -1270,7 +1269,6 @@ contains
   subroutine make_data_grid(surface_elems, offset, spacing, filename, groupname)
     !*make_data_grid:* makes a regularly-spaced 3D grid of data points to
     ! fill a bounding surface 
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_MAKE_DATA_GRID" :: MAKE_DATA_GRID
 
     use exports,only: export_triangle_elements,export_triangle_nodes
     

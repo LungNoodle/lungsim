@@ -152,11 +152,7 @@ contains
     call strncpy(filename_f, filename, filename_len)
     call strncpy(groupname_f, groupname, groupname_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_make_data_grid(surface_elems, offset, spacing, filename_f, groupname_f)
-#else
     call make_data_grid(surface_elems, offset, spacing, filename_f, groupname_f)
-#endif
 
   end subroutine make_data_grid_c
 

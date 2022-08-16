@@ -41,7 +41,6 @@ contains
 !
 
   subroutine export_triangle_elements(num_triangles,triangle,EXELEMFILE,groupname)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TRIANGLE_ELEMENTS" :: EXPORT_TRIANGLE_ELEMENTS
 
 !!! Parameters
     integer :: num_triangles, triangle(:,:)
@@ -125,7 +124,6 @@ contains
 !
 
   subroutine export_triangle_nodes(num_vertices, vertex_xyz, EXNODEFILE, groupname)
-  !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_TRIANGLE_NODES" :: EXPORT_TRIANGLE_NODES
 
 !!! Parameters
     integer :: num_vertices

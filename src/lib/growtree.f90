@@ -611,7 +611,6 @@ contains
   !
   subroutine group_seeds_with_branch(map_array,num_next_parents,num_seeds_from_elem, &
        num_terminal,local_parent,DISTANCE_LIMIT)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROUP_SEEDS_WITH_BRANCH" :: GROUP_SEEDS_WITH_BRANCH
 
     use indices
     use math_utilities,only: sort_integer_list
@@ -741,7 +740,6 @@ contains
   subroutine grow_tree(surface_elems,parent_ne,angle_max,angle_min,&
        branch_fraction,length_limit,shortest_length,rotation_limit)
     !interface to the grow_recursive_tree subroutine 
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROW_TREE" :: GROW_TREE
 
     use geometry,only: element_connectivity_1d,evaluate_ordering, &
          group_elem_parent_term,reallocate_node_elem_arrays,triangles_from_surface
