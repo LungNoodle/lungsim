@@ -29,13 +29,8 @@ contains
     real(dp),intent(in) :: shortest_length
     real(dp),intent(in) :: rotation_limit
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_grow_tree(surface_elems, parent_ne, angle_max, angle_min, branch_fraction, length_limit,&
-shortest_length, rotation_limit)
-#else
     call grow_tree(surface_elems, parent_ne, angle_max, angle_min, branch_fraction, length_limit,&
 shortest_length, rotation_limit)
-#endif
 
   end subroutine grow_tree_c
 

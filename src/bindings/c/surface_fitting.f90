@@ -21,11 +21,7 @@ contains
 
     call strncpy(filename_f, fitting_file, filename_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_fit_surface_geometry(niterations, filename_f)
-#else
     call fit_surface_geometry(niterations, filename_f)
-#endif
 
   end subroutine fit_surface_geometry_c
 
