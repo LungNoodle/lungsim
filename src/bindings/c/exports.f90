@@ -24,11 +24,7 @@ contains
     call strncpy(filename_f, EXFILE, filename_len)
     call strncpy(group_name_f, group_name, group_name_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_export_cubic_lagrange_2d(filename_f, group_name_f)
-#else
     call export_cubic_lagrange_2d(filename_f, group_name_f)
-#endif
 
   end subroutine export_cubic_lagrange_2d_c
 

@@ -28,11 +28,8 @@ contains
 
     call strncpy(filename_f, AIRWAY_MESHFILE, filename_len)
     call strncpy(branchtype_f, BRANCHTYPE, branchtype_len)
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_add_mesh(filename_f, branchtype_f, n_refine)
-#else
+
     call add_mesh(filename_f, branchtype_f, n_refine)
-#endif
 
   end subroutine add_mesh_c
 !
@@ -149,11 +146,7 @@ contains
 
     call strncpy(filename_f, NODEFILE, filename_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_import_node_geometry_2d(filename_f)
-#else
     call import_node_geometry_2d(filename_f)
-#endif
 
   end subroutine import_node_geometry_2d_c
 
@@ -182,11 +175,7 @@ contains
     call strncpy(filename_f, filename, filename_len)
     call strncpy(groupname_f, groupname, groupname_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_make_data_grid(surface_elems, offset, spacing, filename_f, groupname_f)
-#else
     call make_data_grid(surface_elems, offset, spacing, filename_f, groupname_f)
-#endif
 
   end subroutine make_data_grid_c
 
@@ -331,11 +320,7 @@ contains
     integer,intent(in) :: elemlist(elemlist_len)
     integer,intent(in) :: nrefinements
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_refine_1d_elements(elemlist, nrefinements)
-#else
     call refine_1d_elements(elemlist, nrefinements)
-#endif
 
   end subroutine refine_1d_elements_c
   
@@ -347,11 +332,7 @@ contains
     use geometry, only: renumber_tree_in_order
     implicit none
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_renumber_tree_in_order
-#else
     call renumber_tree_in_order
-#endif
 
   end subroutine renumber_tree_in_order_c
 
@@ -370,11 +351,7 @@ contains
     integer,intent(in) :: Gdirn
     real(dp),intent(in) :: COV, total_volume, Rmax, Rmin
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_initialise_lung_volume(Gdirn, COV, total_volume, Rmax, Rmin)
-#else
     call initialise_lung_volume(Gdirn, COV, total_volume, Rmax, Rmin)
-#endif
 
   end subroutine initialise_lung_volume_c
 

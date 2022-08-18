@@ -21,11 +21,7 @@ contains
 
     call strncpy(filename_f, fitting_file, filename_len)
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_fit_surface_geometry(niterations, filename_f)
-#else
     call fit_surface_geometry(niterations, filename_f)
-#endif
 
   end subroutine fit_surface_geometry_c
 
@@ -35,11 +31,7 @@ contains
     use surface_fitting, only: initialise_fit_mesh
     implicit none
     
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_initialise_fit_mesh
-#else
     call initialise_fit_mesh
-#endif
 
   end subroutine initialise_fit_mesh_c
     

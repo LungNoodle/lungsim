@@ -39,11 +39,8 @@ contains
     character(len=max_filename_len) :: parameter_name_f
 
     call strncpy(parameter_name_f, parameter_name, parameter_name_len)
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_update_parameter(parameter_name_f, parameter_value)
-#else
     call update_parameter(parameter_name_f, parameter_value)
-#endif
+
   end subroutine update_parameter_c
 
     

@@ -15,11 +15,7 @@ contains
     integer, intent(in) :: num_breaths
     real(dp), intent(in) :: dt
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_evaluate_vent(num_breaths, dt)
-#else
     call evaluate_vent(num_breaths, dt)
-#endif
 
   end subroutine evaluate_vent_c
 
