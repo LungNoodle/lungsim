@@ -67,7 +67,7 @@ contains
 !
   subroutine initial_gasexchange(initial_concentration,surface_area,V_cap)
     !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIAL_GASEXCHANGE" :: INITIAL_GASEXCHANGE
-    
+
     !local variables
     real(dp),intent(in) :: initial_concentration
     real(dp), optional ::  surface_area,V_cap
@@ -129,86 +129,7 @@ contains
   
 !!! ######################################################################
 
-  subroutine steadystate_gasexchange(Vdot_deadspace,p_i_o2,shunt_fraction, &
-       target_p_art_co2,target_p_ven_o2,VCO2,VO2)
- !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_STEADYSTATE_GASEXCHANGE" :: STEADYSTATE_GASEXCHANGE
-
-    use field_utilities,only: scale_flow_to_inlet
-    
-!!! Parameters
-    real(dp),intent(in) :: Vdot_deadspace,p_i_o2,shunt_fraction, &
-         target_p_art_co2,target_p_ven_o2,VCO2,VO2
-!!! Local variables
-    integer :: k,nunit
-    real(dp) :: cardiac_temp,c_art_o2,c_ven_o2,Vdot_alv_temp
-    real(dp) :: p_art_co2,p_art_o2,p_ven_co2,p_ven_o2
-    character(len=60) :: sub_name
-    
-    sub_name = 'steadystate_gasexchange'
-    call enter_exit(sub_name,1)
-
-    cardiac_temp = elem_field(ne_Qdot,1)
-    Vdot_alv_temp = elem_field(ne_Vdot,1) - Vdot_deadspace
-
-    !temporarily scale the flow to alveolar ventilation
-    call scale_flow_to_inlet(Vdot_alv_temp,'V')
-    call steadystate_gasexchange_sub (c_art_o2,c_ven_o2,p_art_co2,p_art_o2,p_i_o2,&
-         p_ven_co2,p_ven_o2,shunt_fraction,VCO2,VO2)
-    
-!!! in the following loop the alveolar ventilation is incrementally adjusted
-!!! towards achieving the target p_art_co2; and the cardiac output is adjusted
-!!! to balance the metabolic demand for oxygen.
-    k = 0
-    do while (abs(p_art_co2-target_p_art_co2)/target_p_art_co2 .gt. 1.0e-4_dp )
-       k = k + 1
-
-       Vdot_alv_temp = p_art_co2/target_p_art_co2*Vdot_alv_temp
-       call scale_flow_to_inlet(Vdot_alv_temp,'V')
-       call steadystate_gasexchange_sub (c_art_o2,c_ven_o2,p_art_co2,p_art_o2,p_i_o2,&
-            p_ven_co2,p_ven_o2,shunt_fraction,VCO2,VO2)
-       if(k.gt.200)then
-          write(*,'('' Exiting alveolar ventilation calculation: not converged in 200 iterations'')')
-          return
-       endif
-    end do
-
-    write(*,'('' Alveolar ventilation = '',f8.3,'' L/min to match target P_art_CO2 of '',f8.3)') &
-         Vdot_alv_temp/1.0e+6_dp*60.0_dp,target_p_art_co2
-
-    k = 0
-    do while (abs(p_ven_o2-target_p_ven_o2)/target_p_ven_o2 .gt. 1.0e-4_dp )
-       k = k + 1
-
-       cardiac_temp = cardiac_temp * target_p_ven_o2/p_ven_o2 
-       call scale_flow_to_inlet(cardiac_temp,'Q')
-       call steadystate_gasexchange_sub (c_art_o2,c_ven_o2,p_art_co2,p_art_o2,p_i_o2,&
-            p_ven_co2,p_ven_o2,shunt_fraction,VCO2,VO2)
-       if(k.gt.200)then
-          write(*,'('' Exiting cardiac output calculation: not converged in 200 iterations'')')
-          return
-       endif
-    end do
-    if(k.le.200)then !converged
-!!! update transit time through the gas exchange unit = capillary volume/flow
-       forall (nunit=1:num_units) gasex_field(ng_tt,nunit) = &
-            gasex_field(ng_Vc,nunit)/unit_field(nu_perf,nunit)/&
-            (cardiac_temp*(1.0_dp-shunt_fraction))
-    endif
-    write(*,'('' Cardiac output = '',f8.3,'' L/min to match target P_ven_O2 of '',f7.2)') &
-         cardiac_temp/1.0e+6_dp*60.0_dp,target_p_ven_o2
-
-    ! scale the ventilation back to minute ventilation
-    Vdot_alv_temp = elem_field(ne_Vdot,1) + Vdot_deadspace
-    call scale_flow_to_inlet(Vdot_alv_temp,'V')
-
-    call enter_exit(sub_name,2)
-
-  end subroutine steadystate_gasexchange
-
-!
-!###########################################################################################
-!
- subroutine steadystate_gasexchange_sub(c_art_o2,c_ven_o2,&
+  subroutine steadystate_gasexchange(c_art_o2,c_ven_o2,&
        p_art_co2,p_art_o2,p_i_o2,p_ven_co2,p_ven_o2,shunt_fraction,&
        VCO2,VO2)
 
@@ -221,14 +142,14 @@ contains
          fun_co2,fdash,p_cap_co2,p_cap_o2,p_art_co2_last, &
          p_art_o2_last,p_ven_co2_last,p_ven_o2_last,Q_total,V_total, &
          target_c_ven_co2,target_c_ven_o2,v_q,p_alv_o2,p_alv_co2
-
+    
     real(dp),parameter :: m = 0.02386_dp, tol = 1.0e-6_dp
     logical :: continue
     character(len=60) :: sub_name
-
-    sub_name = 'steadystate_gasexchange_sub'
+    
+    sub_name = 'steadystate_gasexchange'
     call enter_exit(sub_name,1)
-
+    
 !!! Calculate steady state gas exchange for CO2
     p_ven_co2_last = p_ven_co2 ! updates at each iteration, until converged
     counter = 1                ! count the number of iterations
@@ -242,13 +163,13 @@ contains
           p_cap_co2 = gasex_field(ng_p_cap_co2,nunit)      ! initialise capillary CO2
           v_q = unit_field(nu_Vdot0,nunit) &
                /unit_field(nu_perf,nunit)             ! the unit v/q
-          if(abs(v_q) .le. 1.0e-3_dp)then ! no ventilation; cap CO2 == venous CO2
+          if(dabs(v_q) .le. 1.0e-3_dp)then ! no ventilation; cap CO2 == venous CO2
              p_cap_co2 = p_ven_co2
           else                             ! calculate the steady-state PCO2
              fun_co2 = function_co2(v_q,p_cap_co2,p_ven_co2)
              fdash = fdash_co2(v_q,p_cap_co2)
              K=0
-             do while(abs(fun_co2).ge.1.0e-4_dp.and.(k.LT.200))
+             do while(dabs(fun_co2).ge.1.0e-4_dp.and.(k.LT.200))
                 K=K+1
                 p_cap_co2 = p_cap_co2 - fun_CO2/fdash
                 fun_co2 = function_co2(v_q,p_cap_co2,p_ven_co2)
@@ -256,8 +177,8 @@ contains
              enddo
           endif
 
-          Q_total = Q_total + elem_units_below(ne) * abs(unit_field(nu_perf,nunit)) !mm3/s
-          V_total = V_total + elem_units_below(ne) * abs(unit_field(nu_Vdot0,nunit))
+          Q_total = Q_total + elem_units_below(ne) * dabs(unit_field(nu_perf,nunit)) !mm3/s
+          V_total = V_total + elem_units_below(ne) * dabs(unit_field(nu_Vdot0,nunit))
 
 !!! including a limitation that p_cap_co2 cannot be less than zero
           p_cap_co2 = max(p_cap_co2,0.0_dp)
@@ -270,10 +191,10 @@ contains
           c_cap_co2 = m*p_cap_co2/(1 + m*p_cap_co2)
 !!! sum the content in arterial blood (flow weighted sum)
           c_art_co2 = c_art_co2 + elem_units_below(ne)* &
-               (c_cap_co2*abs(unit_field(nu_perf,nunit))) !flow-weighted
+               (c_cap_co2*dabs(unit_field(nu_perf,nunit))) !flow-weighted
 !! sum the alveolar co2
           p_alv_co2=p_alv_co2 + elem_units_below(ne)* &
-               (p_cap_co2*abs(unit_field(nu_Vdot0,nunit))) !flow-weighted
+               (p_cap_co2*dabs(unit_field(nu_Vdot0,nunit))) !flow-weighted
 
        enddo !nunit
 !!! update the arterial content of CO2
@@ -288,7 +209,7 @@ contains
        p_art_co2 = 1/(m*(1-c_art_co2)) ! initialise p_art_co2
        K=0 !counter
        fun_co2 = m*p_art_co2/(1+m*p_art_co2)-c_art_co2
-       do while (abs(fun_co2).ge.1.0e-4_dp.and.(k.lt.200))
+       do while (dabs(fun_co2).ge.1.0e-4_dp.and.(k.lt.200))
           K=K+1
           fdash=m/(1+m*p_art_co2)**2
           p_art_co2 = p_art_co2 - fun_co2/fdash
@@ -300,18 +221,18 @@ contains
        p_ven_co2 = 1/(m*(1-target_c_ven_co2))
        K=0
        fun_co2=m*p_ven_co2/(1+m*p_ven_co2)-target_c_ven_CO2
-       do while (abs(fun_co2).ge.1.0e-4_dp.and.(k.lt.200))
+       do while (dabs(fun_co2).ge.1.0e-4_dp.and.(k.lt.200))
           K=K+1
           fdash=m/(1+m*p_ven_co2)**2
           p_ven_co2 = p_ven_co2-fun_co2/fdash
           fun_co2 = m*p_ven_co2/(1+m*p_ven_co2)-target_c_ven_co2
        enddo !while
 !!! now have updated values for p_art_co2 and p_ven_co2
-       !write(*,'('' Interim PPs:'',4(f8.3))') p_art_o2,p_ven_o2,p_art_co2,p_ven_co2
+       write(*,'('' Interim PPs:'',4(f8.3))') p_art_o2,p_ven_o2,p_art_co2,p_ven_co2
 !!! check whether p_ven_co2 and p_art_co2 have converged
        if(counter.gt.1)then
-          if(abs(p_ven_co2-p_ven_co2_last)/p_ven_co2_last.lt.tol.and. &
-               abs(p_art_co2-p_art_co2_last)/p_art_co2_last.lt.tol) then
+          if(dabs(p_ven_co2-p_ven_co2_last)/p_ven_co2_last.lt.tol.and. &
+               dabs(p_art_co2-p_art_co2_last)/p_art_co2_last.lt.tol) then
              continue = .false.
           else
              if(counter.gt.200) continue = .false.
@@ -326,13 +247,14 @@ contains
        endif
 
     enddo !while continue
+!    read(*,*)    
 
-    write(*,'('' Cardiac output ='',F8.3,'' L/min, alveolar ventilation ='',F8.3,'' L/min'')') &
-         Q_total/1.0e+6_dp*60.0_dp,V_total/1.0e+6_dp*60.0_dp
-    write(*,'('' Steady-state  P_art_CO2 ='',F6.1,'' mmHg,&
+    write(*,'('' Total blood flow ='',F10.1,'' mm3/s,&
+         & alveolar ventilation='',F10.1,'' mm3/s'')') Q_total,V_total
+    write(*,'('' Steady-state P_art_CO2 ='',F6.1,'' mmHg,&
          & P_ven_CO2='',F6.1,'' mmHg'')') p_art_co2,p_ven_co2
     write(*,'(''               P_alv_CO2 ='',F6.1,'' mmHg,&
-         & P(A-a)CO2='',F6.1,'' mmHg'')') p_alv_co2,p_alv_co2-p_art_co2
+         &  P(A-a)CO2='',F6.1,'' mmHg'')') p_alv_co2,p_alv_co2-p_art_co2
 
 !!! Calculate steady state gas exchange for O2
     p_ven_o2_last = p_ven_o2
@@ -371,10 +293,10 @@ contains
           c_cap_o2 = content_from_po2(p_cap_co2,p_cap_o2)
 !!! sum the content in arterial blood (flow weighted sum)
           c_art_o2 = c_art_o2 + elem_units_below(ne)* &
-               (c_cap_o2*abs(unit_field(nu_perf,nunit))) !flow-weighted
+               (c_cap_o2*dabs(unit_field(nu_perf,nunit))) !flow-weighted
 !! sum the alveolar o2
           p_alv_o2=p_alv_o2 + elem_units_below(ne)* &
-               (p_cap_o2*abs(unit_field(nu_Vdot0,nunit))) !flow-weighted
+               (p_cap_o2*dabs(unit_field(nu_Vdot0,nunit))) !flow-weighted
 
          ! write(*,*) 'V/Q=',v_q,' pO2=',p_cap_o2,c_cap_o2,c_art_o2
        enddo !nunit
@@ -436,7 +358,7 @@ contains
 
     call enter_exit(sub_name,2)
 
-  end subroutine steadystate_gasexchange_sub
+  end subroutine steadystate_gasexchange
 
   !!! ####################################################
 
@@ -521,7 +443,7 @@ contains
 !!! Local variables
     real(dp) :: content_from_po2,ShbO2
 
-    if(abs(po2).lt.zero_tol)then
+    if(dabs(po2).lt.zero_tol)then
        SHbO2 = 0.0_dp
        content_from_po2 = 0.0_dp
     else
@@ -552,7 +474,7 @@ contains
          A4=9.359609e+5_dp, A5=-3.134626e+4_dp, A6=2.396167e+3_dp, A7=-6.710441e+1_dp
     real(dp) :: saturation_of_o2,X,ShbO2
 
-    if(abs(po2).lt.zero_tol)then
+    if(dabs(po2).lt.zero_tol)then
        SHbO2 = 0.0_dp
     else
 
@@ -579,7 +501,7 @@ contains
     real(dp),parameter :: tolerance=1.0e-5_dp
     logical :: converged
 
-    if(abs(c_o2).lt.tolerance)then
+    if(dabs(c_o2).lt.tolerance)then
        po2_from_content = 0.0_dp
     else
        converged = .false.
@@ -590,23 +512,23 @@ contains
        c_o2_old = 0.0_dp   ! updated after each iteration from c_o2_new
        c_o2_new = content_from_po2(p_co2,p_o2_new)
        ! Check convergence
-       if(abs((c_o2_new - c_o2)/c_o2).lt.tolerance*c_o2) converged =.true.
+       if(dabs((c_o2_new - c_o2)/c_o2).lt.tolerance*c_o2) converged =.true.
        ! Loop to find PO2 value
        do while (.not.converged.and.(i.lt.max_iterations))
           ! Modify increment size
           if(c_o2_new.gt.c_o2)then
-             inc = -abs(inc)
+             inc = -dabs(inc)
           elseif(c_o2_new.lt.c_o2)then
-             inc = abs(inc)
+             inc = dabs(inc)
           endif
           if(i.gt.1)then
              diff_new = c_o2_new - c_o2
              diff_old = c_o2_old - c_o2
-             diff_step = abs(c_o2_new-c_o2_old)
+             diff_step = dabs(c_o2_new-c_o2_old)
              if((diff_old.gt.0.0_dp.and.diff_new.lt.0.0_dp).or. &
                   (diff_old.lt.0.0_dp.and.diff_new.gt.0.0_dp))then ! the last 2 steps straddle point
                 inc=inc/2.0_dp
-             elseif(abs(diff_new).gt.diff_step)THEN
+             elseif(dabs(diff_new).gt.diff_step)THEN
                 inc=inc*2.0_dp
              endif
           endif
@@ -617,7 +539,7 @@ contains
           p_o2_new = p_o2_new + inc
           c_o2_new = content_from_po2(p_co2,p_o2_new)
           ! Check convergence
-          if(abs((c_o2_new-c_o2)/c_o2).LT.tolerance*c_o2) converged = .true.
+          if(dabs((c_o2_new-c_o2)/c_o2).LT.tolerance*c_o2) converged = .true.
 
           i=i+1
 
