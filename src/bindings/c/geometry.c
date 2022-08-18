@@ -3,7 +3,7 @@
 
 #include "string.h"
 
-void add_mesh_c(const char *AIRWAY_MESHFILE, int *filename_len, const char *BRANCHTYPE, int *branchtype_len, int *n_refine);
+void add_mesh_c(const char *AIRWAY_MESHFILE, int *filename_len);
 void add_matching_mesh_c(void);
 void append_units_c(void);
 void define_1d_elements_c(const char *ELEMFILE, int *filename_len);
@@ -30,11 +30,10 @@ void write_elem_geometry_2d_c(const char *ELEMFILE, int *filename_len);
 void write_geo_file_c(int *ntype, const char *GEOFILE, int *filename_len);
 void write_node_geometry_2d_c(const char *NODEFILE, int *filename_len);
 
-void add_mesh(const char *AIRWAY_MESHFILE, const char *BRANCHTYPE, int n_refine )
+void add_mesh(const char *AIRWAY_MESHFILE)
 {
   int filename_len = (int)strlen(AIRWAY_MESHFILE);
-  int branchtype_len = (int)strlen(BRANCHTYPE);
-  add_mesh_c(AIRWAY_MESHFILE, &filename_len, BRANCHTYPE, &branchtype_len, &n_refine);
+  add_mesh_c(AIRWAY_MESHFILE, &filename_len);
 }
 
 void add_matching_mesh()
