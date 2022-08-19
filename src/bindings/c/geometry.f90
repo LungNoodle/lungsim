@@ -306,25 +306,6 @@ contains
 
   end subroutine evaluate_ordering_c
 
-!###################################################################################
-!
-!>*initialise_lung_volume:* assigns a volume to terminal units appended on a tree structure
-!>based on an assumption of a linear gradient in the gravitational direction with max
-!> min and COV values defined.
-  subroutine initialise_lung_volume_c(Gdirn, COV, total_volume, Rmax, Rmin) bind(C, name="initialise_lung_volume_c")
-
-    use geometry, only: initialise_lung_volume
-    use arrays, only: dp
-    implicit none
-
-    !     Parameter List
-    integer,intent(in) :: Gdirn
-    real(dp),intent(in) :: COV, total_volume, Rmax, Rmin
-
-    call initialise_lung_volume(Gdirn, COV, total_volume, Rmax, Rmin)
-
-  end subroutine initialise_lung_volume_c
-
 !
 !###################################################################################
 !

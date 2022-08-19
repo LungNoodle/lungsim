@@ -47,7 +47,7 @@ module geometry
   public make_data_grid
   public make_2d_vessel_from_1d
   public reallocate_node_elem_arrays
-  public initialise_lung_volume
+  public set_initial_volume
   public triangles_from_surface
   public volume_of_mesh
   public write_geo_file
@@ -3004,16 +3004,14 @@ contains
 
 !!!#############################################################################
 
-  subroutine initialise_lung_volume(Gdirn,COV,total_volume,Rmax,Rmin)
-    !*initialise_lung_volume:* assigns a volume to terminal units appended on a
+  subroutine set_initial_volume(Gdirn,COV,total_volume,Rmax,Rmin)
+    !*set_initial_volume:* assigns a volume to terminal units appended on a
     ! tree structure based on an assumption of a linear gradient in the
     ! gravitational direction with max, min, and COV values defined.
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_LUNG_VOLUME" :: INITIALISE_LUNG_VOLUME
     
     integer,intent(in) :: Gdirn
     real(dp),intent(in) :: COV,total_volume,Rmax,Rmin
     !     Local parameters
-    !type(lung_volumes) :: volumes ! has the default values, and is updated to use in other modules
     integer :: ne,np2,nunit
     real(dp) ::  factor_adjust,max_z,min_z,random_number,range_z,&
          volume_estimate,volume_of_tree,Vmax,Vmin,Xi
@@ -3021,15 +3019,9 @@ contains
 
     ! --------------------------------------------------------------------------
     
-    sub_name = 'initialise_lung_volume'
+    sub_name = 'set_initial_volume'
     call enter_exit(sub_name,1)
-
-    ! update the default parameters
-    lung_volumes%frc = total_volume
-    lung_volumes%Rmax = Rmax
-    lung_volumes%Rmin = Rmin
-    lung_volumes%COV = COV
-
+    
     volume_estimate = 1.0_dp
     volume_of_tree = 0.0_dp
     
@@ -3078,7 +3070,7 @@ contains
     
     call enter_exit(sub_name,2)
     
-  end subroutine initialise_lung_volume
+  end subroutine set_initial_volume
 
 !!!#############################################################################
 

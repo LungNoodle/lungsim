@@ -6,16 +6,13 @@ contains
 
 !!!###################################################################################
 
-  subroutine evaluate_vent_c(num_breaths, dt) bind(C, name="evaluate_vent_c")
+  subroutine evaluate_vent_c() bind(C, name="evaluate_vent_c")
 
     use arrays,only: dp
     use ventilation, only: evaluate_vent
     implicit none
 
-    integer, intent(in) :: num_breaths
-    real(dp), intent(in) :: dt
-
-    call evaluate_vent(num_breaths, dt)
+    call evaluate_vent()
 
   end subroutine evaluate_vent_c
 

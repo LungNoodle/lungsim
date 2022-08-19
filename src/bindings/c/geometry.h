@@ -22,7 +22,6 @@ SHO_PUBLIC void define_rad_from_geom(const char *ORDER_SYSTEM, double CONTROL_PA
                                      double START_RAD, const char *GROUP_TYPE, const char *GROUP_OPTIONS);
 SHO_PUBLIC void element_connectivity_1d();
 SHO_PUBLIC void evaluate_ordering();
-SHO_PUBLIC void initialise_lung_volume(int Gdirn, double COV, double total_volume, double Rmax, double Rmin);
 SHO_PUBLIC void volume_of_mesh(double *volume_model, double *volume_tree);
 SHO_PUBLIC void write_elem_geometry_2d(const char *ELEMFILE);
 SHO_PUBLIC void write_geo_file(int ntype, const char *GEOFILE);

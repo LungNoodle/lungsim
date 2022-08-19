@@ -22,7 +22,6 @@ void define_rad_from_geom_c(const char *order_system, int *order_system_len, dou
                             const char *group_type, int *group_type_len, const char *group_options, int *group_options_len);
 void element_connectivity_1d_c(void);
 void evaluate_ordering_c(void);
-void initialise_lung_volume_c(int *Gdirn, double *COV, double *total_volume, double *Rmax, double *Rmin);
 void volume_of_mesh_c(double *volume_model, double *volume_tree);
 void write_elem_geometry_2d_c(const char *ELEMFILE, int *filename_len);
 void write_geo_file_c(int *ntype, const char *GEOFILE, int *filename_len);
@@ -132,11 +131,6 @@ void element_connectivity_1d()
 void evaluate_ordering()
 {
   evaluate_ordering_c();
-}
-
-void initialise_lung_volume(int Gdirn, double COV, double total_volume, double Rmax, double Rmin)
-{
-  initialise_lung_volume_c(&Gdirn, &COV, &total_volume, &Rmax, &Rmin);
 }
 
 void volume_of_mesh(double *volume_model, double *volume_tree)
