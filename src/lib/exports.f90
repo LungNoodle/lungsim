@@ -43,7 +43,6 @@ contains
   subroutine export_cubic_lagrange_2d(EXFILE,groupname)
     !*export_cubic_lagrange_2d:* write our node and element structure for
     ! cubic lagrange mesh, converted from existing cubic Hermite mesh
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EXPORT_CUBIC_LAGRANGE_2D" :: EXPORT_CUBIC_LAGRANGE_2D
 
     use geometry,only: coord_at_xi
     character(len=*) :: EXFILE
