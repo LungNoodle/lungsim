@@ -922,6 +922,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   type(elasticity_param) :: elast_param
 
   type(capillary_bf_parameters) :: cap_param
+  type(fluid_properties) :: fp
   integer :: ngen
   real(dp) :: alpha_c,area_scale,length_scale
   real(dp) :: radupdate,P_exta,P_extv,R_art1,R_ven1,R_art2,R_ven2,Q01_mthrees,Pin,Pout
@@ -1156,11 +1157,11 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
       !!!ARC TO FIX alpha_a is in m/Pa, need in 1/Pa (just read in from main model?)
        omega=nf*2*PI*harmonic_scale
-       wolmer=(radupdate*1000.0_dp)*sqrt(omega*fluid_properties%blood_density/mu_app(gen))
+       wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
        call bessel_complex(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp),bessel0,bessel1)
        f10=2*bessel1/(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp)*bessel0)
-       wavespeed=sqrt(1.0_dp/(2*fluid_properties%blood_density*(elast_param%elasticity_parameters(1))))*sqrt(1-f10)!alpha in the sense of this model is 1/Pa so has to be dovided by radius
-       tube_admit(gen,nf)=PI*(radupdate*1000.0_dp)**2/(fluid_properties%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10)
+       wavespeed=sqrt(1.0_dp/(2*fp%blood_density*(elast_param%elasticity_parameters(1))))*sqrt(1-f10)!alpha in the sense of this model is 1/Pa so has to be dovided by radius
+       tube_admit(gen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10)
        prop_const(gen,nf)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed)
      enddo
 !!...    FIRST HALF OF VENULE
@@ -1184,11 +1185,11 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      Pout=Pout+R_ven1*Q01_mthrees
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale
-       wolmer=(radupdate*1000.0_dp)*sqrt(omega*fluid_properties%blood_density/mu_app(gen))
+       wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
        call bessel_complex(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp),bessel0,bessel1)
        f10=2*bessel1/(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp)*bessel0)
-       wavespeed=sqrt(1.0_dp/(2*fluid_properties%blood_density*elast_param%elasticity_parameters(1)))*sqrt(1-f10) !mm/s
-       tube_admit(gen+2*ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fluid_properties%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10)!mm3/Pa.s
+       wavespeed=sqrt(1.0_dp/(2*fp%blood_density*elast_param%elasticity_parameters(1)))*sqrt(1-f10) !mm/s
+       tube_admit(gen+2*ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10)!mm3/Pa.s
        prop_const(gen+2*ngen,nf)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed)!1/mm
      enddo
 
@@ -1227,11 +1228,11 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
 
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale
-       wolmer=(radupdate*1000.0_dp)*sqrt(omega*fluid_properties%blood_density/mu_app(gen))
+       wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
        call bessel_complex(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp),bessel0,bessel1)
        f10=2*bessel1/(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp)*bessel0)
-       wavespeed=sqrt(1.0_dp/(2*fluid_properties%blood_density*elast_param%elasticity_parameters(1)))*sqrt(1-f10)
-       tube_admit(gen+ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fluid_properties%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10)
+       wavespeed=sqrt(1.0_dp/(2*fp%blood_density*elast_param%elasticity_parameters(1)))*sqrt(1-f10)
+       tube_admit(gen+ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10)
        prop_const(gen+ngen,nf)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed)
      enddo
 
@@ -1250,11 +1251,11 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      Pout=Pout-R_ven2*Q01_mthrees
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale
-       wolmer=(radupdate*1000.0_dp)*sqrt(omega*fluid_properties%blood_density/mu_app(gen))
+       wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
        call bessel_complex(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp),bessel0,bessel1)
        f10=2*bessel1/(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp)*bessel0)
-       wavespeed=sqrt(1.0_dp/(2*fluid_properties%blood_density*elast_param%elasticity_parameters(1)))*sqrt(1-f10) !mm/s
-       tube_admit(gen+3*ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fluid_properties%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10)
+       wavespeed=sqrt(1.0_dp/(2*fp%blood_density*elast_param%elasticity_parameters(1)))*sqrt(1-f10) !mm/s
+       tube_admit(gen+3*ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10)
        prop_const(gen+3*ngen,nf)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed) !1/mm
      enddo
   enddo

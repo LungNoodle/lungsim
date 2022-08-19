@@ -26,7 +26,7 @@ module pressure_resistance_flow
 
   !Interfaces
   private
-  public evaluate_prq,calculate_ppl,update_prq
+  public evaluate_prq,calculate_ppl
 contains
 !###################################################################################
 !
@@ -35,21 +35,21 @@ contains
 
     !local variables
     integer :: mesh_dof,depvar_types
-    !integer, allocatable :: mesh_from_depvar(:,:,:)
-    !integer, allocatable :: depvar_at_node(:,:,:)
-    !integer, allocatable :: depvar_at_elem(:,:,:)
+    integer, allocatable :: mesh_from_depvar(:,:,:)
+    integer, allocatable :: depvar_at_node(:,:,:)
+    integer, allocatable :: depvar_at_elem(:,:,:)
     integer, dimension(0:2,2) :: depvar_totals
-    !integer, allocatable :: SparseCol(:)
-    !integer, allocatable :: SparseRow(:)
-    !integer, allocatable :: update_resistance_entries(:)
-    !real(dp), allocatable :: SparseVal(:)
-    !real(dp), allocatable :: RHS(:)
+    integer, allocatable :: SparseCol(:)
+    integer, allocatable :: SparseRow(:)
+    integer, allocatable :: update_resistance_entries(:)
+    real(dp), allocatable :: SparseVal(:)
+    real(dp), allocatable :: RHS(:)
     integer :: num_vars,NonZeros,MatrixSize
     integer :: AllocateStatus
 
-    !real(dp), allocatable :: prq_solution(:,:),solver_solution(:)
+    real(dp), allocatable :: prq_solution(:,:),solver_solution(:)
     real(dp) :: viscosity,density,inlet_bc,outlet_bc,inletbc,outletbc,grav_vect(3),gamma,total_resistance,ERR
-    !logical, allocatable :: FIX(:)
+    logical, allocatable :: FIX(:)
     logical :: ADD=.FALSE.,CONVERGED=.FALSE.
     character(len=60) :: sub_name,mesh_type,vessel_type,mechanics_type,bc_type
     integer :: grav_dirn,no,depvar,KOUNT,nz,ne,SOLVER_FLAG,ne0,ne1,nj
@@ -135,8 +135,8 @@ endif
 !viscosity: fluid viscosity
 !density:fluid density
 !gamma:Pedley correction factor
-!density=0.10500e-02_dp !kg/cm3
-!viscosity=0.33600e-02_dp !Pa.s
+density=0.10500e-02_dp !kg/cm3
+viscosity=0.33600e-02_dp !Pa.s
 gamma = 0.327_dp !=1.85/(4*sqrt(2))
 
 !! Allocate memory to depvar arrays
@@ -162,22 +162,22 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 
 !! Define boundary conditions
     !first call to define inlet boundary conditions
-    call boundary_conditions(ADD,FIX,bc_type,grav_vect,fluid_properties%blood_density,inletbc,outletbc,&
+    call boundary_conditions(ADD,FIX,bc_type,grav_vect,density,inletbc,outletbc,&
       depvar_at_node,depvar_at_elem,prq_solution,mesh_dof,mesh_type)
     !second call if simple tree need to define pressure bcs at all terminal branches
     if(mesh_type.eq.'simple_tree')then
         ADD=.TRUE.
-        call boundary_conditions(ADD,FIX,bc_type,grav_vect,fluid_properties%blood_density,inletbc,outletbc,&
+        call boundary_conditions(ADD,FIX,bc_type,grav_vect,density,inletbc,outletbc,&
             depvar_at_node,depvar_at_elem,prq_solution,mesh_dof,mesh_type)
     elseif(mesh_type.eq.'full_plus_ladder')then
         ADD=.TRUE.
-        call boundary_conditions(ADD,FIX,bc_type,grav_vect,fluid_properties%blood_density,inletbc,outletbc,&
+        call boundary_conditions(ADD,FIX,bc_type,grav_vect,density,inletbc,outletbc,&
             depvar_at_node,depvar_at_elem,prq_solution,mesh_dof,mesh_type)
     endif
 
     KOUNT=0
 !! Calculate resistance of each element
-   call calculate_resistance(fluid_properties%blood_viscosity,KOUNT)
+   call calculate_resistance(viscosity,KOUNT)
         
 !! Calculate sparsity structure for solution matrices
     !Determine size of and allocate solution vectors/matrices
@@ -196,7 +196,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     if (AllocateStatus /= 0) STOP "*** Not enough memory for solver_solution array ***"
     update_resistance_entries = 0
     !calculate the sparsity structure
-    call calc_sparse_1dtree(bc_type,fluid_properties%blood_density,FIX,grav_vect,mesh_dof,depvar_at_elem, &
+    call calc_sparse_1dtree(bc_type,density,FIX,grav_vect,mesh_dof,depvar_at_elem, &
         depvar_at_node,NonZeros,MatrixSize,SparseCol,SparseRow,SparseVal,RHS, &
         prq_solution,update_resistance_entries,update_flow_nzz_row)
 !!! --ITERATIVE LOOP--
@@ -242,9 +242,9 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
           !SparseVal(nz)=-elem_field(ne_resist,ne) !Just updating resistance
         endif
       endif!first or subsequent iteration
-      !! ----CALL SOLVER----
+!! ----CALL SOLVER----
       call pmgmres_ilu_cr(MatrixSize, NonZeros, SparseRow, SparseCol, SparseVal, &
-           solver_solution, RHS, 500, 500,1.d-5,1.d-4,SOLVER_FLAG)
+         solver_solution, RHS, 500, 500,1.d-5,1.d-4,SOLVER_FLAG)
        if(SOLVER_FLAG == 0)then 
           print *, 'Warning: pmgmres has reached max iterations. Solution may not be valid if this warning persists'
        elseif(SOLVER_FLAG ==2)then
@@ -282,11 +282,11 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
       else
 !Update vessel radii based on predicted pressures and then update resistance through tree
         call calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
-             mesh_dof,vessel_type,elasticity_parameters,mechanics_parameters)
-        call calculate_resistance(fluid_properties%blood_viscosity,KOUNT)
+           mesh_dof,vessel_type,elasticity_parameters,mechanics_parameters)
+        call calculate_resistance(viscosity,KOUNT)
 
 !Put the ladder stuff here --> See solve11.f
-        if(mesh_type.eq.'full_plus_ladder')then
+         if(mesh_type.eq.'full_plus_ladder')then
            do ne=1,num_elems
               if(elem_field(ne_group,ne).eq.1.0_dp)then!(elem_field(ne_group,ne)-1.0_dp).lt.TOLERANCE)then
                 ne0=elem_cnct(-1,1,ne)!upstream element number
@@ -309,17 +309,18 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
               endif
            enddo
          endif
+
          ERR=ERR/MatrixSize !sum of error divided by no of unknown depvar
          if(ERR.LE.1.d-6.AND.(KOUNT.NE.1))then
            CONVERGED=.TRUE.
-            write(*,'('' Convergence achieved after'',i4,'' iterations, error ='',e10.3)') KOUNT,ERR
+            print *,"Convergence achieved after",KOUNT,"iterations",ERR
          else !if error not converged
             if(ERR.GE.MIN_ERR) then
               N_MIN_ERR=N_MIN_ERR+1
             else
               MIN_ERR=ERR
             endif
-            write(*,'('' Not converged, error ='',e10.3)') ERR
+            print *,"Not converged, error =",ERR
          endif !ERR not converged
       endif!vessel type
     enddo !notconverged
@@ -356,25 +357,18 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
       close(20)
     endif
 
-    !deallocate (mesh_from_depvar, STAT = AllocateStatus)
-    !deallocate (depvar_at_elem, STAT = AllocateStatus)
-    !deallocate (depvar_at_node, STAT = AllocateStatus)
-    !deallocate (prq_solution, STAT = AllocateStatus)
-    !deallocate (FIX, STAT = AllocateStatus)
-    !deallocate (solver_solution, STAT = AllocateStatus)
-    !deallocate (SparseCol, STAT = AllocateStatus)
-    !deallocate (SparseVal, STAT = AllocateStatus)
-    !deallocate (SparseRow, STAT = AllocateStatus)
-    !deallocate (RHS, STAT = AllocateStatus)
-    !deallocate (update_resistance_entries, STAT=AllocateStatus)
-
-    write(*,'('' Cardiac output ='',f8.3,'' L/min for PAP ='',f8.3,'' mmHg and LAP ='',f8.3,'' mmHg'')') &
-         elem_field(ne_Qdot,1)/1.0e6_dp*60.0_dp, inletbc / 133.322_dp, outletbc / 133.322_dp
-    
+    deallocate (mesh_from_depvar, STAT = AllocateStatus)
+    deallocate (depvar_at_elem, STAT = AllocateStatus)
+    deallocate (depvar_at_node, STAT = AllocateStatus)
+    deallocate (prq_solution, STAT = AllocateStatus)
+    deallocate (FIX, STAT = AllocateStatus)
+    deallocate (solver_solution, STAT = AllocateStatus)
+    deallocate (SparseCol, STAT = AllocateStatus)
+    deallocate (SparseVal, STAT = AllocateStatus)
+    deallocate (SparseRow, STAT = AllocateStatus)
+    deallocate (RHS, STAT = AllocateStatus)
+    deallocate (update_resistance_entries, STAT=AllocateStatus)
     call enter_exit(sub_name,2)
-
-    call update_prq(mesh_type,vessel_type,grav_dirn,grav_factor,bc_type,inlet_bc,outlet_bc)
-    
   end subroutine evaluate_prq
 !
 !###################################################################################
@@ -1086,315 +1080,6 @@ subroutine calculate_ppl(np,grav_vect,mechanics_parameters,Ppl)
     call enter_exit(sub_name,2)
 end subroutine calculate_ppl
 
-!
-!##################################################################
-!
-  subroutine update_prq(mesh_type,vessel_type,grav_dirn,grav_factor,bc_type,inlet_bc,outlet_bc)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_UPDATE_PRQ" :: UPDATE_PRQ
-
-    !local variables
-    integer :: mesh_dof,depvar_types
-    !integer, allocatable :: mesh_from_depvar(:,:,:)
-    !integer, allocatable :: depvar_at_node(:,:,:)
-    !integer, allocatable :: depvar_at_elem(:,:,:)
-    integer, dimension(0:2,2) :: depvar_totals
-    !integer, allocatable :: SparseCol(:)
-    !integer, allocatable :: SparseRow(:)
-    !integer, allocatable :: update_resistance_entries(:)
-    !real(dp), allocatable :: SparseVal(:)
-    !real(dp), allocatable :: RHS(:)
-    integer :: num_vars,NonZeros,MatrixSize
-    integer :: AllocateStatus
-
-    !real(dp), allocatable :: prq_solution(:,:),solver_solution(:)
-    real(dp) :: viscosity,density,inlet_bc,outlet_bc,inletbc,outletbc,grav_vect(3),gamma,total_resistance,ERR
-    !logical, allocatable :: FIX(:)
-    logical :: ADD=.FALSE.,CONVERGED=.FALSE.
-    character(len=60) :: sub_name,mesh_type,vessel_type,mechanics_type,bc_type
-    integer :: grav_dirn,no,depvar,KOUNT,nz,ne,SOLVER_FLAG,ne0,ne1,nj
-    real(dp) :: MIN_ERR,N_MIN_ERR,elasticity_parameters(3),mechanics_parameters(2),grav_factor,P1
-    real(dp) :: P2,Q01,Rin,Rout,x_cap,y_cap,z_cap,Ppl,LPM_R,Lin,Lout
-    integer :: update_flow_nzz_row
-
-    call enter_exit(sub_name,1)
-
-    !!---------DESCRIPTION OF MODEL Types -----------
-    !mesh_type: can be simple_tree, full_plus_ladder, full_sheet, full_tube The first can be airways, arteries, veins but no special features at the terminal level, the last one has arteries and veins connected by capillary units of some type (lung ladder acinus, lung sheet capillary bed, capillaries are just tubes represented by an element)
-    
-    !vessel_type:
-    !rigid, no elasticity, no parameters required
-    !elastic_g0_beta, R=R0*((Ptm/G0)+1.d0)^(1.d0/elasticity_parameters(2)),with an optional maximum pressure beyond which the vessel radius is constant three parameters, g0, elasticity_parameters(2), elasticity_parameters(3)
-    !elastic alpha,  R=R0*(alpha*Ptm+1.d0), up to a limit elasticity_parameters(3) two parameters alpha, elasticity_parameters(3)
-    !elastic_hooke, two parameters E and h,R=R0+3.0_dp*R0**2*Ptm/(4.0_dp*E*h*R0)
-    
-    !mechanics type:
-    !linear two parmeters, transpulmonary pressure (average) and pleural density (gradient)
-    !mechanics, two parameters, pressure and stretch fields
-    
-    !bc_type:
-    !pressure (at inlet and outlets)
-    !flow (flow at inlet pressure at outlet).
-    
-    
-    mechanics_type='linear'
-    
-    if (vessel_type.eq.'rigid') then
-       elasticity_parameters=0.0_dp
-    elseif (vessel_type.eq.'elastic_g0_beta') then
-       elasticity_parameters(1)=6.67e3_dp!G0 (Pa)
-       elasticity_parameters(2)=1.0_dp!elasticity_parameters(2)
-       elasticity_parameters(3)=32.0_dp*98.07_dp !elasticity_parameters(3) (Pa)
-    elseif (vessel_type.eq.'elastic_alpha') then
-       elasticity_parameters(1)=1.503e-4_dp!alpha (1/Pa)
-       elasticity_parameters(2)=32.0_dp*98.07_dp !elasticity_parameters(3) (Pa)
-       elasticity_parameters(3)=0.0_dp !Not used
-    elseif (vessel_type.eq.'elastic_hooke') then
-       elasticity_parameters(1)=1.5e6_dp !Pa
-       elasticity_parameters(2)=0.1_dp!this is a fraction of the radius so is unitless
-       elasticity_parameters(3)=0.0_dp !Not used
-    else
-       print *, 'WARNING: Your chosen vessel type does not seem to be implemented assuming rigid'
-       vessel_type='rigid'
-       elasticity_parameters=0.0_dp
-    endif
-    
-    if (mechanics_type.eq.'linear') then
-       mechanics_parameters(1)=5.0_dp*98.07_dp !average pleural pressure (Pa)
-       mechanics_parameters(2)=0.25_dp*0.1e-2_dp !pleural density, defines gradient in pleural pressure
-    else
-       print *, 'ERROR: Only linear mechanics models have been implemented to date,assuming default parameters'
-       call exit(0)
-    endif
-    
-    grav_vect=0.d0
-    if (grav_dirn.eq.1) then
-       grav_vect(1)=1.0_dp
-    elseif (grav_dirn.eq.2) then
-       grav_vect(2)=1.0_dp
-    elseif (grav_dirn.eq.3) then
-       grav_vect(3)=1.0_dp
-    else
-       print *, "ERROR: Posture not recognised (currently only x=1,y=2,z=3))"
-       call exit(0)
-    endif
-    grav_vect=grav_vect*grav_factor
-    
-    if(bc_type.eq.'pressure')then
-       inletbc=inlet_bc
-       outletbc=outlet_bc
-    elseif(bc_type.eq.'flow')then
-       inletbc=inlet_bc
-       outletbc=outlet_bc
-    elseif((bc_type.NE.'pressure').AND.(bc_type.NE.'flow'))then
-       print *,"unsupported bc_type",bc_type
-       call exit(1)
-    endif
-    
-    !!---------PHYSICAL PARAMETERS-----------
-    !viscosity: fluid viscosity
-    !density:fluid density
-    !gamma:Pedley correction factor
-    !density=0.10500e-02_dp !kg/cm3
-    !viscosity=0.33600e-02_dp !Pa.s
-    gamma = 0.327_dp !=1.85/(4*sqrt(2))
-    
-    mesh_dof=num_elems+num_nodes
-    depvar_types=2 !pressure/flow
-
-    !! Setting up mappings between nodes, elements and solution depvar
-    call calc_depvar_maps(mesh_from_depvar,depvar_at_elem,&
-                depvar_totals,depvar_at_node,mesh_dof,num_vars)
-
-!! Define boundary conditions
-    !first call to define inlet boundary conditions
-    call boundary_conditions(ADD,FIX,bc_type,grav_vect,fluid_properties%blood_density,inletbc,outletbc,&
-      depvar_at_node,depvar_at_elem,prq_solution,mesh_dof,mesh_type)
-    !second call if simple tree need to define pressure bcs at all terminal branches
-    if(mesh_type.eq.'simple_tree')then
-        ADD=.TRUE.
-        call boundary_conditions(ADD,FIX,bc_type,grav_vect,fluid_properties%blood_density,inletbc,outletbc,&
-            depvar_at_node,depvar_at_elem,prq_solution,mesh_dof,mesh_type)
-    elseif(mesh_type.eq.'full_plus_ladder')then
-        ADD=.TRUE.
-        call boundary_conditions(ADD,FIX,bc_type,grav_vect,fluid_properties%blood_density,inletbc,outletbc,&
-            depvar_at_node,depvar_at_elem,prq_solution,mesh_dof,mesh_type)
-    endif
-
-    KOUNT=0
-!! Calculate resistance of each element
-   call calculate_resistance(fluid_properties%blood_viscosity,KOUNT)
-        
-!! Calculate sparsity structure for solution matrices
-    !Determine size of and allocate solution vectors/matrices
-    call calc_sparse_size(mesh_dof,depvar_at_elem,depvar_at_node,FIX,NonZeros,MatrixSize)
-
-    !calculate the sparsity structure
-    call calc_sparse_1dtree(bc_type,fluid_properties%blood_density,FIX,grav_vect,mesh_dof,depvar_at_elem, &
-        depvar_at_node,NonZeros,MatrixSize,SparseCol,SparseRow,SparseVal,RHS, &
-        prq_solution,update_resistance_entries,update_flow_nzz_row)
-!!! --ITERATIVE LOOP--
-    MIN_ERR=1.d10
-    N_MIN_ERR=0
-    do while(.NOT.CONVERGED)
-      KOUNT=KOUNT+1
-      print*, 'Outer loop iterations:',KOUNT
-!!! Initialise solution vector based on bcs and rigid vessel resistance
-      if(KOUNT.eq.1)then!set up boundary conditions
-        if(bc_type.eq.'pressure')then
-          if(mesh_type.eq.'full_plus_ladder')then
-            total_resistance=1000.0_dp
-          else
-            call tree_resistance(total_resistance)
-          endif
-          call initialise_solution(inletbc,outletbc,(inletbc-outletbc)/total_resistance, &
-              mesh_dof,prq_solution,depvar_at_node,depvar_at_elem,FIX)
-          !move initialisation to solver solution (skipping BCs).
-          no=0
-          do depvar=1,mesh_dof !loop over mesh dofs
-            if(.NOT.FIX(depvar))then
-              no=no+1
-              solver_solution(no)=prq_solution(depvar,1)
-            endif
-          enddo !mesh_dof
-        else!flow BCs to be implemented
-        endif
-      else!Need to update just the resistance values in the solution matrix
-        do ne=1,num_elems !update for all ne
-          if(update_resistance_entries(ne).gt.0)then
-            nz=update_resistance_entries(ne)
-            SparseVal(nz)=-elem_field(ne_resist,ne) !Just updating resistance
-          endif
-        enddo
-        if(bc_type.eq.'flow')then !update RHS to account for element resistance
-          do ne=1,num_elems
-            depvar = depvar_at_elem(1,1,ne)
-            if(FIX(depvar))then
-              RHS(update_flow_nzz_row) = prq_solution(depvar,1)*elem_field(ne_resist,ne)
-            endif
-          enddo
-          !SparseVal(nz)=-elem_field(ne_resist,ne) !Just updating resistance
-        endif
-      endif!first or subsequent iteration
-      !! ----CALL SOLVER----
-      call pmgmres_ilu_cr(MatrixSize, NonZeros, SparseRow, SparseCol, SparseVal, &
-           solver_solution, RHS, 500, 500,1.d-5,1.d-4,SOLVER_FLAG)
-       if(SOLVER_FLAG == 0)then 
-          print *, 'Warning: pmgmres has reached max iterations. Solution may not be valid if this warning persists'
-       elseif(SOLVER_FLAG ==2)then
-          print *, 'ERROR: pmgmres has failed to converge'
-          deallocate (mesh_from_depvar, STAT = AllocateStatus)
-          deallocate (depvar_at_elem, STAT = AllocateStatus)
-          deallocate (depvar_at_node, STAT = AllocateStatus)
-          deallocate (prq_solution, STAT = AllocateStatus)
-          deallocate (FIX, STAT = AllocateStatus)
-          deallocate (solver_solution, STAT = AllocateStatus)
-          deallocate (SparseCol, STAT = AllocateStatus)
-          deallocate (SparseVal, STAT = AllocateStatus)
-          deallocate (SparseRow, STAT = AllocateStatus)
-          deallocate (RHS, STAT = AllocateStatus)
-          deallocate (update_resistance_entries, STAT=AllocateStatus)
-          exit
-       endif
-!!--TRANSFER SOLVER SOLUTIONS TO FULL SOLUTIONS
-      ERR=0.0_dp
-      no=0
-      do depvar=1,mesh_dof
-         if(.NOT.FIX(depvar)) THEN
-            no=no+1
-            prq_solution(depvar,2)=prq_solution(depvar,1) !temp storage of previous solution
-            prq_solution(depvar,1)=solver_solution(no) !new pressure & flow solutions
-            if(DABS(prq_solution(depvar,1)).GT.0.d-6)THEN
-               ERR=ERR+(prq_solution(depvar,2)-prq_solution(depvar,1))**2.d0/prq_solution(depvar,1)**2
-            endif
-         endif
-      enddo !no2
-!rigid vessels no need to update - tag as converged and exit
-      if(vessel_type.eq.'rigid')then
-        ERR=0.0_dp
-        CONVERGED=.TRUE.
-      else
-!Update vessel radii based on predicted pressures and then update resistance through tree
-        call calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
-             mesh_dof,vessel_type,elasticity_parameters,mechanics_parameters)
-        call calculate_resistance(fluid_properties%blood_viscosity,KOUNT)
-
-!Put the ladder stuff here --> See solve11.f
-        if(mesh_type.eq.'full_plus_ladder')then
-           do ne=1,num_elems
-              if(elem_field(ne_group,ne).eq.1.0_dp)then!(elem_field(ne_group,ne)-1.0_dp).lt.TOLERANCE)then
-                ne0=elem_cnct(-1,1,ne)!upstream element number
-                ne1=elem_cnct(1,1,ne)
-                P1=prq_solution(depvar_at_node(elem_nodes(2,ne0),0,1),1) !pressure at start node of capillary element
-                P2=prq_solution(depvar_at_node(elem_nodes(1,ne1),0,1),1)!pressure at end node of capillary element
-                Q01=prq_solution(depvar_at_elem(1,1,ne0),1) !flow in element upstream of capillary element !mm^3/s
-                Rin=elem_field(ne_radius_out0,ne0)!radius of upstream element
-                Rout=elem_field(ne_radius_out0,ne1) !radius of downstream element
-                x_cap=node_xyz(1,elem_nodes(1,ne))
-                y_cap=node_xyz(2,elem_nodes(1,ne))
-                z_cap=node_xyz(3,elem_nodes(1,ne))
-                call calculate_ppl(elem_nodes(1,ne),grav_vect,mechanics_parameters,Ppl)
-                Lin=elem_field(ne_length,ne0)
-                Lout=elem_field(ne_length,ne1)
-                 call cap_flow_ladder(ne,LPM_R,Lin,Lout,P1,P2,&
-                        Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,&
-                        .FALSE.)
-                 elem_field(ne_resist,ne)=LPM_R
-              endif
-           enddo
-         endif
-         ERR=ERR/MatrixSize !sum of error divided by no of unknown depvar
-         if(ERR.LE.1.d-6.AND.(KOUNT.NE.1))then
-           CONVERGED=.TRUE.
-            write(*,'('' Convergence achieved after'',i4,'' iterations, error ='',e10.3)') KOUNT,ERR
-         else !if error not converged
-            if(ERR.GE.MIN_ERR) then
-              N_MIN_ERR=N_MIN_ERR+1
-            else
-              MIN_ERR=ERR
-            endif
-            write(*,'('' Not converged, error ='',e10.3)') ERR
-         endif !ERR not converged
-      endif!vessel type
-    enddo !notconverged
-
-!need to write solution to element/nodal fields for export
-    call map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof)
-    !NEED TO UPDATE TERMINAL SOLUTION HERE. LOOP THO' UNITS AND TAKE FLOW AND PRESSURE AT TERMINALS
-    call map_flow_to_terminals
-    !EXPORT LADDER SOLUTION
-    if(mesh_type.eq.'full_plus_ladder')then
-      open(10, file='micro_flow_ladder.out', status='replace')
-      open(20, file='micro_flow_unit.out', status='replace')
-      do ne=1,num_elems
-        if(elem_field(ne_group,ne).eq.1.0_dp)then!(elem_field(ne_group,ne)-1.0_dp).lt.TOLERANCE)then
-          ne0=elem_cnct(-1,1,ne)!upstream element number
-          ne1=elem_cnct(1,1,ne)
-          P1=prq_solution(depvar_at_node(elem_nodes(2,ne0),0,1),1) !pressure at start node of capillary element
-          P2=prq_solution(depvar_at_node(elem_nodes(1,ne1),0,1),1)!pressure at end node of capillary element
-          Q01=prq_solution(depvar_at_elem(1,1,ne0),1) !flow in element upstream of capillary element !mm^3/s
-          Rin=elem_field(ne_radius_out0,ne0)!radius of upstream element
-          Rout=elem_field(ne_radius_out0,ne1) !radius of downstream element
-          x_cap=node_xyz(1,elem_nodes(1,ne))
-          y_cap=node_xyz(2,elem_nodes(1,ne))
-          z_cap=node_xyz(3,elem_nodes(1,ne))
-          call calculate_ppl(elem_nodes(1,ne),grav_vect,mechanics_parameters,Ppl)
-          Lin=elem_field(ne_length,ne0)
-          Lout=elem_field(ne_length,ne1)
-          call cap_flow_ladder(ne,LPM_R,Lin,Lout,P1,P2,&
-            Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,&
-            .TRUE.)
-        endif
-      enddo
-      close(10)
-      close(20)
-    endif
-
-    write(*,'('' Cardiac output ='',f8.3,'' L/min for PAP ='',f8.3,'' mmHg and LAP ='',f8.3,'' mmHg'')') &
-         elem_field(ne_Qdot,1)/1.0e6_dp*60.0_dp, inletbc / 133.322_dp, outletbc / 133.322_dp
-    
-    call enter_exit(sub_name,2)
-
-  end subroutine update_prq
 !
 !##################################################################
 !
