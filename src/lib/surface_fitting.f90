@@ -40,7 +40,6 @@ contains
     ! data points (3D RC coordinates) and a surface mesh (assumed bi-cubic 
     ! Hermite only). 'fitting_file' lists the nodes/derivatives that are fixed,
     !  and any mapping of nodes and/or derivatives
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_FIT_SURFACE_GEOMETRY" :: FIT_SURFACE_GEOMETRY
 
     integer,intent(in) :: niterations                   ! user-specified number of fitting iterations
     character(len=255),intent(in) :: fitting_file ! file that lists versions/mapping/BCs
@@ -304,7 +303,7 @@ contains
   subroutine initialise_fit_mesh()
     !*initialise_fit_mesh:* scale and translate the mesh to align with a data
     ! cloud. uses the centre of mass and the range of data coordinates.
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_INITIALISE_FIT_MESH" :: INITIALISE_FIT_MESH
+
     ! Local variables
     integer :: i
     real(dp) :: datacofm(3),meshcofm(3),datarange(3),meshrange(3), &
