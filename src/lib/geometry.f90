@@ -2821,7 +2821,7 @@ contains
     character(len=4),intent(in) :: sf_option
     ! Local variables
     integer :: index_nodes(2,4),j,line_nodes(2),ne,ne_adjacent,ni1,nj, &
-         nl,nline,nl_adj,nl_found,npn(2),np1,np2,nxi(4)
+         nl,nline,nl_adj,nl_found,nn1,nn2,npn(2),np1,np2,nxi(4)
     logical :: MAKE
     logical :: based_on_elems = .true., found_nl
     character(len=60) :: sub_name
@@ -2864,8 +2864,12 @@ contains
 
        do ne = 1,num_elems_2d
           do nline = 1,4
-             np1 = elem_nodes_2d(index_nodes(1,nline),ne)
-             np2 = elem_nodes_2d(index_nodes(2,nline),ne)
+!             np1 = elem_nodes_2d(index_nodes(1,nline),ne)
+!             np2 = elem_nodes_2d(index_nodes(2,nline),ne)
+             nn1 = index_nodes(1,nline)
+             nn2 = index_nodes(2,nline)
+             np1 = elem_nodes_2d(nn1,ne)
+             np2 = elem_nodes_2d(nn2,ne)
              found_nl = .false.
              if(np1.ne.np2)then
                 do nl = 1,num_lines_2d
@@ -2889,8 +2893,10 @@ contains
                 nodes_in_line(1,0,num_lines_2d) = nxi(nline)
                 do nj = 1,3
                    nodes_in_line(1,nj,num_lines_2d) = 4 !type of basis function (1 for linear,4 for cubicHermite)
-                   line_versn_2d(1,nj,num_lines_2d) = elem_versn_2d(np1,ne)
-                   line_versn_2d(2,nj,num_lines_2d) = elem_versn_2d(np2,ne)
+!                   line_versn_2d(1,nj,num_lines_2d) = elem_versn_2d(np1,ne)
+!                   line_versn_2d(2,nj,num_lines_2d) = elem_versn_2d(np2,ne)
+                   line_versn_2d(1,nj,num_lines_2d) = elem_versn_2d(nn1,ne)
+                   line_versn_2d(2,nj,num_lines_2d) = elem_versn_2d(nn2,ne)
                 enddo !nj
              endif
           enddo !nline
