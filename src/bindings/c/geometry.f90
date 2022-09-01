@@ -130,6 +130,27 @@ contains
 !
 !###################################################################################
 !
+  subroutine import_node_geometry_2d_c(NODEFILE, filename_len) bind(C, name="import_node_geometry_2d_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry, only: import_node_geometry_2d
+    implicit none
+
+    integer,intent(in) :: filename_len
+    type(c_ptr), value, intent(in) :: NODEFILE
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, NODEFILE, filename_len)
+
+    call import_node_geometry_2d(filename_f)
+
+  end subroutine import_node_geometry_2d_c
+
+!
+!###################################################################################
+!
   subroutine make_data_grid_c(surface_elems_len, surface_elems, offset, spacing, &
        filename, filename_len, groupname, groupname_len)&
  bind(C, name="make_data_grid_c")
@@ -284,25 +305,6 @@ contains
     call evaluate_ordering
 
   end subroutine evaluate_ordering_c
-
-!###################################################################################
-!
-!>*set_initial_volume:* assigns a volume to terminal units appended on a tree structure
-!>based on an assumption of a linear gradient in the gravitational direction with max
-!> min and COV values defined.
-  subroutine set_initial_volume_c(Gdirn, COV, total_volume, Rmax, Rmin) bind(C, name="set_initial_volume_c")
-
-    use geometry, only: set_initial_volume
-    use arrays, only: dp
-    implicit none
-
-    !     Parameter List
-    integer,intent(in) :: Gdirn
-    real(dp),intent(in) :: COV, total_volume, Rmax, Rmin
-
-    call set_initial_volume(Gdirn, COV, total_volume, Rmax, Rmin)
-
-  end subroutine set_initial_volume_c
 
 !
 !###################################################################################

@@ -4,6 +4,30 @@ module exports_c
   private
 
 contains
+
+
+!!!################################################################
+
+  subroutine export_cubic_lagrange_2d_c(EXFILE, filename_len, group_name, group_name_len) &
+    bind(C, name="export_cubic_lagrange_2d_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use exports, only: export_cubic_lagrange_2d
+    use other_consts, only: MAX_STRING_LEN, MAX_FILENAME_LEN
+    implicit none
+    integer,intent(in) :: filename_len, group_name_len
+    type(c_ptr), value, intent(in) :: EXFILE, group_name
+    character(len=MAX_FILENAME_LEN) :: filename_f
+    character(len=MAX_STRING_LEN) :: group_name_f
+
+    call strncpy(filename_f, EXFILE, filename_len)
+    call strncpy(group_name_f, group_name, group_name_len)
+
+    call export_cubic_lagrange_2d(filename_f, group_name_f)
+
+  end subroutine export_cubic_lagrange_2d_c
+
 !!!################################################################
 
   subroutine export_1d_elem_field_c(ne_field, EXELEMFILE, filename_len, group_name, group_name_len, field_name, field_name_len) &

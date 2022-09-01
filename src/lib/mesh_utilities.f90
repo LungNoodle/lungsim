@@ -22,20 +22,22 @@ module mesh_utilities
        angle_btwn_points, &
        angle_btwn_vectors, &
        bifurcation_element, &
+       calc_arclengths, &
        calc_branch_direction, &
        calc_scale_factors_2d, &
        check_colinear_points, &
+       check_vectors_same, &
        cross_product,&
        direction_point_to_point, &
        distance_between_points, &
        distance_from_plane_to_point, &
        get_local_elem_2d, &
        group_elem_by_parent, &
+       hermite, &
        inlist, &
+       linear, &
        make_plane_from_3points, &
        mesh_a_x_eq_b, &
-       ph3, &
-       pl1, &
        point_internal_to_surface, &
        scalar_product_3, &
        scalar_triple_product, &
@@ -96,6 +98,77 @@ contains
   ! .... Calculates the length of a 3x1 vector
 
 !!!#####################################################################
+
+  subroutine calc_arclengths
+    !*calc_arclengths*: estimates arclength for cubic Hermite using
+    ! Gaussian quadrature with 4 points
+
+    ! Local variables
+    integer :: i,it,itmax,n,ng,nj,nl,nline,np,nv,xi_direction
+    real(dp) :: est_length,incr_length,linear_est,line_xyz(2,3,2), &
+         local_deriv(3),weight(4),xigg(4)
+
+    xigg = [0.0694318442029_dp, 0.3300094782075_dp,&
+         0.6699905217924_dp, 0.9305681557970_dp]    ! exact Gauss point locations
+    weight = [0.1739274225687_dp, 0.3260725774313_dp,&
+         0.3260725774313_dp, 0.1739274225687_dp]    ! exact Gauss point weightings
+
+    do nline = 1,num_lines_2d                ! loop over all lines
+       nl = lines_2d(nline)                  ! the line number 
+       xi_direction = nodes_in_line(1,0,nl)  ! the Xi direction of the line
+       
+       ! get the nodal coordinates and derivatives for the line
+       do n = 1,2                            ! for each node on the line
+          np = nodes_in_line(n+1,1,nl)       ! the first and second node (np1,np2)
+          nv = line_versn_2d(N,1,nl)         ! the version of the node for this line
+          line_xyz(1,:,n) = node_xyz_2d(1,nv,:,np)  ! get the coordinates for the line
+          if(xi_direction.eq.1) line_xyz(2,:,n) = node_xyz_2d(2,nv,:,np) ! dxi1
+          if(xi_direction.eq.2) line_xyz(2,:,n) = node_xyz_2d(3,nv,:,np) ! dxi2
+       enddo !n
+       
+       ! calculate the linear distance between start and end nodes. this should be
+       ! used to check that the derivatives are appropriate when the start and 
+       ! end nodes are coincident (i.e. a collapsed element). 
+       est_length = 0.0_dp
+       do ng = 1,4
+          ! calculate the arclength derivatives
+          do nj = 1,3
+             ! local_deriv = phi_10' * xyz_1 + phi_20' * xyz_2
+             local_deriv(nj) = linear(1,2,xigg(ng))*line_xyz(1,nj,1) &
+                  + linear(2,2,xigg(ng))*line_xyz(1,nj,2)
+          enddo
+          incr_length = sqrt(scalar_product_3(local_deriv,local_deriv))
+          est_length = est_length + weight(ng) * incr_length
+       enddo !ng
+       
+       linear_est = est_length
+
+       est_length = 0.0_dp
+       do ng = 1,4
+          ! calculate the arclength derivatives at Xi coordinates 
+          do nj = 1,3
+             !function' = phi_10'*xyz_1 + phi_11'*deriv_1 + phi_20'*xyz_2 + phi_21'*deriv_2
+             local_deriv(nj) = hermite(1,1,2,xigg(ng))*line_xyz(1,nj,1) &
+                  + hermite(1,2,2,xigg(ng))*line_xyz(2,nj,1) &
+                  + hermite(2,1,2,xigg(ng))*line_xyz(1,nj,2) &
+                  + hermite(2,2,2,xigg(ng))*line_xyz(2,nj,2)
+          enddo
+          incr_length = sqrt(scalar_product_3(local_deriv,local_deriv))
+          est_length = est_length + weight(ng) * incr_length
+       enddo !ng
+       if(abs(linear_est).gt.zero_tol)then
+          arclength(nl) = est_length
+       else
+          arclength(nl) = 0.0_dp
+          np = nodes_in_line(2,1,nl)         ! the first node
+          nv = line_versn_2d(1,1,nl)         ! the version of the node for this line
+          node_xyz_2d(xi_direction+1,nv,:,np) = 0.0_dp
+       endif
+    enddo !loop over lines
+
+  end subroutine calc_arclengths
+  
+!!!#####################################################################
   
   subroutine calc_branch_direction(ne)
     
@@ -117,143 +190,45 @@ contains
 !!! ##########################################################################      
 
   subroutine calc_scale_factors_2d(sf_option)
-
-!!! calculates the arclengths and scale factors for 2d surface elements,
-!!! stores in scale_factors_2d
+    !*calc_scale_factors_2d*: calculates arclengths using Gaussian quadrature,
+    ! and scale factors for 2d surface elements
   
     character(len=4),intent(in) :: sf_option
 !!! local variables
     integer,parameter :: num_deriv = 4
-    integer :: ido(num_deriv,2),IG(4),it,IT_count,ITMAX=20,k,N,NAE,ne,&
-         ng,NGA=4,NI1(3),ni,ni2,nj,nk,nk2,nl,nn,nn2,NNK,no_nl,&
+    integer :: i,ido(num_deriv,2),it,ITMAX=20,k,N,NAE,ne,&
+         ng,NGA=4,NI1(3),ni,ni2,nj,nk,nk2,nl,nline,nn,nn2,NNK,&
          np,ns,nv,NNL(2,4)
-    real(dp) :: DA,SUM1,SUM2,SUM3,SUM4,W,WG_LOCAL(10),XA_LOCAL(4,3),XI,&
-         XIGG(10),XN_LOCAL(2,3,4)
+    real(dp) :: DA,SUM1,SUM2,SUM3,SUM4,W
     logical :: FOUND
     
-    XIGG = [0.6_dp,0.2113248654051_dp,0.7886751345948_dp,0.1127016653792_dp,&
-         0.6_dp,0.8872983346207_dp,0.0694318442029_dp,0.3300094782075_dp,&
-         0.6699905217924_dp,0.9305681557970_dp]
-    WG_LOCAL = [1.0_dp,0.6_dp,0.6_dp,0.2777777777778_dp,0.4444444444444_dp,&
-         0.2777777777778_dp,0.1739274225687_dp,0.3260725774313_dp,&
-         0.3260725774313_dp,0.1739274225687_dp]
-    IG = [0,1,3,6]
     ido = reshape ([1,2,1,2,1,1,2,2],shape(ido))
     NI1 = [1,2,1]
     NNL = reshape([1,2,3,4,1,3,2,4],shape(NNL))
-    
+
+
     if(.not.allocated(scale_factors_2d)) allocate(scale_factors_2d(16,num_elems_2d))
 
     select case (sf_option)
     case ('unit')
        scale_factors_2d = 1.0_dp
-    case('arcl')
-       do no_nl=1,num_lines_2d !loop over global lines
-          nl=lines_2d(no_nl)
-          ni = nodes_in_line(1,0,nl)
-          do n = 1,2                  !for each node on the line
-             np = nodes_in_line(n+1,1,nl)       !np1,np2
-             do nj = 1,3
-                nv = line_versn_2d(N,nj,nl)
-                XN_LOCAL(1,nj,n) = node_xyz_2d(1,nv,nj,np)
-                ne = lines_in_elem(1,nl)
-                ni2 = 1+MOD(ni,2)
-                nn = 1
-                FOUND =.FALSE.
-                do WHILE((nn.LE.4).AND.(.NOT.FOUND))
-                   if(np.EQ.elem_nodes_2d(nn,ne))then
-                      FOUND=.TRUE.
-                   else
-                      nn=nn+1
-                   endif
-                enddo
-                do nk=2,4           !dxi1, dxi2, d2xi1xi2
-                   if(IDO(nk,ni).EQ.2.AND.IDO(nk,ni2).EQ.1) then
-                      XN_LOCAL(2,nj,n) = node_xyz_2d(nk,nv,nj,np)
-                   endif
-                enddo !nk
-             enddo !nj
-          enddo !n
-          
-          SUM2=0.0_dp
-          do ng=1,NGA
-             XI=XIGG(IG(NGA)+ng)
-             W=WG_LOCAL(IG(NGA)+ng)
-             do nj=1,3
-                do k=1,2
-                   XA_LOCAL(k,nj)=PL1(1,k,XI)*XN_LOCAL(1,nj,1) &
-                        +PL1(2,k,XI)*XN_LOCAL(1,nj,2)
-                enddo
-             enddo
-             
-             SUM1=XA_LOCAL(2,1)**2.0_dp+XA_LOCAL(2,2)**2.0_dp+XA_LOCAL(2,3)**2.0_dp
-             SUM2=SUM2+W*sqrt(SUM1)
-          enddo !ng
-          
-          arclength(1:3,nl)=SUM2
-          
-          it=0
-          iterative_loop : do
-             it=it+1
-             IT_count=it
-             SUM3=0.0_dp
-             SUM4=0.0_dp
-             do ng=1,NGA
-                XI=XIGG(IG(NGA)+ng)
-                W=WG_LOCAL(IG(NGA)+ng)
-                do nj=1,3
-                   do k=1,2
-                      XA_LOCAL(k,nj)=0.0_dp
-                      do n=1,2
-                         XA_LOCAL(k,nj)=XA_LOCAL(k,nj)+ &
-                              PH3(n,1,k,XI)*XN_LOCAL(1,nj,n) &
-                              +PH3(n,2,k,XI)*XN_LOCAL(2,nj,n)*arclength(n,nl)
-                      enddo
-                   enddo
-                   XA_LOCAL(3,nj)=0.0_dp
-                   do n=1,2
-                      XA_LOCAL(3,nj)=XA_LOCAL(3,nj)+ &
-                           PH3(n,2,2,XI)*XN_LOCAL(2,nj,n)
-                   enddo
-                   XA_LOCAL(4,nj)=0.0_dp
-                   do n=1,2
-                      XA_LOCAL(4,nj)=XA_LOCAL(4,nj)+ &
-                           PH3(n,2,1,XI)*XN_LOCAL(2,nj,n)
-                   enddo
-                enddo
-                SUM1=XA_LOCAL(2,1)**2.0_dp+XA_LOCAL(2,2)**2.0_dp+XA_LOCAL(2,3)**2.0_dp
-                SUM2=0.0_dp
-                do nj=1,3
-                   SUM2=SUM2+XA_LOCAL(2,nj)*XA_LOCAL(3,nj)
-                enddo                  !nj
-                SUM3=SUM3+W*DSQRT(SUM1)
-                if(SUM1.GT.1.0e-6_dp) SUM4=SUM4+W*SUM2/sqrt(SUM1)
-             enddo                     !ng
-             DA=-(arclength(3,nl)-SUM3)/(1.0_dp-SUM4)
-             if(DABS(DA).GT.1.0e+6_dp) then
-                arclength(3,nl)=1.0_dp
-                exit iterative_loop
-             endif
-             
-             arclength(3,nl) = arclength(3,nl)+DA      !is new arclength
-             arclength(1:2,nl) = arclength(3,nl)
-             
-             if(it.eq.ITMAX) exit iterative_loop
-             
-          enddo iterative_loop      !iteration
-       enddo !loop over lines
        
+    case('arcl')
+
+       call calc_arclengths
+       
+       ! calculate scale factors using the line derivatives 
        scale_factors_2d = 1.0_dp !initialise
        
-       do ne=1,num_elems_2d
-          do NAE=1,4
-             nl = elem_lines_2d(NAE,ne)
-             if(nl /= 0)then
-                ni = nodes_in_line(1,0,nl)
-                ni2 = NI1(ni+1)
+       do ne = 1,num_elems_2d
+          do NAE = 1,4      ! for each of the (up to) 4 lines in the element
+             nl = elem_lines_2d(NAE,ne)     ! the line number
+             if(nl /= 0)then                ! required for collapsed edges
+                ni = nodes_in_line(1,0,nl)  ! the Xi direction of the line
+                ni2 = NI1(ni+1)             ! 2,1 for Xi 1,2 resp.
                 do N=1,2
-                   nn=NNL(N,NAE)
-                   ns=0
+                   nn=NNL(N,NAE)            ! 1,2,3,4 for n=1; 1,3,2,4 for n=2
+                   ns=0                     
                    do nn2=1,nn-1
                       do nk2=1,num_deriv
                          ns=ns+1
@@ -261,19 +236,16 @@ contains
                    enddo
                    do nk=2,num_deriv
                       if(IDO(nk,ni2).EQ.1) then
-                         scale_factors_2d(nk+ns,ne) = arclength(N,nl)
-                         if(DABS(scale_factors_2d(nk+ns,ne)).LT.1.0e-6_dp) scale_factors_2d(nk+ns,ne) = 1.0_dp
+                         scale_factors_2d(nk+ns,ne) = arclength(nl)
+                         if(abs(scale_factors_2d(nk+ns,ne)).LT.1.0e-6_dp) scale_factors_2d(nk+ns,ne) = 1.0_dp
                       endif
                    enddo !nk
                 enddo !N=1,2
              endif
           enddo !NAE (nl)
-          
-          NNK=0
-          do ns=1,4
-             scale_factors_2d(NNK+4,ne)=scale_factors_2d(NNK+2,ne)*scale_factors_2d(NNK+3,ne)
-             NNK=NNK+4
-          enddo !nn
+
+          forall(i = 0:12:4) scale_factors_2d(i+4,ne) = scale_factors_2d(i+2,ne)* &
+               scale_factors_2d(i+3,ne)
           
        enddo !noelem (ne)
     end select
@@ -471,74 +443,77 @@ contains
   
 !!! ##########################################################################      
 
-  function ph3(I,J,K,XI)
+  function hermite(i,j,k,xi)
+    !*hermite*: evaluates the cubic Hermite basis function at xi. the function
+    ! is returned for values(k=1) or first(k=2) or second(k=3) derivatives, at
+    ! xi=0 (i=1) or xi=1 (i=2). 
     
-!!! dummy arguments
-    integer :: I,I_J_K,J,K
-    real(dp) :: XI
+    integer,intent(in) :: i,j,k
+    real(dp) :: xi
 !!! local variables
-    real(dp) :: ph3
+    integer :: i_j_k
+    real(dp) :: hermite
     
     ! K is 1,2, or 3; J is 1 or 2; I is 1 or 2
     
-    I_J_K = 100*I + 10*J + K
+    i_j_k = 100*i + 10*j + k
     
-    select case(I_J_K)
+    select case(i_j_k)
     case(111) !i=1,j=1,k=1
-       PH3=(2.0_dp*XI-3.0_dp)*XI*XI+1.0_dp  ! 2xi^3-3xi^2+1
+       hermite = 1.0_dp - 3.0_dp*xi**2 + 2.0_dp*xi**3  ! phi_10 = 1 -3xi^2 + 2xi^3
     case(121) !i=1,j=2,k=1
-       PH3=((XI-2.0_dp)*XI+1.0_dp)*XI      ! xi^3-2xi^2+xi
+       hermite = xi*(xi - 1.0_dp)**2                   ! phi_11 = xi(xi - 1)^2
     case(211) !i=2,j=1,k=1
-       PH3=XI*XI*(3.0_dp-2.0_dp*XI)        ! -2xi^3+3xi^2
+       hermite = xi**2 *(3.0_dp - 2.0_dp*xi)           ! phi_20 = xi^2(3 - 2xi)
     case(221) !i=2,j=2,k=1
-       PH3=XI*XI*(XI-1.0_dp)              ! xi^3-xi^2
+       hermite = xi**2 *(xi - 1.0_dp)                  ! phi_21 = xi^2(xi - 1)
     case(112) !i=1,j=1,k=2
-       PH3=6.0_dp*XI*(XI-1.0_dp)           ! 6xi^2-6xi
+       hermite = 6.0_dp*xi *(xi - 1.0_dp)              ! phi_10' = 6xi(xi - 1)
     case(122) !i=1,j=2,k=2
-       PH3=(3.0_dp*XI-4.0_dp)*XI+1.0_dp     ! 3xi^2-4xi+1
+       hermite = 3.0_dp*xi**2 - 4.0_dp*xi + 1.0_dp     ! phi_11' = 3xi^2-4xi+1
     case(212) !i=2,j=1,k=2
-       PH3=6.0_dp*XI*(1.0_dp-XI)           ! -6xi^2+6xi
+       hermite = 6.0_dp*xi*(1.0_dp - xi)               ! phi_20' = 6xi-6xi^2
     case(222) !i=2,j=2,k=2
-       PH3=XI*(3.0_dp*XI-2.0_dp)           ! 3xi^2-2xi
+       hermite = xi*(3.0_dp*xi - 2.0_dp)               ! phi_21' = 3xi^2-2xi
     case(113) !i=1,j=1,k=3
-       PH3=12.0_dp*XI-6.0_dp               ! 12xi-6
+       hermite = 6.0_dp*(2.0_dp*xi - 1.0_dp)           ! phi_10'' = 12xi-6
     case(123) !i=1,j=2,k=3
-       PH3=6.0_dp*XI-4.0_dp                ! 6xi-4
+       hermite = 6.0_dp*xi - 4.0_dp                    ! phi_11'' = 6xi-4
     case(213) !i=2,j=1,k=3
-       PH3=6.0_dp-12.0_dp*XI               ! -12xi+6
+       hermite = 6.0_dp - 12.0_dp*xi                   ! phi_20'' = -12xi+6
     case(223) !i=2,j=2,k=3
-       PH3=6.0_dp*XI-2.0_dp                ! 6xi-2
+       hermite = 6.0_dp*xi - 2.0_dp                    ! phi_21'' = 6xi-2
     end select
     
-  end function ph3
+  end function hermite
 
 !!! ##########################################################################      
 
-  function pl1(I,K,XI)
+  function linear(i,k,xi)
     
-!!! dummy arguments
-    integer :: I,I_K,K
-    real(dp) :: XI
+    integer,intent(in) :: i,k
+    real(dp),intent(in) :: xi
 !!! local variables
-    real(dp) :: pl1
+    integer :: i_k
+    real(dp) :: linear
     
-    I_K = 10*I + K
+    i_k = 10*i + k
     
     select case(I_K)
     case(11) !i=1,k=1
-       PL1=1.0_dp-XI
+       linear = 1.0_dp-xi                              ! phi_10 = 1-xi
     case(21) !i=2,k=1
-       PL1=XI
+       linear = xi                                     ! phi_20 = xi
     case(12) !i=1,k=2
-       PL1=-1.0_dp
+       linear = -1.0_dp                                ! phi_10' = -1
     case(22) !i=2,k=2
-       PL1=1.0_dp
+       linear = 1.0_dp                                 ! phi_20' = 1
     case(30 :) !k=3
-       PL1=0.0_dp
+       linear = 0.0_dp                                 ! phi_10''= phi_20'' = 0
     end select
     
     return
-  end function pl1
+  end function linear
 
 !!!##################################################
   
@@ -644,6 +619,29 @@ contains
   end function check_colinear_points
   
 
+!!!###############################################################
+
+  function check_vectors_same(vector1, vector2)
+
+    ! check whether two vectors have the same direction
+
+    real(dp) :: vector1(3),vector2(3)
+
+    real(dp) :: norm_v1(3),norm_v2(3),u(3),v(3)
+    logical :: check_vectors_same
+
+    check_vectors_same = .false.
+    norm_v1 = unit_vector(vector1)
+    norm_v2 = unit_vector(vector2)
+    u(1:3) = norm_v1(1:3) - norm_v2(1:3)
+    v(1:3) = norm_v1(1:3) + norm_v2(1:3)
+
+    if((abs(u(1))+abs(u(2))+abs(u(3)).lt.zero_tol).or. &
+         (abs(v(1))+abs(v(2))+abs(v(3)).lt.zero_tol)) &
+         check_vectors_same = .true.
+
+  end function check_vectors_same
+  
 !!!###############################################################
   
   function cross_product(A,B)

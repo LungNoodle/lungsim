@@ -1,15 +1,15 @@
 module arrays
-!*Brief Description:* This module defines arrays.
-!
-!*LICENSE:*
-!
-!
-!*Contributor(s):* Merryn Tawhai, Alys Clark
-!
-!*Full Description:*
-!
-!This module defines arrays
-
+  !*Brief Description:* This module defines arrays.
+  !
+  !*LICENSE:*
+  !
+  !
+  !*Contributor(s):* Merryn Tawhai, Alys Clark
+  !
+  !*Full Description:*
+  !
+  !This module defines arrays
+  
   use precision
   
   implicit none
@@ -21,7 +21,6 @@ module arrays
   integer,allocatable :: node_versn_2d(:) !allocated in define_node_geometry_2d
   integer,allocatable :: elems(:) !allocated in define_1d_elements
   integer,allocatable :: lines_2d(:)
-  integer,allocatable :: parentlist(:)
   integer,allocatable :: line_versn_2d(:,:,:)
   integer,allocatable :: lines_in_elem(:,:)
   integer,allocatable :: nodes_in_line(:,:,:)
@@ -39,7 +38,19 @@ module arrays
   integer,allocatable :: elems_at_node_2d(:,:)
   integer,allocatable :: units(:)
 
-  real(dp),allocatable :: arclength(:,:)
+  ! from p-r-f
+  integer,allocatable :: mesh_from_depvar(:,:,:)
+  integer, allocatable :: depvar_at_node(:,:,:)
+  integer, allocatable :: depvar_at_elem(:,:,:)
+  integer, allocatable :: SparseCol(:)
+  integer, allocatable :: SparseRow(:)
+  integer, allocatable :: update_resistance_entries(:)
+  real(dp), allocatable :: SparseVal(:)
+  real(dp), allocatable :: RHS(:)
+  real(dp), allocatable :: prq_solution(:,:),solver_solution(:)
+  logical, allocatable :: FIX(:)
+  
+  real(dp),allocatable :: arclength(:)
   real(dp),allocatable :: elem_field(:,:) !properties of elements
   real(dp),allocatable :: elem_direction(:,:)
   real(dp),allocatable :: node_xyz(:,:)
@@ -102,12 +113,12 @@ module arrays
   end type elasticity_param
 
   type fluid_properties
-    real(dp) :: blood_viscosity=0.33600e-02_dp !Pa.s
-    real(dp) :: blood_density=0.10500e-02_dp !kg/cm3
-    real(dp) :: air_viscosity
-    real(dp) :: air_density
+     real(dp) :: blood_viscosity = 0.33600e-02_dp ! Pa.s
+     real(dp) :: blood_density = 0.10500e-02_dp   ! kg/cm3
+     real(dp) :: air_viscosity = 1.8e-5_dp        ! Pa.s
+     real(dp) :: air_density = 1.146e-6_dp        ! g.mm^-3
   end type fluid_properties
-
+  
 ! temporary, for debugging:
   real(dp) :: unit_before
 
@@ -120,8 +131,10 @@ module arrays
          elem_units_below, maxgen,capillary_bf_parameters, zero_tol,loose_tol,gasex_field, &
          num_lines_2d, lines_2d, line_versn_2d, lines_in_elem, nodes_in_line, elems_2d, &
          elem_cnct_2d, elem_nodes_2d, elem_versn_2d, elem_lines_2d, elems_at_node_2d, arclength, &
-         scale_factors_2d, parentlist, fluid_properties, elasticity_vessels, admittance_param, &
-         elasticity_param, all_admit_param
+         scale_factors_2d, fluid_properties, elasticity_vessels, admittance_param, &
+         elasticity_param, all_admit_param, &
+         mesh_from_depvar, depvar_at_node, depvar_at_elem, SparseCol, SparseRow, update_resistance_entries, &
+         SparseVal, RHS, prq_solution, solver_solution, FIX
 
 contains
   subroutine set_node_field_value(row, col, value)
