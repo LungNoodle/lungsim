@@ -88,10 +88,13 @@ contains
     allocate(nynp(num_deriv,nmax_versn,num_fit,num_nodes_2d))
     allocate(fix_bcs(ny_max))
 
+    write(*,*) '1:',node_xyz_2d(1:3,1,1,get_local_node_f(2,66))
     write(*,'('' Define boundary conditions and mapping '')')
     call define_geometry_fit(elem_list,np_list_redist,npny,num_depvar,nynp,nynr,nyny,&
          cyny,sobelov_wts,fit_soln,fitting_file,fix_bcs)
+    write(*,*) '2:',node_xyz_2d(1:3,1,1,get_local_node_f(2,66))
     call set_linear_derivatives
+    write(*,*) '3:',node_xyz_2d(1:3,1,1,get_local_node_f(2,66))
     scale_factors_2d = 1.0_dp
 
 !!! find the closest surface to each data point, and calculate the Xi
@@ -118,6 +121,7 @@ contains
        write(*,'('' Update pseudo-landmarks locations '')')
        ! update the node locations on base, fissures, anterior and posterior lines
        call distribute_surface_node_fit(np_list_redist,nynp,fit_soln,fix_bcs) ! lateral-base
+       write(*,*) '6:',node_xyz_2d(1:3,1,1,get_local_node_f(2,66))
 
 !!!    update the scale factors for new geometry if NOT unit scale factors
 !       write(*,'('' Update scale factors '')')
@@ -282,6 +286,7 @@ contains
     call map_versions(nmap_info,number_of_maps,num_depvar,nynp,nyny,cyny,fit_soln,fix_bcs)
     
     ! fix ALL of the cross derivatives, and set to zero
+    nk = 4 ! corresponds to the cross-derivative index
     do np = 1,num_nodes_2d
        do nv = 1,node_versn_2d(np)
           do nj = 1,num_coords
@@ -1541,6 +1546,8 @@ contains
     allocate(cyno(0:5,num_depvar))
     allocate(GR(num_depvar))
     allocate(GRR(num_depvar))
+
+    GK = 0.0_dp
 
     !*** Calculate solution mapping arrays for the current fit variable
     call globalf(nony,not_1,not_2,npny,nyno,nynp,nyny,cony,cyno,cyny,fix_bcs)
