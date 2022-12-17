@@ -1649,6 +1649,41 @@ contains
 
   end subroutine define_data_fit_group
   
+!!! ##########################################################################
+
+  subroutine calc_data_field_distance(data_elem,data_xi)
+    implicit none
+
+    integer :: data_elem(:)
+    real(dp) :: data_xi(:,:)
+!!! local variables
+    integer :: nd,ne,nj
+    real(dp) :: dz(3),elem_xyz(num_deriv_elem,num_coords),sq,xi(2),z(3)
+
+    data_field = 0.0_dp
+    do nd = 1,num_data
+       ne = data_elem(nd)
+       if(ne.ne.0)then
+          call node_to_local_elem(ne,elem_xyz)
+          xi(1:2) = data_xi(1:2,nd)
+          sq = 0.0_dp
+          do nj = 1,3
+             z(nj) = pxi(1,xi,elem_xyz(1,nj))
+             dz(nj) = z(nj) - data_xyz(nj,nd)
+             sq = sq + dz(nj)**2.0_dp
+          enddo
+          if(abs(sq) < loose_tol)then
+             forall (nj = 1:4) data_field(nj,nd) = 0.0_dp
+          else
+             sq = sqrt(sq)
+             forall (nj = 1:3) data_field(nj,nd) = dz(nj)/sq
+             data_field(4,nd) = sq
+          endif
+       endif
+    enddo !nd
+
+  end subroutine calc_data_field_distance
+
 !!! ##########################################################################      
 
   subroutine define_xi_closest(data_elem,data_on_elem,elem_list,ndata_on_elem,data_xi,first)
