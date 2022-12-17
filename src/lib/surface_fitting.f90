@@ -1392,7 +1392,7 @@ contains
     integer :: i,n_check,ne_checklist(5),IT,ITMAX=20,nd,ne,neadj,nelast,neold,ni,nj
     real(dp) :: sqmax,sqnd,temp,elem_xyz(num_deriv_elem,num_coords),xi(3)
     real(dp),allocatable :: sq(:)
-    logical :: found
+    logical :: found, not_converged, not_converged_at_all
 
     integer :: n_data
     character(len=200) :: exfile
@@ -1416,14 +1416,15 @@ contains
     if(first)then ! check every element for every data point
        do nd = 1,num_data
           sqmax = 1.0e4_dp*1.0e4_dp
+          not_converged_at_all = .false.
           do i = 1,count(elem_list/=0) !num_elems_2d
              ne = get_local_elem_2d(elem_list(i)) ! elem_list stores global elements
              xi = 0.5_dp
              call node_to_local_elem(ne,elem_xyz)
              found = .false.
-             call project_orthogonal(nd,SQND,elem_xyz,xi,found)
-             if(abs(xi(1)).ge.-zero_tol.and.abs(xi(1)).lt.1.0_dp+zero_tol.and. &
-                  abs(xi(2)).ge.zero_tol.and.abs(xi(2)).lt.1.0_dp+zero_tol) then
+             call project_orthogonal(nd,SQND,elem_xyz,xi,found,not_converged)
+             if(.not.not_converged)then
+                not_converged_at_all = .true.
                 if(sqnd.lt.sqmax)then
                    sqmax = sqnd
                    data_xi(1:2,nd) = xi(1:2)
@@ -1436,6 +1437,7 @@ contains
     else
 
        do nd = 1,num_data
+          not_converged_at_all = .false.
           ne = data_elem(nd)
           ne_checklist(1) = ne
           n_check = 1
@@ -1464,10 +1466,10 @@ contains
                 xi = 0.5_dp
              endif
              call node_to_local_elem(ne,elem_xyz)
-             found = .true. !find nearest point in element
-             call project_orthogonal(nd,sqnd,elem_xyz,xi,found)
-             if(abs(xi(1)).ge.-zero_tol.and.abs(xi(1)).lt.1.0_dp+zero_tol.and. &
-                  abs(xi(2)).ge.zero_tol.and.abs(xi(2)).lt.1.0_dp+zero_tol) then
+             found = .false.
+             call project_orthogonal(nd,sqnd,elem_xyz,xi,found,not_converged)
+             if(.not.not_converged)then
+                not_converged_at_all = .true.
                 if(sqnd.lt.sqmax)then
                    sqmax = sqnd
                    data_xi(1:2,nd) = xi(1:2)
@@ -1648,12 +1650,12 @@ contains
   
 !!! ##########################################################################        
   
-  subroutine project_orthogonal(nd,SQ,elem_xyz,xi,inelem)
+  subroutine project_orthogonal(nd,SQ,elem_xyz,xi,inelem,not_converged)
 
 !!! dummy arguments        
     integer :: nd
     real(dp) :: sq,elem_xyz(num_deriv_elem,num_coords),xi(:)
-    logical :: inelem
+    logical :: inelem,not_converged
 !!! local variables
     integer :: IT,ITMAX,BOUND(2),it2,ni,nifix,nj
     real(dp) :: LOOSE_TOL=1.0e-6_dp
@@ -1665,6 +1667,8 @@ contains
     
     ! --------------------------------------------------------------------------
 
+    not_converged = .false.
+    
     ITMAX = 10 ! max # iterations to use
     DELTA = VMAX/4.0_dp
     TOL = 5.0_dp*LOOSE_TOL !must be > sqrt(eps) or SQLIN<=SQ check may not work
@@ -1866,6 +1870,14 @@ contains
        IT=IT+1
     enddo
     
+    if(.not.converged) then
+       !if(nd.eq.6864)then
+       !WRITE(*,'('' >>WARNING!!! Iteration in CLOS21 has not converged'')')
+       !WRITE(*,'(14X,''Estimate of error magnitude in xi:'',D9.2,''.'')') W*V1
+    !endif
+       not_converged = .true.
+    endif
+
     if(.NOT.inelem.AND.XI(1)>=0.0_dp.AND.XI(1)<=1.0_dp.AND.XI(2)>=0.0_dp.AND.XI(2)<=1.0_dp) then
        inelem=.TRUE.
     endif
