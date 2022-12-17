@@ -544,6 +544,92 @@ contains
   end subroutine list_data_error
   
 !!! ##########################################################################      
+
+  subroutine list_data_error_by_group(data_on_elem,ndata_on_elem,data_xi,writefile)
+
+!!! calculate and write out the RMS error for distance between data points
+!!! and 2d mesh surface
+
+!!! dummy arguments
+    integer :: data_on_elem(:,:),ndata_on_elem(:) 
+    real(dp) :: data_xi(:,:)
+    logical :: writefile
+!!! local variables
+    integer elem,i,nd,nde,ngroup,num_data_infit,ne,nj
+    real(dp) :: data_xi_local(2),EDD,elem_xyz(num_deriv_elem,num_coords), &
+         SAED,SMED,SUM,SQED,X(6)
+         
+    character(len=60) :: sub_name
+    
+    ! --------------------------------------------------------------------------
+
+    sub_name = 'list_data_error'
+    call enter_exit(sub_name,1)
+
+    if(writefile)then
+       open(17, file = 'fitting.err', status='replace')
+    endif
+    do ngroup = 1,num_groups
+       SMED=0.0_dp
+       SAED=0.0_dp
+       SQED=0.0_dp
+       num_data_infit=0
+    
+       do i = 1,count(nelem_groups(ngroup,:)/=0)
+          ne = get_local_elem_2d(nelem_groups(ngroup,i))
+          call node_to_local_elem(ne,elem_xyz)
+          elem = ne
+          do nde = 1,ndata_on_elem(elem) !for each data point on element
+             nd = data_on_elem(elem,nde) !the data point number
+             data_xi_local(1:2) = data_xi(1:2,nd)
+             do nj=1,num_coords 
+                X(nj)=PXI(1,data_xi_local,elem_xyz(1,nj))
+             enddo
+             SUM=0.0_dp
+             do nj=1,num_coords
+                SUM=SUM+(X(nj)-data_xyz(nj,nd))**2
+             enddo !nj
+             EDD = sqrt(SUM)  ! distance of the point from the surface
+             SMED=SMED+EDD
+             SAED=SAED+abs(EDD)
+             SQED=SQED+EDD**2
+             num_data_infit = num_data_infit+1
+          enddo !nde
+       enddo !list of elements
+       if(num_data_infit.GT.1) then
+          if(writefile)then
+             write(17,'('' Group'',a13,'' (n='',i5,''): err_av='',f6.2,'' +/-'',f6.2,'' mm;''&
+                  &'' RMS='',f6.2,'' mm'')') trim(elem_group_names(ngroup)), &
+                  num_data_infit, SAED/real(num_data_infit), &
+                  sqrt((SQED-SAED**2/real(num_data_infit))/ real(num_data_infit-1)), &
+                  sqrt(SQED/DBLE(num_data_infit))
+          else
+             write(*,'('' Group'',a13,'' (n='',i5,''): err_av='',f6.2,'' +/-'',f6.2,'' mm;''&
+                  &'' RMS='',f6.2,'' mm'')') trim(elem_group_names(ngroup)), &
+                  num_data_infit, SAED/real(num_data_infit), &
+                  sqrt((SQED-SAED**2/real(num_data_infit))/ real(num_data_infit-1)), &
+                  sqrt(SQED/DBLE(num_data_infit))
+          endif
+       else
+          if(writefile)then
+             write(17,'('' Group'',a13,'' (n='',i5,''): no data points in any elements'')') &
+                  trim(elem_group_names(ngroup)), num_data_infit
+          else
+             write(*,'('' Group'',a13,'' (n='',i5,''): no data points in any elements'')') &
+                  trim(elem_group_names(ngroup)), num_data_infit
+          endif
+          !WRITE(*,'('' No data points in any elements'')')
+          !stop
+       endif !ndtot>1
+    enddo !ngroup
+
+    if(writefile) close(17)
+    
+    call enter_exit(sub_name,2)
+
+  end subroutine list_data_error_by_group
+  
+!!! ##########################################################################      
   
   subroutine map_versions(nmap_info,number_of_maps,num_depvar,nynp,nyny, &
        cyny,fit_soln,fix_bcs)
