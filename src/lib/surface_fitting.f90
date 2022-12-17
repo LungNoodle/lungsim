@@ -774,10 +774,12 @@ contains
                 nv1 = line_versn_2d(1,1,in_line)
                 nv2 = line_versn_2d(2,1,in_line)
                 n_xi_dctn = nodes_in_line(1,0,nline)
-                if(i.gt.1.and.(np1.ne.nodes_in_line(3,1,line_numbers(j-1))))then
-                   xi = 1.0_dp - (new_length-sum_length)/arclength(line_numbers(j))
-                else
-                   xi = (new_length-sum_length)/arclength(line_numbers(j))
+                if(i.gt.1.and.j.gt.1)then
+                   if(np1.ne.nodes_in_line(3,1,line_numbers(j-1))) then
+                      xi = 1.0_dp - (new_length-sum_length)/arclength(line_numbers(j))
+                   else
+                      xi = (new_length-sum_length)/arclength(line_numbers(j))
+                   endif
                 endif
                 exit check_lines
              else
@@ -800,7 +802,6 @@ contains
              do j = 1,3
                 node_xyz_2d(1,nv,j,node_2) = node_xyz_2d(1,1,j,node_2)
                 ny = nynp(1,nv,j,node_2)
-                !if(fix_bcs(ny)) fit_soln(1,nv,j,node_2) = node_xyz_2d(1,nv,j,node_2)
                 fit_soln(1,nv,j,node_2) = node_xyz_2d(1,nv,j,node_2)
              enddo ! j
           enddo ! nv
