@@ -1378,6 +1378,119 @@ contains
 
   end subroutine calculate_ny_maps
 
+!!!#############################################################################
+
+  subroutine define_data_fit_group(datafile, groupname)
+    !*define_data_fit_group:* reads data points from a file and associates with a named group
+
+    character(len=*) :: datafile
+    character(len=*) :: groupname
+    ! Local variables
+    integer :: iend,ierror,length_string,ncount,n_add_data,nj,itemp
+    real(dp),allocatable :: temp_data_field(:,:),temp_data_xyz(:,:),temp_data_weight(:,:)
+    character(len=132) :: buffer,readfile
+    character(len=60) :: sub_name
+
+    ! --------------------------------------------------------------------------
+
+    sub_name = 'define_data_fit_group'
+    call enter_exit(sub_name,1)
+    
+    if(index(datafile, ".ipdata")> 0) then !full filename is given
+       readfile = datafile
+    else ! need to append the correct filename extension
+       readfile = trim(datafile)//'.ipdata'
+    endif
+
+    open(10, file=readfile, status='old')
+    read(unit=10, fmt="(a)", iostat=ierror) buffer
+
+!!! first run through to count the number of data points
+    !set the counted number of data points to zero
+    ncount = 0
+    read_line_to_count : do
+       read(unit=10, fmt="(a)", iostat=ierror) buffer
+       if(ierror<0) exit !ierror<0 means end of file
+       ncount = ncount + 1
+    end do read_line_to_count
+    n_add_data = ncount
+    close (10)
+    if(.not.allocated(data_xyz))then ! first time reading, so allocate and initialise num_data
+       allocate(data_field(4,n_add_data))
+       allocate(data_xyz(3,n_add_data))
+       allocate(data_weight(3,n_add_data))
+       num_data = 0
+       num_groups = 0
+    endif
+
+    num_groups = num_groups + 1
+    data_group_names(num_groups) = trim(groupname)
+
+    write(*,'('' Read'',I7,'' data points from file'')') n_add_data !num_data
+!!! allocate arrays now that we know the size required
+    if(num_data.gt.0)then
+       allocate(temp_data_field(4,num_data))
+       allocate(temp_data_xyz(3,num_data))
+       allocate(temp_data_weight(3,num_data))
+       temp_data_field(:,1:num_data) = data_field(:,1:num_data)
+       temp_data_xyz(:,1:num_data) = data_xyz(:,1:num_data)
+       temp_data_weight(:,1:num_data) = data_weight(:,1:num_data)
+       deallocate(data_field)
+       deallocate(data_xyz)
+       deallocate(data_weight)
+       allocate(data_field(4,num_data+n_add_data))
+       allocate(data_xyz(3,num_data+n_add_data))
+       allocate(data_weight(3,num_data+n_add_data))
+       data_field(:,1:num_data) = temp_data_field(:,1:num_data)
+       data_xyz(:,1:num_data) = temp_data_xyz(:,1:num_data)
+       data_weight(:,1:num_data) = temp_data_weight(:,1:num_data)
+       deallocate(temp_data_field)
+       deallocate(temp_data_xyz)
+       deallocate(temp_data_weight)
+    endif
+
+    ! record the start and end data numbers for this group
+    ndata_groups(num_groups,1) = num_data + 1
+    ndata_groups(num_groups,2) = num_data + n_add_data
+    !set the counted number of data points to previous total
+    ncount = num_data
+    num_data = num_data+n_add_data
+
+!!! read the data point information
+    open(10, file=readfile, status='old')
+    read(unit=10, fmt="(a)", iostat=ierror) buffer
+
+    read_line_of_data : do
+       
+       ! read the data #; z; y; z; wd1; wd2; wd3 for each data point
+       read(unit=10, fmt="(a)", iostat=ierror) buffer
+       if(ierror<0) exit !ierror<0 means end of file
+       length_string = len_trim(buffer) !length of buffer, and removed trailing blanks
+       
+       ! read data number
+       buffer=adjustl(buffer) !remove leading blanks
+       iend=index(buffer," ",.false.)-1 !index returns location of first blank
+       if(length_string == 0) exit
+       ncount=ncount+1
+       read (buffer(1:iend), '(i6)') itemp
+       
+       do nj=1,3
+          ! read x,y,z coordinates
+          buffer = adjustl(buffer(iend+1:length_string)) !remove data number from string
+          buffer = adjustl(buffer) !remove leading blanks
+          length_string = len(buffer) !new length of buffer
+          iend=index(buffer," ",.false.)-1 !index returns location of first blank
+          read (buffer(1:iend), '(D25.17)') data_xyz(nj,ncount)
+       enddo !nj
+       data_weight(1:3,ncount)=1.0_dp
+    enddo read_line_of_data
+    
+    close(10)
+    
+    call enter_exit(sub_name,2)
+
+  end subroutine define_data_fit_group
+  
 !!! ##########################################################################      
 
   subroutine define_xi_closest(data_elem,data_on_elem,elem_list,ndata_on_elem,data_xi,first)
@@ -1871,10 +1984,6 @@ contains
     enddo
     
     if(.not.converged) then
-       !if(nd.eq.6864)then
-       !WRITE(*,'('' >>WARNING!!! Iteration in CLOS21 has not converged'')')
-       !WRITE(*,'(14X,''Estimate of error magnitude in xi:'',D9.2,''.'')') W*V1
-    !endif
        not_converged = .true.
     endif
 
