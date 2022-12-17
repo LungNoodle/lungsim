@@ -1653,12 +1653,13 @@ contains
     real(dp) :: data_xi(:,:)
     logical,intent(in) :: first
 !!! local variables
-    integer :: i,n_check,ne_checklist(5),IT,ITMAX=20,nd,ne,neadj,nelast,neold,ni,nj
+    integer :: egroup,i,n_check,ne_checklist(5),ngroup,IT,ITMAX=20, &
+         nd,ne,neadj,nelast,neold,ni,nj
     real(dp) :: sqmax,sqnd,temp,elem_xyz(num_deriv_elem,num_coords),xi(3)
     real(dp),allocatable :: sq(:)
-    logical :: found, not_converged, not_converged_at_all
+    logical :: found,not_converged,not_converged_at_all
 
-    integer :: n_data
+    integer :: n_data,np
     character(len=200) :: exfile
     character(len=1) :: string_ne1
     character(len=2) :: string_ne2
@@ -1676,75 +1677,123 @@ contains
     !  initialise
     sq = 0.0_dp
     xi = 0.5_dp
-    
-    if(first)then ! check every element for every data point
-       do nd = 1,num_data
-          sqmax = 1.0e4_dp*1.0e4_dp
-          not_converged_at_all = .false.
-          do i = 1,count(elem_list/=0) !num_elems_2d
-             ne = get_local_elem_2d(elem_list(i)) ! elem_list stores global elements
-             xi = 0.5_dp
-             call node_to_local_elem(ne,elem_xyz)
-             found = .false.
-             call project_orthogonal(nd,SQND,elem_xyz,xi,found,not_converged)
-             if(.not.not_converged)then
-                not_converged_at_all = .true.
-                if(sqnd.lt.sqmax)then
-                   sqmax = sqnd
-                   data_xi(1:2,nd) = xi(1:2)
-                   data_elem(nd) = ne
-                   SQ(nd) = SQND
-                endif
-             endif !FOUND
-          enddo
-       enddo ! nd
-    else
 
-       do nd = 1,num_data
-          not_converged_at_all = .false.
-          ne = data_elem(nd)
-          ne_checklist(1) = ne
-          n_check = 1
-          if(elem_cnct_2d(-1,0,ne).ne.0)then
-             n_check = n_check + 1
-             ne_checklist(n_check) = elem_cnct_2d(-1,1,ne)
-          endif
-          if(elem_cnct_2d(1,0,ne).ne.0)then
-             n_check = n_check + 1
-             ne_checklist(n_check) = elem_cnct_2d(1,1,ne)
-          endif
-          if(elem_cnct_2d(-2,0,ne).ne.0)then
-             n_check = n_check + 1
-             ne_checklist(n_check) = elem_cnct_2d(-2,1,ne)
-          endif
-          if(elem_cnct_2d(2,0,ne).ne.0)then
-             n_check = n_check + 1
-             ne_checklist(n_check) = elem_cnct_2d(2,1,ne)
-          endif
-          sqmax = 1.0e4_dp*1.0e4_dp
-          do i = 1,n_check
-             ne = ne_checklist(i)
-             if(i.eq.1)then
-                xi(1:2) = data_xi(1:2,nd)
-             else
+    if(num_groups <= 1)then ! fitting to all elements at once
+       if(first)then ! check every element for every data point
+          do nd = 1,num_data
+             sqmax = 1.0e4_dp*1.0e4_dp
+             not_converged_at_all = .false.
+             do i = 1,count(elem_list(:)/=0)
+                ne = get_local_elem_2d(elem_list(i))
                 xi = 0.5_dp
+                call node_to_local_elem(ne,elem_xyz)
+                found = .false.
+                call project_orthogonal(nd,SQND,elem_xyz,xi,found,not_converged)
+                if(.not.not_converged)then
+                   not_converged_at_all = .true.
+                   !if(abs(xi(1)).ge.-zero_tol.and.abs(xi(1)).lt.1.0_dp+zero_tol.and. &
+                   !     abs(xi(2)).ge.zero_tol.and.abs(xi(2)).lt.1.0_dp+zero_tol) then
+                   if(sqnd.lt.sqmax)then
+                      sqmax = sqnd
+                      data_xi(1:2,nd) = xi(1:2)
+                      data_elem(nd) = ne
+                      SQ(nd) = SQND
+                   endif
+                endif !FOUND
+             enddo !i
+             !if(.not.not_converged_at_all) write(*,'('' Warning: projection not converged for ''&
+             !     &''data point'',i6)') nd
+          enddo ! nd
+       else
+
+          do nd = 1,num_data
+             not_converged_at_all = .false.
+             ne = data_elem(nd)
+             ne_checklist(1) = ne
+             n_check = 1
+             if(elem_cnct_2d(-1,0,ne).ne.0)then
+                n_check = n_check + 1
+                ne_checklist(n_check) = elem_cnct_2d(-1,1,ne)
              endif
-             call node_to_local_elem(ne,elem_xyz)
-             found = .false.
-             call project_orthogonal(nd,sqnd,elem_xyz,xi,found,not_converged)
-             if(.not.not_converged)then
-                not_converged_at_all = .true.
-                if(sqnd.lt.sqmax)then
-                   sqmax = sqnd
-                   data_xi(1:2,nd) = xi(1:2)
-                   data_elem(nd)=ne
-                   sq(nd) = sqnd
+             if(elem_cnct_2d(1,0,ne).ne.0)then
+                n_check = n_check + 1
+                ne_checklist(n_check) = elem_cnct_2d(1,1,ne)
+             endif
+             if(elem_cnct_2d(-2,0,ne).ne.0)then
+                n_check = n_check + 1
+                ne_checklist(n_check) = elem_cnct_2d(-2,1,ne)
+             endif
+             if(elem_cnct_2d(2,0,ne).ne.0)then
+                n_check = n_check + 1
+                ne_checklist(n_check) = elem_cnct_2d(2,1,ne)
+             endif
+             sqmax = 1.0e4_dp*1.0e4_dp
+             do i = 1,n_check
+                ne = ne_checklist(i)
+                if(i.eq.1)then
+                   xi(1:2) = data_xi(1:2,nd)
+                else
+                   xi = 0.5_dp
                 endif
+                call node_to_local_elem(ne,elem_xyz)
+                !found = .true. !find nearest point in element
+                found = .false.
+                call project_orthogonal(nd,sqnd,elem_xyz,xi,found,not_converged)
+                if(.not.not_converged)then
+                   not_converged_at_all = .true.
+                !if(abs(xi(1)).ge.-zero_tol.and.abs(xi(1)).lt.1.0_dp+zero_tol.and. &
+                !     abs(xi(2)).ge.zero_tol.and.abs(xi(2)).lt.1.0_dp+zero_tol) then
+                   if(sqnd.lt.sqmax)then
+                      sqmax = sqnd
+                      data_xi(1:2,nd) = xi(1:2)
+                      data_elem(nd)=ne
+                      sq(nd) = sqnd
+                   endif
+                endif
+             enddo !i
+             !if(.not.not_converged_at_all) write(*,'('' Warning: projection not converged for ''&
+             !     &''data point'',i6)') nd
+          enddo ! nd
+       endif
+    else
+       data_elem = 0
+       do ngroup = 1,num_groups
+          do i = 1,num_groups
+             if(data_group_names(ngroup) == elem_group_names(i)) egroup = i
+          enddo
+          do nd = ndata_groups(ngroup,1),ndata_groups(ngroup,2)
+             sqmax = 1.0e4_dp*1.0e4_dp
+             not_converged_at_all = .false.
+             do i = 1,count(nelem_groups(egroup,:)/=0)
+                ne = get_local_elem_2d(nelem_groups(egroup,i))
+                xi = 0.5_dp
+                call node_to_local_elem(ne,elem_xyz)
+                found = .false.
+                call project_orthogonal(nd,SQND,elem_xyz,xi,found,not_converged)
+                !if(.not.not_converged)then
+                !   not_converged_at_all = .true.
+                if(abs(xi(1)).gt.zero_tol.and.abs(xi(1)).lt.1.0_dp-zero_tol.and. &
+                     abs(xi(2)).gt.zero_tol.and.abs(xi(2)).lt.1.0_dp-zero_tol) then
+                   if(sqnd.lt.sqmax)then
+                      sqmax = sqnd
+                      data_xi(1:2,nd) = xi(1:2)
+                      data_elem(nd) = ne
+                      SQ(nd) = SQND
+                   endif
+                endif !FOUND
+             enddo !i
+
+             ! check the distance: if too far from the surface then remove from fit
+             if (sqrt(sq(nd)) > 150.0_dp)then
+                data_xi(1:2,nd) = 0.0_dp
+                data_elem(nd) = 0
+                SQ(nd) = 0.0_dp
              endif
-          enddo !i
-       enddo ! nd
+             !if(.not.not_converged_at_all) write(*,'('' Warning: projection not converged for ''&
+             !     &''data point'',i6)') nd
+          enddo ! nd
+       enddo ! ngroup
     endif
-    
     ndata_on_elem=0
     do nd = 1,num_data
        ne = data_elem(nd)
@@ -1758,13 +1807,11 @@ contains
           data_on_elem(ne,ndata_on_elem(ne)) = nd
        endif
     enddo
-
     deallocate(sq)
     
     call enter_exit(sub_name,2)
 
   end subroutine define_xi_closest
-  
 
 !!! ##########################################################################      
 
