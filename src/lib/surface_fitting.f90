@@ -13,9 +13,11 @@ module surface_fitting
   implicit none
 
   public &
+       define_data_fit_group, &
        fit_surface_geometry, &
        initialise_fit_mesh, &
-       pxi
+       pxi, &
+       reset_fitting
 
   integer,parameter :: nmax_data_elem = 4000     ! max # data points on an element
   integer,parameter :: nmax_versn = 6            ! max # versions of node (derivative)
@@ -151,6 +153,17 @@ contains
     
   end subroutine fit_surface_geometry
 
+!!! ##########################################################################      
+  
+  subroutine reset_fitting()
+
+    if(allocated(nelem_groups)) deallocate(nelem_groups)
+    if(allocated(data_xyz)) deallocate(data_xyz)
+    if(allocated(data_field)) deallocate(data_field)
+    if(allocated(data_weight)) deallocate(data_weight)
+
+  end subroutine reset_fitting
+  
 !!! ##########################################################################      
   
   subroutine define_geometry_fit(elem_list,np_list_redist,npny,num_depvar,nynp,nynr,nyny,&
