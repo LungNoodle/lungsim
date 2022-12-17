@@ -181,11 +181,12 @@ contains
     character(len=*),intent(in) :: fitting_file
     logical :: fix_bcs(:)
 !!! local variables
-    integer :: i,ibeg,iend,ierror,IPFILE=10,i_ss_end,L,ne,nh,nj,nk, &
-         node,np,np_global,number_of_maps,number_of_fixed,num_redists,nv,nv_fix,ny
+    integer :: i,ibeg,idx,iend,ierror,IPFILE=10,i_ss_end,L,ne,nelem,nh,nj,nk, &
+         node,np,np_global,n_group,number_of_maps,number_of_fixed,num_redists, &
+         nv,nv_fix,ny,stat
     integer,allocatable :: nmap_info(:,:)
     real(dp) :: temp_weights(7)
-    character(len=300) :: readfile,string,sub_string
+    character(len=300) :: readfile,string,sub_string,temp
     character(len=60) :: sub_name
     
     ! --------------------------------------------------------------------------
@@ -195,6 +196,8 @@ contains
 
     if(.not.allocated(fit_soln)) allocate(fit_soln(4,10,16,num_nodes_2d))
     allocate(nmap_info(7,num_nodes_2d*num_deriv*nmax_versn))
+    allocate(nelem_groups(20,num_elems_2d))
+    nelem_groups = 0
     
     ! linear fitting for 3 geometric variables. solution stored in fields 1,2,3
     ! includes Sobelov smoothing on the geometry field
@@ -202,13 +205,25 @@ contains
     !***Set up dependent variable interpolation information
     fit_soln = node_xyz_2d    
  
-    elem_list = 0
+    elem_list(1:num_elems_2d) = elems_2d(1:num_elems_2d) ! global element numbers
+    !elem_list = 0
 
     !*** Calculate ny maps
     call calculate_ny_maps(npny,num_depvar,nynp)
     
     fix_bcs = .false. !initialise, default
    
+    ! *** Specify smoothing constraints on each element
+    ! set some default values in case smoothing not specified
+    sobelov_wts(0,:) = 1.0_dp 
+    sobelov_wts(1,:) = 1.0_dp !the scaling factor for the Sobolev weights
+    !  The 5 weights on derivs wrt Xi_1/_11/_2/_22/'_12 are:
+    sobelov_wts(2,:) = 1.0e-2_dp !weight for deriv wrt Xi_1
+    sobelov_wts(3,:) = 0.4_dp
+    sobelov_wts(4,:) = 1.0e-2_dp
+    sobelov_wts(5,:) = 0.4_dp
+    sobelov_wts(6,:) = 0.8_dp
+
     if(index(fitting_file, ".ipmap")> 0) then !full filename is given
        readfile = fitting_file
     else ! need to append the correct filename extension
@@ -220,19 +235,42 @@ contains
 !!! and the nodal derivative mapping for versions of nodes. Node locations for
 !!! multiple versions are assumed to be mapped to version 1.
     read(unit=IPFILE, fmt="(a)", iostat=ierror) string
-    if(index(string, "Elements in fit:")> 0) then
-       ibeg = index(string,":")+1 ! get location of first integer in string
-       iend = len(string)
-       sub_string = adjustl(string(ibeg:iend)) ! get the characters beyond ":"
-       read(sub_string, fmt=*, iostat=ierror) elem_list
+    if(index(string, "Element group")> 0) then
+       n_group = 0
+       read_element_groups : do
+          n_group = n_group + 1
+          ibeg = index(string,"(")+1 
+          iend = index(string,")")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the items between brackets
+          read(sub_string, fmt=*, iostat=ierror) temp
+          elem_group_names(n_group) = trim(temp)
+          ibeg = index(string,"{")+1 
+          iend = index(string,"}")-1 
+          sub_string = string(ibeg:iend) ! get the items between brackets
+          nelem = 0
+          do while (index(trim(sub_string), ' ').ne.0)
+             idx = index(trim(sub_string), ' ')
+             nelem = nelem + 1
+             read(sub_string(1:idx-1),*,iostat=stat) nelem_groups(n_group,nelem)
+             sub_string = trim(sub_string(idx+1:iend))
+          enddo
+          nelem = nelem + 1
+          read(sub_string(1:iend),*,iostat=stat) nelem_groups(n_group,nelem)
+          read(unit=IPFILE, fmt="(a)", iostat=ierror) string
+          if(index(string, "Element group") == 0) exit ! move to fixed nodes
+       enddo read_element_groups
     endif
 
-    read(unit=IPFILE, fmt="(a)", iostat=ierror) string
-    if(index(string, "Fixed nodes:")> 0) then
+    if(index(string, "Fixed node")> 0) then
        read_fixed_nodes : do
-          read(unit=IPFILE, fmt="(a)", iostat=ierror) string
-          if(index(string, "Mapped nodes:")> 0) exit ! move to the mapping
-          read(string, fmt=*, iostat=ierror) np_global, nv_fix, nk
+          ibeg = index(string,"(")+1 
+          iend = index(string,")")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          read(sub_string, fmt=*, iostat=ierror) np_global
+          ibeg = index(string,"{")+1 
+          iend = index(string,"}")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          read(sub_string, fmt=*, iostat=ierror) nv_fix, nk
           np = get_local_node_f(2,np_global)
           nk = nk+1 !read in 0 for coordinate, 1 for 1st deriv, 2 for 2nd deriv
           if(nv_fix.eq.0)then ! do for all versions
@@ -250,56 +288,70 @@ contains
                 !fit_soln(nk,nv,nh,np) = 0.0_dp ! shouldn't be zero
              enddo !nh
           endif
-       enddo read_fixed_nodes !node
+          read(unit=IPFILE, fmt="(a)", iostat=ierror) string
+          if(index(string, "Fixed node") == 0) exit ! move to fixed nodes
+       enddo read_fixed_nodes
     endif
-    
+       
     number_of_maps = 0
     nmap_info = 0
-    read_mapped_nodes : do
-       read(unit=IPFILE, fmt="(a)", iostat=ierror) string
-       if(index(string, "Redistribute nodes:")> 0) exit  ! go to the enxt section
-       number_of_maps = number_of_maps + 1
-       read(string, fmt=*, iostat=ierror) nmap_info(1:7,number_of_maps)
-    enddo read_mapped_nodes
+    if(index(string, "Mapped node")> 0) then
+       read_mapped_nodes : do
+          number_of_maps = number_of_maps + 1
+          ibeg = index(string,"(")+1 
+          iend = index(string,")")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          read(sub_string, fmt=*, iostat=ierror) nmap_info(1,number_of_maps)
+          ibeg = index(string,"{")+1 
+          iend = index(string,"}")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          read(sub_string, fmt=*, iostat=ierror) nmap_info(2:7,number_of_maps)
+          read(unit=IPFILE, fmt="(a)", iostat=ierror) string
+          if(index(string, "Mapped node") == 0) exit  ! go to the enxt section
+       enddo read_mapped_nodes
+    endif
 
     np_list_redist = 0
     num_redists = 0
-    read_redistribute_nodes : do
-       read(unit=IPFILE, fmt="(a)", iostat=ierror) string
-       if(index(string, "Sobelov weights:")> 0) exit  ! end of file
-       num_redists = num_redists + 1
-       read(string, fmt=*, iostat=ierror) np_list_redist(num_redists,:)
-    enddo read_redistribute_nodes
+    if(index(string, "Redistribute node")> 0) then
+       read_redistribute_nodes : do
+          ibeg = index(string,"{")+1 
+          iend = index(string,"}")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          num_redists = num_redists + 1
+          read(sub_string, fmt=*, iostat=ierror) np_list_redist(num_redists,:)
+          read(unit=IPFILE, fmt="(a)", iostat=ierror) string
+          if(index(string, "Redistribute node") == 0) exit  ! go to next section
+       enddo read_redistribute_nodes
+    endif
 
-    ! *** Specify smoothing constraints on each element
-    ! set some default values in case smoothing not specified
-    sobelov_wts(0,:) = 1.0_dp 
-    sobelov_wts(1,:) = 1.0_dp !the scaling factor for the Sobolev weights
-    !  The 5 weights on derivs wrt Xi_1/_11/_2/_22/'_12 are:
-    sobelov_wts(2,:) = 1.0e-2_dp !weight for deriv wrt Xi_1
-    sobelov_wts(3,:) = 0.4_dp
-    sobelov_wts(4,:) = 1.0e-2_dp
-    sobelov_wts(5,:) = 0.4_dp
-    sobelov_wts(6,:) = 0.8_dp
-    read_smoothing : do
-       read(unit=IPFILE, fmt="(a)", iostat=ierror) string
-       if(index(string, "End:")> 0) exit  ! end of file
-       read(string, fmt=*, iostat=ierror) ne,temp_weights(1:7)
-       if(ne.eq.0)then
-          forall(i = 0:6) sobelov_wts(i,1:num_elems_2d) = temp_weights(i+1)
-       else
-          ne = get_local_elem_2d(ne)
-          forall(i = 0:6) sobelov_wts(i,ne) = temp_weights(i+1)
-       endif
-    enddo read_smoothing
-    
+    if(index(string, "Sobelov weights")> 0) then
+       read_smoothing : do
+          ibeg = index(string,"(")+1 
+          iend = index(string,")")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          read(sub_string, fmt=*, iostat=ierror) ne
+          ibeg = index(string,"{")+1 
+          iend = index(string,"}")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          read(sub_string, fmt=*, iostat=ierror) temp_weights(1:7)
+          if(ne.eq.0)then
+             forall(i = 0:6) sobelov_wts(i,1:num_elems_2d) = temp_weights(i+1)
+          else
+             ne = get_local_elem_2d(ne)
+             forall(i = 0:6) sobelov_wts(i,ne) = temp_weights(i+1)
+          endif
+          read(unit=IPFILE, fmt="(a)", iostat=ierror) string
+          if(index(string, "Sobelov weights") == 0) exit  ! end of file
+       enddo read_smoothing
+    endif
 
     close(IPFILE)
-
+    
     call map_versions(nmap_info,number_of_maps,num_depvar,nynp,nyny,cyny,fit_soln,fix_bcs)
     
     ! fix ALL of the cross derivatives, and set to zero
-    nk = 4 ! corresponds to the cross-derivative index
+    nk = 4
     do np = 1,num_nodes_2d
        do nv = 1,node_versn_2d(np)
           do nj = 1,num_coords
