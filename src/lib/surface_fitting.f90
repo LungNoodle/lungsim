@@ -47,7 +47,7 @@ contains
     character(len=255),intent(in) :: fitting_file ! file that lists versions/mapping/BCs
     ! Local variables
     integer  :: nfit,nk,NOT_1,NOT_2,np,num_depvar,nv,ny_max
-    logical :: first = .true.
+    logical :: first = .true., writefile = .false.
     ! local allocatable arrays
     integer,allocatable :: data_elem(:)              
     integer,allocatable :: data_on_elem(:,:)     ! list of data closest to elements
@@ -90,13 +90,10 @@ contains
     allocate(nynp(num_deriv,nmax_versn,num_fit,num_nodes_2d))
     allocate(fix_bcs(ny_max))
 
-    write(*,*) '1:',node_xyz_2d(1:3,1,1,get_local_node_f(2,66))
     write(*,'('' Define boundary conditions and mapping '')')
     call define_geometry_fit(elem_list,np_list_redist,npny,num_depvar,nynp,nynr,nyny,&
          cyny,sobelov_wts,fit_soln,fitting_file,fix_bcs)
-    write(*,*) '2:',node_xyz_2d(1:3,1,1,get_local_node_f(2,66))
     call set_linear_derivatives
-    write(*,*) '3:',node_xyz_2d(1:3,1,1,get_local_node_f(2,66))
     scale_factors_2d = 1.0_dp
 
 !!! find the closest surface to each data point, and calculate the Xi
@@ -123,7 +120,6 @@ contains
        write(*,'('' Update pseudo-landmarks locations '')')
        ! update the node locations on base, fissures, anterior and posterior lines
        call distribute_surface_node_fit(np_list_redist,nynp,fit_soln,fix_bcs) ! lateral-base
-       write(*,*) '6:',node_xyz_2d(1:3,1,1,get_local_node_f(2,66))
 
 !!!    update the scale factors for new geometry if NOT unit scale factors
 !       write(*,'('' Update scale factors '')')
@@ -132,12 +128,22 @@ contains
        write(*,'('' Calculating normal projections '')')
        call define_xi_closest(data_elem,data_on_elem,elem_list,ndata_on_elem,data_xi,first)
 !!!    calculated the updated error between data and surface
-       write(*,'(/'' CURRENT RMS ERROR FOR ALL DATA:'')') 
-       call list_data_error(data_on_elem,ndata_on_elem,data_xi)
+       write(*,'(/'' CURRENT PROJECTION ERROR FOR ALL DATA:'')')
+       if(num_groups <= 1)then
+          call list_data_error(data_on_elem,ndata_on_elem,data_xi)
+       else
+          if(nfit.eq.niterations)then
+             writefile = .true.
+          endif
+          call list_data_error_by_group(data_on_elem,ndata_on_elem,data_xi,writefile)
+       endif
     enddo
+
+    call calc_data_field_distance(data_elem,data_xi)
 
     deallocate(elem_list)
     deallocate(sobelov_wts)
+    deallocate(data_elem)
     deallocate(data_on_elem)
     deallocate(ndata_on_elem)
     deallocate(data_xi)
@@ -148,6 +154,7 @@ contains
     deallocate(nynp)
     deallocate(nyny)
     deallocate(fix_bcs)
+    deallocate(fit_soln)
 
     call enter_exit(sub_name,2)
     
