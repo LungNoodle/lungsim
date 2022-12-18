@@ -1743,58 +1743,53 @@ contains
                    endif
                 endif !FOUND
              enddo !i
-             !if(.not.not_converged_at_all) write(*,'('' Warning: projection not converged for ''&
-             !     &''data point'',i6)') nd
           enddo ! nd
        else
 
           do nd = 1,num_data
              not_converged_at_all = .false.
              ne = data_elem(nd)
-             ne_checklist(1) = ne
-             n_check = 1
-             if(elem_cnct_2d(-1,0,ne).ne.0)then
-                n_check = n_check + 1
-                ne_checklist(n_check) = elem_cnct_2d(-1,1,ne)
-             endif
-             if(elem_cnct_2d(1,0,ne).ne.0)then
-                n_check = n_check + 1
-                ne_checklist(n_check) = elem_cnct_2d(1,1,ne)
-             endif
-             if(elem_cnct_2d(-2,0,ne).ne.0)then
-                n_check = n_check + 1
-                ne_checklist(n_check) = elem_cnct_2d(-2,1,ne)
-             endif
-             if(elem_cnct_2d(2,0,ne).ne.0)then
-                n_check = n_check + 1
-                ne_checklist(n_check) = elem_cnct_2d(2,1,ne)
-             endif
-             sqmax = 1.0e4_dp*1.0e4_dp
-             do i = 1,n_check
-                ne = ne_checklist(i)
-                if(i.eq.1)then
-                   xi(1:2) = data_xi(1:2,nd)
-                else
-                   xi = 0.5_dp
+             if(ne.ne.0)then ! i.e. only for data points that have projected to an element
+                ne_checklist(1) = ne
+                n_check = 1
+                if(elem_cnct_2d(-1,0,ne).ne.0)then
+                   n_check = n_check + 1
+                   ne_checklist(n_check) = elem_cnct_2d(-1,1,ne)
                 endif
-                call node_to_local_elem(ne,elem_xyz)
-                !found = .true. !find nearest point in element
-                found = .false.
-                call project_orthogonal(nd,sqnd,elem_xyz,xi,found,not_converged)
-                if(.not.not_converged)then
-                   not_converged_at_all = .true.
-                !if(abs(xi(1)).ge.-zero_tol.and.abs(xi(1)).lt.1.0_dp+zero_tol.and. &
-                !     abs(xi(2)).ge.zero_tol.and.abs(xi(2)).lt.1.0_dp+zero_tol) then
-                   if(sqnd.lt.sqmax)then
-                      sqmax = sqnd
-                      data_xi(1:2,nd) = xi(1:2)
-                      data_elem(nd)=ne
-                      sq(nd) = sqnd
+                if(elem_cnct_2d(1,0,ne).ne.0)then
+                   n_check = n_check + 1
+                   ne_checklist(n_check) = elem_cnct_2d(1,1,ne)
+                endif
+                if(elem_cnct_2d(-2,0,ne).ne.0)then
+                   n_check = n_check + 1
+                   ne_checklist(n_check) = elem_cnct_2d(-2,1,ne)
+                endif
+                if(elem_cnct_2d(2,0,ne).ne.0)then
+                   n_check = n_check + 1
+                   ne_checklist(n_check) = elem_cnct_2d(2,1,ne)
+                endif
+                sqmax = 1.0e4_dp*1.0e4_dp
+                do i = 1,n_check
+                   ne = ne_checklist(i)
+                   if(i.eq.1)then
+                      xi(1:2) = data_xi(1:2,nd)
+                   else
+                      xi = 0.5_dp
                    endif
-                endif
-             enddo !i
-             !if(.not.not_converged_at_all) write(*,'('' Warning: projection not converged for ''&
-             !     &''data point'',i6)') nd
+                   call node_to_local_elem(ne,elem_xyz)
+                   found = .false.
+                   call project_orthogonal(nd,sqnd,elem_xyz,xi,found,not_converged)
+                   if(.not.not_converged)then
+                      not_converged_at_all = .true.
+                      if(sqnd.lt.sqmax)then
+                         sqmax = sqnd
+                         data_xi(1:2,nd) = xi(1:2)
+                         data_elem(nd)=ne
+                         sq(nd) = sqnd
+                      endif
+                   endif
+                enddo !i
+             endif ! ne.ne.0
           enddo ! nd
        endif
     else
@@ -1812,8 +1807,6 @@ contains
                 call node_to_local_elem(ne,elem_xyz)
                 found = .false.
                 call project_orthogonal(nd,SQND,elem_xyz,xi,found,not_converged)
-                !if(.not.not_converged)then
-                !   not_converged_at_all = .true.
                 if(abs(xi(1)).gt.zero_tol.and.abs(xi(1)).lt.1.0_dp-zero_tol.and. &
                      abs(xi(2)).gt.zero_tol.and.abs(xi(2)).lt.1.0_dp-zero_tol) then
                    if(sqnd.lt.sqmax)then
@@ -1831,8 +1824,6 @@ contains
                 data_elem(nd) = 0
                 SQ(nd) = 0.0_dp
              endif
-             !if(.not.not_converged_at_all) write(*,'('' Warning: projection not converged for ''&
-             !     &''data point'',i6)') nd
           enddo ! nd
        enddo ! ngroup
     endif
