@@ -1733,8 +1733,6 @@ contains
                 call project_orthogonal(nd,SQND,elem_xyz,xi,found,not_converged)
                 if(.not.not_converged)then
                    not_converged_at_all = .true.
-                   !if(abs(xi(1)).ge.-zero_tol.and.abs(xi(1)).lt.1.0_dp+zero_tol.and. &
-                   !     abs(xi(2)).ge.zero_tol.and.abs(xi(2)).lt.1.0_dp+zero_tol) then
                    if(sqnd.lt.sqmax)then
                       sqmax = sqnd
                       data_xi(1:2,nd) = xi(1:2)
