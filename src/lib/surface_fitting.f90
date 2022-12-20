@@ -1720,7 +1720,7 @@ contains
     sq = 0.0_dp
     xi = 0.5_dp
 
-    if(num_groups <= 1)then ! fitting to all elements at once
+    if(num_groups <= 0)then ! fitting to all elements at once
        if(first)then ! check every element for every data point
           do nd = 1,num_data
              sqmax = 1.0e4_dp*1.0e4_dp
