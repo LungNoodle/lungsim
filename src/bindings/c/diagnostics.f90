@@ -18,11 +18,7 @@ contains
     character(len=MAX_STRING_LEN) :: sub_name_f
 
     call strncpy(sub_name_f, sub_name, sub_name_len)
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_enter_exit(sub_name_f, state)
-#else
     call enter_exit(sub_name_f, state)
-#endif
 
   end subroutine enter_exit_c
 
@@ -33,11 +29,7 @@ contains
 
     logical, intent(in) :: state
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_set_diagnostics_on(state)
-#else
     call set_diagnostics_on(state)
-#endif
 
   end subroutine set_diagnostics_on_c
 
@@ -48,11 +40,7 @@ contains
 
     logical :: state
 
-#if defined _WIN32 && defined __INTEL_COMPILER
-    call so_get_diagnostics_on(state)
-#else
     call get_diagnostics_on(state)
-#endif
 
   end subroutine get_diagnostics_on_c
 

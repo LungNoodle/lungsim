@@ -83,7 +83,6 @@ contains
   
   !> Define problem type
   subroutine define_problem_type(PROBLEM_TYPE)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_DEFINE_PROBLEM_TYPE" :: DEFINE_PROBLEM_TYPE
     
     character(len=MAX_FILENAME_LEN),intent(in) :: PROBLEM_TYPE
     
@@ -117,7 +116,6 @@ contains
   
   !>Gas mixing indices
   subroutine exchange_indices
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GASMIX_INDICES" :: GASMIX_INDICES
     
     character(len=60) :: sub_name
     
@@ -125,9 +123,10 @@ contains
     call enter_exit(sub_name,1)
     ! indices for elem_ordrs. These dont usually change.
     ! indices for node_field
-    num_nj=3
+    num_nj=4
     nj_conc1=2
     nj_conc2=3
+    nj_aw_press=4 !air pressure
     
     ! indices for elem_field
     num_ne = 11
@@ -135,21 +134,30 @@ contains
     ne_length = 2
     ne_vol = 3
     ne_resist = 4
-    ne_Vdot = 5
-    ne_Qdot = 6
-    ne_dvdt = 7
-    ne_vd_bel = 8
-    ne_vol_bel = 9
+    ne_t_resist = 5
+    ne_Vdot = 6 !Air flow, current time step
+    ne_Vdot0 = 7 !air flow, last timestep
+    ne_dvdt = 8
+    ne_vd_bel = 9
+    ne_vol_bel = 10
+    ne_Qdot = 11
     
     ! indices for unit_field
-    num_nu=7
+    num_nu=14
     nu_vol=1
     nu_comp=2
     nu_Vdot0=3
-    nu_vd=4
-    nu_perf=5
-    nu_conc1=6
-    nu_conc2=7
+    nu_Vdot1=4
+    nu_Vdot2=5
+    nu_dpdt=6
+    nu_pe=7
+    nu_vt=8
+    nu_air_press=9
+    nu_vent=10
+    nu_vd=11
+    nu_perf=12
+    nu_conc1=13
+    nu_conc2=14
     
     
     call enter_exit(sub_name,2)
@@ -157,7 +165,6 @@ contains
   
   !>Gas mixing indices
   subroutine gasmix_indices
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GASMIX_INDICES" :: GASMIX_INDICES
     
     character(len=60) :: sub_name
     
@@ -199,7 +206,6 @@ contains
   
   !> Ventilation indices
   subroutine ventilation_indices
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_VENTILATION_INDICES" :: VENTILATION_INDICES
     
     character(len=60) :: sub_name
     
@@ -240,7 +246,6 @@ contains
 
   subroutine growing_indices
     !* Growing indices:* set up indices for growing (1D tree) arrays
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GROWING_INDICES" :: GROWING_INDICES
     
     character(len=60) :: sub_name
 
@@ -253,12 +258,15 @@ contains
     ! indices for node_field
     num_nj = 0 !number of nodal fields
     ! indices for elem_field
-    num_ne = 5 !number of element fields
-    ne_radius = 1 !radius of airway
-    ne_length = 2 !length of airway
-    ne_a_A = 3 !ratio of duct to total cross-section
-    ne_vd_bel = 4
-    ne_vol_bel = 5
+    num_ne = 8 !number of element fields
+    ne_radius = 1 !radius of branch
+    ne_radius_in = 2
+    ne_radius_out = 3
+    ne_length = 4 !length of branch
+    ne_vol = 5
+    ne_a_A = 6 !ratio of duct to total cross-section (airway)
+    ne_vd_bel = 7
+    ne_vol_bel = 8
     ! indices for unit_field
     num_nu = 0
     
@@ -270,7 +278,6 @@ contains
   !
   !> Perfusion indices
   subroutine perfusion_indices
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_PERFUSION_INDICES" :: PERFUSION_INDICES
     
     character(len=60) :: sub_name
     
@@ -300,7 +307,6 @@ contains
   end subroutine perfusion_indices
   
   function get_ne_radius() result(res)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GET_NE_RADIUS" :: GET_NE_RADIUS
     
     implicit none
     character(len=60) :: sub_name
@@ -315,7 +321,6 @@ contains
   end function get_ne_radius
   
   function get_nj_conc1() result(res)
-    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_GET_NJ_CONC1" :: GET_NJ_CONC1
     
     character(len=60) :: sub_name
     integer :: res

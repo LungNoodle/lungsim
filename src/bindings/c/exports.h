@@ -4,6 +4,7 @@
 
 #include "symbol_export.h"
 
+SHO_PUBLIC void export_cubic_lagrange_2d(const char *EXFILE, const char *group_name);
 SHO_PUBLIC void export_1d_elem_field(int ne_field, const char *EXELEMFILE, const char *group_name, const char *field_name );
 SHO_PUBLIC void export_1d_elem_geometry(const char *EXELEMFILE, const char *name);
 SHO_PUBLIC void export_elem_geometry_2d(const char *EXELEMFILE, const char *name, int offset_elem, int offset_node);

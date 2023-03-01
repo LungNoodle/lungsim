@@ -79,21 +79,26 @@ Keep this table in mind when working out which data type best matches your argum
 C implementation file
 =====================
 
-The C implemention file is where we start to handover to the Fortran language. The first task in creating a C implementation file is to include the associated header file for our example module *module_name* we would include the header file at the very top of the file like so::
+The C implemention file is where we start to handover to the Fortran language.
+The first task in creating a C implementation file is to include the associated header file for our example module *module_name* we would include the header file at the very top of the file like so::
 
     #include module_name.h
 
 After the corresponding header file is included we can include any system headers that we may need, for instance if we are working with characters or strings we would include the *string.h* header file **after** *module_name.h*.
 
-The second task is to declare the C form of the Fortran binding function.  We give this function the same name as the original function but with '_c' appended to it.  For the examples above this would look like::
+The second task is to declare the C form of the Fortran binding function.
+We give this function the same name as the original function but with '_c' appended to it.  For the examples above this would look like::
 
     void set_diagnostics_on_c(int *state);
     int get_ne_radius_c();
     void add_mesh_c(const char *AIRWAY_MESHFILE, int *filename_len);
 
-There are two things here that we have to take care of; The first is that all arguments in Fortran are passed by reference and not by value. Thus C must pass Fortran arguments as a pointer, The second is that strings or character arrays are dealt with quite differently in C and Fortran.  We will explain more as we go further.
+There are two things here that we have to take care of; The first is that all arguments in Fortran are passed by reference and not by value.
+Thus C must pass Fortran arguments as a pointer, The second is that strings or character arrays are dealt with quite differently in C and Fortran.
+We will explain more as we go further.
 
-The third task we must perform is the implementation of the C function that calls the corresponding Fortran function that we have just declared (but not yet implemented).  Let's look at the implementation of our example functions::
+The third task we must perform is the implementation of the C function that calls the corresponding Fortran function that we have just declared (but not yet implemented).
+Let's look at the implementation of our example functions::
 
     void set_diagnostics_on(int state)
     {
@@ -111,14 +116,20 @@ The third task we must perform is the implementation of the C function that call
       add_mesh_c(AIRWAY_MESHFILE, &filename_len);
     }
 
-In *set_diagnostics_on* we simply pass the argument *state* by reference to the corresponding Fortran function.  The returned integer from *get_ne_radius_c* is already ready for us to use in C.  The only real work we have to do here is calculate the length of the string we are passing to the Fortran function as Fortran character arrays have no notion of a termination character to signal the end of a string.  There are other differences but we can make use of some utility functions to hide most of the differences from us.
+In *set_diagnostics_on* we simply pass the argument *state* by reference to the corresponding Fortran function.
+The returned integer from *get_ne_radius_c* is already ready for us to use in C.
+The only real work we have to do here is calculate the length of the string we are passing to the Fortran function as Fortran character arrays have no notion of a termination character to signal the end of a string.
+There are other differences but we can make use of some utility functions to hide most of the differences from us.
 
-The standard we are using for adding the length of string argument is to add it directly after the string argument in the function argument list.  It then follows that if we have more than one string argument or mixed string and value arguments then the string argument is always followed by it's length argument. 
+The standard we are using for adding the length of string argument is to add it directly after the string argument in the function argument list.
+It then follows that if we have more than one string argument or mixed string and value arguments then the string argument is always followed by it's length argument. 
 
 Fortran implementation file
 ---------------------------
 
-The Fortran implmentation file is where the majority of the work is done.  We have to tell compilers what to bind the Fortran function name to so the C compiler can locate the function when linking.  We also have to implment the conversion from C char pointers to Fortran character arrays.
+The Fortran implmentation file is where the majority of the work is done.
+We have to tell compilers what to bind the Fortran function name to so the C compiler can locate the function when linking.
+We also have to implment the conversion from C char pointers to Fortran character arrays.
 
 The first task we have to do is setup the module, for our example module *module_name* we would write the following::
 
@@ -133,7 +144,8 @@ The first task we have to do is setup the module, for our example module *module
 
     end module module_name_c
 
-The second task is to implement the subroutine that will call into the corresponding subroutine in the Aether library that we are binding.  For our example functions we have::
+The second task is to implement the subroutine that will call into the corresponding subroutine in the Aether library that we are binding.
+For our example functions we have::
 
     !
     !###################################################################################
@@ -144,11 +156,7 @@ The second task is to implement the subroutine that will call into the correspon
 
         logical, intent(in) :: state
 
-    #if defined _WIN32 && defined __INTEL_COMPILER
-        call so_set_diagnostics_on(state)
-    #else
         call set_diagnostics_on(state)
-    #endif
 
       end subroutine set_diagnostics_on_c
 
@@ -180,24 +188,28 @@ The second task is to implement the subroutine that will call into the correspon
         character(len=MAX_FILENAME_LEN) :: filename_f
 
         call strncpy(filename_f, AIRWAY_MESHFILE, filename_len)
-    #if defined _WIN32 && defined __INTEL_COMPILER
-        call so_add_mesh(filename_f)
-    #else
+
         call add_mesh(filename_f)
-    #endif
 
       end subroutine add_mesh_c
 
-We can see that on the function/subroutine declaration we have added the *bind(C)* attribute.  This attribute tells the compiler that this symbol must be operable with C.  With this attribute we also set the name of the symbol that we want to be able to find from C.  This name matches the name of the function we declared at the top of the C implementation file.
+We can see that on the function/subroutine declaration we have added the *bind(C)* attribute.
+This attribute tells the compiler that this symbol must be operable with C.
+With this attribute we also set the name of the symbol that we want to be able to find from C.
+This name matches the name of the function we declared at the top of the C implementation file.
 
-We can also see that there is a conditional preprocessor statement that triggers when we are using the intel compiler on Windows.  This is a compiler specific adjustment unfortunately and we just have to deal with it in this way.  All other compilers play nice.
-
-The last thing we need to consider is the way that C string is dealt with in *add_mesh_c*.  We have to be careful when converting from C to Fortran but we can make use of the *strncpy* utility to make life easier.  In this situation we can just copy from the example we will accept that it works.
+The last thing we need to consider is the way that C string is dealt with in *add_mesh_c*.
+We have to be careful when converting from C to Fortran but we can make use of the *strncpy* utility to make life easier.
+When we are converting strings from C to Fortran, like in this situation, we will replicate what is shown here and accept that it works.
+The details of the conversion are not going to be explained here.
 
 SWIG interface
 ==============
 
-When creating a new module we need to create an interface file so that SWIG creates a corresponding module in the target language.  The interface file is typically very simple but we can add some directives in this file to help map from C to the target language and vice versa.  In the simplest case we just describe the interface using the C header file.  For our example module *module_name* the interface file looks like the following::
+When creating a new module we need to create an interface file so that SWIG creates a corresponding module in the target language.
+The interface file is typically very simple but we can add some directives in this file to help map from C to the target language and vice versa.
+In the simplest case we just describe the interface using the C header file.
+For our example module *module_name* the interface file looks like the following::
 
     %module(package="aether") module_name
     %include symbol_export.h
@@ -207,4 +219,5 @@ When creating a new module we need to create an interface file so that SWIG crea
     #include "module_name.h"
     %}
 
-Here we declare the package that we want this module to belong to (*aether* in this case) and the name of the module.  Then we define the files that SWIG needs to create the bindings from and lastly a C part that defines the header files that are required for compilation.
+Here we declare the package that we want this module to belong to (*aether* in this case) and the name of the module.
+Then we define the files that SWIG needs to create the bindings from and lastly a C part that defines the header files that are required for compilation.
