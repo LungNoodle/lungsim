@@ -1290,17 +1290,11 @@ contains
              np2 = elem_nodes(2,ne2)
              new_xyz(:) = node_xyz(:,np0)*0.5_dp + node_xyz(:,np1)*0.25_dp + node_xyz(:,np2)*0.25_dp
              node_xyz(:,np) = new_xyz(:)
-             if(np.eq.73.or.np.eq.79)then
-                write(*,*) 'smoothing',np,np0,node_xyz(3,np0),np1,node_xyz(3,np1),np2,node_xyz(3,np2)
-                write(*,*) 'result =',node_xyz(:,np)
-             endif
           endif
        enddo
     enddo
     do ne = num_elems,num_elem_start,-1
        if(elem_cnct(1,0,ne).eq.0)then ! terminal, check branch length
-!          write(*,*) 'term node before',ne,node_xyz(:,63097)
-
           if(elem_field(ne_length,ne).lt.0.75_dp*length_limit)then
              elem_field(ne_length,ne) = 0.75_dp*length_limit
              np1 = elem_nodes(1,ne) ! the start node
@@ -1314,7 +1308,6 @@ contains
           endif
        endif
     enddo
-    write(*,*) 'term node after',node_xyz(:,63097)
 
     call enter_exit(sub_name,2)
 

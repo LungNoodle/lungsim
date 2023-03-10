@@ -1174,8 +1174,6 @@ contains
     !*import_ply_triangles:* Reads in vtk ply file with list of vertex coordinates
     ! and triangles. Use instead of internal triangle mesh creation for tree growing
 
-    use exports,only: export_triangle_elements, export_triangle_nodes
-    
     character(len=*),intent(in) :: ply_file
     !     Local Variables
     integer :: i,ibeg,iend,ierror,nt,nv
@@ -1237,9 +1235,6 @@ contains
     triangle = triangle + 1 ! offset all vertices by 1 because indexing starts from zero
     
     close(10)
-    
-    call export_triangle_elements(num_triangles,triangle,ply_file, "ply")
-    call export_triangle_nodes(num_vertices, vertex_xyz, ply_file, "ply")
     
     call enter_exit(sub_name,2)
     
