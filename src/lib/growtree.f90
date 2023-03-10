@@ -760,19 +760,21 @@ contains
 !!! allocate temporary arrays
     allocate(parent_list(num_elems))
     parent_list = 0
-    allocate(elem_list(count(surface_elems.ne.0)))
 
+    if(count(surface_elems.ne.0).gt.0)then ! a surface element list is given for converting to
+       !                                a temporary triangulated surface mesh
+       allocate(elem_list(count(surface_elems.ne.0)))
 !!! get the list of local surface element numbers from the global list
-    do i = 1,count(surface_elems.ne.0)
-       elem_list(i) = get_local_elem_2d(surface_elems(i))
-    enddo
+       do i = 1,count(surface_elems.ne.0)
+          elem_list(i) = get_local_elem_2d(surface_elems(i))
+       enddo
+!!! make a linear triangulated mesh over the surface elements
+       call triangles_from_surface(elem_list)
+    endif
 
 !!! get the list of current terminal elements that subtend parent_ne.
 !!! these will be the initial branches for growing
     call group_elem_parent_term(parent_list,parent_ne) 
-
-!!! make a linear triangulated mesh over the surface elements
-    call triangles_from_surface(elem_list)
 
 !!! estimate the number of elements in the generated model based on the
 !!! number of data (seed) points. i.e. N = 2*N_data - 1.
@@ -794,7 +796,7 @@ contains
     call evaluate_ordering
 
 !!! deallocate temporary arrays
-    deallocate(elem_list)
+    if(allocated(elem_list)) deallocate(elem_list)
     deallocate(parent_list)
     
   end subroutine grow_tree

@@ -1173,6 +1173,8 @@ contains
   subroutine import_ply_triangles(ply_file)
     !*import_ply_triangles:* Reads in vtk ply file with list of vertex coordinates
     ! and triangles. Use instead of internal triangle mesh creation for tree growing
+
+    use exports,only: export_triangle_elements, export_triangle_nodes
     
     character(len=*),intent(in) :: ply_file
     !     Local Variables
@@ -1232,8 +1234,12 @@ contains
     do nt = 1,num_triangles
        read(unit=10, fmt=*) i,triangle(1,nt),triangle(2,nt),triangle(3,nt)
     enddo
+    triangle = triangle + 1 ! offset all vertices by 1 because indexing starts from zero
     
     close(10)
+    
+    call export_triangle_elements(num_triangles,triangle,ply_file, "ply")
+    call export_triangle_nodes(num_vertices, vertex_xyz, ply_file, "ply")
     
     call enter_exit(sub_name,2)
     
@@ -1438,13 +1444,15 @@ contains
     
     sub_name = 'make_data_grid'
     call enter_exit(sub_name,1)
-    
-    allocate(elem_list(count(surface_elems.ne.0)))
-    do i = 1,count(surface_elems.ne.0)
-       elem_list(i) = get_local_elem_2d(surface_elems(i))
-    enddo
 
-    call triangles_from_surface(elem_list)
+    if(count(surface_elems.ne.0).gt.0)then ! a surface element list is given for converting to
+       !                                a temporary triangulated surface mesh
+       allocate(elem_list(count(surface_elems.ne.0)))
+       do i = 1,count(surface_elems.ne.0)
+          elem_list(i) = get_local_elem_2d(surface_elems(i))
+       enddo
+       call triangles_from_surface(elem_list)
+    endif
 
     scale_mesh = 1.0_dp-(offset/100.0_dp)
     cofm1 = sum(vertex_xyz,dim=2)/num_vertices
@@ -1518,7 +1526,7 @@ contains
     allocate(data_weight(3,num_data))
     data_weight(:,1:num_data) = 1.0_dp
 
-    deallocate(elem_list)
+    if(allocated(elem_list)) deallocate(elem_list)
    
     call enter_exit(sub_name,2)
     
