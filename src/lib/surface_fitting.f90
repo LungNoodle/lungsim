@@ -662,21 +662,19 @@ contains
                   num_data_infit, SAED/real(num_data_infit), &
                   sqrt((SQED-SAED**2/real(num_data_infit))/ real(num_data_infit-1)), &
                   sqrt(SQED/DBLE(num_data_infit))
-          else
-             write(*,'('' Group'',a13,'' (n='',i5,''): err_av='',f6.2,'' +/-'',f6.2,'' mm;''&
-                  &'' RMS='',f6.2,'' mm'')') trim(elem_group_names(ngroup)), &
-                  num_data_infit, SAED/real(num_data_infit), &
-                  sqrt((SQED-SAED**2/real(num_data_infit))/ real(num_data_infit-1)), &
-                  sqrt(SQED/DBLE(num_data_infit))
           endif
+          write(*,'('' Group'',a13,'' (n='',i5,''): err_av='',f6.2,'' +/-'',f6.2,'' mm;''&
+               &'' RMS='',f6.2,'' mm'')') trim(elem_group_names(ngroup)), &
+               num_data_infit, SAED/real(num_data_infit), &
+               sqrt((SQED-SAED**2/real(num_data_infit))/ real(num_data_infit-1)), &
+               sqrt(SQED/DBLE(num_data_infit))
        else
           if(writefile)then
              write(17,'('' Group'',a13,'' (n='',i5,''): no data points in any elements'')') &
                   trim(elem_group_names(ngroup)), num_data_infit
-          else
-             write(*,'('' Group'',a13,'' (n='',i5,''): no data points in any elements'')') &
-                  trim(elem_group_names(ngroup)), num_data_infit
           endif
+          write(*,'('' Group'',a13,'' (n='',i5,''): no data points in any elements'')') &
+               trim(elem_group_names(ngroup)), num_data_infit
           !WRITE(*,'('' No data points in any elements'')')
           !stop
        endif !ndtot>1
