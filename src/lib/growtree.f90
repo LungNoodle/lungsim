@@ -754,9 +754,8 @@ contains
     real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
     real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
 
-    integer :: i,num_elems_new,num_nodes_new,num_triangles,num_vertices
-    integer,allocatable :: elem_list(:), parent_list(:), triangle(:,:)
-    real(dp),allocatable :: vertex_xyz(:,:)
+    integer :: i,num_elems_new,num_nodes_new
+    integer,allocatable :: elem_list(:), parent_list(:)
 
 !!! allocate temporary arrays
     allocate(parent_list(num_elems))
@@ -773,7 +772,7 @@ contains
     call group_elem_parent_term(parent_list,parent_ne) 
 
 !!! make a linear triangulated mesh over the surface elements
-    call triangles_from_surface(num_triangles,num_vertices,elem_list,triangle,vertex_xyz)
+    call triangles_from_surface(elem_list)
 
 !!! estimate the number of elements in the generated model based on the
 !!! number of data (seed) points. i.e. N = 2*N_data - 1.
