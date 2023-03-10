@@ -44,6 +44,7 @@ module geometry
   public get_local_node_f
   public group_elem_parent_term
   public import_node_geometry_2d
+  public import_ply_triangles
   public make_data_grid
   public make_2d_vessel_from_1d
   public reallocate_node_elem_arrays
@@ -1166,6 +1167,65 @@ contains
     call enter_exit(sub_name,2)
     
   end subroutine import_node_geometry_2d
+
+!!!#############################################################################
+
+  subroutine import_ply_triangles(ply_file)
+    !*import_ply_triangles:* Reads in vtk ply file with list of vertex coordinates
+    ! and triangles. Use instead of internal triangle mesh creation for tree growing
+    
+    integer :: num_triangles,num_vertices
+    character(len=*),intent(in) :: ply_file
+    !     Local Variables
+    integer :: i,ibeg,iend,ierror
+    character(len=132) :: string,readfile
+    character(len=60) :: sub_name
+    
+    ! --------------------------------------------------------------------------
+    
+    sub_name = 'import_ply_triangles'
+    call enter_exit(sub_name,1)
+    
+    if(index(ply_file, ".ply")> 0) then !full filename is given
+       readfile = ply_file
+    else ! need to append the correct filename extension
+       readfile = trim(ply_file)//'.ply'
+    endif
+    
+    open(10, file=readfile, status='old')
+
+    !.....get the total number of vertices
+    num_vertices = 0
+    read_number_of_vertices : do !define a do loop name
+       read(unit=10, fmt="(a)", iostat=ierror) string 
+       if(ierror<0) exit !ierror<0 means end of file
+       if(index(string, "element vertex")> 0) then !keyword is found
+          iend = len(string) !get the length of the string
+          ibeg = index(string,"x ")+1 !get location of integer in string, follows "x"
+          read(string(ibeg:iend), *, iostat=ierror) num_vertices
+          exit
+       endif
+    end do read_number_of_vertices
+    write(*,*) 'number of vertices',num_vertices
+    
+    !.....get the total number of triangles
+    num_triangles = 0
+    read_number_of_triangles : do !define a do loop name
+       read(unit=10, fmt="(a)", iostat=ierror) string 
+       if(ierror<0) exit !ierror<0 means end of file
+       if(index(string, "element face")> 0) then !keyword is found
+          iend = len(string) !get the length of the string
+          ibeg = index(string,"e ")+1 !get location of integer in string, follows "x"
+          read(string(ibeg:iend), *, iostat=ierror) num_triangles
+          exit
+       endif
+    end do read_number_of_triangles
+    write(*,*) 'number of triangles',num_triangles
+    close(10)
+    
+    call enter_exit(sub_name,2)
+    
+  end subroutine import_ply_triangles
 
 !!!#############################################################################
 
