@@ -1172,7 +1172,8 @@ contains
 
   subroutine import_ply_triangles(ply_file)
     !*import_ply_triangles:* Reads in vtk ply file with list of vertex coordinates
-    ! and triangles. Use instead of internal triangle mesh creation for tree growing
+    ! and triangles. Used instead of internal triangle mesh creation for tree growing
+    ! Writes over any existing triangle mesh.
 
     character(len=*),intent(in) :: ply_file
     !     Local Variables
