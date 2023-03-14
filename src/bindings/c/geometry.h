@@ -14,6 +14,7 @@ SHO_PUBLIC void define_node_geometry(const char *NODEFILE);
 SHO_PUBLIC void define_node_geometry_2d(const char *NODEFILE);
 SHO_PUBLIC void define_data_geometry(const char *DATAFILE);
 SHO_PUBLIC void import_node_geometry_2d(const char *NODEFILE);
+SHO_PUBLIC void import_ply_triangles(const char *ply_file);
 SHO_PUBLIC void make_data_grid(int elemlist_len, int elemlist[], double offset, double spacing, const char *filename, const char *groupname);
 SHO_PUBLIC void make_2d_vessel_from_1d(int elemlist_len, int elemlist[]);
 SHO_PUBLIC void define_rad_from_file(const char *FIELDFILE, const char *radius_type);

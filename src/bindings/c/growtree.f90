@@ -30,10 +30,26 @@ contains
     real(dp),intent(in) :: rotation_limit
 
     call grow_tree(surface_elems, parent_ne, angle_max, angle_min, branch_fraction, length_limit,&
-shortest_length, rotation_limit)
+         shortest_length, rotation_limit)
 
   end subroutine grow_tree_c
 
+  !
+  !###################################################################################
+  !
+  ! option to smooth branching in a generated tree
+  subroutine smooth_1d_tree_c(num_elem_start, length_limit) bind(C, name="smooth_1d_tree_c")
+    
+    use arrays,only: dp
+    use growtree,only: smooth_1d_tree
+    implicit none
+    
+    integer,intent(in) :: num_elem_start
+    real(dp),intent(in) :: length_limit
+
+    call smooth_1d_tree(num_elem_start, length_limit)
+
+  end subroutine smooth_1d_tree_c
 ! 
 !#########################################################################
 ! 

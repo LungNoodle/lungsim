@@ -32,6 +32,10 @@ void export_elem_field_c(const char *EXELEMFIELD, int *EXELEMFIELD_LEN,
 			 int *field_name_len);
 void export_terminal_ssgexch_c(const char *EXNODEFILE, int *filename_len,
 			       const char *name, int *name_len);
+void export_triangle_elements_c(const char *EXELEMFILE, int *filename_len,
+			       const char *name, int *name_len);
+void export_triangle_nodes_c(const char *EXNODEFILE, int *filename_len,
+			       const char *name, int *name_len);
 
 
 
@@ -105,6 +109,22 @@ void export_terminal_ssgexch(const char *EXNODEFILE, const char *name)
   int name_len = strlen(name);
 
   export_terminal_ssgexch_c(EXNODEFILE, &filename_len, name, &name_len);
+}
+
+void export_triangle_elements(const char *EXELEMFILE, const char *name)
+{
+  int filename_len = strlen(EXELEMFILE);
+  int name_len = strlen(name);
+
+  export_triangle_elements_c(EXELEMFILE, &filename_len, name, &name_len);
+}
+
+void export_triangle_nodes(const char *EXNODEFILE, const char *name)
+{
+  int filename_len = strlen(EXNODEFILE);
+  int name_len = strlen(name);
+
+  export_triangle_nodes_c(EXNODEFILE, &filename_len, name, &name_len);
 }
 
 void export_node_geometry(const char *EXNODEFILE, const char *name)

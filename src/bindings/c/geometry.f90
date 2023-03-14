@@ -151,6 +151,27 @@ contains
 !
 !###################################################################################
 !
+  subroutine import_ply_triangles_c(ply_file, filename_len) bind(C, name="import_ply_triangles_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry, only: import_ply_triangles
+    implicit none
+
+    integer,intent(in) :: filename_len
+    type(c_ptr), value, intent(in) :: ply_file
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, ply_file, filename_len)
+
+    call import_ply_triangles(filename_f)
+
+  end subroutine import_ply_triangles_c
+
+!
+!###################################################################################
+!
   subroutine make_data_grid_c(surface_elems_len, surface_elems, offset, spacing, &
        filename, filename_len, groupname, groupname_len)&
  bind(C, name="make_data_grid_c")

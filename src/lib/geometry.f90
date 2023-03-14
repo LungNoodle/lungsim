@@ -44,6 +44,7 @@ module geometry
   public get_local_node_f
   public group_elem_parent_term
   public import_node_geometry_2d
+  public import_ply_triangles
   public make_data_grid
   public make_2d_vessel_from_1d
   public reallocate_node_elem_arrays
@@ -1169,15 +1170,84 @@ contains
 
 !!!#############################################################################
 
-  subroutine triangles_from_surface(num_triangles,num_vertices,surface_elems, &
-       triangle,vertex_xyz)
+  subroutine import_ply_triangles(ply_file)
+    !*import_ply_triangles:* Reads in vtk ply file with list of vertex coordinates
+    ! and triangles. Used instead of internal triangle mesh creation for tree growing
+    ! Writes over any existing triangle mesh.
+
+    character(len=*),intent(in) :: ply_file
+    !     Local Variables
+    integer :: i,ibeg,iend,ierror,nt,nv
+    character(len=132) :: string,readfile
+    character(len=60) :: sub_name
+    
+    ! --------------------------------------------------------------------------
+    
+    sub_name = 'import_ply_triangles'
+    call enter_exit(sub_name,1)
+    
+    if(index(ply_file, ".ply")> 0) then !full filename is given
+       readfile = ply_file
+    else ! need to append the correct filename extension
+       readfile = trim(ply_file)//'.ply'
+    endif
+    
+    open(10, file=readfile, status='old')
+
+    !.....get the total number of vertices
+    num_vertices = 0
+    read_number_of_vertices : do !define a do loop name
+       read(unit=10, fmt="(a)", iostat=ierror) string 
+       if(ierror<0) exit !ierror<0 means end of file
+       if(index(string, "element vertex")> 0) then !keyword is found
+          iend = len(string) !get the length of the string
+          ibeg = index(string,"x ")+1 !get location of integer in string, follows "x"
+          read(string(ibeg:iend), *, iostat=ierror) num_vertices
+          exit
+       endif
+    end do read_number_of_vertices
+    
+    !.....get the total number of triangles
+    num_triangles = 0
+    read_number_of_triangles : do !define a do loop name
+       read(unit=10, fmt="(a)", iostat=ierror) string 
+       if(ierror<0) exit !ierror<0 means end of file
+       if(index(string, "element face")> 0) then !keyword is found
+          iend = len(string) !get the length of the string
+          ibeg = index(string,"e ")+1 !get location of integer in string, follows "x"
+          read(string(ibeg:iend), *, iostat=ierror) num_triangles
+          exit
+       endif
+    end do read_number_of_triangles
+    read(unit=10, fmt="(a)", iostat=ierror) string ! property list uchar int vertex_indices
+    read(unit=10, fmt="(a)", iostat=ierror) string ! end_header
+
+    if(allocated(triangle)) deallocate(triangle)
+    allocate(triangle(3,num_triangles))
+    if(allocated(vertex_xyz)) deallocate(vertex_xyz)
+    allocate(vertex_xyz(3,num_vertices))
+
+    do nv = 1,num_vertices
+       read(unit=10, fmt=*) vertex_xyz(1,nv),vertex_xyz(2,nv),vertex_xyz(3,nv)
+    enddo
+    do nt = 1,num_triangles
+       read(unit=10, fmt=*) i,triangle(1,nt),triangle(2,nt),triangle(3,nt)
+    enddo
+    triangle = triangle + 1 ! offset all vertices by 1 because indexing starts from zero
+    
+    close(10)
+    
+    call enter_exit(sub_name,2)
+    
+  end subroutine import_ply_triangles
+
+!!!#############################################################################
+
+  subroutine triangles_from_surface(surface_elems)
     !*triangles_from_surface:* generates a linear surface mesh of triangles
     ! from an existing high order surface mesh. 
     
-    integer :: num_triangles,num_vertices
     integer,intent(in) :: surface_elems(:)
-    integer,allocatable :: triangle(:,:)
-    real(dp),allocatable :: vertex_xyz(:,:)
     ! Local variables
     integer,parameter :: ndiv = 4 ! the number of triangle divisions in each direction
     integer :: i,index1,index2,j,ne,nelem,nmax_1,nmax_2,num_surfaces, &
@@ -1358,11 +1428,11 @@ contains
     character(len=*),intent(in) :: filename
     character(len=*),intent(in) :: groupname
     ! Local Variables
-    integer :: i,j,k,num_data_estimate,num_triangles,num_vertices
-    integer,allocatable :: elem_list(:),triangle(:,:)
+    integer :: i,j,k,num_data_estimate
+    integer,allocatable :: elem_list(:)
     real(dp) :: cofm1(3),cofm2(3),boxrange(3),max_bound(3),min_bound(3), &
          point_xyz(3),scale_mesh
-    real(dp),allocatable :: data_temp(:,:),vertex_xyz(:,:)
+    real(dp),allocatable :: data_temp(:,:)
     logical :: internal
     character(len=60) :: sub_name
     
@@ -1370,14 +1440,15 @@ contains
     
     sub_name = 'make_data_grid'
     call enter_exit(sub_name,1)
-    
-    allocate(elem_list(count(surface_elems.ne.0)))
-    do i = 1,count(surface_elems.ne.0)
-       elem_list(i) = get_local_elem_2d(surface_elems(i))
-    enddo
 
-    call triangles_from_surface(num_triangles,num_vertices,elem_list, &
-         triangle,vertex_xyz)
+    if(count(surface_elems.ne.0).gt.0)then ! a surface element list is given for converting to
+       !                                a temporary triangulated surface mesh
+       allocate(elem_list(count(surface_elems.ne.0)))
+       do i = 1,count(surface_elems.ne.0)
+          elem_list(i) = get_local_elem_2d(surface_elems(i))
+       enddo
+       call triangles_from_surface(elem_list)
+    endif
 
     scale_mesh = 1.0_dp-(offset/100.0_dp)
     cofm1 = sum(vertex_xyz,dim=2)/num_vertices
@@ -1451,9 +1522,7 @@ contains
     allocate(data_weight(3,num_data))
     data_weight(:,1:num_data) = 1.0_dp
 
-    deallocate(triangle)
-    deallocate(vertex_xyz)
-    deallocate(elem_list)
+    if(allocated(elem_list)) deallocate(elem_list)
    
     call enter_exit(sub_name,2)
     
