@@ -228,6 +228,52 @@ contains
   end subroutine export_terminal_ssgexch_c
 
 
+!!!########################################################################
+
+  subroutine export_triangle_elements_c(EXELEMFILE, filename_len, name, name_len) &
+       bind(C, name="export_triangle_elements_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use exports, only: export_triangle_elements
+    use other_consts, only: MAX_STRING_LEN, MAX_FILENAME_LEN
+    implicit none
+    integer,intent(in) :: filename_len, name_len
+    type(c_ptr), value, intent(in) :: EXELEMFILE, name
+    character(len=MAX_FILENAME_LEN) :: filename_f
+    character(len=MAX_STRING_LEN) :: name_f
+
+    call strncpy(filename_f, EXELEMFILE, filename_len)
+    call strncpy(name_f, name, name_len)
+
+    call export_triangle_elements(filename_f, name_f)
+
+  end subroutine export_triangle_elements_c
+
+
+!!!########################################################################
+
+  subroutine export_triangle_nodes_c(EXNODEFILE, filename_len, name, name_len) &
+       bind(C, name="export_triangle_nodes_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use exports, only: export_triangle_nodes
+    use other_consts, only: MAX_STRING_LEN, MAX_FILENAME_LEN
+    implicit none
+    integer,intent(in) :: filename_len, name_len
+    type(c_ptr), value, intent(in) :: EXNODEFILE, name
+    character(len=MAX_FILENAME_LEN) :: filename_f
+    character(len=MAX_STRING_LEN) :: name_f
+
+    call strncpy(filename_f, EXNODEFILE, filename_len)
+    call strncpy(name_f, name, name_len)
+
+    call export_triangle_nodes(filename_f, name_f)
+
+  end subroutine export_triangle_nodes_c
+
+
 !!! #################################################################
 
   subroutine export_node_field_c(nj_field, EXNODEFIELD, filename_len, name, name_len, field_name, field_name_len) &

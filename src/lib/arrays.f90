@@ -14,11 +14,14 @@ module arrays
   
   implicit none
 
-  integer :: num_elems,num_elems_2d,num_nodes,num_data,num_nodes_2d,num_units,num_lines_2d,maxgen
+  integer :: num_elems,num_elems_2d,num_groups,num_nodes,num_data, &
+       num_nodes_2d,num_triangles,num_units,num_vertices,num_lines_2d,maxgen
 
   integer,allocatable :: nodes(:) !allocated in define_node_geometry
   integer,allocatable :: nodes_2d(:) !allocated in define_node_geometry_2d
   integer,allocatable :: node_versn_2d(:) !allocated in define_node_geometry_2d
+  integer :: ndata_groups(20,2)
+  integer,allocatable :: nelem_groups(:,:)
   integer,allocatable :: elems(:) !allocated in define_1d_elements
   integer,allocatable :: lines_2d(:)
   integer,allocatable :: line_versn_2d(:,:,:)
@@ -36,6 +39,7 @@ module arrays
   integer,allocatable :: elem_units_below(:)
   integer,allocatable :: elems_at_node(:,:)
   integer,allocatable :: elems_at_node_2d(:,:)
+  integer,allocatable :: triangle(:,:)
   integer,allocatable :: units(:)
 
   ! from p-r-f
@@ -54,14 +58,18 @@ module arrays
   real(dp),allocatable :: elem_field(:,:) !properties of elements
   real(dp),allocatable :: elem_direction(:,:)
   real(dp),allocatable :: node_xyz(:,:)
+  real(dp),allocatable :: data_field(:,:)
   real(dp),allocatable :: data_xyz(:,:)
   real(dp),allocatable :: data_weight(:,:)
   real(dp),allocatable :: node_xyz_2d(:,:,:,:)
   real(dp),allocatable :: gasex_field(:,:) !gasexchange specific fields
   real(dp),allocatable :: unit_field(:,:) !properties of elastic units
+  real(dp),allocatable :: vertex_xyz(:,:)
   real(dp),allocatable :: node_field(:,:)
   real(dp),allocatable :: scale_factors_2d(:,:)
 
+  character(len=20),dimension(20) :: data_group_names,elem_group_names
+  
   logical,allocatable :: expansile(:)
 
   type capillary_bf_parameters
@@ -124,17 +132,20 @@ module arrays
 
   private
 
-  public set_node_field_value, elem_field, num_elems, num_elems_2d, elem_nodes, node_xyz, &
-         nodes,nodes_2d, elems, num_nodes, num_nodes_2d, num_data, data_xyz, data_weight, &
-         node_xyz_2d, node_versn_2d, units, num_units, unit_field, node_field, dp, &
-         elem_cnct, elem_ordrs, elem_direction, elems_at_node, elem_symmetry, expansile, &
-         elem_units_below, maxgen,capillary_bf_parameters, zero_tol,loose_tol,gasex_field, &
-         num_lines_2d, lines_2d, line_versn_2d, lines_in_elem, nodes_in_line, elems_2d, &
-         elem_cnct_2d, elem_nodes_2d, elem_versn_2d, elem_lines_2d, elems_at_node_2d, arclength, &
-         scale_factors_2d, fluid_properties, elasticity_vessels, admittance_param, &
-         elasticity_param, all_admit_param, &
-         mesh_from_depvar, depvar_at_node, depvar_at_elem, SparseCol, SparseRow, update_resistance_entries, &
-         SparseVal, RHS, prq_solution, solver_solution, FIX
+  public set_node_field_value, elem_field, num_elems, num_elems_2d, num_groups, elem_nodes, node_xyz, &
+       nodes,nodes_2d, elems, num_nodes, num_nodes_2d, num_data, num_triangles, num_vertices, &
+       data_field, data_xyz, data_weight, &
+       node_xyz_2d, node_versn_2d, units, num_units, unit_field, node_field, dp, &
+       data_group_names, elem_group_names, ndata_groups, nelem_groups, &
+       elem_cnct, elem_ordrs, elem_direction, elems_at_node, elem_symmetry, expansile, &
+       elem_units_below, maxgen,capillary_bf_parameters, zero_tol,loose_tol,gasex_field, &
+       num_lines_2d, lines_2d, line_versn_2d, lines_in_elem, nodes_in_line, elems_2d, &
+       elem_cnct_2d, elem_nodes_2d, elem_versn_2d, elem_lines_2d, elems_at_node_2d, arclength, &
+       scale_factors_2d, fluid_properties, elasticity_vessels, admittance_param, &
+       elasticity_param, all_admit_param, &
+       mesh_from_depvar, depvar_at_node, depvar_at_elem, SparseCol, SparseRow, triangle, &
+       update_resistance_entries, vertex_xyz, &
+       SparseVal, RHS, prq_solution, solver_solution, FIX
 
 contains
   subroutine set_node_field_value(row, col, value)

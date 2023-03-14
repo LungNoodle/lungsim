@@ -191,10 +191,9 @@ contains
 !
 !##############################################################################
 !
-  subroutine export_triangle_elements(num_triangles,triangle,EXELEMFILE,groupname)
+  subroutine export_triangle_elements(EXELEMFILE,groupname)
 
 !!! Parameters
-    integer :: num_triangles, triangle(:,:)
     character(len=MAX_FILENAME_LEN),intent(in) :: EXELEMFILE
     character(len=MAX_STRING_LEN),intent(in) :: groupname
 
@@ -274,11 +273,9 @@ contains
 !##############################################################################
 !
 
-  subroutine export_triangle_nodes(num_vertices, vertex_xyz, EXNODEFILE, groupname)
+  subroutine export_triangle_nodes(EXNODEFILE, groupname)
 
 !!! Parameters
-    integer :: num_vertices
-    real(dp) :: vertex_xyz(:,:)
     character(len=MAX_FILENAME_LEN),intent(in) :: EXNODEFILE
     character(len=MAX_STRING_LEN),intent(in) :: groupname
 

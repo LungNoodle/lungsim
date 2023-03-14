@@ -13,9 +13,11 @@ module surface_fitting
   implicit none
 
   public &
+       define_data_fit_group, &
        fit_surface_geometry, &
        initialise_fit_mesh, &
-       pxi
+       pxi, &
+       reset_fitting
 
   integer,parameter :: nmax_data_elem = 4000     ! max # data points on an element
   integer,parameter :: nmax_versn = 6            ! max # versions of node (derivative)
@@ -45,7 +47,7 @@ contains
     character(len=255),intent(in) :: fitting_file ! file that lists versions/mapping/BCs
     ! Local variables
     integer  :: nfit,nk,NOT_1,NOT_2,np,num_depvar,nv,ny_max
-    logical :: first = .true.
+    logical :: first = .true., writefile = .false.
     ! local allocatable arrays
     integer,allocatable :: data_elem(:)              
     integer,allocatable :: data_on_elem(:,:)     ! list of data closest to elements
@@ -126,12 +128,22 @@ contains
        write(*,'('' Calculating normal projections '')')
        call define_xi_closest(data_elem,data_on_elem,elem_list,ndata_on_elem,data_xi,first)
 !!!    calculated the updated error between data and surface
-       write(*,'(/'' CURRENT RMS ERROR FOR ALL DATA:'')') 
-       call list_data_error(data_on_elem,ndata_on_elem,data_xi)
+       write(*,'(/'' CURRENT PROJECTION ERROR FOR ALL DATA:'')')
+       if(num_groups <= 1)then
+          call list_data_error(data_on_elem,ndata_on_elem,data_xi)
+       else
+          if(nfit.eq.niterations)then
+             writefile = .true.
+          endif
+          call list_data_error_by_group(data_on_elem,ndata_on_elem,data_xi,writefile)
+       endif
     enddo
+
+    call calc_data_field_distance(data_elem,data_xi)
 
     deallocate(elem_list)
     deallocate(sobelov_wts)
+    deallocate(data_elem)
     deallocate(data_on_elem)
     deallocate(ndata_on_elem)
     deallocate(data_xi)
@@ -142,11 +154,23 @@ contains
     deallocate(nynp)
     deallocate(nyny)
     deallocate(fix_bcs)
+    deallocate(fit_soln)
 
     call enter_exit(sub_name,2)
     
   end subroutine fit_surface_geometry
 
+!!! ##########################################################################      
+  
+  subroutine reset_fitting()
+
+    if(allocated(nelem_groups)) deallocate(nelem_groups)
+    if(allocated(data_xyz)) deallocate(data_xyz)
+    if(allocated(data_field)) deallocate(data_field)
+    if(allocated(data_weight)) deallocate(data_weight)
+
+  end subroutine reset_fitting
+  
 !!! ##########################################################################      
   
   subroutine define_geometry_fit(elem_list,np_list_redist,npny,num_depvar,nynp,nynr,nyny,&
@@ -164,11 +188,12 @@ contains
     character(len=*),intent(in) :: fitting_file
     logical :: fix_bcs(:)
 !!! local variables
-    integer :: i,ibeg,iend,ierror,IPFILE=10,i_ss_end,L,ne,nh,nj,nk, &
-         node,np,np_global,number_of_maps,number_of_fixed,num_redists,nv,nv_fix,ny
+    integer :: i,ibeg,idx,iend,ierror,IPFILE=10,i_ss_end,L,ne,nelem,nh,nj,nk, &
+         node,np,np_global,n_group,number_of_maps,number_of_fixed,num_redists, &
+         nv,nv_fix,ny,stat
     integer,allocatable :: nmap_info(:,:)
     real(dp) :: temp_weights(7)
-    character(len=300) :: readfile,string,sub_string
+    character(len=300) :: readfile,string,sub_string,temp
     character(len=60) :: sub_name
     
     ! --------------------------------------------------------------------------
@@ -178,6 +203,8 @@ contains
 
     if(.not.allocated(fit_soln)) allocate(fit_soln(4,10,16,num_nodes_2d))
     allocate(nmap_info(7,num_nodes_2d*num_deriv*nmax_versn))
+    allocate(nelem_groups(20,num_elems_2d))
+    nelem_groups = 0
     
     ! linear fitting for 3 geometric variables. solution stored in fields 1,2,3
     ! includes Sobelov smoothing on the geometry field
@@ -185,13 +212,25 @@ contains
     !***Set up dependent variable interpolation information
     fit_soln = node_xyz_2d    
  
-    elem_list = 0
+    elem_list(1:num_elems_2d) = elems_2d(1:num_elems_2d) ! global element numbers
+    !elem_list = 0
 
     !*** Calculate ny maps
     call calculate_ny_maps(npny,num_depvar,nynp)
     
     fix_bcs = .false. !initialise, default
    
+    ! *** Specify smoothing constraints on each element
+    ! set some default values in case smoothing not specified
+    sobelov_wts(0,:) = 1.0_dp 
+    sobelov_wts(1,:) = 1.0_dp !the scaling factor for the Sobolev weights
+    !  The 5 weights on derivs wrt Xi_1/_11/_2/_22/'_12 are:
+    sobelov_wts(2,:) = 1.0e-2_dp !weight for deriv wrt Xi_1
+    sobelov_wts(3,:) = 0.4_dp
+    sobelov_wts(4,:) = 1.0e-2_dp
+    sobelov_wts(5,:) = 0.4_dp
+    sobelov_wts(6,:) = 0.8_dp
+
     if(index(fitting_file, ".ipmap")> 0) then !full filename is given
        readfile = fitting_file
     else ! need to append the correct filename extension
@@ -203,19 +242,42 @@ contains
 !!! and the nodal derivative mapping for versions of nodes. Node locations for
 !!! multiple versions are assumed to be mapped to version 1.
     read(unit=IPFILE, fmt="(a)", iostat=ierror) string
-    if(index(string, "Elements in fit:")> 0) then
-       ibeg = index(string,":")+1 ! get location of first integer in string
-       iend = len(string)
-       sub_string = adjustl(string(ibeg:iend)) ! get the characters beyond ":"
-       read(sub_string, fmt=*, iostat=ierror) elem_list
+    if(index(string, "Element group")> 0) then
+       n_group = 0
+       read_element_groups : do
+          n_group = n_group + 1
+          ibeg = index(string,"(")+1 
+          iend = index(string,")")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the items between brackets
+          read(sub_string, fmt=*, iostat=ierror) temp
+          elem_group_names(n_group) = trim(temp)
+          ibeg = index(string,"{")+1 
+          iend = index(string,"}")-1 
+          sub_string = string(ibeg:iend) ! get the items between brackets
+          nelem = 0
+          do while (index(trim(sub_string), ' ').ne.0)
+             idx = index(trim(sub_string), ' ')
+             nelem = nelem + 1
+             read(sub_string(1:idx-1),*,iostat=stat) nelem_groups(n_group,nelem)
+             sub_string = trim(sub_string(idx+1:iend))
+          enddo
+          nelem = nelem + 1
+          read(sub_string(1:iend),*,iostat=stat) nelem_groups(n_group,nelem)
+          read(unit=IPFILE, fmt="(a)", iostat=ierror) string
+          if(index(string, "Element group") == 0) exit ! move to fixed nodes
+       enddo read_element_groups
     endif
 
-    read(unit=IPFILE, fmt="(a)", iostat=ierror) string
-    if(index(string, "Fixed nodes:")> 0) then
+    if(index(string, "Fixed node")> 0) then
        read_fixed_nodes : do
-          read(unit=IPFILE, fmt="(a)", iostat=ierror) string
-          if(index(string, "Mapped nodes:")> 0) exit ! move to the mapping
-          read(string, fmt=*, iostat=ierror) np_global, nv_fix, nk
+          ibeg = index(string,"(")+1 
+          iend = index(string,")")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          read(sub_string, fmt=*, iostat=ierror) np_global
+          ibeg = index(string,"{")+1 
+          iend = index(string,"}")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          read(sub_string, fmt=*, iostat=ierror) nv_fix, nk
           np = get_local_node_f(2,np_global)
           nk = nk+1 !read in 0 for coordinate, 1 for 1st deriv, 2 for 2nd deriv
           if(nv_fix.eq.0)then ! do for all versions
@@ -233,55 +295,70 @@ contains
                 !fit_soln(nk,nv,nh,np) = 0.0_dp ! shouldn't be zero
              enddo !nh
           endif
-       enddo read_fixed_nodes !node
+          read(unit=IPFILE, fmt="(a)", iostat=ierror) string
+          if(index(string, "Fixed node") == 0) exit ! move to fixed nodes
+       enddo read_fixed_nodes
     endif
-    
+       
     number_of_maps = 0
     nmap_info = 0
-    read_mapped_nodes : do
-       read(unit=IPFILE, fmt="(a)", iostat=ierror) string
-       if(index(string, "Redistribute nodes:")> 0) exit  ! go to the enxt section
-       number_of_maps = number_of_maps + 1
-       read(string, fmt=*, iostat=ierror) nmap_info(1:7,number_of_maps)
-    enddo read_mapped_nodes
+    if(index(string, "Mapped node")> 0) then
+       read_mapped_nodes : do
+          number_of_maps = number_of_maps + 1
+          ibeg = index(string,"(")+1 
+          iend = index(string,")")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          read(sub_string, fmt=*, iostat=ierror) nmap_info(1,number_of_maps)
+          ibeg = index(string,"{")+1 
+          iend = index(string,"}")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          read(sub_string, fmt=*, iostat=ierror) nmap_info(2:7,number_of_maps)
+          read(unit=IPFILE, fmt="(a)", iostat=ierror) string
+          if(index(string, "Mapped node") == 0) exit  ! go to the enxt section
+       enddo read_mapped_nodes
+    endif
 
     np_list_redist = 0
     num_redists = 0
-    read_redistribute_nodes : do
-       read(unit=IPFILE, fmt="(a)", iostat=ierror) string
-       if(index(string, "Sobelov weights:")> 0) exit  ! end of file
-       num_redists = num_redists + 1
-       read(string, fmt=*, iostat=ierror) np_list_redist(num_redists,:)
-    enddo read_redistribute_nodes
+    if(index(string, "Redistribute node")> 0) then
+       read_redistribute_nodes : do
+          ibeg = index(string,"{")+1 
+          iend = index(string,"}")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          num_redists = num_redists + 1
+          read(sub_string, fmt=*, iostat=ierror) np_list_redist(num_redists,:)
+          read(unit=IPFILE, fmt="(a)", iostat=ierror) string
+          if(index(string, "Redistribute node") == 0) exit  ! go to next section
+       enddo read_redistribute_nodes
+    endif
 
-    ! *** Specify smoothing constraints on each element
-    ! set some default values in case smoothing not specified
-    sobelov_wts(0,:) = 1.0_dp 
-    sobelov_wts(1,:) = 1.0_dp !the scaling factor for the Sobolev weights
-    !  The 5 weights on derivs wrt Xi_1/_11/_2/_22/'_12 are:
-    sobelov_wts(2,:) = 1.0e-2_dp !weight for deriv wrt Xi_1
-    sobelov_wts(3,:) = 0.4_dp
-    sobelov_wts(4,:) = 1.0e-2_dp
-    sobelov_wts(5,:) = 0.4_dp
-    sobelov_wts(6,:) = 0.8_dp
-    read_smoothing : do
-       read(unit=IPFILE, fmt="(a)", iostat=ierror) string
-       if(index(string, "End:")> 0) exit  ! end of file
-       read(string, fmt=*, iostat=ierror) ne,temp_weights(1:7)
-       if(ne.eq.0)then
-          forall(i = 0:6) sobelov_wts(i,1:num_elems_2d) = temp_weights(i+1)
-       else
-          ne = get_local_elem_2d(ne)
-          forall(i = 0:6) sobelov_wts(i,ne) = temp_weights(i+1)
-       endif
-    enddo read_smoothing
-    
+    if(index(string, "Sobelov weights")> 0) then
+       read_smoothing : do
+          ibeg = index(string,"(")+1 
+          iend = index(string,")")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          read(sub_string, fmt=*, iostat=ierror) ne
+          ibeg = index(string,"{")+1 
+          iend = index(string,"}")-1 
+          sub_string = adjustl(string(ibeg:iend)) ! get the characters between brackets
+          read(sub_string, fmt=*, iostat=ierror) temp_weights(1:7)
+          if(ne.eq.0)then
+             forall(i = 0:6) sobelov_wts(i,1:num_elems_2d) = temp_weights(i+1)
+          else
+             ne = get_local_elem_2d(ne)
+             forall(i = 0:6) sobelov_wts(i,ne) = temp_weights(i+1)
+          endif
+          read(unit=IPFILE, fmt="(a)", iostat=ierror) string
+          if(index(string, "Sobelov weights") == 0) exit  ! end of file
+       enddo read_smoothing
+    endif
 
     close(IPFILE)
-
+    
     call map_versions(nmap_info,number_of_maps,num_depvar,nynp,nyny,cyny,fit_soln,fix_bcs)
     
     ! fix ALL of the cross derivatives, and set to zero
+    nk = 4
     do np = 1,num_nodes_2d
        do nv = 1,node_versn_2d(np)
           do nj = 1,num_coords
@@ -524,6 +601,90 @@ contains
     call enter_exit(sub_name,2)
 
   end subroutine list_data_error
+  
+!!! ##########################################################################      
+
+  subroutine list_data_error_by_group(data_on_elem,ndata_on_elem,data_xi,writefile)
+
+!!! calculate and write out the RMS error for distance between data points
+!!! and 2d mesh surface
+
+!!! dummy arguments
+    integer :: data_on_elem(:,:),ndata_on_elem(:) 
+    real(dp) :: data_xi(:,:)
+    logical :: writefile
+!!! local variables
+    integer elem,i,nd,nde,ngroup,num_data_infit,ne,nj
+    real(dp) :: data_xi_local(2),EDD,elem_xyz(num_deriv_elem,num_coords), &
+         SAED,SMED,SUM,SQED,X(6)
+         
+    character(len=60) :: sub_name
+    
+    ! --------------------------------------------------------------------------
+
+    sub_name = 'list_data_error'
+    call enter_exit(sub_name,1)
+
+    if(writefile)then
+       open(17, file = 'fitting.err', status='replace')
+    endif
+    do ngroup = 1,num_groups
+       SMED=0.0_dp
+       SAED=0.0_dp
+       SQED=0.0_dp
+       num_data_infit=0
+    
+       do i = 1,count(nelem_groups(ngroup,:)/=0)
+          ne = get_local_elem_2d(nelem_groups(ngroup,i))
+          call node_to_local_elem(ne,elem_xyz)
+          elem = ne
+          do nde = 1,ndata_on_elem(elem) !for each data point on element
+             nd = data_on_elem(elem,nde) !the data point number
+             data_xi_local(1:2) = data_xi(1:2,nd)
+             do nj=1,num_coords 
+                X(nj)=PXI(1,data_xi_local,elem_xyz(1,nj))
+             enddo
+             SUM=0.0_dp
+             do nj=1,num_coords
+                SUM=SUM+(X(nj)-data_xyz(nj,nd))**2
+             enddo !nj
+             EDD = sqrt(SUM)  ! distance of the point from the surface
+             SMED=SMED+EDD
+             SAED=SAED+abs(EDD)
+             SQED=SQED+EDD**2
+             num_data_infit = num_data_infit+1
+          enddo !nde
+       enddo !list of elements
+       if(num_data_infit.GT.1) then
+          if(writefile)then
+             write(17,'('' Group'',a13,'' (n='',i5,''): err_av='',f6.2,'' +/-'',f6.2,'' mm;''&
+                  &'' RMS='',f6.2,'' mm'')') trim(elem_group_names(ngroup)), &
+                  num_data_infit, SAED/real(num_data_infit), &
+                  sqrt((SQED-SAED**2/real(num_data_infit))/ real(num_data_infit-1)), &
+                  sqrt(SQED/DBLE(num_data_infit))
+          endif
+          write(*,'('' Group'',a13,'' (n='',i5,''): err_av='',f6.2,'' +/-'',f6.2,'' mm;''&
+               &'' RMS='',f6.2,'' mm'')') trim(elem_group_names(ngroup)), &
+               num_data_infit, SAED/real(num_data_infit), &
+               sqrt((SQED-SAED**2/real(num_data_infit))/ real(num_data_infit-1)), &
+               sqrt(SQED/DBLE(num_data_infit))
+       else
+          if(writefile)then
+             write(17,'('' Group'',a13,'' (n='',i5,''): no data points in any elements'')') &
+                  trim(elem_group_names(ngroup)), num_data_infit
+          endif
+          write(*,'('' Group'',a13,'' (n='',i5,''): no data points in any elements'')') &
+               trim(elem_group_names(ngroup)), num_data_infit
+          !WRITE(*,'('' No data points in any elements'')')
+          !stop
+       endif !ndtot>1
+    enddo !ngroup
+
+    if(writefile) close(17)
+    
+    call enter_exit(sub_name,2)
+
+  end subroutine list_data_error_by_group
   
 !!! ##########################################################################      
   
@@ -769,10 +930,12 @@ contains
                 nv1 = line_versn_2d(1,1,in_line)
                 nv2 = line_versn_2d(2,1,in_line)
                 n_xi_dctn = nodes_in_line(1,0,nline)
-                if(i.gt.1.and.(np1.ne.nodes_in_line(3,1,line_numbers(j-1))))then
-                   xi = 1.0_dp - (new_length-sum_length)/arclength(line_numbers(j))
-                else
-                   xi = (new_length-sum_length)/arclength(line_numbers(j))
+                if(i.gt.1.and.j.gt.1)then
+                   if(np1.ne.nodes_in_line(3,1,line_numbers(j-1))) then
+                      xi = 1.0_dp - (new_length-sum_length)/arclength(line_numbers(j))
+                   else
+                      xi = (new_length-sum_length)/arclength(line_numbers(j))
+                   endif
                 endif
                 exit check_lines
              else
@@ -795,7 +958,6 @@ contains
              do j = 1,3
                 node_xyz_2d(1,nv,j,node_2) = node_xyz_2d(1,1,j,node_2)
                 ny = nynp(1,nv,j,node_2)
-                !if(fix_bcs(ny)) fit_soln(1,nv,j,node_2) = node_xyz_2d(1,nv,j,node_2)
                 fit_soln(1,nv,j,node_2) = node_xyz_2d(1,nv,j,node_2)
              enddo ! j
           enddo ! nv
@@ -1372,6 +1534,154 @@ contains
 
   end subroutine calculate_ny_maps
 
+!!!#############################################################################
+
+  subroutine define_data_fit_group(datafile, groupname)
+    !*define_data_fit_group:* reads data points from a file and associates with a named group
+
+    character(len=*) :: datafile
+    character(len=*) :: groupname
+    ! Local variables
+    integer :: iend,ierror,length_string,ncount,n_add_data,nj,itemp
+    real(dp),allocatable :: temp_data_field(:,:),temp_data_xyz(:,:),temp_data_weight(:,:)
+    character(len=132) :: buffer,readfile
+    character(len=60) :: sub_name
+
+    ! --------------------------------------------------------------------------
+
+    sub_name = 'define_data_fit_group'
+    call enter_exit(sub_name,1)
+    
+    if(index(datafile, ".ipdata")> 0) then !full filename is given
+       readfile = datafile
+    else ! need to append the correct filename extension
+       readfile = trim(datafile)//'.ipdata'
+    endif
+
+    open(10, file=readfile, status='old')
+    read(unit=10, fmt="(a)", iostat=ierror) buffer
+
+!!! first run through to count the number of data points
+    !set the counted number of data points to zero
+    ncount = 0
+    read_line_to_count : do
+       read(unit=10, fmt="(a)", iostat=ierror) buffer
+       if(ierror<0) exit !ierror<0 means end of file
+       ncount = ncount + 1
+    end do read_line_to_count
+    n_add_data = ncount
+    close (10)
+    if(.not.allocated(data_xyz))then ! first time reading, so allocate and initialise num_data
+       allocate(data_field(4,n_add_data))
+       allocate(data_xyz(3,n_add_data))
+       allocate(data_weight(3,n_add_data))
+       num_data = 0
+       num_groups = 0
+    endif
+
+    num_groups = num_groups + 1
+    data_group_names(num_groups) = trim(groupname)
+
+    write(*,'('' Read'',I7,'' data points from file'')') n_add_data !num_data
+!!! allocate arrays now that we know the size required
+    if(num_data.gt.0)then
+       allocate(temp_data_field(4,num_data))
+       allocate(temp_data_xyz(3,num_data))
+       allocate(temp_data_weight(3,num_data))
+       temp_data_field(:,1:num_data) = data_field(:,1:num_data)
+       temp_data_xyz(:,1:num_data) = data_xyz(:,1:num_data)
+       temp_data_weight(:,1:num_data) = data_weight(:,1:num_data)
+       deallocate(data_field)
+       deallocate(data_xyz)
+       deallocate(data_weight)
+       allocate(data_field(4,num_data+n_add_data))
+       allocate(data_xyz(3,num_data+n_add_data))
+       allocate(data_weight(3,num_data+n_add_data))
+       data_field(:,1:num_data) = temp_data_field(:,1:num_data)
+       data_xyz(:,1:num_data) = temp_data_xyz(:,1:num_data)
+       data_weight(:,1:num_data) = temp_data_weight(:,1:num_data)
+       deallocate(temp_data_field)
+       deallocate(temp_data_xyz)
+       deallocate(temp_data_weight)
+    endif
+
+    ! record the start and end data numbers for this group
+    ndata_groups(num_groups,1) = num_data + 1
+    ndata_groups(num_groups,2) = num_data + n_add_data
+    !set the counted number of data points to previous total
+    ncount = num_data
+    num_data = num_data+n_add_data
+
+!!! read the data point information
+    open(10, file=readfile, status='old')
+    read(unit=10, fmt="(a)", iostat=ierror) buffer
+
+    read_line_of_data : do
+       
+       ! read the data #; z; y; z; wd1; wd2; wd3 for each data point
+       read(unit=10, fmt="(a)", iostat=ierror) buffer
+       if(ierror<0) exit !ierror<0 means end of file
+       length_string = len_trim(buffer) !length of buffer, and removed trailing blanks
+       
+       ! read data number
+       buffer=adjustl(buffer) !remove leading blanks
+       iend=index(buffer," ",.false.)-1 !index returns location of first blank
+       if(length_string == 0) exit
+       ncount=ncount+1
+       read (buffer(1:iend), '(i6)') itemp
+       
+       do nj=1,3
+          ! read x,y,z coordinates
+          buffer = adjustl(buffer(iend+1:length_string)) !remove data number from string
+          buffer = adjustl(buffer) !remove leading blanks
+          length_string = len(buffer) !new length of buffer
+          iend=index(buffer," ",.false.)-1 !index returns location of first blank
+          read (buffer(1:iend), '(D25.17)') data_xyz(nj,ncount)
+       enddo !nj
+       data_weight(1:3,ncount)=1.0_dp
+    enddo read_line_of_data
+    
+    close(10)
+    
+    call enter_exit(sub_name,2)
+
+  end subroutine define_data_fit_group
+  
+!!! ##########################################################################
+
+  subroutine calc_data_field_distance(data_elem,data_xi)
+    implicit none
+
+    integer :: data_elem(:)
+    real(dp) :: data_xi(:,:)
+!!! local variables
+    integer :: nd,ne,nj
+    real(dp) :: dz(3),elem_xyz(num_deriv_elem,num_coords),sq,xi(2),z(3)
+
+    data_field = 0.0_dp
+    do nd = 1,num_data
+       ne = data_elem(nd)
+       if(ne.ne.0)then
+          call node_to_local_elem(ne,elem_xyz)
+          xi(1:2) = data_xi(1:2,nd)
+          sq = 0.0_dp
+          do nj = 1,3
+             z(nj) = pxi(1,xi,elem_xyz(1,nj))
+             dz(nj) = z(nj) - data_xyz(nj,nd)
+             sq = sq + dz(nj)**2.0_dp
+          enddo
+          if(abs(sq) < loose_tol)then
+             forall (nj = 1:4) data_field(nj,nd) = 0.0_dp
+          else
+             sq = sqrt(sq)
+             forall (nj = 1:3) data_field(nj,nd) = dz(nj)/sq
+             data_field(4,nd) = sq
+          endif
+       endif
+    enddo !nd
+
+  end subroutine calc_data_field_distance
+
 !!! ##########################################################################      
 
   subroutine define_xi_closest(data_elem,data_on_elem,elem_list,ndata_on_elem,data_xi,first)
@@ -1383,12 +1693,13 @@ contains
     real(dp) :: data_xi(:,:)
     logical,intent(in) :: first
 !!! local variables
-    integer :: i,n_check,ne_checklist(5),IT,ITMAX=20,nd,ne,neadj,nelast,neold,ni,nj
+    integer :: egroup,i,n_check,ne_checklist(5),ngroup,IT,ITMAX=20, &
+         nd,ne,neadj,nelast,neold,ni,nj
     real(dp) :: sqmax,sqnd,temp,elem_xyz(num_deriv_elem,num_coords),xi(3)
     real(dp),allocatable :: sq(:)
-    logical :: found
+    logical :: found,not_converged,not_converged_at_all
 
-    integer :: n_data
+    integer :: n_data,np
     character(len=200) :: exfile
     character(len=1) :: string_ne1
     character(len=2) :: string_ne2
@@ -1406,73 +1717,112 @@ contains
     !  initialise
     sq = 0.0_dp
     xi = 0.5_dp
-    
-    if(first)then ! check every element for every data point
-       do nd = 1,num_data
-          sqmax = 1.0e4_dp*1.0e4_dp
-          do i = 1,count(elem_list/=0) !num_elems_2d
-             ne = get_local_elem_2d(elem_list(i)) ! elem_list stores global elements
-             xi = 0.5_dp
-             call node_to_local_elem(ne,elem_xyz)
-             found = .false.
-             call project_orthogonal(nd,SQND,elem_xyz,xi,found)
-             if(abs(xi(1)).ge.-zero_tol.and.abs(xi(1)).lt.1.0_dp+zero_tol.and. &
-                  abs(xi(2)).ge.zero_tol.and.abs(xi(2)).lt.1.0_dp+zero_tol) then
-                if(sqnd.lt.sqmax)then
-                   sqmax = sqnd
-                   data_xi(1:2,nd) = xi(1:2)
-                   data_elem(nd) = ne
-                   SQ(nd) = SQND
-                endif
-             endif !FOUND
-          enddo
-       enddo ! nd
-    else
 
-       do nd = 1,num_data
-          ne = data_elem(nd)
-          ne_checklist(1) = ne
-          n_check = 1
-          if(elem_cnct_2d(-1,0,ne).ne.0)then
-             n_check = n_check + 1
-             ne_checklist(n_check) = elem_cnct_2d(-1,1,ne)
-          endif
-          if(elem_cnct_2d(1,0,ne).ne.0)then
-             n_check = n_check + 1
-             ne_checklist(n_check) = elem_cnct_2d(1,1,ne)
-          endif
-          if(elem_cnct_2d(-2,0,ne).ne.0)then
-             n_check = n_check + 1
-             ne_checklist(n_check) = elem_cnct_2d(-2,1,ne)
-          endif
-          if(elem_cnct_2d(2,0,ne).ne.0)then
-             n_check = n_check + 1
-             ne_checklist(n_check) = elem_cnct_2d(2,1,ne)
-          endif
-          sqmax = 1.0e4_dp*1.0e4_dp
-          do i = 1,n_check
-             ne = ne_checklist(i)
-             if(i.eq.1)then
-                xi(1:2) = data_xi(1:2,nd)
-             else
+    if(num_groups <= 0)then ! fitting to all elements at once
+       if(first)then ! check every element for every data point
+          do nd = 1,num_data
+             sqmax = 1.0e4_dp*1.0e4_dp
+             not_converged_at_all = .false.
+             do i = 1,count(elem_list(:)/=0)
+                ne = get_local_elem_2d(elem_list(i))
                 xi = 0.5_dp
-             endif
-             call node_to_local_elem(ne,elem_xyz)
-             found = .true. !find nearest point in element
-             call project_orthogonal(nd,sqnd,elem_xyz,xi,found)
-             if(abs(xi(1)).ge.-zero_tol.and.abs(xi(1)).lt.1.0_dp+zero_tol.and. &
-                  abs(xi(2)).ge.zero_tol.and.abs(xi(2)).lt.1.0_dp+zero_tol) then
-                if(sqnd.lt.sqmax)then
-                   sqmax = sqnd
-                   data_xi(1:2,nd) = xi(1:2)
-                   data_elem(nd)=ne
-                   sq(nd) = sqnd
+                call node_to_local_elem(ne,elem_xyz)
+                found = .false.
+                call project_orthogonal(nd,SQND,elem_xyz,xi,found,not_converged)
+                if(.not.not_converged)then
+                   not_converged_at_all = .true.
+                   if(sqnd.lt.sqmax)then
+                      sqmax = sqnd
+                      data_xi(1:2,nd) = xi(1:2)
+                      data_elem(nd) = ne
+                      SQ(nd) = SQND
+                   endif
+                endif !FOUND
+             enddo !i
+          enddo ! nd
+       else
+
+          do nd = 1,num_data
+             not_converged_at_all = .false.
+             ne = data_elem(nd)
+             if(ne.ne.0)then ! i.e. only for data points that have projected to an element
+                ne_checklist(1) = ne
+                n_check = 1
+                if(elem_cnct_2d(-1,0,ne).ne.0)then
+                   n_check = n_check + 1
+                   ne_checklist(n_check) = elem_cnct_2d(-1,1,ne)
                 endif
+                if(elem_cnct_2d(1,0,ne).ne.0)then
+                   n_check = n_check + 1
+                   ne_checklist(n_check) = elem_cnct_2d(1,1,ne)
+                endif
+                if(elem_cnct_2d(-2,0,ne).ne.0)then
+                   n_check = n_check + 1
+                   ne_checklist(n_check) = elem_cnct_2d(-2,1,ne)
+                endif
+                if(elem_cnct_2d(2,0,ne).ne.0)then
+                   n_check = n_check + 1
+                   ne_checklist(n_check) = elem_cnct_2d(2,1,ne)
+                endif
+                sqmax = 1.0e4_dp*1.0e4_dp
+                do i = 1,n_check
+                   ne = ne_checklist(i)
+                   if(i.eq.1)then
+                      xi(1:2) = data_xi(1:2,nd)
+                   else
+                      xi = 0.5_dp
+                   endif
+                   call node_to_local_elem(ne,elem_xyz)
+                   found = .false.
+                   call project_orthogonal(nd,sqnd,elem_xyz,xi,found,not_converged)
+                   if(.not.not_converged)then
+                      not_converged_at_all = .true.
+                      if(sqnd.lt.sqmax)then
+                         sqmax = sqnd
+                         data_xi(1:2,nd) = xi(1:2)
+                         data_elem(nd)=ne
+                         sq(nd) = sqnd
+                      endif
+                   endif
+                enddo !i
+             endif ! ne.ne.0
+          enddo ! nd
+       endif
+    else
+       data_elem = 0
+       do ngroup = 1,num_groups
+          do i = 1,num_groups
+             if(data_group_names(ngroup) == elem_group_names(i)) egroup = i
+          enddo
+          do nd = ndata_groups(ngroup,1),ndata_groups(ngroup,2)
+             sqmax = 1.0e4_dp*1.0e4_dp
+             not_converged_at_all = .false.
+             do i = 1,count(nelem_groups(egroup,:)/=0)
+                ne = get_local_elem_2d(nelem_groups(egroup,i))
+                xi = 0.5_dp
+                call node_to_local_elem(ne,elem_xyz)
+                found = .false.
+                call project_orthogonal(nd,SQND,elem_xyz,xi,found,not_converged)
+                if(abs(xi(1)).gt.zero_tol.and.abs(xi(1)).lt.1.0_dp-zero_tol.and. &
+                     abs(xi(2)).gt.zero_tol.and.abs(xi(2)).lt.1.0_dp-zero_tol) then
+                   if(sqnd.lt.sqmax)then
+                      sqmax = sqnd
+                      data_xi(1:2,nd) = xi(1:2)
+                      data_elem(nd) = ne
+                      SQ(nd) = SQND
+                   endif
+                endif !FOUND
+             enddo !i
+
+             ! check the distance: if too far from the surface then remove from fit
+             if (sqrt(sq(nd)) > 150.0_dp)then
+                data_xi(1:2,nd) = 0.0_dp
+                data_elem(nd) = 0
+                SQ(nd) = 0.0_dp
              endif
-          enddo !i
-       enddo ! nd
+          enddo ! nd
+       enddo ! ngroup
     endif
-    
     ndata_on_elem=0
     do nd = 1,num_data
        ne = data_elem(nd)
@@ -1486,13 +1836,11 @@ contains
           data_on_elem(ne,ndata_on_elem(ne)) = nd
        endif
     enddo
-
     deallocate(sq)
     
     call enter_exit(sub_name,2)
 
   end subroutine define_xi_closest
-  
 
 !!! ##########################################################################      
 
@@ -1541,6 +1889,8 @@ contains
     allocate(cyno(0:5,num_depvar))
     allocate(GR(num_depvar))
     allocate(GRR(num_depvar))
+
+    GK = 0.0_dp
 
     !*** Calculate solution mapping arrays for the current fit variable
     call globalf(nony,not_1,not_2,npny,nyno,nynp,nyny,cony,cyno,cyny,fix_bcs)
@@ -1640,12 +1990,12 @@ contains
   
 !!! ##########################################################################        
   
-  subroutine project_orthogonal(nd,SQ,elem_xyz,xi,inelem)
+  subroutine project_orthogonal(nd,SQ,elem_xyz,xi,inelem,not_converged)
 
 !!! dummy arguments        
     integer :: nd
     real(dp) :: sq,elem_xyz(num_deriv_elem,num_coords),xi(:)
-    logical :: inelem
+    logical :: inelem,not_converged
 !!! local variables
     integer :: IT,ITMAX,BOUND(2),it2,ni,nifix,nj
     real(dp) :: LOOSE_TOL=1.0e-6_dp
@@ -1657,6 +2007,8 @@ contains
     
     ! --------------------------------------------------------------------------
 
+    not_converged = .false.
+    
     ITMAX = 10 ! max # iterations to use
     DELTA = VMAX/4.0_dp
     TOL = 5.0_dp*LOOSE_TOL !must be > sqrt(eps) or SQLIN<=SQ check may not work
@@ -1858,6 +2210,10 @@ contains
        IT=IT+1
     enddo
     
+    if(.not.converged) then
+       not_converged = .true.
+    endif
+
     if(.NOT.inelem.AND.XI(1)>=0.0_dp.AND.XI(1)<=1.0_dp.AND.XI(2)>=0.0_dp.AND.XI(2)<=1.0_dp) then
        inelem=.TRUE.
     endif
