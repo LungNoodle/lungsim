@@ -105,10 +105,10 @@ jobs:
 #      shell: bash
 #      run: oneapi/scripts/build_windows.bat fortran "" $SAMPLES_TAG
 
-    - name: Exclude unused files from cache
-      if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
-      working-directory: oneapi
-      run: scripts/cache_exclude_windows.ps1
+#    - name: Exclude unused files from cache
+#      if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
+#      working-directory: oneapi
+ #     run: scripts/cache_exclude_windows.ps1
 
     - name: Checkout lungsim
       uses: actions/checkout@v2
