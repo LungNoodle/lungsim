@@ -1,6 +1,6 @@
 name: Build and Test Matrix
 
-on: [pull_request]
+on: [pull_request, workflow_dispatch]
 
 env:
   WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18497/w_BaseKit_p_2022.1.2.154_offline.exe
