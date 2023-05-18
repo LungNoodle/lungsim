@@ -1,5 +1,6 @@
 name: Build and Test Matrix
-
+permissions:
+  contents: write
 on: [pull_request, workflow_dispatch]
 
 env:
@@ -64,7 +65,7 @@ jobs:
 #      if: runner.os == 'Windows'
 #      shell: bash
 #      run: oneapi/scripts/build_windows.bat dpc++ "" $SAMPLES_TAG
-
+    - uses: actions/checkout@v3
     - name: Checkout oneAPI scripts
       if: runner.os == 'Windows'
       uses: actions/checkout@v2
