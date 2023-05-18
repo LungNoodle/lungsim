@@ -96,7 +96,7 @@ module arrays
     real(dp) :: R_vein_terminal=0.90000e-05!m
   end type capillary_bf_parameters
 
-  type, public :: admittance_param
+  type :: admittance_param
     character (len=20) :: admittance_type
     character (len=20) :: bc_type
   end type admittance_param
