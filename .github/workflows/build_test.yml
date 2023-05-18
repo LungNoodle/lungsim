@@ -19,9 +19,9 @@ jobs:
       matrix:
         config:
         - {
-            name: "Windows 2019 MSVC",
+            name: "Windows 2022 MSVC",
             build_type: "Release",
-            os: windows-2019,
+            os: windows-2022,
           }
         - {
             name: "Ubuntu 20.04",
@@ -87,8 +87,6 @@ jobs:
       shell: bash
       run: |
         scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
-        cat bootstrapper*
-        cat installer*
         
         
 # Delete the following if you don't want to save install logs
