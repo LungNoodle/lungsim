@@ -5,7 +5,7 @@ on: [pull_request, workflow_dispatch]
 env:
   WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18497/w_BaseKit_p_2022.1.2.154_offline.exe
   WINDOWS_HPCKIT_LATEST_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18529/w_HPCKit_p_2022.1.2.116_offline.exe
-  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/17392/w_HPCKit_p_2021.1.0.2682_offline.exe
+  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/2a13d966-fcc5-4a66-9fcc-50603820e0c9/w_HPCKit_p_2023.1.0.46357_offline.exe
   WINDOWS_DPCPP_COMPONENTS: intel.oneapi.win.dpcpp-compiler
   WINDOWS_FORTRAN_COMPONENTS: intel.oneapi.win.ifort-compiler
   SAMPLES_TAG: 2022.1.0
@@ -19,9 +19,9 @@ jobs:
       matrix:
         config:
         - {
-            name: "Windows 2022 MSVC",
+            name: "Windows 2019 MSVC",
             build_type: "Release",
-            os: windows-2022,
+            os: windows-2019,
           }
         - {
             name: "Ubuntu 20.04",
