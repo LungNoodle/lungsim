@@ -100,17 +100,17 @@ module arrays
     character (len=20) :: admittance_type
     character (len=20) :: bc_type
   end type admittance_param
-  type, public, EXTENDS (admittance_param) :: two_parameter
+  type, EXTENDS (admittance_param) :: two_parameter
      real(dp) :: admit_P1=1.0_dp
      real(dp) :: admit_P2=1.0_dp
   end type two_parameter
-  type, public, EXTENDS (two_parameter) :: three_parameter
+  type, EXTENDS (two_parameter) :: three_parameter
     real(dp) :: admit_P3=1.0_dp
   end type three_parameter
-  type, public, EXTENDS (three_parameter) :: four_parameter
+  type, EXTENDS (three_parameter) :: four_parameter
     real(dp) :: admit_P4=1.0_dp
   end type four_parameter
-  type, public, EXTENDS (four_parameter) :: all_admit_param
+  type, EXTENDS (four_parameter) :: all_admit_param
   end type all_admit_param
 
   type elasticity_vessels
@@ -143,6 +143,7 @@ module arrays
        elem_cnct_2d, elem_nodes_2d, elem_versn_2d, elem_lines_2d, elems_at_node_2d, arclength, &
        scale_factors_2d, fluid_properties, elasticity_vessels, admittance_param, &
        elasticity_param, all_admit_param, &
+       two_parameter, three_parameter, four_parameter, &
        mesh_from_depvar, depvar_at_node, depvar_at_elem, SparseCol, SparseRow, triangle, &
        update_resistance_entries, vertex_xyz, &
        SparseVal, RHS, prq_solution, solver_solution, FIX
