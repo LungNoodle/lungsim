@@ -251,7 +251,6 @@ jobs:
         exit $?
         
     - name: Push Result
-      uses: actions/checkout@v3
       permissions:
         contents: write
       shell: bash
