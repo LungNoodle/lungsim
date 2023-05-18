@@ -255,7 +255,7 @@ jobs:
       shell: bash
       run: |
           git add --all
-          git fetch
+          git fetch --all
           git checkout -b build --track origin/build  # Checkout build branch (must exist already)
           mkdir -p build/${{ matrix.config.name }}/
           rm -rf ./build/*
