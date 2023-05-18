@@ -251,8 +251,6 @@ jobs:
         exit $?
         
     - name: Push Result
-      permissions:
-        contents: write
       shell: bash
       run: |
           git add --all
