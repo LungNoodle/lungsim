@@ -184,7 +184,7 @@ jobs:
           message("::error::${error_message}")
           message(FATAL_ERROR "Build failed.")
         endif()
-        
+
     - name: Test lungsim
       shell: bash
       run: |
