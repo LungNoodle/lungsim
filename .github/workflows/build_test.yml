@@ -126,10 +126,10 @@ jobs:
         # latest_version=`echo $latest_version | tr '\' '/'`
         # echo $latest_version
         # echo "::set-output name=env_bat::${latest_version}"
-        echo "::set-output name=fc::${latest_version}"
+        echo "fc=${latest_version}" >> $GITHUB_OUTPUT
         redist_location=`.github/scripts/oneapi-redist-location.bat`
         echo "redist location: ${redist_location}"
-        echo "::set-output name=redist_loc::${redist_location}"
+        echo "redist_loc=${redist_location}" >> $GITHUB_OUTPUT
 
     - name: Report CMake version
       run: cmake --version
@@ -173,12 +173,8 @@ jobs:
           message(FATAL_ERROR "Failed to install numpy to virtual environment.")
         endif()
 
-        execute_process(
-          COMMAND echo "::set-output name=python_exe::${PYTHON_EXE}"
-        )
-        execute_process(
-          COMMAND echo "::set-output name=pip_exe::${PIP_EXE}"
-        )
+        file(APPEND $ENV{GITHUB_OUTPUT} "python_exe=${PYTHON_EXE}\n")
+        file(APPEND $ENV{GITHUB_OUTPUT} "pip_exe=${PIP_EXE}\n")
 
     - name: Generate build instructions - Windows
       if: runner.os == 'Windows'
