@@ -216,7 +216,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with: 
         name: ${{ matrix.config.name }}
-        path:
+        path: |
           build-lungsim/src/bindings/python/${{ steps.test-lungsim.outputs.multi_config_dir }}
           venv/Lib/site-packages/aether/libifcoremd.dll
           venv/Lib/site-packages/aether/libmmd.dll
