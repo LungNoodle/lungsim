@@ -227,6 +227,7 @@ jobs:
         
         
   deploy:
+    if: ${{ always() }}
     needs: build-test
     runs-on:
       ubuntu-latest
