@@ -195,7 +195,6 @@ jobs:
         fi
 
         echo "::set-output name=multi_config_dir::$multi_config_dir"
-        echo "::set-output name=github_workspace::$GITHUB_WORKSPACE"
         
         ${{ steps.create-venv.outputs.pip_exe }} install wheel
         ${{ steps.create-venv.outputs.pip_exe }} install $GITHUB_WORKSPACE/build-lungsim/src/bindings/python$multi_config_dir
@@ -218,10 +217,10 @@ jobs:
       with: 
         name: ${{ matrix.config.name }}
         path:
-          ${{ steps.test-lungsim.outputs.github_workspace }}/build-lungsim/src/bindings/python/${{ steps.test-lungsim.outputs.multi_config_dir }}
-          ${{ steps.test-lungsim.outputs.github_workspace }}/venv/Lib/site-packages/aether/libifcoremd.dll
-          ${{ steps.test-lungsim.outputs.github_workspace }}/venv/Lib/site-packages/aether/libmmd.dll
-          ${{ steps.test-lungsim.outputs.github_workspace }}/venv/Lib/site-packages/aether/svml_dispmd.dll
+          build-lungsim/src/bindings/python/${{ steps.test-lungsim.outputs.multi_config_dir }}
+          venv/Lib/site-packages/aether/libifcoremd.dll
+          venv/Lib/site-packages/aether/libmmd.dll
+          venv/Lib/site-packages/aether/svml_dispmd.dll
     
 
         
