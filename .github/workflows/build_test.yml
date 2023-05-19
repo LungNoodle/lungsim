@@ -67,7 +67,7 @@ jobs:
 
     - name: Checkout oneAPI scripts
       if: runner.os == 'Windows'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: 'hsorby/oneapi-ci'
         path: 'oneapi'
@@ -111,7 +111,7 @@ jobs:
       run: scripts/cache_exclude_windows.ps1
 
     - name: Checkout lungsim
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         path: lungsim
 
