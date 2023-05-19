@@ -251,20 +251,3 @@ jobs:
         
         exit $?
         
-    - name: Push Result
-      shell: bash
-      run: |
-          git add --all
-          git fetch --all
-          git checkout -b build --track origin/build  # Checkout build branch (must exist already)
-          mkdir -p build/${{ matrix.config.name }}/
-          rm -rf ./build/*
-          git diff --cached --name-only | xargs -I% mv "%" build/  # Move all new files to build directory
-          shopt -s extglob
-          rm -rf !(build)  # Remove everything else to keep the branch tidy
-          git add --all
-          git config --global user.email "${{github.actor}}@users.noreply.github.com"
-          git config --global user.name "${{github.actor}}"
-          git commit -am "Build result ${{ matrix.config.name }}"
-          git push  
-      
