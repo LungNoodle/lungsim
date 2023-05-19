@@ -23,11 +23,11 @@ jobs:
       fail-fast: false
       matrix:
         config:
-#        - {
-#            name: "Windows 2019 MSVC",
-#            build_type: "Release",
-#            os: windows-2019,
-#          }
+        - {
+            name: "Windows 2019 MSVC",
+            build_type: "Release",
+            os: windows-2019,
+          }
         - {
             name: "Ubuntu 20.04",
             build_type: "Release",
@@ -39,11 +39,11 @@ jobs:
             super_lu: true,
             os: ubuntu-20.04,
           }
-        - {
-            name: "macOS Big Sur 11",
-            build_type: "Release",
-            os: macos-11,
-          }
+#        - {
+#            name: "macOS Big Sur 11",
+#            build_type: "Release",
+#            os: macos-11,
+#          }
     steps:
     - name: Checkout oneAPI scripts
       if: runner.os == 'Windows'
