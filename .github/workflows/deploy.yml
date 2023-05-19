@@ -185,11 +185,15 @@ jobs:
         endif()
 
     - name: Test lungsim
+      id: test-lungsim
       shell: bash
       run: |
         if [ "${{ runner.os }}" == "Windows" ]; then
           multi_config_dir=/${{ matrix.config.build_type }}
+        else
+          multi_config_dir=/
         fi
+        echo "::set-output name=multi_config_dir::$multi_config_dir"
         
         ${{ steps.create-venv.outputs.pip_exe }} install wheel
         ${{ steps.create-venv.outputs.pip_exe }} install $GITHUB_WORKSPACE/build-lungsim/src/bindings/python$multi_config_dir
@@ -212,14 +216,7 @@ jobs:
       with: 
         name: ${{ matrix.config.name }}
         path:
-          $GITHUB_WORKSPACE/build-lungsim/src/bindings/python$multi_config_dir
-
-    - name: Upload Extra Files
-      uses: actions/upload-artifact@v3
-      if: ${{ runner.os }} == "Windows"
-      with: 
-        name: ${{ matrix.config.name }}
-        path: 
+          $GITHUB_WORKSPACE/build-lungsim/src/bindings/python/${{ steps.test-lungsim.outputs.multi_config_dir }}
           $GITHUB_WORKSPACE/venv/Lib/site-packages/aether/libifcoremd.dll
           $GITHUB_WORKSPACE/venv/Lib/site-packages/aether/libmmd.dll
           $GITHUB_WORKSPACE/venv/Lib/site-packages/aether/svml_dispmd.dll
