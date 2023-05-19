@@ -130,7 +130,50 @@ contains
 !
 !###################################################################################
 !
-  subroutine make_data_grid_c(surface_elems, spacing, to_export, filename, filename_len, groupname, groupname_len)&
+  subroutine import_node_geometry_2d_c(NODEFILE, filename_len) bind(C, name="import_node_geometry_2d_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry, only: import_node_geometry_2d
+    implicit none
+
+    integer,intent(in) :: filename_len
+    type(c_ptr), value, intent(in) :: NODEFILE
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, NODEFILE, filename_len)
+
+    call import_node_geometry_2d(filename_f)
+
+  end subroutine import_node_geometry_2d_c
+
+!
+!###################################################################################
+!
+  subroutine import_ply_triangles_c(ply_file, filename_len) bind(C, name="import_ply_triangles_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use other_consts, only: MAX_FILENAME_LEN
+    use geometry, only: import_ply_triangles
+    implicit none
+
+    integer,intent(in) :: filename_len
+    type(c_ptr), value, intent(in) :: ply_file
+    character(len=MAX_FILENAME_LEN) :: filename_f
+
+    call strncpy(filename_f, ply_file, filename_len)
+
+    call import_ply_triangles(filename_f)
+
+  end subroutine import_ply_triangles_c
+
+!
+!###################################################################################
+!
+  subroutine make_data_grid_c(surface_elems_len, surface_elems, offset, spacing, &
+       filename, filename_len, groupname, groupname_len)&
  bind(C, name="make_data_grid_c")
     
     use arrays,only: dp
@@ -140,9 +183,9 @@ contains
     use geometry, only: make_data_grid
     implicit none
 
-    integer,intent(in) :: surface_elems(:)
-    real(dp),intent(in) :: spacing
-    logical,intent(in) :: to_export
+    integer,intent(in) :: surface_elems_len
+    integer,intent(in) :: surface_elems(surface_elems_len)
+    real(dp),intent(in) :: offset, spacing
     integer,intent(in) :: filename_len, groupname_len
     type(c_ptr), value, intent(in) :: filename, groupname
     character(len=MAX_FILENAME_LEN) :: filename_f
@@ -151,7 +194,7 @@ contains
     call strncpy(filename_f, filename, filename_len)
     call strncpy(groupname_f, groupname, groupname_len)
 
-    call make_data_grid(surface_elems, spacing, to_export, filename_f, groupname_f)
+    call make_data_grid(surface_elems, offset, spacing, filename_f, groupname_f)
 
   end subroutine make_data_grid_c
 
@@ -168,21 +211,6 @@ contains
 
   end subroutine make_2d_vessel_from_1d_c
   
-!
-!###################################################################################
-!
-  subroutine group_elem_parent_term_c(ne_parent) bind(C, name="group_elem_parent_term_c")
-
-    use iso_c_binding, only: c_ptr
-    use geometry, only: group_elem_parent_term
-    implicit none
-
-    integer,intent(in) :: ne_parent
-
-    call group_elem_parent_term(ne_parent)
-
-  end subroutine group_elem_parent_term_c
-
 !
 !###################################################################################
 !
@@ -298,25 +326,6 @@ contains
     call evaluate_ordering
 
   end subroutine evaluate_ordering_c
-
-!###################################################################################
-!
-!>*set_initial_volume:* assigns a volume to terminal units appended on a tree structure
-!>based on an assumption of a linear gradient in the gravitational direction with max
-!> min and COV values defined.
-  subroutine set_initial_volume_c(Gdirn, COV, total_volume, Rmax, Rmin) bind(C, name="set_initial_volume_c")
-
-    use geometry, only: set_initial_volume
-    use arrays, only: dp
-    implicit none
-
-    !     Parameter List
-    integer,intent(in) :: Gdirn
-    real(dp),intent(in) :: COV, total_volume, Rmax, Rmin
-
-    call set_initial_volume(Gdirn, COV, total_volume, Rmax, Rmin)
-
-  end subroutine set_initial_volume_c
 
 !
 !###################################################################################

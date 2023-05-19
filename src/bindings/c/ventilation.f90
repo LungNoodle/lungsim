@@ -8,10 +8,11 @@ contains
 
   subroutine evaluate_vent_c() bind(C, name="evaluate_vent_c")
 
+    use arrays,only: dp
     use ventilation, only: evaluate_vent
     implicit none
 
-    call evaluate_vent
+    call evaluate_vent()
 
   end subroutine evaluate_vent_c
 
