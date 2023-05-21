@@ -179,6 +179,7 @@ jobs:
         file(APPEND $ENV{GITHUB_OUTPUT} "pip_exe=${PIP_EXE}\n")
 
     - name: Generate build instructions - Windows
+      shell: cmd
       if: runner.os == 'Windows'
       run: |
         cmake -S lungsim -B build-lungsim -D CMAKE_Fortran_COMPILER="%INTEL_COMPILER_BIN_PATH%\ifort" -D AETHER_ENABLE_TESTS=FALSE -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
