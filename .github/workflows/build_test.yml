@@ -182,7 +182,7 @@ jobs:
       shell: cmd
       if: runner.os == 'Windows'
       run: |
-        cmake -S lungsim -B build-lungsim -D CMAKE_Fortran_COMPILER="%INTEL_COMPILER_BIN_PATH%\ifort" -D AETHER_ENABLE_TESTS=FALSE -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
+        cmake -S lungsim -B build-lungsim -D CMAKE_Fortran_COMPILER="%INTEL_COMPILER_BIN_PATH:\=/%/ifort.exe" -D AETHER_ENABLE_TESTS=FALSE -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
     - name: Generate build instructions - Linux
       shell: bash
       if: runner.os == 'Linux'
