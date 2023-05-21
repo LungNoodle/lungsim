@@ -83,7 +83,7 @@ jobs:
 #        key: install-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_FORTRAN_COMPONENTS }}-compiler-${{ hashFiles('**/oneapi/scripts/cache_exclude_windows.sh') }}
     - name: Install oneAPI HPC kit
       if: runner.os == 'Windows'
-      uses: modflowpy/install-intelfortran-action@v1
+      uses: hsorby/install-intelfortran-action
 
 #      working-directory: oneapi
 #      shell: bash
