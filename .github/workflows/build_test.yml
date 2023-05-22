@@ -84,6 +84,8 @@ jobs:
     - name: Install oneAPI HPC kit
       if: runner.os == 'Windows'
       uses: hsorby/install-intelfortran-action@main
+      with:
+        cache: false
 
 #      working-directory: oneapi
 #      shell: bash
