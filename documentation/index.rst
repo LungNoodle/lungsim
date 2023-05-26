@@ -43,6 +43,10 @@ Quick start instructions for Windows (cmd)::
   cmake --build . --config Release
   pip install -e src/bindings/python/Release
 
+Please note: On Windows using the Intel oneAPI Fortran compilers we have found that we are only able to build the Aether library with Visual Studio 16 2019.
+At this time, we have not been able to successfully compile the Aether library with Visual Studio 17 2022 and Intel oneAPI.
+The most recent attempt was performed with CMake version 3.26.4.
+
 Contents
 ========
 
