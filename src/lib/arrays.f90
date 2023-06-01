@@ -96,7 +96,7 @@ module arrays
     real(dp) :: R_vein_terminal=0.90000e-05!m
   end type capillary_bf_parameters
 
-  type :: admittance_param
+  type admittance_param
     character (len=20) :: admittance_type
     character (len=20) :: bc_type
   end type admittance_param
@@ -110,7 +110,7 @@ module arrays
   type, EXTENDS (three_parameter) :: four_parameter
     real(dp) :: admit_P4=1.0_dp
   end type four_parameter
-  type, EXTENDS (four_parameter) :: all_admit_param
+  type,EXTENDS (four_parameter) :: all_admit_param
   end type all_admit_param
 
   type elasticity_vessels
@@ -142,8 +142,7 @@ module arrays
        num_lines_2d, lines_2d, line_versn_2d, lines_in_elem, nodes_in_line, elems_2d, &
        elem_cnct_2d, elem_nodes_2d, elem_versn_2d, elem_lines_2d, elems_at_node_2d, arclength, &
        scale_factors_2d, fluid_properties, elasticity_vessels, admittance_param, &
-       elasticity_param, all_admit_param, &
-       two_parameter, three_parameter, four_parameter, &
+       elasticity_param, two_parameter, three_parameter, four_parameter, all_admit_param, &
        mesh_from_depvar, depvar_at_node, depvar_at_elem, SparseCol, SparseRow, triangle, &
        update_resistance_entries, vertex_xyz, &
        SparseVal, RHS, prq_solution, solver_solution, FIX
