@@ -65,12 +65,12 @@ jobs:
 #      shell: bash
 #      run: oneapi/scripts/build_windows.bat dpc++ "" $SAMPLES_TAG
 
-    - name: Checkout oneAPI scripts
-      if: runner.os == 'Windows'
-      uses: actions/checkout@v2
-      with:
-        repository: 'hsorby/oneapi-ci'
-        path: 'oneapi'
+#    - name: Checkout oneAPI scripts
+#      if: runner.os == 'Windows'
+#      uses: actions/checkout@v3
+#      with:
+#        repository: 'hsorby/oneapi-ci'
+#        path: 'oneapi'
 
 
 # Caching doesn't work with Visual Studio integration on.
@@ -82,11 +82,15 @@ jobs:
 #        path: C:\Program Files (x86)\Intel\oneAPI\compiler
 #        key: install-${{ env.WINDOWS_HPCKIT_URL }}-${{ env.WINDOWS_FORTRAN_COMPONENTS }}-compiler-${{ hashFiles('**/oneapi/scripts/cache_exclude_windows.sh') }}
     - name: Install oneAPI HPC kit
-      if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
-      working-directory: oneapi
-      shell: bash
-      run: |
-        scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
+      if: runner.os == 'Windows'
+      uses: hsorby/install-intelfortran-action@main
+      with:
+        cache: false
+
+#      working-directory: oneapi
+#      shell: bash
+#      run: |
+#        scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_FORTRAN_COMPONENTS
 
 # Delete the following if you don't want to save install logs
 #    - name: Saving install logs
@@ -105,19 +109,19 @@ jobs:
 #      shell: bash
 #      run: oneapi/scripts/build_windows.bat fortran "" $SAMPLES_TAG
 
-    - name: Exclude unused files from cache
-      if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
-      working-directory: oneapi
-      run: scripts/cache_exclude_windows.ps1
+#    - name: Exclude unused files from cache
+#      if: runner.os == 'Windows' && steps.cache-install.outputs.cache-hit != 'true'
+#      working-directory: oneapi
+#      run: scripts/cache_exclude_windows.ps1
 
     - name: Checkout lungsim
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         path: lungsim
 
     - name: Run get Fortran environment script
       id: setup-fortran-win
-      if: runner.os == 'Windows'
+      if: runner.os == 'WindowsX'
       shell: bash
       working-directory: lungsim
       run: |
@@ -126,10 +130,10 @@ jobs:
         # latest_version=`echo $latest_version | tr '\' '/'`
         # echo $latest_version
         # echo "::set-output name=env_bat::${latest_version}"
-        echo "::set-output name=fc::${latest_version}"
+        echo "fc=${latest_version}" >> $GITHUB_OUTPUT
         redist_location=`.github/scripts/oneapi-redist-location.bat`
         echo "redist location: ${redist_location}"
-        echo "::set-output name=redist_loc::${redist_location}"
+        echo "redist_loc=${redist_location}" >> $GITHUB_OUTPUT
 
     - name: Report CMake version
       run: cmake --version
@@ -173,17 +177,14 @@ jobs:
           message(FATAL_ERROR "Failed to install numpy to virtual environment.")
         endif()
 
-        execute_process(
-          COMMAND echo "::set-output name=python_exe::${PYTHON_EXE}"
-        )
-        execute_process(
-          COMMAND echo "::set-output name=pip_exe::${PIP_EXE}"
-        )
+        file(APPEND $ENV{GITHUB_OUTPUT} "python_exe=${PYTHON_EXE}\n")
+        file(APPEND $ENV{GITHUB_OUTPUT} "pip_exe=${PIP_EXE}\n")
 
     - name: Generate build instructions - Windows
+      shell: cmd
       if: runner.os == 'Windows'
       run: |
-        cmake -S lungsim -B build-lungsim -D CMAKE_Fortran_COMPILER=ifort -D AETHER_ENABLE_TESTS=FALSE -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
+        cmake -S lungsim -B build-lungsim -D CMAKE_Fortran_COMPILER="%INTEL_COMPILER_BIN_PATH:\=/%/ifort.exe" -D AETHER_ENABLE_TESTS=FALSE -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
     - name: Generate build instructions - Linux
       shell: bash
       if: runner.os == 'Linux'
@@ -202,7 +203,7 @@ jobs:
         cmake \
           -S lungsim \
           -B build-lungsim \
-          -D CMAKE_Fortran_COMPILER=gfortran-9 \
+          -D CMAKE_Fortran_COMPILER=gfortran-10 \
           -D AETHER_ENABLE_TESTS=FALSE \
           -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
           -D Python_EXECUTABLE=${{ steps.create-venv.outputs.python_exe }}
