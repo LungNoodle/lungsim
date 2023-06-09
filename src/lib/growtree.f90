@@ -817,6 +817,7 @@ contains
 !!! deallocate temporary arrays
     if(allocated(elem_list)) deallocate(elem_list)
     deallocate(parent_list)
+    call enter_exit(sub_name,2)
 
   end subroutine grow_tree
 
