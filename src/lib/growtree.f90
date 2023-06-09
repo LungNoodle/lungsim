@@ -803,7 +803,8 @@ contains
 !!! generate a branching tree inside the triangulated mesh
     call grow_recursive_tree(num_elems_new,num_vertices,elem_list,parent_list, &
          parent_ne,triangle,angle_max,angle_min, &
-         branch_fraction,length_limit,shortest_length,rotation_limit,vertex_xyz)
+         branch_fraction,length_limit,shortest_length,rotation_limit,vertex_xyz,&
+         to_export)
 
 !!! update the tree connectivity
     call element_connectivity_1d
