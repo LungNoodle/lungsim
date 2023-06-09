@@ -846,6 +846,7 @@ contains
     real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
     real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
     real(dp),intent(in) :: vertex_xyz(:,:)
+    logical,intent(in) :: to_export                 ! option to export terminal element mapping to datapoints
 
     !Local variables
     integer,allocatable :: local_parent(:)          ! stores current generation of local parent elements
