@@ -41,7 +41,7 @@ endif()
 option(AETHER_BUILD_BINDINGS "Build bindings for ${PROJECT}, will require SWIG" YES)
 
 # Add option for enabling or disabling the tests.
-option(AETHER_ENABLE_TESTS "Enable building of the tests." TRUE)
+option(AETHER_ENABLE_TESTS "Enable building of the tests." ON)
 
 # Set base install location
 add_project_config_parameter(INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} PATH "Set the base install prefix.")
