@@ -754,26 +754,27 @@ contains
     real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
     real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
 
-    integer :: i,num_elems_new,num_nodes_new,num_triangles,num_vertices
-    integer,allocatable :: elem_list(:), parent_list(:), triangle(:,:)
-    real(dp),allocatable :: vertex_xyz(:,:)
+    integer :: i,num_elems_new,num_nodes_new
+    integer,allocatable :: elem_list(:), parent_list(:)
 
 !!! allocate temporary arrays
     allocate(parent_list(num_elems))
     parent_list = 0
-    allocate(elem_list(count(surface_elems.ne.0)))
 
+    if(count(surface_elems.ne.0).gt.0)then ! a surface element list is given for converting to
+       !                                a temporary triangulated surface mesh
+       allocate(elem_list(count(surface_elems.ne.0)))
 !!! get the list of local surface element numbers from the global list
-    do i = 1,count(surface_elems.ne.0)
-       elem_list(i) = get_local_elem_2d(surface_elems(i))
-    enddo
+       do i = 1,count(surface_elems.ne.0)
+          elem_list(i) = get_local_elem_2d(surface_elems(i))
+       enddo
+!!! make a linear triangulated mesh over the surface elements
+       call triangles_from_surface(elem_list)
+    endif
 
 !!! get the list of current terminal elements that subtend parent_ne.
 !!! these will be the initial branches for growing
     call group_elem_parent_term(parent_list,parent_ne) 
-
-!!! make a linear triangulated mesh over the surface elements
-    call triangles_from_surface(num_triangles,num_vertices,elem_list,triangle,vertex_xyz)
 
 !!! estimate the number of elements in the generated model based on the
 !!! number of data (seed) points. i.e. N = 2*N_data - 1.
@@ -795,7 +796,7 @@ contains
     call evaluate_ordering
 
 !!! deallocate temporary arrays
-    deallocate(elem_list)
+    if(allocated(elem_list)) deallocate(elem_list)
     deallocate(parent_list)
     
   end subroutine grow_tree
@@ -1289,17 +1290,11 @@ contains
              np2 = elem_nodes(2,ne2)
              new_xyz(:) = node_xyz(:,np0)*0.5_dp + node_xyz(:,np1)*0.25_dp + node_xyz(:,np2)*0.25_dp
              node_xyz(:,np) = new_xyz(:)
-             if(np.eq.73.or.np.eq.79)then
-                write(*,*) 'smoothing',np,np0,node_xyz(3,np0),np1,node_xyz(3,np1),np2,node_xyz(3,np2)
-                write(*,*) 'result =',node_xyz(:,np)
-             endif
           endif
        enddo
     enddo
     do ne = num_elems,num_elem_start,-1
        if(elem_cnct(1,0,ne).eq.0)then ! terminal, check branch length
-!          write(*,*) 'term node before',ne,node_xyz(:,63097)
-
           if(elem_field(ne_length,ne).lt.0.75_dp*length_limit)then
              elem_field(ne_length,ne) = 0.75_dp*length_limit
              np1 = elem_nodes(1,ne) ! the start node
@@ -1313,7 +1308,6 @@ contains
           endif
        endif
     enddo
-    write(*,*) 'term node after',node_xyz(:,63097)
 
     call enter_exit(sub_name,2)
 
