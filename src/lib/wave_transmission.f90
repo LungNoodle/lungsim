@@ -34,8 +34,8 @@ contains
 !
 !##############################################################################
 !
-subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
-    n_time,heartrate,a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition,cap_model)
+subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,no_freq,a,b,n_adparams,&
+  admittance_param,n_model,model_definition,cap_model,remodeling_grade,bc_type,lobe_imped)
 !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_WAVE_TRANSMISSION" :: EVALUATE_WAVE_TRANSMISSION
 
   integer, intent(in) :: n_time
@@ -51,6 +51,8 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   integer, intent(in) :: grav_dirn
   integer, intent(in) :: cap_model
   integer, intent(in) :: remodeling_grade
+  character(len=60) :: bc_type
+  character(len=60) :: lobe_imped
 
   type(all_admit_param) :: admit_param
   type(fluid_properties) :: fluid
@@ -66,6 +68,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   complex(dp), allocatable :: reflect(:,:)
   complex(dp), allocatable :: prop_const(:,:)
   complex(dp), allocatable :: p_factor(:,:)
+  complex(dp), allocatable :: q_factor(:,:)
   real(dp), allocatable :: forward_pressure(:)
   real(dp), allocatable :: reflected_pressure(:)
   real(dp), allocatable :: forward_pressure_previous(:)
@@ -74,12 +77,23 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   real(dp), allocatable :: reflected_flow(:)
   real(dp), allocatable :: terminals_radius(:),WSS(:)
   real(dp), allocatable :: p_terminal(:),p_previous(:),terminal_flow(:)
-  integer :: min_art,max_art,min_ven,max_ven,min_cap,max_cap,ne,nu,nt,nf,np
+  integer :: min_art,max_art,min_ven,max_ven,min_cap,max_cap,ne,nu,nt,nf,np,np_previous,ne_previous
   character(len=30) :: tree_direction,mechanics_type
-  real(dp) start_time,end_time,dt,time,omega
+  real(dp) start_time,end_time,dt,time,omega,delta_p
   real(dp) grav_vect(3),grav_factor,mechanics_parameters(2)
-  integer :: AllocateStatus,fid=10,fid2=20,fid3=30,fid4=40,fid5=50
+  integer :: AllocateStatus,fid=10,fid2=20,fid3=30,fid4=40,fid5=50,fid6=60,fid7=70,fid8=80,fid9=90
+  integer :: fid10=100,fid11=110,fid12=120,fid13=130
   character(len=60) :: sub_name
+  logical :: vein_found=.False.
+  integer :: vein_elem=0
+  integer, parameter :: num_freq = 11, num_vessels = 17, num_units = 2
+  integer :: i, j
+  real :: freq(num_freq)
+  character(len=5) :: vessel_names(num_vessels) = ["LUL_A", "LUL_V", "LLL_A", "LLL_V", "RUL_A", "RUL_V", "RLL_A", "RLL_V",&
+  "RML_A", "RML_V", "MPA_A", "LPA_A", "RPA_A", "RBS_A", "RBS_A", "LBS_A", "LBS_V"]
+  real, dimension(num_vessels,num_freq) :: impedance, phase
+  ! character(len=10) :: units(num_units) = ["dyne.s/cm5", "radians"]
+  real(dp), dimension(num_freq) :: imped
 
   sub_name = 'evalulate_wave_transmission'
   call enter_exit(sub_name,1)
@@ -206,6 +220,8 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   if (AllocateStatus /= 0) STOP "*** Not enough memory for prop_const array ***"
   allocate (p_factor(1:no_freq,num_elems), STAT = AllocateStatus)
   if (AllocateStatus /= 0) STOP "*** Not enough memory for p_factor array ***"
+  allocate (q_factor(1:no_freq,num_elems), STAT = AllocateStatus)
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for q_factor array ***"
   allocate (forward_pressure(n_time), STAT = AllocateStatus)
   if (AllocateStatus /= 0) STOP "*** Not enough memory for forward_p array ***"
   allocate (reflected_pressure(n_time), STAT = AllocateStatus)
@@ -270,11 +286,472 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
             min_art,max_art,tree_direction)
     endif
 
+    if(lobe_imped.eq.'ON') then ! export lobe imped
+      ! Open output file
+      open(unit=10, file='lobe_imped.json', status='replace')
+      ! Write header and frequency values
+      freq(1) = 0
+      do j = 2, no_freq+1
+        freq(j) = (j-1)*harmonic_scale
+      enddo
+      write(10, *) "{"
+      write(10, *) " ""frequency"": [", freq(1), ",", (freq(i),",",i=2,num_freq-1), freq(num_freq), "],"
+      write(10, *) '"vessel_names": ["LUL_A","LUL_V","LLL_A","LLL_V","RUL_A","RUL_V","RLL_A","RLL_V","RML_A","RML_V","MPA_A",&
+      "LPA_A","RPA_A","RBS_A","RBS_A","LBS_A","LBS_V"],'
+      ! Write impedance and phase matrices
+      write(10, *) " ""impedance"":{"
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Calculating LUL_A impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,11))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven+10)))/elem_field(ne_Qdot,11)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,11))
+      enddo
+      write(10, *) " ""LUL_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LUL_V impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,min_ven+10))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven)))/elem_field(ne_Qdot,11)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,min_ven+10))
+      enddo
+      write(10, *) " ""LUL_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LLL_A impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,20))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven+19)))/elem_field(ne_Qdot,20)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,20))
+      enddo
+      write(10, *) " ""LLL_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LLL_V impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,min_ven+19))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven)))/elem_field(ne_Qdot,20)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,min_ven+19))
+      enddo
+      write(10, *) " ""LLL_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RUL_A impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,15))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven+14)))/elem_field(ne_Qdot,15)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,15))
+      enddo
+      write(10, *) " ""RUL_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RUL_V impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,min_ven+14))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven)))/elem_field(ne_Qdot,15)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,min_ven+14))
+      enddo
+      write(10, *) " ""RUL_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RLL_A impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,23))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven+22)))/elem_field(ne_Qdot,23)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,23))
+      enddo
+      write(10, *) " ""RLL_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RLL_V impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,min_ven+22))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven)))/elem_field(ne_Qdot,23)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,min_ven+22))
+      enddo
+      write(10, *) " ""RLL_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RML_A impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,24))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven+23)))/elem_field(ne_Qdot,24)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,24))
+      enddo
+      write(10, *) " ""RML_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RML_V impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,min_ven+23))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven)))/elem_field(ne_Qdot,24)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,min_ven+23))
+      enddo
+      write(10, *) " ""RML_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating MPA impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,1))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven)))/elem_field(ne_Qdot,1)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,1))
+      enddo
+      write(10, *) " ""MPA_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LPA impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,5))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven+4)))/elem_field(ne_Qdot,5)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,5))
+      enddo
+      write(10, *) " ""LPA_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RPA impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,8))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven+7)))/elem_field(ne_Qdot,8)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,8))
+      enddo
+      write(10, *) " ""RPA_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RBS_A impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,16))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven+15)))/elem_field(ne_Qdot,16)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,16))
+      enddo
+      write(10, *) " ""RBS_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RBS_V impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,min_ven+15))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven)))/elem_field(ne_Qdot,16)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,min_ven+15))
+      enddo
+      write(10, *) " ""RBS_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LBS_A impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,12))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven+11)))/elem_field(ne_Qdot,12)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,12))
+      enddo
+      write(10, *) " ""LBS_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LBS_V impedances !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 10000*(node_field(nj_bv_press,elem_nodes(1,min_ven+11))-node_field&
+      (nj_bv_press,elem_nodes(2,min_ven)))/elem_field(ne_Qdot,12)
+      do i = 1, no_freq
+        imped(i+1) = 10000.0/abs(eff_admit(i,min_ven+11))
+      enddo
+      write(10, *) " ""LBS_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+
+      write(10, *) " ""unit"": ""dyne.s/cm5"""
+      write(10, *) " },"
+      write(10, *) " ""phase"":{"
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Calculating LUL_A phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,11)),real(eff_admit(i,11), 8))
+      enddo
+      write(10, *) " ""LUL_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LUL_V phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,min_ven+10)),real(eff_admit(i,min_ven+10), 8))
+      enddo
+      write(10, *) " ""LUL_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LLL_A phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,20)),real(eff_admit(i,20), 8))
+      enddo
+      write(10, *) " ""LLL_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LLL_V phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,min_ven+19)),real(eff_admit(i,min_ven+19), 8))
+      enddo
+      write(10, *) " ""LLL_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RUL_A phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,15)),real(eff_admit(i,15), 8))
+      enddo
+      write(10, *) " ""RUL_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RUL_V phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,min_ven+14)),real(eff_admit(i,min_ven+14), 8))
+      enddo
+      write(10, *) " ""RUL_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RLL_A phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,23)),real(eff_admit(i,23), 8))
+      enddo
+      write(10, *) " ""RLL_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RLL_V phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,min_ven+22)),real(eff_admit(i,min_ven+22), 8))
+      enddo
+      write(10, *) " ""RLL_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RML_A phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,24)),real(eff_admit(i,24), 8))
+      enddo
+      write(10, *) " ""RML_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RML_V phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,min_ven+23)),real(eff_admit(i,min_ven+23), 8))
+      enddo
+      write(10, *) " ""RML_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating MPA phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,1)),real(eff_admit(i,1), 8))
+      enddo
+      write(10, *) " ""MPA_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LPA phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,5)),real(eff_admit(i,5), 8))
+      enddo
+      write(10, *) " ""LPA_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RPA phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,8)),real(eff_admit(i,8), 8))
+      enddo
+      write(10, *) " ""RPA_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RBS_A phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,16)),real(eff_admit(i,16), 8))
+      enddo
+      write(10, *) " ""RBS_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RBS_V phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,min_ven+15)),real(eff_admit(i,min_ven+15), 8))
+      enddo
+      write(10, *) " ""RBS_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LBS_A phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,12)),real(eff_admit(i,12), 8))
+      enddo
+      write(10, *) " ""LBS_A"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LBS_V phase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      imped(1) = 0
+      do i = 1, no_freq
+        imped(i+1) = atan2(dimag(eff_admit(i,min_ven+11)),real(eff_admit(i,min_ven+11), 8))
+      enddo
+      write(10, *) " ""LBS_V"": [", imped(1), ",", (imped(i),",",i=2,num_freq-1), imped(num_freq), "],"
+      write(10, *) " ""unit"": ""radians"""
+      write(10, *) " },"
+      write(10, *) " ""radius"":{"
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Calculating LUL_A radius  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LUL_A"": [", elem_field(ne_radius_out,11), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LUL_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LUL_V"": [", elem_field(ne_radius_out,min_ven+10), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LLL_A radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LLL_A"": [", elem_field(ne_radius_out,20), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LLL_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LLL_V"": [", elem_field(ne_radius_out,min_ven+19), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RUL_A radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RUL_A"": [", elem_field(ne_radius_out,15), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RUL_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RUL_V"": [", elem_field(ne_radius_out,min_ven+14), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RLL_A radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RLL_A"": [", elem_field(ne_radius_out,23), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RLL_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RLL_V"": [", elem_field(ne_radius_out,min_ven+22), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RML_A radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RML_V"": [", elem_field(ne_radius_out,24), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RML_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RML_V"": [", elem_field(ne_radius_out,min_ven+23), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating MPA radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""MPA_A"": [", elem_field(ne_radius_out,1), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LPA radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LPA_A"": [", elem_field(ne_radius_out,5), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RPA radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RPA_A"": [", elem_field(ne_radius_out,8), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RBS_A radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RBS_A"": [", elem_field(ne_radius_out,16), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RBS_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RBS_V"": [", elem_field(ne_radius_out,min_ven+15), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LBS_A radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LBS_A"": [", elem_field(ne_radius_out,12), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LBS_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LBS_V"": [", elem_field(ne_radius_out,min_ven+11), "],"
+
+      write(10, *) " ""unit"": ""mm"""
+      write(10, *) " },"
+      write(10, *) " ""Length"":{"
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Calculating LUL_A radius  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LUL_A"": [", elem_field(ne_length,11), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LUL_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LUL_V"": [", elem_field(ne_length,min_ven+10), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LLL_A radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LLL_A"": [", elem_field(ne_length,20), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LLL_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LLL_V"": [", elem_field(ne_length,min_ven+19), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RUL_A radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RUL_A"": [", elem_field(ne_length,15), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RUL_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RUL_V"": [", elem_field(ne_length,min_ven+14), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RLL_A radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RLL_A"": [", elem_field(ne_length,23), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RLL_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RLL_V"": [", elem_field(ne_length,min_ven+22), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RML_A radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RML_V"": [", elem_field(ne_length,24), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RML_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RML_V"": [", elem_field(ne_length,min_ven+23), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating MPA radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""MPA_A"": [", elem_field(ne_length,1), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LPA radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LPA_A"": [", elem_field(ne_length,5), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RPA radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RPA_A"": [", elem_field(ne_length,8), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RBS_A radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RBS_A"": [", elem_field(ne_length,16), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating RBS_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""RBS_V"": [", elem_field(ne_length,min_ven+15), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LBS_A radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LBS_A"": [", elem_field(ne_length,12), "],"
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !Calculating LBS_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      write(10, *) " ""LBS_V"": [", elem_field(ne_length,min_ven+11), "],"
+
+      write(10, *) " ""unit"": ""mm"""
+      write(10, *) " }"
+      write(10, *) "}"
+      close(10)
+    endif ! export lobe admittance
+
     !calculate pressure drop through arterial tree (note to do veins too need to implement this concept thro' whole ladder model)
     !Also need to implement in reverse for veins
-    call pressure_factor(no_freq,p_factor,reflect,prop_const,harmonic_scale,min_art,max_art)
-    open(fid5, file = 'inputimpedance.txt',action='write')
-    write(fid5,fmt=*) 'input impedance:'
+    call pressure_factor(no_freq,p_factor,q_factor,eflect,prop_const,harmonic_scale,min_art,max_art,bc_type)
+    open(fid5, file = 'inputadmittance.txt',action='write')
+    write(fid5,fmt=*) 'input admittance:'
     do nf=1,no_freq
         omega=nf*harmonic_scale
         write(fid5,fmt=*) omega,abs(eff_admit(nf,1)),&
@@ -305,43 +782,93 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
         reflected_flow=0.0_dp
         terminals_radius=0.0_dp
         WSS=0.0_dp
-        do nt=1,n_time
-            do nf=1,no_freq
-                omega=2*pi*nf*harmonic_scale
-                forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8)))
-                forward_pressure_previous(nt)=forward_pressure_previous(nt)+abs(p_factor(nf,ne_previous))*&
-                a(nf)*cos(omega*time+b(nf)+atan2(dimag(p_factor(nf,ne_previous)),real(p_factor(nf,ne_previous), 8)))
+        if (bc_type.eq.'pressure') then
+          do nt=1,n_time
+              do nf=1,no_freq
+                  omega=2*pi*nf*harmonic_scale
+                  forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
+                      atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8)))
+                  forward_pressure_previous(nt)=forward_pressure_previous(nt)+abs(p_factor(nf,ne_previous))*&
+                  a(nf)*cos(omega*time+b(nf)+atan2(dimag(p_factor(nf,ne_previous)),real(p_factor(nf,ne_previous), 8)))
 
-                reflected_pressure(nt)=reflected_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*&
-                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
-                    cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                    (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
-                    atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8)))
-                reflected_pressure_previous(nt)=reflected_pressure_previous(nt)+abs(p_factor(nf,ne_previous))*&
-                a(nf)*abs(reflect(nf,ne_previous))*exp((-2*elem_field(ne_length,ne_previous))*&
-                (real(prop_const(nf,ne_previous), 8)))*cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne_previous)),real(p_factor(nf,ne_previous), 8))+&
-                    (-2*elem_field(ne_length,ne_previous))*(dimag(prop_const(nf,ne_previous)))+&
-                    atan2(dimag(reflect(nf,ne_previous)),real(reflect(nf,ne_previous), 8)))
+                  reflected_pressure(nt)=reflected_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*&
+                      abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                      cos(omega*time+b(nf)+&
+                      atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                      (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                      atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8)))
+                  reflected_pressure_previous(nt)=reflected_pressure_previous(nt)+abs(p_factor(nf,ne_previous))*&
+                  a(nf)*abs(reflect(nf,ne_previous))*exp((-2*elem_field(ne_length,ne_previous))*&
+                  (real(prop_const(nf,ne_previous), 8)))*cos(omega*time+b(nf)+&
+                      atan2(dimag(p_factor(nf,ne_previous)),real(p_factor(nf,ne_previous), 8))+&
+                      (-2*elem_field(ne_length,ne_previous))*(dimag(prop_const(nf,ne_previous)))+&
+                      atan2(dimag(reflect(nf,ne_previous)),real(reflect(nf,ne_previous), 8)))
 
-                forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
-                    cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                    atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+                  forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
+                      cos(omega*time+b(nf)+&
+                      atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                      atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
 
-                reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
-                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
-                    cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                    (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
-                    atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))+&
-                    atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+                  reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
+                      abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                      cos(omega*time+b(nf)+&
+                      atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                      (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                      atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))+&
+                      atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
 
-            enddo
-            time=time+dt
-        enddo
+              enddo
+              time=time+dt
+          enddo
+        elseif (bc_type.eq.'flow') then
+          do nt=1,n_time
+              do nf=1,no_freq
+                  omega=2*pi*nf*harmonic_scale
+
+                  forward_pressure(nt)=forward_pressure(nt)+(abs(q_factor(nf,ne))/abs(char_admit(nf,ne)))*a(nf)*&
+                  cos(omega*time+b(nf)+atan2(dimag(q_factor(nf,ne)),real(q_factor(nf,ne), 8))-&
+                  atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+
+                  forward_pressure_previous(nt)=forward_pressure_previous(nt)+(abs(q_factor(nf,ne_previous))/&
+                  abs(char_admit(nf,ne_previous)))*a(nf)*cos(omega*time+b(nf)+&
+                  atan2(dimag(q_factor(nf,ne_previous)),real(q_factor(nf,ne_previous), 8))-&
+                  atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+
+                  reflected_pressure(nt)=reflected_pressure(nt)+(abs(q_factor(nf,ne))/abs(char_admit(nf,ne)))*a(nf)*&
+                      abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                      cos(omega*time+b(nf)+&
+                      atan2(dimag(q_factor(nf,ne)),real(q_factor(nf,ne), 8))+&
+                      (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                      atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))-&
+                      atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+
+                  reflected_pressure_previous(nt)=reflected_pressure_previous(nt)+(abs(q_factor(nf,ne_previous))/&
+                  abs(char_admit(nf,ne_previous)))*a(nf)*abs(reflect(nf,ne_previous))*&
+                  exp((-2*elem_field(ne_length,ne_previous))*&
+                  (real(prop_const(nf,ne_previous), 8)))*cos(omega*time+b(nf)+&
+                      atan2(dimag(q_factor(nf,ne_previous)),real(q_factor(nf,ne_previous), 8))+&
+                      (-2*elem_field(ne_length,ne_previous))*(dimag(prop_const(nf,ne_previous)))+&
+                      atan2(dimag(reflect(nf,ne_previous)),real(reflect(nf,ne_previous), 8))-&
+                      atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+
+                  forward_flow(nt)=forward_flow(nt)+abs(q_factor(nf,ne))*a(nf)*&
+                      cos(omega*time+b(nf)+&
+                      atan2(dimag(q_factor(nf,ne)),real(q_factor(nf,ne), 8)))
+
+                  reflected_flow(nt)=reflected_flow(nt)+abs(q_factor(nf,ne))*a(nf)*&
+                      abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                      cos(omega*time+b(nf)+&
+                      atan2(dimag(q_factor(nf,ne)),real(q_factor(nf,ne), 8))+&
+                      (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                      atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8)))
+
+              enddo
+              time=time+dt
+          enddo
+        else ! Wrong Boundary condition type
+          print *, "ERROR: Boundary condition type not recognised. Choose flow or pressure type."
+          call exit(0)
+        endif
         np=elem_nodes(2,ne) ! terminals
         np_previous=elem_nodes(1,ne) ! upstream node to terminal nodes
         if(.not.allocated(p_terminal)) allocate (p_terminal(n_time))
@@ -372,45 +899,208 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
     !!! Export MPA flow components (flow/pressure)
     open(fid8, file = 'Inlet_pressure.txt', action='write')
     open(fid9, file = 'Inlet_flow.txt',action='write')
+    open(fid10, file = 'Inlet_forward_flow.txt',action='write')
+    open(fid11, file = 'Inlet_reflected_flow.txt',action='write')
+    open(fid12, file = 'Inlet_forward_pressure.txt',action='write')
+    open(fid13, file = 'Inlet_reflected_pressure.txt',action='write')
+    open(140, file = 'Outlet_pressure.txt',action='write')
+    open(150, file = 'Outlet_flow.txt', action='write')
+    open(160, file = 'Outlet_forward_pressure.txt',action='write')
+    open(170, file = 'Outlet_reflected_pressure.txt',action='write')
+    open(180, file = 'Outlet_forward_flow.txt',action='write')
+    open(190, file = 'Outlet_reflected_flow.txt',action='write')
     ne = 1 ! MPA inlet element
-    forward_pressure=0.0_dp
-    reflected_pressure=0.0_dp
-    forward_flow=0.0_dp
-    reflected_flow=0.0_dp
-    terminals_radius=0.0_dp
-    do nt=1,n_time
-        do nf=1,no_freq
-            omega=2*pi*nf*harmonic_scale
-            forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
-                atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8)))
+    forward_pressure=0.0_dp ! reseting the for MPA
+    reflected_pressure=0.0_dp ! reseting the for MPA
+    if (bc_type.eq.'pressure')then
+      do nt=1,n_time
+          do nf=1,no_freq
+              omega=2*pi*nf*harmonic_scale
+              forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
+                  atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8)))
 
-            reflected_pressure(nt)=reflected_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*&
-                abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
-                cos(omega*time+b(nf)+&
-                atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
-                atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8)))
+              reflected_pressure(nt)=reflected_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*&
+                  abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                  cos(omega*time+b(nf)+&
+                  atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                  (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                  atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8)))
 
-            forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
-                cos(omega*time+b(nf)+&
-                atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+              forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
+                  cos(omega*time+b(nf)+&
+                  atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                  atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
 
-            reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
-                abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
-                cos(omega*time+b(nf)+&
-                atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
-                atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))+&
-                atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+              reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
+                  abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                  cos(omega*time+b(nf)+&
+                  atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                  (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                  atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))+&
+                  atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
 
-        enddo
-        time=time+dt
-    enddo
+          enddo
+          time=time+dt
+      enddo
+    elseif(bc_type.eq.'flow')then
+      do nt=1,n_time
+          do nf=1,no_freq
+              omega=2*pi*nf*harmonic_scale
+
+              forward_pressure(nt)=forward_pressure(nt)+(abs(q_factor(nf,ne))/abs(char_admit(nf,ne)))*a(nf)*&
+              cos(omega*time+b(nf)+atan2(dimag(q_factor(nf,ne)),real(q_factor(nf,ne), 8))-&
+              atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+
+              reflected_pressure(nt)=reflected_pressure(nt)+(abs(q_factor(nf,ne))/abs(char_admit(nf,ne)))*a(nf)*&
+                  abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                  cos(omega*time+b(nf)+&
+                  atan2(dimag(q_factor(nf,ne)),real(q_factor(nf,ne), 8))+&
+                  (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                  atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))-&
+                  atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+
+              forward_flow(nt)=forward_flow(nt)+abs(q_factor(nf,ne))*a(nf)*&
+                  cos(omega*time+b(nf)+&
+                  atan2(dimag(q_factor(nf,ne)),real(q_factor(nf,ne), 8)))
+
+              reflected_flow(nt)=reflected_flow(nt)+abs(q_factor(nf,ne))*a(nf)*&
+                  abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                  cos(omega*time+b(nf)+&
+                  atan2(dimag(q_factor(nf,ne)),real(q_factor(nf,ne), 8))+&
+                  (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                  atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8)))
+
+          enddo
+          time=time+dt
+      enddo
+    else
+      print *, "ERROR: Boundary condition type not recognised. Choose flow or pressure type."
+      call exit(0)
+    endif
     np=elem_nodes(1,ne) ! inlet node
-    write(fid8,fmt=*) ne, forward_pressure+reflected_pressure + node_field(nj_bv_press,np) !Inlet total pressure
-    write(fid9,fmt=*) ne, forward_flow-reflected_flow + elem_field(ne_Qdot,ne) !Inlet MPA flow
+    write(fid8,fmt=*) forward_pressure+reflected_pressure + node_field(nj_bv_press,np) !Inlet total pressure
+    ! ne = 1
+    ! do nt=1,n_time
+    !     do nf=1,no_freq
+    !         omega=2*pi*nf*harmonic_scale
+    !
+    !         forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
+    !             cos(omega*time+b(nf)+&
+    !             atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+    !             atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+    !
+    !         reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
+    !             abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+    !             cos(omega*time+b(nf)+&
+    !             atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+    !             (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+    !             atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))+&
+    !             atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+    !
+    !         ! write(*,*) 'forward_flow:', forward_flow(nt)
+    !         ! write(*,*) 'reflected_flow:', reflected_flow(nt)
+    !         ! pause
+    !     enddo
+    !     time=time+dt
+    ! enddo
+    write(fid9,fmt=*) forward_flow - reflected_flow + elem_field(ne_Qdot,ne) !Inlet MPA flow
+    write(fid10,fmt=*) forward_flow !Inlet forward flow
+    write(fid11,fmt=*) reflected_flow !Inlet reflected flow
+    write(fid12,fmt=*) forward_pressure !Inlet forward pressure
+    write(fid13,fmt=*) reflected_pressure !Inlet reflected pressure
 
+    do ne = 1, num_elems
+      if((elem_field(ne_group,ne).eq.2.0_dp).and.(vein_found.eqv..False.))  then !only applying on veins
+        vein_found = .True.
+        vein_elem = ne
+      endif
+    end do
+
+!! Extracting the waveforms at the venous outlet !!!!!!!!!!!!!!!!!!!!
+
+    ne = vein_elem  !!!
+    ! write(*,*) 'ne =', ne
+    forward_pressure=0.0_dp ! resetting the array for outlet
+    reflected_pressure=0.0_dp ! resetting the array for outlet
+    forward_flow=0.0_dp ! resetting the array for outlet
+    reflected_flow=0.0_dp ! resetting the array for outlet
+    if (bc_type.eq.'pressure')then
+      do nt=1,n_time
+          do nf=1,no_freq
+              omega=2*pi*nf*harmonic_scale
+              forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
+                  atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8)))
+
+              reflected_pressure(nt)=reflected_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*&
+                  abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                  cos(omega*time+b(nf)+&
+                  atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                  (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                  atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8)))
+
+              forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
+                  cos(omega*time+b(nf)+&
+                  atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                  atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+
+              reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
+                  abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                  cos(omega*time+b(nf)+&
+                  atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                  (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                  atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))+&
+                  atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+
+          enddo
+          time=time+dt
+      enddo
+    elseif(bc_type.eq.'flow')then
+      do nt=1,n_time
+          do nf=1,no_freq
+              omega=2*pi*nf*harmonic_scale
+
+              forward_pressure(nt)=forward_pressure(nt)+(abs(q_factor(nf,ne))/abs(char_admit(nf,ne)))*a(nf)*&
+              cos(omega*time+b(nf)+atan2(dimag(q_factor(nf,ne)),real(q_factor(nf,ne), 8))-&
+              atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+
+              reflected_pressure(nt)=reflected_pressure(nt)+(abs(q_factor(nf,ne))/abs(char_admit(nf,ne)))*a(nf)*&
+                  abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                  cos(omega*time+b(nf)+&
+                  atan2(dimag(q_factor(nf,ne)),real(q_factor(nf,ne), 8))+&
+                  (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                  atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))-&
+                  atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+
+              forward_flow(nt)=forward_flow(nt)+abs(q_factor(nf,ne))*a(nf)*&
+                  cos(omega*time+b(nf)+&
+                  atan2(dimag(q_factor(nf,ne)),real(q_factor(nf,ne), 8)))
+
+              reflected_flow(nt)=reflected_flow(nt)+abs(q_factor(nf,ne))*a(nf)*&
+                  abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                  cos(omega*time+b(nf)+&
+                  atan2(dimag(q_factor(nf,ne)),real(q_factor(nf,ne), 8))+&
+                  (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                  atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8)))
+
+          enddo
+          time=time+dt
+      enddo
+    else
+      print *, "ERROR: Boundary condition type not recognised. Choose flow or pressure type."
+      call exit(0)
+    endif
+    np=elem_nodes(2,ne) ! outlet node
+    ! write(*,*) 'static pressure:',node_field(nj_bv_press,np)
+    ! write(*,*) 'static flow:', elem_field(ne_Qdot,ne)
+    ! write(*,*) 'forward:', forward_pressure(10)
+    ! write(*,*) 'reflected:', reflected_pressure(10)
+    ! pause
+    write(140,fmt=*) forward_pressure+reflected_pressure + node_field(nj_bv_press,np) !Outlet total pressure
+    write(150,fmt=*) forward_flow - reflected_flow + elem_field(ne_Qdot,ne) !Outlet total flow waveform
+    write(160,fmt=*) forward_pressure !Outlet forward flow
+    write(170,fmt=*) reflected_pressure !Outlet reflected flow
+    write(180,fmt=*) forward_flow !Outlet forward pressure
+    write(190,fmt=*) reflected_flow !Outlet reflected pressure
 
     close(fid)
     close(fid2)
@@ -431,6 +1121,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,&
   deallocate (reflect, STAT = AllocateStatus)
   deallocate (prop_const, STAT=AllocateStatus)
   deallocate (p_factor, STAT=AllocateStatus)
+  deallocate (q_factor, STAT=AllocateStatus)
   deallocate (forward_pressure, STAT=AllocateStatus)
   deallocate (reflected_pressure, STAT=AllocateStatus)
   deallocate (forward_pressure_previous, STAT=AllocateStatus)
@@ -1015,26 +1706,31 @@ end subroutine capillary_admittance
 !################################################
 !
 !*pressure_factor:* Calculates change in pressure through tree
-  subroutine pressure_factor(no_freq,p_factor,reflect,prop_const,harmonic_scale,ne_min,ne_max)
+subroutine pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,char_admit,harmonic_scale,ne_min,ne_max,bc_type)
 
-    integer, intent(in) :: no_freq
-    complex(dp), intent(inout) :: p_factor(1:no_freq,num_elems)
-    complex(dp), intent(inout) :: reflect(1:no_freq,num_elems)
-    complex(dp), intent(in) :: prop_const(1:no_freq,num_elems)
-    real(dp), intent(in) :: harmonic_scale
-    integer, intent(in) :: ne_min,ne_max
+  integer, intent(in) :: no_freq
+  complex(dp), intent(inout) :: p_factor(1:no_freq,num_elems)
+  complex(dp), intent(inout) :: q_factor(1:no_freq,num_elems)
+  complex(dp), intent(inout) :: reflect(1:no_freq,num_elems)
+  complex(dp), intent(in) :: prop_const(1:no_freq,num_elems)
+  complex(dp), intent(in) :: char_admit(1:no_freq,num_elems)
+  real(dp), intent(in) :: harmonic_scale
+  integer, intent(in) :: ne_min,ne_max
+  character(len=60) :: bc_type
 
 
 
-    character(len=60) :: sub_name
+  character(len=60) :: sub_name
 !local variables
-    integer :: ne, nf,ne_up
-    real(dp) :: omega
+  integer :: ne, nf,ne_up
+  real(dp) :: omega
 
-    sub_name = 'pressure_factor'
-    call enter_exit(sub_name,1)
+  sub_name = 'pressure_flow_factor'
+  call enter_exit(sub_name,1)
 
-    p_factor=1.0_dp
+  p_factor=1.0_dp
+  q_factor=1.0_dp
+  if (bc_type.eq.'pressure') then
     do nf=1,no_freq
       omega=nf*2*PI*harmonic_scale
       do ne=ne_min,ne_max
@@ -1052,7 +1748,29 @@ end subroutine capillary_admittance
         endif!neup
       enddo!ne
     enddo!nf
+  elseif (bc_type.eq.'flow') then
+    do nf=1,no_freq
+      omega=nf*2*PI*harmonic_scale
+      do ne=ne_min,ne_max
+        !look for upstream element
+        if(elem_cnct(-1,0,ne).eq.0)then !no upstream elements, inlet, ignore
+        ne_up=ne_min
+          q_factor(nf,ne)=(1.0_dp)!* &!assumes input admittance is the same as characteristic admittance for this vessel
+            !exp(-1.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne))!/&
+            !(1+reflect(nf,ne)*exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne)))
+        else
+          ne_up=elem_cnct(-1,1,ne)
+          q_factor(nf,ne)=q_factor(nf,ne_up)*char_admit(nf,ne)*(1+reflect(nf,ne_up))* &
+            exp(-1.0_dp*elem_field(ne_length,ne_up)*prop_const(nf,ne_up))/&
+            (char_admit(nf,ne_up)*(1+reflect(nf,ne)*exp(-2.0_dp*elem_field(ne_length,ne)*prop_const(nf,ne))))
+        endif!neup
+      enddo!ne
+    enddo!nf
+  else
+    print *, "ERROR: Boundary condition not recognised - pressure_flow_factor subroutine"
+    call exit(0)
+  endif
 
-    call enter_exit(sub_name,2)
-end subroutine pressure_factor
+  call enter_exit(sub_name,2)
+end subroutine pressure_flow_factor
 end module wave_transmission
