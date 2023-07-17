@@ -749,7 +749,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
 
     !calculate pressure drop through arterial tree (note to do veins too need to implement this concept thro' whole ladder model)
     !Also need to implement in reverse for veins
-    call pressure_factor(no_freq,p_factor,q_factor,eflect,prop_const,harmonic_scale,min_art,max_art,bc_type)
+    call pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,char_admit,harmonic_scale,min_art,max_art,bc_type)
     open(fid5, file = 'inputadmittance.txt',action='write')
     write(fid5,fmt=*) 'input admittance:'
     do nf=1,no_freq
@@ -1773,4 +1773,5 @@ subroutine pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,cha
 
   call enter_exit(sub_name,2)
 end subroutine pressure_flow_factor
+
 end module wave_transmission
