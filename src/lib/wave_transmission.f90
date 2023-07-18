@@ -36,7 +36,6 @@ contains
 !
 subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,no_freq,a,b,n_adparams,&
   admittance_param,n_model,model_definition,cap_model,remodeling_grade,bc_type,lobe_imped)
-!DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_EVALUATE_WAVE_TRANSMISSION" :: EVALUATE_WAVE_TRANSMISSION
 
   integer, intent(in) :: n_time
   real(dp), intent(in) :: heartrate
@@ -1256,7 +1255,7 @@ end subroutine boundary_admittance
 !*characteristic_admittance* calculates the characteristic admittance of each
 subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scale,&
   density,viscosity,admit_param,elast_param,mechanics_parameters,grav_vect,remodeling_grade)
-!DEC$ ATTRIBUTES DLLEXPORT, ALIAD:"SO_characteristic_admittance: characteristic_admittance
+
   integer, intent(in) :: no_freq
   complex(dp), intent(inout) :: char_admit(1:no_freq,num_elems)
   complex(dp), intent(inout) :: prop_const(1:no_freq,num_elems)
