@@ -7,7 +7,8 @@ contains
 !!!###################################################################################
 
 subroutine evaluate_wave_transmission_c(grav_dirn,grav_factor,n_time,heartrate,&
-  a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition,cap_model) bind(C, name="evaluate_wave_transmission_c")
+  a0,no_freq,a,b,n_adparams,admittance_param,n_model,model_definition,cap_model,&
+  remodeling_grade,bc_type,bc_type_len,lobe_imped,lobe_imped_len) bind(C, name="evaluate_wave_transmission_c")
 
   use iso_c_binding, only: c_ptr
   use utils_c, only: strncpy
@@ -28,11 +29,19 @@ subroutine evaluate_wave_transmission_c(grav_dirn,grav_factor,n_time,heartrate,&
   integer, intent(in) :: n_model
   real(dp), intent(in) :: model_definition(n_model)
   integer, intent(in) :: cap_model
+  integer, intent(in) :: remodeling_grade
+  type(c_ptr), value, intent(in) :: bc_type, lobe_imped
+  integer,intent(in) :: bc_type_len, lobe_imped_len
+  character(len=MAX_STRING_LEN) :: bc_type_f, lobe_imped_f
+
+  call strncpy(bc_type_f, bc_type, bc_type_len)
+  call strncpy(lobe_imped_f, lobe_imped, lobe_imped_len)
 
 
 
   call evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,no_freq,a,&
-    b,n_adparams,admittance_param,n_model,model_definition,cap_model)
+    b,n_adparams,admittance_param,n_model,model_definition,cap_model,remodeling_grade,&
+    bc_type_f,lobe_imped_f)
 
 end subroutine evaluate_wave_transmission_c
 

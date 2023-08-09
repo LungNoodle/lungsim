@@ -17,7 +17,7 @@ module capillaryflow
   use other_consts
   use precision
   use solve
-  
+
   implicit none
 
 
@@ -1438,7 +1438,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   deallocate (Q_sheet, STAT = AllocateStatus)
   deallocate (mu_app, STAT = AllocateStatus)
 
-  write(*,*) 'Capillary impedance completed for element: ',ne
+  !write(*,*) 'Capillary impedance completed for element: ',ne
   call enter_exit(sub_name,2)
 
 end subroutine cap_flow_admit
