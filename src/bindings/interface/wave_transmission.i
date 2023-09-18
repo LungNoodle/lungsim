@@ -31,7 +31,7 @@
 }
 
 %inline %{
-void my_evaluate_wave_transmission(int grav_dirn, double grav_factor,int n_time, double heartrate, double a0, int len1, double* vec1, int len2, double* vec2, int len3, double* vec3, int len4, double* vec4, int cap_model, int remodeling_grade, const char *bc_type, const char *lobe_imped) {
+void my_evaluate_wave_transmission(int grav_dirn, double grav_factor,int n_time, double heartrate, double a0, int len1, double* vec1, int len2, double* vec2, int len3, double* vec3, int len4, double* vec4, int cap_model, double remodeling_grade, const char *bc_type, const char *lobe_imped) {
     if (len1 != len2) {
         PyErr_Format(PyExc_ValueError,
                      "Arrays of lengths (%d,%d) given",

@@ -17,9 +17,9 @@ subroutine evaluate_prq_c(mesh_type,mesh_type_len,vessel_type,vessel_type_len,gr
   implicit none
 
   type(c_ptr), value, intent(in) :: mesh_type,bc_type,vessel_type
-  integer,intent(in) :: mesh_type_len,bc_type_len, vessel_type_len,grav_dirn,remodeling_grade
+  integer,intent(in) :: mesh_type_len,bc_type_len, vessel_type_len,grav_dirn
   character(len=MAX_STRING_LEN) :: mesh_type_f,bc_type_f,vessel_type_f
-  real(dp),intent(in) :: grav_factor,inlet_bc,outlet_bc
+  real(dp),intent(in) :: grav_factor,inlet_bc,outlet_bc,remodeling_grade
 
   call strncpy(mesh_type_f, mesh_type, mesh_type_len)
   call strncpy(bc_type_f, bc_type, bc_type_len)

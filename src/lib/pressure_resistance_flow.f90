@@ -47,7 +47,7 @@ contains
     integer :: num_vars,NonZeros,MatrixSize
     integer :: AllocateStatus
 
-    integer, intent(in) :: remodeling_grade ! Remodeling if applicable, 1 stands for healthy and 2-10 are remodeling grades
+    real(dp), intent(in) :: remodeling_grade ! Remodeling if applicable, 0 stands for healthy and anything from 10 to 100 is hypertension
     real(dp), allocatable :: prq_solution(:,:),solver_solution(:)
     real(dp) :: viscosity,density,inlet_bc,outlet_bc,inletbc,outletbc,grav_vect(3),gamma,total_resistance,ERR
     logical, allocatable :: FIX(:)
@@ -925,9 +925,9 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
 
     character(len=60), intent(in) :: vessel_type
     real(dp), intent(in) :: grav_vect(3)
-    integer,intent(in) :: KOUNT,mesh_dof,remodeling_grade
+    integer,intent(in) :: KOUNT,mesh_dof
     integer,intent(in) :: depvar_at_node(num_nodes,0:2,2)
-    real(dp),intent(in) ::  prq_solution(mesh_dof,2)
+    real(dp),intent(in) ::  prq_solution(mesh_dof,2),remodeling_grade
     real(dp),intent(in) :: elasticity_parameters(3),mechanics_parameters(2)
 
 !local variables
@@ -946,7 +946,7 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
       enddo !elems
     endif
 
-  if(remodeling_grade.eq.1.0_dp) then  ! Solving for Healthy
+  if(remodeling_grade.eq.0.0_dp) then  ! Solving for Healthy
     do ne=1,num_elems
       do nn=1,2
         if(nn.eq.1) np=elem_nodes(1,ne)
@@ -965,7 +965,7 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
           if(Ptm.lt.0)write(*,*) 'Transmural pressure < zero',ne,Ptm,Pblood,Ppl
           if(nn.eq.1) elem_field(ne_radius_in,ne)=R0
           if(nn.eq.2) elem_field(ne_radius_out,ne)=R0
-        else!ptm>ptmmax
+        else !ptm>ptmmax
           if(nn.eq.1)then
              elem_field(ne_radius_in,ne)=R0*((elasticity_parameters(3)/elasticity_parameters(1))+1.d0) &
                **(1.d0/elasticity_parameters(2))
@@ -1004,90 +1004,40 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
     enddo!ne
   else ! Solving for remodeling case - only implemented for elastic_alpha
 
-    if(remodeling_grade.eq.2) then
-      alt_hyp=5.0_dp/6
-      alt_fib=1.0_dp
-      prox_fib=1.0
-      narrow_rad_one=0.015_dp
-      narrow_rad_two=0.15_dp
-      narrow_factor=1.0_dp
-      prune_rad=0.16_dp
-      prune_fraction=0.0_dp
-    elseif(remodeling_grade.eq.3) then
-      alt_hyp=4.0_dp/6
-      alt_fib=1.0_dp
-      prox_fib=1
-      narrow_rad_one=0.015_dp
-      narrow_rad_two=0.15_dp
-      narrow_factor=0.925_dp
-      prune_rad=0.16_dp
-      prune_fraction=0.0625_dp
-    elseif(remodeling_grade.eq.4) then
-      alt_hyp=3.0_dp/6
-      alt_fib=1.0_dp
-      prox_fib=1
-      narrow_rad_one=0.015_dp
-      narrow_rad_two=0.15_dp
-      narrow_factor=0.85_dp
-      prune_rad=0.16_dp
-      prune_fraction=0.125_dp
-    elseif(remodeling_grade.eq.5) then
-      alt_hyp=2.0_dp/6
-      alt_fib=1.0_dp
-      prox_fib=1
-      narrow_rad_one=0.015_dp
-      narrow_rad_two=0.25_dp
-      narrow_factor=0.775_dp
-      prune_rad=0.25_dp
-      prune_fraction=0.1875_dp
-    elseif(remodeling_grade.eq.6) then
-      alt_hyp=1.0_dp/6
-      alt_fib=5.0_dp/6
-      prox_fib=(1-0.145)
-      narrow_rad_one=0.015_dp
-      narrow_rad_two=0.25_dp
-      narrow_factor=0.7_dp
-      prune_rad=0.25_dp
-      prune_fraction=0.250_dp
-    elseif(remodeling_grade.eq.7) then
-      alt_hyp=1.0_dp/6
-      alt_fib=4.0_dp/6
-      prox_fib=(1-2*0.145)
-      narrow_rad_one=0.015_dp
-      narrow_rad_two=0.25_dp
-      narrow_factor=0.625_dp
-      prune_rad=0.25_dp
-      prune_fraction=0.3125_dp
-    elseif(remodeling_grade.eq.8) then
-      alt_hyp=1.0_dp/6
-      alt_fib=3.0_dp/6
-      prox_fib=(1-3*0.145)
-      narrow_rad_one=0.015_dp
-      narrow_rad_two=0.25_dp
-      narrow_factor=0.55_dp
-      prune_rad=0.25_dp
-      prune_fraction=0.375_dp
-    elseif(remodeling_grade.eq.9) then
-      alt_hyp=1.0_dp/6
-      alt_fib=2.0_dp/6
-      prox_fib=(1-4*0.145)
-      narrow_rad_one=0.015_dp
-      narrow_rad_two=0.25_dp
-      narrow_factor=0.55_dp
-      prune_rad=0.25_dp
-      prune_fraction=0.4375_dp
-    elseif(remodeling_grade.eq.10) then
-      alt_hyp=1.0_dp/6
-      alt_fib=1.0_dp/6
-      prox_fib=(1-5*0.145)
-      narrow_rad_one=0.015_dp
-      narrow_rad_two=0.25_dp
-      narrow_factor=0.55_dp
-      prune_rad=0.25_dp
-      prune_fraction=0.5_dp
+    if(remodeling_grade.ge.60)then  ! hypertophy effect
+      alt_hyp = 1.0_dp/6
     else
-      write(*,*) 'Remodeling grade out of range or not implemented yet.'
-      call exit(1)
+      alt_hyp = (-1.0_dp/60)*remodeling_grade + 7.0_dp/6
+    endif
+
+    ! Narrowing effect
+    narrow_rad_one=0.015_dp
+    narrow_rad_two=0.15_dp
+    if(remodeling_grade.le.20.0_dp)then
+      narrow_factor = 1.0_dp
+    elseif(remodeling_grade.ge.60.0_dp)then
+      narrow_factor = 0.55_dp
+    else
+      narrow_factor = (-9.0_dp/800) * remodeling_grade + 1.225_dp
+    endif
+
+    ! pruning fraction
+    if(remodeling_grade.le.20.0_dp)then
+      prune_fraction = 0
+      prune_rad = 0.16_dp
+    elseif(remodeling_grade.ge.50.0_dp)then
+      prune_rad = 0.25_dp
+      prune_fraction = (1.0_dp/160) * remodeling_grade - 1.0_dp/8
+    else
+      prune_rad = 0.16_dp
+      prune_fraction = (1.0_dp/160) * remodeling_grade - 1.0_dp/8
+    endif
+
+    ! fibrosis effect
+    if(remodeling_grade.le.50.0_dp)then
+      alt_fib = 1.0_dp
+    else
+      alt_fib = (-1.0_dp/60) * remodeling_grade + 11.0_dp/6
     endif
     counter=0.0_dp
     cc1=0.0_dp
@@ -1095,6 +1045,10 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
     cc3=0.0_dp
     counter1 = 1.0_dp
     counter2 = 1.0_dp
+    write(*,*) 'alt_hyp:', alt_hyp
+    write(*,*) 'narrow_factor:', narrow_factor
+    write(*,*) 'prune_fraction:', prune_fraction
+    write(*,*) 'alt_fib:', alt_fib
     do ne=1,num_elems
       do nn=1,2
         if(nn.eq.1) np=elem_nodes(1,ne)

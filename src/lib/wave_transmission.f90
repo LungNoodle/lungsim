@@ -49,7 +49,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   real(dp), intent(in) :: model_definition(n_model)
   integer, intent(in) :: grav_dirn
   integer, intent(in) :: cap_model
-  integer, intent(in) :: remodeling_grade
+  real(dp), intent(in) :: remodeling_grade
   character(len=60) :: bc_type
   character(len=60) :: lobe_imped
 
@@ -175,7 +175,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
     call exit(0)
   endif
 
-  if(remodeling_grade.ne.1.0_dp) then
+  if(remodeling_grade.ne.0.0_dp) then
     write(*,*) 'Solving remodeling case, grade',remodeling_grade,' - make sure you are using elastic_alpha vessel type'
   endif
   mechanics_type='linear'
@@ -1263,7 +1263,7 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scal
   real(dp), intent(in) :: density
   real(dp), intent(in) :: viscosity
   real(dp),intent(in) :: mechanics_parameters(2),grav_vect(3)
-  integer, intent(in) :: remodeling_grade
+  real(dp), intent(in) :: remodeling_grade
   type(elasticity_param) :: elast_param
   type(all_admit_param) :: admit_param
 
@@ -1278,7 +1278,7 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scal
   character(len=60) :: sub_name
   sub_name = 'characteristic_admittance'
   call enter_exit(sub_name,1)
-  if(remodeling_grade.eq.1.0_dp) then  ! Solving for Healthy
+  if(remodeling_grade.eq.0.0_dp) then  ! Solving for Healthy
     do ne=1,num_elems
       do nn=1,2
         if(nn.eq.1) np=elem_nodes(1,ne)
@@ -1348,91 +1348,44 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,harmonic_scal
       endif
     enddo!ne
   else ! Solving for remodeling case - only implemented for elastic_alpha
-    if(remodeling_grade.eq.2) then
-      alt_hyp=5.0_dp/6
-      alt_fib=1.0_dp
-      prox_fib=1
-      narrow_rad_one=0.015
-      narrow_rad_two=0.15
-      narrow_factor=1
-      prune_rad=0.16E-3
-      prune_fraction=0
-    elseif(remodeling_grade.eq.3) then
-      alt_hyp=4.0_dp/6
-      alt_fib=1.0_dp
-      prox_fib=1
-      narrow_rad_one=0.015
-      narrow_rad_two=0.15
-      narrow_factor=0.925
-      prune_rad=0.16E-3
-      prune_fraction=0.0625
-    elseif(remodeling_grade.eq.4) then
-      alt_hyp=3.0_dp/6
-      alt_fib=1.0_dp
-      prox_fib=1
-      narrow_rad_one=0.015
-      narrow_rad_two=0.15
-      narrow_factor=0.85
-      prune_rad=0.16E-3
-      prune_fraction=0.125
-    elseif(remodeling_grade.eq.5) then
-      alt_hyp=2.0_dp/6
-      alt_fib=1.0_dp
-      prox_fib=1
-      narrow_rad_one=0.015
-      narrow_rad_two=0.25
-      narrow_factor=0.775
-      prune_rad=0.25E-3
-      prune_fraction=0.1875
-    elseif(remodeling_grade.eq.6) then
-      alt_hyp=1.0_dp/6
-      alt_fib=5.0_dp/6
-      prox_fib=(1-0.145)
-      narrow_rad_one=0.015
-      narrow_rad_two=0.25
-      narrow_factor=0.7
-      prune_rad=0.25E-3
-      prune_fraction=0.25
-    elseif(remodeling_grade.eq.7) then
-      alt_hyp=1.0_dp/6
-      alt_fib=4.0_dp/6
-      prox_fib=(1-2*0.145)
-      narrow_rad_one=0.015
-      narrow_rad_two=0.25
-      narrow_factor=0.625
-      prune_rad=0.25E-3
-      prune_fraction=0.3125
-    elseif(remodeling_grade.eq.8) then
-      alt_hyp=1.0_dp/6
-      alt_fib=3.0_dp/6
-      prox_fib=(1-3*0.145)
-      narrow_rad_one=0.015
-      narrow_rad_two=0.25
-      narrow_factor=0.55
-      prune_rad=0.25E-3
-      prune_fraction=0.375
-    elseif(remodeling_grade.eq.9) then
-      alt_hyp=1.0_dp/6
-      alt_fib=2.0_dp/6
-      prox_fib=(1-4*0.145)
-      narrow_rad_one=0.015
-      narrow_rad_two=0.25
-      narrow_factor=0.55
-      prune_rad=0.25E-3
-      prune_fraction=0.4375
-    elseif(remodeling_grade.eq.10) then
-      alt_hyp=1.0_dp/6
-      alt_fib=1.0_dp/6
-      prox_fib=(1-5*0.145)
-      narrow_rad_one=0.015
-      narrow_rad_two=0.25
-      narrow_factor=0.55
-      prune_rad=0.25E-3
-      prune_fraction=0.5
+
+    ! hypertophy effect
+    if(remodeling_grade.ge.60)then
+      alt_hyp = 1.0_dp/6
     else
-      write(*,*) 'Remodeling grade out of range or not implemented yet.'
-      call exit(1)
+      alt_hyp = (-1.0_dp/60)*remodeling_grade + 7.0_dp/6
     endif
+
+    ! Narrowing effect
+    narrow_rad_one=0.015_dp
+    narrow_rad_two=0.15_dp
+    if(remodeling_grade.le.20.0_dp)then
+      narrow_factor = 1.0_dp
+    elseif(remodeling_grade.ge.60.0_dp)then
+      narrow_factor = 0.55_dp
+    else
+      narrow_factor = (-9.0_dp/800) * remodeling_grade + 1.225_dp
+    endif
+
+    ! pruning fraction
+    if(remodeling_grade.le.20.0_dp)then
+      prune_fraction = 0
+      prune_rad = 0.16_dp
+    elseif(remodeling_grade.ge.50.0_dp)then
+      prune_rad = 0.25_dp
+      prune_fraction = (1.0_dp/16) * remodeling_grade - 1.0_dp/8
+    else
+      prune_rad = 0.16_dp
+      prune_fraction = (1.0_dp/160) * remodeling_grade - 1.0_dp/8
+    endif
+
+    ! fibrosis effect
+    if(remodeling_grade.le.50.0_dp)then
+      alt_fib = 1.0_dp
+    else
+      alt_fib = (-1.0_dp/60) * remodeling_grade + 11.0_dp/6
+    endif
+
     do ne=1,num_elems
       do nn=1,2
         if(nn.eq.1) np=elem_nodes(1,ne)
