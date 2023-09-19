@@ -1045,10 +1045,6 @@ subroutine calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
     cc3=0.0_dp
     counter1 = 1.0_dp
     counter2 = 1.0_dp
-    write(*,*) 'alt_hyp:', alt_hyp
-    write(*,*) 'narrow_factor:', narrow_factor
-    write(*,*) 'prune_fraction:', prune_fraction
-    write(*,*) 'alt_fib:', alt_fib
     do ne=1,num_elems
       do nn=1,2
         if(nn.eq.1) np=elem_nodes(1,ne)
