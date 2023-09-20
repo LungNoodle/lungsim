@@ -29,7 +29,7 @@ subroutine evaluate_wave_transmission_c(grav_dirn,grav_factor,n_time,heartrate,&
   integer, intent(in) :: n_model
   real(dp), intent(in) :: model_definition(n_model)
   integer, intent(in) :: cap_model
-  integer, intent(in) :: remodeling_grade
+  real(dp), intent(in) :: remodeling_grade
   type(c_ptr), value, intent(in) :: bc_type, lobe_imped
   integer,intent(in) :: bc_type_len, lobe_imped_len
   character(len=MAX_STRING_LEN) :: bc_type_f, lobe_imped_f
