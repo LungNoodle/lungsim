@@ -52,3 +52,5 @@ __pycache__/
 # PyCharm
 .idea/
 
+# Sphinx documentation
+documentation/_build/
