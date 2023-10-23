@@ -735,11 +735,12 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       !Calculating LBS_A radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      write(10, *) " ""LBS_A"": [", elem_field(ne_length,12), "],"
+      write(10, *) " ""LBS_A"": [", elem_field(ne_length,12)+elem_field(ne_length,13)+elem_field(ne_length,14), "],"
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       !Calculating LBS_V radius !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      write(10, *) " ""LBS_V"": [", elem_field(ne_length,min_ven+11), "],"
+      write(10, *) " ""LBS_V"": [", elem_field(ne_length,min_ven+11)+elem_field(ne_length,min_ven+12)&
+      +elem_field(ne_length,min_ven+13), "],"
 
       write(10, *) " ""unit"": ""mm"""
       write(10, *) " }"
