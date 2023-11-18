@@ -285,11 +285,6 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
             min_art,max_art,tree_direction)
     endif
 
-    write(*,*) "eff_admit LUL_V:", eff_admit(2,min_ven+10)
-    write(*,*) "eff_admit LUL_V:", eff_admit(3,min_ven+10)
-    write(*,*) "eff_admit LUL_V:", abs(eff_admit(3,min_ven+10))
-    pause
-
     if(lobe_imped.eq.'ON') then ! export lobe imped
       ! Open output file
       open(unit=10, file='lobe_imped.json', status='replace')
