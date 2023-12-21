@@ -14,7 +14,7 @@ void define_node_geometry_2d_c(const char *NODEFILE, int *filename_len);
 void define_data_geometry_c(const char *DATAFILE, int *filename_len);
 void import_node_geometry_2d_c(const char *NODEFILE, int *filename_len);
 void import_ply_triangles_c(const char *ply_file, int *filename_len);
-extern void make_data_grid_c(int *elemlist_len, int elemlist[], double *offset, double *spacing, const char *filename, int *filename_len, const char *groupname, int *groupname_len);
+extern void make_data_grid_c(int *elemlist_len, int elemlist[], int *num_target, double *offset, double *spacing);
 extern void make_2d_vessel_from_1d_c(int *elemlist_len, int elemlist[]);
 void define_rad_from_file_c(const char *FIELDFILE, int *filename_len, const char *radius_type, int *radius_type_len);
 int get_local_node_f_c(const char *ndimension, int *dimension_len, const char *np_global, int *np_global_len);
@@ -92,11 +92,9 @@ void import_ply_triangles(const char *ply_file)
   import_ply_triangles_c(ply_file, &filename_len);
 }
 
-void make_data_grid(int elemlist_len, int elemlist[], double offset, double spacing, const char *filename, const char *groupname)
+void make_data_grid(int elemlist_len, int elemlist[], int num_target, double offset, double spacing)
 {
-  int filename_len = (int)strlen(filename);
-  int groupname_len = (int)strlen(groupname);
-  make_data_grid_c(&elemlist_len, elemlist, &offset, &spacing, filename, &filename_len, groupname, &groupname_len);
+  make_data_grid_c(&elemlist_len, elemlist, &num_target, &offset, &spacing);
 }
 
 void make_2d_vessel_from_1d(int elemlist_len, int elemlist[])

@@ -1419,21 +1419,17 @@ contains
   
 !!!#############################################################################
   
-  subroutine make_data_grid(surface_elems, offset, spacing, filename, groupname)
+  subroutine make_data_grid(surface_elems, num_target, offset, spacing0)
     !*make_data_grid:* makes a regularly-spaced 3D grid of data points to
     ! fill a bounding surface 
 
-    integer,intent(in) :: surface_elems(:)
-    real(dp),intent(in) :: offset, spacing
-    character(len=*),intent(in) :: filename
-    character(len=*),intent(in) :: groupname
+    integer,intent(in) :: num_target, surface_elems(:)
+    real(dp),intent(in) :: offset, spacing0
     ! Local Variables
-    integer :: i,j,k,num_data_estimate
+    integer :: i,j,k,ncount,num_data_estimate
     integer,allocatable :: elem_list(:)
-    real(dp) :: cofm1(3),cofm2(3),boxrange(3),max_bound(3),min_bound(3), &
-         point_xyz(3),scale_mesh
-    real(dp),allocatable :: data_temp(:,:)
-    logical :: internal
+    real(dp) :: cofm1(3),cofm2(3),boxrange(3),data_err,max_bound(3),min_bound(3), &
+         scale_mesh,spacing,spacing_scale,volume
     character(len=60) :: sub_name
     
     ! --------------------------------------------------------------------------
@@ -1450,6 +1446,7 @@ contains
        call triangles_from_surface(elem_list)
     endif
 
+    volume = volume_internal_to_surface(triangle, vertex_xyz)
     scale_mesh = 1.0_dp-(offset/100.0_dp)
     cofm1 = sum(vertex_xyz,dim=2)/num_vertices
     forall (i = 1:num_vertices) vertex_xyz(1:3,i) = &
@@ -1457,6 +1454,13 @@ contains
     cofm2 = cofm1 * scale_mesh
     forall (i = 1:num_vertices) vertex_xyz(1:3,i) = &
          vertex_xyz(1:3,i) - (cofm2(1:3)-cofm1(1:3))
+
+    volume = volume_internal_to_surface(triangle, vertex_xyz)
+    if(num_target.gt.0)then
+       spacing = (volume/real(num_target))**(1.0/3.0)
+    else
+       spacing = spacing0
+    endif
 
 !!! find the bounding coordinates for the surface mesh
     
@@ -1467,14 +1471,65 @@ contains
          (boxrange(2)/spacing+1.0_dp) * (boxrange(3))/spacing+1.0_dp) * &
          volume_internal_to_surface(triangle,vertex_xyz)/ &
          (boxrange(1)*boxrange(2)*boxrange(3)))
+
+    num_data = 0
+    data_err = (num_target-num_data)/num_target
+    ncount = 0
+
+    if(num_target.gt.0)then ! only iterate through when a target is set
+       do while(abs(data_err).gt.0.005_dp.and.ncount.lt.20) ! allowing 1% error
+          call make_grid(num_data,num_data_estimate,max_bound,min_bound,spacing)
+          data_err = real(num_target-num_data)/real(num_target)
+          if(num_target.gt.num_data)then
+             spacing_scale = max(0.95_dp, 1.0_dp - data_err**1.5_dp)
+          else
+             spacing_scale = min(1.05_dp, 1.0_dp + abs(data_err)**1.5_dp)
+          endif
+          spacing = spacing * spacing_scale
+          ncount = ncount + 1
+       enddo
+    else ! just do once for a given spacing
+       call make_grid(num_data,num_data_estimate,max_bound,min_bound,spacing)
+    endif
+    write(*,'('' Made'',I7,'' data points inside volume '',f6.1,'' mL'')') num_data,volume/1.0e3_dp
+        
+    if(allocated(data_weight)) deallocate(data_weight)
+    allocate(data_weight(3,num_data))
+    data_weight(:,1:num_data) = 1.0_dp
+
+    if(allocated(elem_list)) deallocate(elem_list)
+   
+    call enter_exit(sub_name,2)
     
+  end subroutine make_data_grid
+  
+!!!#############################################################################
+
+  subroutine make_grid(num_data,num_data_estimate,max_bound,min_bound,spacing)
+
+    use mesh_utilities,only: distance_between_points
+    
+    integer :: num_data_estimate
+    integer :: num_data
+    real(dp),intent(in) :: spacing 
+    ! Local Variables
+    integer :: i,j,k,nd,num_data_temp
+    real(dp) :: dist,max_bound(3),min_bound(3),min_dist,point_xyz(3)
+    real(dp),allocatable :: data_temp(:,:)
+    logical :: internal
+    character(len=60) :: sub_name
+    
+    ! --------------------------------------------------------------------------
+    
+    sub_name = 'make_grid'
+    call enter_exit(sub_name,1)
+
 !!! allocate arrays based on estimated number of data points
-    
     if(allocated(data_xyz)) deallocate(data_xyz)
     allocate(data_xyz(3,num_data_estimate))
     i=0
     num_data = 0
-    point_xyz = min_bound + 0.5_dp*spacing 
+    point_xyz = min_bound + 0.5_dp*spacing
     do while(point_xyz(3).le.max_bound(3)) ! for z direction
        i=i+1
        j=0 
@@ -1516,17 +1571,9 @@ contains
        point_xyz(3) = point_xyz(3) + spacing
     enddo
     
-    write(*,'('' Made'',I7,'' data points inside surface elements'')') num_data
-    
-    if(allocated(data_weight)) deallocate(data_weight)
-    allocate(data_weight(3,num_data))
-    data_weight(:,1:num_data) = 1.0_dp
-
-    if(allocated(elem_list)) deallocate(elem_list)
-   
     call enter_exit(sub_name,2)
     
-  end subroutine make_data_grid
+  end subroutine make_grid
   
 !!!#############################################################################
   
