@@ -1421,7 +1421,8 @@ contains
   
   subroutine make_data_grid(surface_elems, num_target, offset, spacing0)
     !*make_data_grid:* makes a regularly-spaced 3D grid of data points to
-    ! fill a bounding surface 
+    ! fill a bounding surface. surface is defined by elements in 'surface_elems'.
+    ! If zero then grow into all elements. 
 
     integer,intent(in) :: num_target, surface_elems(:)
     real(dp),intent(in) :: offset, spacing0
