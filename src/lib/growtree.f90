@@ -574,9 +574,9 @@ contains
   !
   !*create_new_node:* sets up arrays for a new mesh node and element.
   !
-  subroutine create_new_node(ne,ne_start,np,np_start,MAKE)
+  subroutine create_new_node(ne,ne_global,ne_start,np,np_start,MAKE)
 
-    integer :: ne,ne_start,np,np_start
+    integer :: ne,ne_global,ne_start,np,np_start
     logical :: MAKE
 
     !Local variables
@@ -587,6 +587,7 @@ contains
 
     if(MAKE)then
        ne=ne+1
+       ne_global = ne_global + 1
        elems(ne) = ne ! store global element number
        elem_nodes(1,ne) = np_start
        elems_at_node(np_start,0)=elems_at_node(np_start,0)+1
@@ -754,16 +755,16 @@ contains
 
 !!!#############################################################################
 
-  subroutine grow_tree(surface_elems,parent_ne,angle_max,angle_min,&
+  subroutine grow_tree(surface_elems,global_parent_ne,angle_max,angle_min,&
        branch_fraction,length_limit,shortest_length,rotation_limit,to_export,filename)
     !interface to the grow_recursive_tree subroutine
 
-    use geometry,only: element_connectivity_1d,evaluate_ordering, &
+    use geometry,only: element_connectivity_1d,evaluate_ordering,get_local_elem_1d, &
          group_elem_parent_term,reallocate_node_elem_arrays,triangles_from_surface
     use mesh_utilities,only: get_local_elem_2d
 
     integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
-    integer,intent(in)  :: parent_ne                ! stem branch that supplies 'parents' to grow from
+    integer,intent(in)  :: global_parent_ne         ! stem branch that supplies 'parents' to grow from
     real(dp),intent(in) :: angle_max                ! maximum branch angle with parent; in degrees
     real(dp),intent(in) :: angle_min                ! minimum branch angle with parent; in degrees
     real(dp),intent(in) :: branch_fraction          ! fraction of distance (to COFM) to branch
@@ -773,7 +774,7 @@ contains
     logical,intent(in) :: to_export                 ! option to export terminal element mapping to datapoints
     character(len=*),intent(in) :: filename
 
-    integer :: i,num_elems_new,num_nodes_new
+    integer :: i,num_elems_new,num_nodes_new, parent_ne
     integer,allocatable :: elem_list(:), parent_list(:)
     character(len=100) :: writefile
     character(len=60) :: sub_name
@@ -789,6 +790,9 @@ contains
        write(40,'('' Data point number          Terminal element number'')')
     endif
 
+
+!!! get the local element number (parent_ne) for global element number (global_parent_ne)
+     parent_ne = get_local_elem_1d(global_parent_ne)
 
 !!! allocate temporary arrays
     allocate(parent_list(num_elems))
@@ -873,7 +877,7 @@ contains
     integer,allocatable :: map_seed_to_space(:)     ! records initial elem associated w. data points (the 'space')
     integer,allocatable :: num_seeds_from_elem(:)   ! records # of seeds currently grouped with an elem
 
-    integer :: i,j,kount,M,N,nd,nd_min,ne,ne_grnd_parent,ne_parent,ne_start,ne_stem,&
+    integer :: i,j,kount,M,N,nd,nd_min,ne,ne_global,ne_grnd_parent,ne_parent,ne_start,ne_stem,&
          noelem_parent,np,np_start,np_prnt_start,np_grnd_start,num_seeds_in_space,num_next_parents, &
          num_parents,num_terminal
 
@@ -895,6 +899,8 @@ contains
     allocate(num_seeds_from_elem(num_elems_new))
     allocate(map_seed_to_elem(num_data))
     allocate(map_seed_to_space(num_data))
+
+    ne_global = maxval(elems) ! maximum current global element number
 
 !!! Initialise local_parent to the list of parent elements, and num_parents (current
 !!! number of parent branches) to the number of parent branches.
@@ -970,7 +976,7 @@ contains
                 do N = 1,2 !for each of the two new branches
                    ! Set up arrays for new element and node
                    ! after create_new_node the current element == ne and current node == np
-                   call create_new_node(ne,ne_parent,np,np_start,.TRUE.)
+                   call create_new_node(ne,ne_global,ne_parent,np,np_start,.TRUE.)
                    ! find the centre of mass of seed points
                    if(diagnostics_on) write(*,'('' New node'',i7)') np
                    call calculate_seed_cofm(map_seed_to_elem,ne,COFM)
@@ -1112,10 +1118,11 @@ contains
           ! Copy the temporary list of branches to local_parent. These become the
           ! parent elements for the next branching
           local_parent(1:num_next_parents) = local_parent_temp(1:num_next_parents)
-          ! Regroup the seed points with the closest current parent
-          call group_seeds_with_branch(map_seed_to_elem,num_next_parents,num_seeds_from_elem,&
-               num_terminal,local_parent,DISTANCE_LIMIT,to_export)
-
+          if(num_next_parents.ne.0)then
+             ! Regroup the seed points with the closest current parent
+             call group_seeds_with_branch(map_seed_to_elem,num_next_parents,num_seeds_from_elem,&
+                  num_terminal,local_parent,DISTANCE_LIMIT,to_export)
+          endif
        enddo ! while still parent branches
 
        write(*,'(I7,I8,I9)') ne_stem,num_seeds_in_space,num_terminal
