@@ -23,6 +23,8 @@ void define_rad_from_geom_c(const char *order_system, int *order_system_len, dou
                             const char *group_type, int *group_type_len, const char *group_options, int *group_options_len);
 void element_connectivity_1d_c(void);
 void evaluate_ordering_c(void);
+extern void offset_1d_c(double *offset_x, double *offset_y, double *offset_z);
+extern void scale_1d_c(double *scale_x, double *scale_y, double *scale_z);
 void volume_of_mesh_c(double *volume_model, double *volume_tree);
 void write_elem_geometry_2d_c(const char *ELEMFILE, int *filename_len);
 void write_geo_file_c(int *ntype, const char *GEOFILE, int *filename_len);
@@ -136,6 +138,16 @@ void element_connectivity_1d()
 void evaluate_ordering()
 {
   evaluate_ordering_c();
+}
+
+void offset_1d(double offset_x, double offset_y, double offset_z)
+{
+  offset_1d_c(&offset_x, &offset_y, &offset_z);
+}
+
+void scale_1d(double scale_x, double scale_y, double scale_z)
+{
+  scale_1d_c(&scale_x, &scale_y, &scale_z);
 }
 
 void volume_of_mesh(double *volume_model, double *volume_tree)

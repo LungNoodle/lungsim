@@ -207,6 +207,36 @@ contains
 !
 !###################################################################################
 !
+  
+  subroutine offset_1d_c(offset_x, offset_y, offset_z) bind(C, name="offset_1d_c")
+    use arrays, only: dp
+    use geometry, only: offset_1d
+    implicit none
+
+    real(dp),intent(in) :: offset_x, offset_y, offset_z
+
+    call offset_1d(offset_x, offset_y, offset_z)
+
+  end subroutine offset_1d_c
+  
+!
+!###################################################################################
+!
+  
+  subroutine scale_1d_c(scale_x, scale_y, scale_z) bind(C, name="scale_1d_c")
+    use arrays, only: dp
+    use geometry, only: scale_1d
+    implicit none
+
+    real(dp),intent(in) :: scale_x, scale_y, scale_z
+
+    call scale_1d(scale_x, scale_y, scale_z)
+
+  end subroutine scale_1d_c
+  
+!
+!###################################################################################
+!
   subroutine define_data_geometry_c(DATAFILE, filename_len) bind(C, name="define_data_geometry_c")
 
     use iso_c_binding, only: c_ptr

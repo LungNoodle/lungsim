@@ -47,7 +47,9 @@ module geometry
   public import_ply_triangles
   public make_data_grid
   public make_2d_vessel_from_1d
+  public offset_1d
   public reallocate_node_elem_arrays
+  public scale_1d
   public set_initial_volume
   public triangles_from_surface
   public volume_of_mesh
@@ -3625,6 +3627,29 @@ contains
   end subroutine geo_node_offset
   
 !!!#############################################################################
+
+  subroutine offset_1d(offset_x, offset_y, offset_z)
+    !*offset_1d:* offset the 1D tree by the given x,y,z offset values
+
+    real(dp),intent(in) :: offset_x, offset_y, offset_z
+
+    character(len=60) :: sub_name
+
+    ! --------------------------------------------------------------------------
+
+    sub_name = 'offset_1d'
+    call enter_exit(sub_name,1)
+
+    node_xyz(1,1:num_nodes) = node_xyz(1,1:num_nodes) + offset_x
+    node_xyz(2,1:num_nodes) = node_xyz(2,1:num_nodes) + offset_y
+    node_xyz(3,1:num_nodes) = node_xyz(3,1:num_nodes) + offset_z
+
+    call enter_exit(sub_name,2)
+    
+  end subroutine offset_1d
+
+  
+!!!#############################################################################
   
   subroutine reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
     !*reallocate_node_elem_arrays:* Reallocates the size of geometric
@@ -3754,6 +3779,29 @@ contains
     call enter_exit(sub_name,2)
     
   end subroutine reallocate_node_elem_arrays
+  
+!!!#############################################################################
+
+  subroutine scale_1d(scale_x, scale_y, scale_z)
+    !*scale_1d:* scale the 1D tree by the given x,y,z scale values
+
+    real(dp),intent(in) :: scale_x, scale_y, scale_z
+
+    character(len=60) :: sub_name
+
+    ! --------------------------------------------------------------------------
+
+    sub_name = 'scale_1d'
+    call enter_exit(sub_name,1)
+    
+    node_xyz(1,1:num_nodes) = node_xyz(1,1:num_nodes) * scale_x
+    node_xyz(2,1:num_nodes) = node_xyz(2,1:num_nodes) * scale_y
+    node_xyz(3,1:num_nodes) = node_xyz(3,1:num_nodes) * scale_z
+
+    call enter_exit(sub_name,2)
+    
+  end subroutine scale_1d
+
   
 !!!#############################################################################
   
