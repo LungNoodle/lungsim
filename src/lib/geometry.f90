@@ -41,6 +41,7 @@ module geometry
   public element_connectivity_2d
   public evaluate_ordering
   public get_final_real
+  public get_local_elem_1d
   public get_local_node_f
   public group_elem_parent_term
   public import_node_geometry_2d

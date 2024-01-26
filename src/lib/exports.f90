@@ -374,7 +374,7 @@ contains
           write(10,'( ''  #xi1=1'')')
        endif
 
-       write(10,'(1X,''Element: '',I12,'' 0 0'' )') ne
+       write(10,'(1X,''Element: '',I12,'' 0 0'' )') elems(ne)
        write(10,'(3X,''Values:'' )')
        write(10,'(4X,2(1X,E12.5))') elem_field(ne_field,ne),elem_field(ne_field,ne)
     enddo !no_nelist (ne)
@@ -439,10 +439,10 @@ contains
              enddo !nn
           enddo !nj
        endif
-       write(10,'(1X,''Element: '',I12,'' 0 0'' )') ne
+       write(10,'(1X,''Element: '',I12,'' 0 0'' )') elems(ne)
        !**               write the nodes
        write(10,'(3X,''Nodes:'' )')
-       write(10,'(4X,2(1X,I12))') elem_nodes(1,ne),elem_nodes(2,ne)
+       write(10,'(4X,2(1X,I12))') nodes(elem_nodes(1,ne)),nodes(elem_nodes(2,ne))
        !**                 write the scale factors
        write(10,'(3X,''Scale factors:'' )')
        write(10,'(4X,2(1X,E12.5))') 1.d0,1.d0
@@ -625,7 +625,7 @@ contains
              enddo
           endif !FIRST_NODE
           !***      write the node
-          write(10,'(1X,''Node: '',I12)') np
+          write(10,'(1X,''Node: '',I12)') nodes(np)
           do nj=1,3
              write(10,'(2X,4(1X,F12.6))') (node_xyz(nj,np))
           enddo !njj2
