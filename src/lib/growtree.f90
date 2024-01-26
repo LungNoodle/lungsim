@@ -755,7 +755,7 @@ contains
 
 !!!#############################################################################
 
-  subroutine grow_tree(surface_elems,global_parent_ne,angle_max,angle_min,&
+  subroutine grow_tree(surface_elems,global_parent_ne,supernumerary_ne,angle_max,angle_min,&
        branch_fraction,length_limit,shortest_length,rotation_limit,to_export,filename)
     !interface to the grow_recursive_tree subroutine
 
@@ -765,6 +765,7 @@ contains
 
     integer,intent(in)  :: surface_elems(:)         ! list of surface elements defining the host region
     integer,intent(in)  :: global_parent_ne         ! stem branch that supplies 'parents' to grow from
+    integer,intent(in)  :: supernumerary_ne         ! additional parent branch (if required)
     real(dp),intent(in) :: angle_max                ! maximum branch angle with parent; in degrees
     real(dp),intent(in) :: angle_min                ! minimum branch angle with parent; in degrees
     real(dp),intent(in) :: branch_fraction          ! fraction of distance (to COFM) to branch
