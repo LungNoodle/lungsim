@@ -9,8 +9,8 @@ contains
   !
   ! the main growing subroutine. Generates a volume-filling tree into a closed surface.
   subroutine grow_tree_c(surface_elems_len, surface_elems, parent_ne, supernumerary_ne, &
-       angle_max, angle_min, branch_fraction, length_limit, &
-       shortest_length, rotation_limit, to_export, filename, filename_len) bind(C, name="grow_tree_c")
+       angle_max, angle_min, branch_fraction, length_limit, shortest_length, rotation_limit, &
+       to_export, filename, filename_len, grouping, grouping_len) bind(C, name="grow_tree_c")
     
     use arrays,only: dp
     use iso_c_binding, only: c_ptr
@@ -31,13 +31,15 @@ contains
     real(dp),intent(in) :: rotation_limit
     logical,intent(in) :: to_export
     integer,intent(in) :: filename_len
-    type(c_ptr), value, intent(in) :: filename
-    character(len=MAX_FILENAME_LEN) :: filename_f
+    integer,intent(in) :: grouping_len
+    type(c_ptr), value, intent(in) :: filename, grouping
+    character(len=MAX_FILENAME_LEN) :: filename_f, grouping_f
     
     call strncpy(filename_f, filename, filename_len)
+    call strncpy(grouping_f, grouping, grouping_len)
 
     call grow_tree(surface_elems, parent_ne, supernumerary_ne, angle_max, angle_min, branch_fraction, length_limit,&
-         shortest_length, rotation_limit, to_export, filename_f)
+         shortest_length, rotation_limit, to_export, filename_f, grouping_f)
 
   end subroutine grow_tree_c
 
