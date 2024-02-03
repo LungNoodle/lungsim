@@ -574,9 +574,9 @@ contains
   !
   !*create_new_node:* sets up arrays for a new mesh node and element.
   !
-  subroutine create_new_node(ne,ne_global,ne_start,np,np_start,MAKE)
+  subroutine create_new_node(ne,ne_global,ne_start,np,np_global,np_start,MAKE)
 
-    integer :: ne,ne_global,ne_start,np,np_start
+    integer :: ne,ne_global,ne_start,np,np_global,np_start
     logical :: MAKE
 
     !Local variables
@@ -588,13 +588,14 @@ contains
     if(MAKE)then
        ne=ne+1
        ne_global = ne_global + 1
-       elems(ne) = ne ! store global element number
+       elems(ne) = ne_global ! store global element number
        elem_nodes(1,ne) = np_start
        elems_at_node(np_start,0)=elems_at_node(np_start,0)+1
        elems_at_node(np_start,elems_at_node(np_start,0))=ne
 
        np = np+1
-       nodes(np) = np
+       np_global = np_global + 1
+       nodes(np) = np_global
        elems_at_node(np,0) = 0 !initialise
        elem_nodes(2,ne) = np !end node of new element
        elems_at_node(np,0) = elems_at_node(np,0)+1
@@ -775,8 +776,8 @@ contains
     logical,intent(in) :: to_export                 ! option to export terminal element mapping to datapoints
     character(len=*),intent(in) :: filename
 
-    integer :: i,num_elems_new,num_nodes_new, parent_ne
-    integer,allocatable :: elem_list(:), parent_list(:)
+    integer :: i, nparents, num_elems_new,num_nodes_new, parent_ne, super_parent_ne
+    integer,allocatable :: elem_list(:), parent_list(:), super_list(:)
     character(len=100) :: writefile
     character(len=60) :: sub_name
 
@@ -792,12 +793,25 @@ contains
     endif
 
 
-!!! get the local element number (parent_ne) for global element number (global_parent_ne)
-     parent_ne = get_local_elem_1d(global_parent_ne)
-
-!!! allocate temporary arrays
+!!! get the local element number (parent_ne) for global element number (global_parent_ne), then
+!!! allocate memory and initialise to zero the list of terminal elements that subtend 'parent_ne'.
+!!! get the list of current terminal elements that subtend parent_ne (initial branches for growing).
+    parent_ne = get_local_elem_1d(global_parent_ne)
     allocate(parent_list(num_elems))
     parent_list = 0
+    call group_elem_parent_term(parent_list,parent_ne)
+    nparents = count(parent_list.ne.0) ! the number of non-zeros in parent_list
+
+!!! repeat for the supernumerary parent (if applicable)
+    if(supernumerary_ne.ne.0) then
+       super_parent_ne = get_local_elem_1d(supernumerary_ne)
+       allocate(super_list(num_elems))
+       super_list = 0
+       call group_elem_parent_term(super_list,super_parent_ne)
+       do i = 1, count(super_list.ne.0)
+          parent_list(nparents+i) = super_list(i)
+       enddo
+    endif
 
     if(count(surface_elems.ne.0).gt.0)then ! a surface element list is given for converting to
        !                                a temporary triangulated surface mesh
@@ -809,10 +823,6 @@ contains
 !!! make a linear triangulated mesh over the surface elements
        call triangles_from_surface(elem_list)
     endif
-
-!!! get the list of current terminal elements that subtend parent_ne.
-!!! these will be the initial branches for growing
-    call group_elem_parent_term(parent_list,parent_ne)
 
 !!! estimate the number of elements in the generated model based on the
 !!! number of data (seed) points. i.e. N = 2*N_data - 1.
@@ -840,6 +850,7 @@ contains
 !!! deallocate temporary arrays
     if(allocated(elem_list)) deallocate(elem_list)
     deallocate(parent_list)
+    if(allocated(super_list)) deallocate(super_list)
     call enter_exit(sub_name,2)
 
   end subroutine grow_tree
@@ -879,7 +890,7 @@ contains
     integer,allocatable :: num_seeds_from_elem(:)   ! records # of seeds currently grouped with an elem
 
     integer :: i,j,kount,M,N,nd,nd_min,ne,ne_global,ne_grnd_parent,ne_parent,ne_start,ne_stem,&
-         noelem_parent,np,np_start,np_prnt_start,np_grnd_start,num_seeds_in_space,num_next_parents, &
+         noelem_parent,np,np_global,np_start,np_prnt_start,np_grnd_start,num_seeds_in_space,num_next_parents, &
          num_parents,num_terminal
 
     real(dp),dimension(3) :: COFM,candidate_xyz
@@ -902,6 +913,7 @@ contains
     allocate(map_seed_to_space(num_data))
 
     ne_global = maxval(elems) ! maximum current global element number
+    np_global = maxval(nodes) ! maximum current global node number
 
 !!! Initialise local_parent to the list of parent elements, and num_parents (current
 !!! number of parent branches) to the number of parent branches.
@@ -977,7 +989,7 @@ contains
                 do N = 1,2 !for each of the two new branches
                    ! Set up arrays for new element and node
                    ! after create_new_node the current element == ne and current node == np
-                   call create_new_node(ne,ne_global,ne_parent,np,np_start,.TRUE.)
+                   call create_new_node(ne,ne_global,ne_parent,np,np_global,np_start,.TRUE.)
                    ! find the centre of mass of seed points
                    if(diagnostics_on) write(*,'('' New node'',i7)') np
                    call calculate_seed_cofm(map_seed_to_elem,ne,COFM)
