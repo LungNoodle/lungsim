@@ -1522,6 +1522,8 @@ contains
     sub_name = 'split_seed_points'
     call enter_exit(sub_name,1)
 
+    enough_points = .true. ! initialise to default true
+    
     R = COFM ! split based on cofm and branch
     P(1:3) = node_xyz(1:3,np2) ! point at start of parent branch
     Q(1:3) = node_xyz(1:3,np1) ! point at end of parent branch
