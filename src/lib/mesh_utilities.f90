@@ -875,7 +875,7 @@ contains
     integer :: i,ncrossed,ntri,num_triangles
     real(dp) :: area,area_triangle,cofm_surfaces(3),denominator,&
          norm_v(3),point(3),P1(3),P2(3),P3(3),u
-    real(dp),parameter :: dist_tol = 1.0e-4_dp, user_tol = 1.0e-14_dp
+    real(dp),parameter :: dist_tol = 1.0e-5_dp, user_tol = 1.0e-14_dp
     logical :: cross_any
 
     num_triangles = count(triangles(:,:).ne.0)/3.0_dp
