@@ -3119,6 +3119,11 @@ contains
           WRITE(*,*) ' Node ',np,' attached to',num_attach,' elements'
        endif
     enddo
+
+    write(*,*) 'duplicate=',duplicate
+    write(*,*) 'disconnect=',disconnect
+    write(*,*) 'num inlets=',inlets
+    write(*,*) 'num outlets=',outlets
     
     call enter_exit(sub_name,2)
     
