@@ -1475,10 +1475,10 @@ contains
          (boxrange(1)*boxrange(2)*boxrange(3)))
 
     num_data = 0
-    data_err = (num_target-num_data)/num_target
     ncount = 0
 
     if(num_target.gt.0)then ! only iterate through when a target is set
+       data_err = (num_target-num_data)/num_target
        do while(abs(data_err).gt.0.005_dp.and.ncount.lt.20) ! allowing 1% error
           call make_grid(num_data,num_data_estimate,max_bound,min_bound,spacing)
           data_err = real(num_target-num_data)/real(num_target)
