@@ -761,24 +761,18 @@ contains
   ! closest candidate parent branches. reassigns data (seed) points
   ! to the closest ending of branches in the current generation.
   !
-  subroutine group_seeds_with_branch_initial(map_array,map_seed_to_space,num_next_parents, &
-       num_seeds_from_elem, &
-       num_terminal,local_parent,DISTANCE_LIMIT,to_export)
+  subroutine group_seeds_with_branch_initial(map_array,map_seed_to_space,num_parents, &
+       num_seeds_from_elem,num_terminal,local_parent)
 
     use indices
     use math_utilities,only: sort_integer_list
     use mesh_utilities,only: distance_between_points,inlist
 
-    integer :: num_next_parents,local_parent(:),map_array(:),map_seed_to_space(:), &
-         num_seeds_from_elem(*), &
-         num_terminal
-    real(dp),intent(in) :: DISTANCE_LIMIT
-    logical :: to_export
+    integer :: num_parents,local_parent(:),map_array(:),map_seed_to_space(:), &
+         num_seeds_from_elem(*),num_terminal
 
     !Local variables
     integer :: i,n,m,nd,nd_min,ne,n_elm_temp,ne_min,noelem,np,np_temp
-    integer :: size_map
-    integer,allocatable :: map_array_copy(:),my_closest(:)
     real(dp) :: dist,min_dist
 
     character(len=60) :: sub_name
@@ -786,15 +780,10 @@ contains
     sub_name = 'group_seeds_with_branch_initial'
     call enter_exit(sub_name,1)
 
-    size_map = size(map_array)
-    allocate(my_closest(size_map))
-    allocate(map_array_copy(size_map))
-    map_array_copy(1:size_map) = map_array(1:size_map)
-
     do nd = 1,num_data            ! for all seed/data points
        if(map_array(nd).ne.0)then ! the data point is still in use
           MIN_DIST=1.0e+10_dp     ! initialise the minimum (closest) distance
-          do noelem = 1,num_next_parents ! for each parent in the next branch generation
+          do noelem = 1,num_parents ! for each parent (terminal branch)
              ne = local_parent(noelem)
              np = elem_nodes(2,ne)
              dist = distance_between_points(data_xyz(1,nd),node_xyz(1,np))
@@ -803,12 +792,8 @@ contains
                 MIN_DIST=DIST
              endif
           enddo
-          if(min_dist.lt.distance_limit/real(elem_ordrs(no_gen,ne_min),kind=dp)+zero_tol)then !keep seed points
-             map_array(nd)=ne_min
-             map_seed_to_space(nd) = ne_min
-          else
-             map_array(nd)=0 !too far from branch ends, so discard
-          endif
+          map_array(nd)=ne_min
+          map_seed_to_space(nd) = ne_min
        endif
     enddo
 
@@ -820,36 +805,15 @@ contains
        endif !map_array
     enddo !nd
 
-!!! If there is only 0 or 1 seed point grouped with an element then set it as a
-!!! terminal and remove a single seed point. Also involves modifying the local list of parents.
-
-    N_ELM_TEMP=num_next_parents
-    do N=1,num_next_parents
+    N_ELM_TEMP=num_parents
+    do N=1,num_parents
        ne_min=local_parent(N)
-       if(num_seeds_from_elem(ne_min).eq.0)then !find closest point to end node
+       if(num_seeds_from_elem(ne_min).eq.0)then 
           write(*,*) 'WARNING: zero points for ne=',ne_min
        else if(num_seeds_from_elem(ne_min).eq.1)then
           write(*,*) 'WARNING: only one point for ne=',ne_min
        endif !num_seeds_from_elem
     enddo !N
-
-    do N=1,num_next_parents
-       if(local_parent(N).eq.0)then
-          I=0
-          do while((N+I.lt.num_next_parents).and.(local_parent(N+I).eq.0))
-             I=I+1
-          enddo
-          do M=N,num_next_parents-I
-             local_parent(M)=local_parent(M+I)
-          enddo !M
-       endif !local_parent
-    enddo !N
-    num_next_parents = N_ELM_TEMP
-
-    call sort_integer_list(num_next_parents,local_parent)
-
-    deallocate(my_closest)
-    deallocate(map_array_copy)
 
     call enter_exit(sub_name,2)
 
@@ -1041,8 +1005,7 @@ contains
        if(grouping(1:5).eq.'close')then
           map_seed_to_elem = parent_list(1)
           call group_seeds_with_branch_initial(map_seed_to_elem,map_seed_to_space, &
-               num_next_parents,num_seeds_from_elem, &
-               num_terminal,local_parent,DISTANCE_LIMIT,to_export)
+               num_next_parents,num_seeds_from_elem,num_terminal,local_parent)
        else if(grouping(1:5).eq.'split')then
           call split_seed_points_initial(map_seed_to_space,parent_ne)
        endif

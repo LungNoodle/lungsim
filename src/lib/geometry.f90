@@ -3032,15 +3032,17 @@ contains
     ! Strahler orders for a given tree
 
     ! Local Variables
-    integer :: INLETS,ne,ne0,ne2,noelem2,np,np2,num_attach,n_children, &
+    integer :: INLETS,ne,ne0,ne1,ne2,ne3,noelem2,np,np2,num_attach,n_children, &
          n_generation,n_horsfield,OUTLETS,STRAHLER,STRAHLER_ADD,temp1
-    LOGICAL :: DISCONNECT,DUPLICATE
+    LOGICAL :: DISCONNECT,DUPLICATE,problem
     character(len=60) :: sub_name
     
     ! --------------------------------------------------------------------------
     
     sub_name = 'evaluate_ordering'
     call enter_exit(sub_name,1)
+
+    problem = .false.
     
 !!! Calculate branch generations
     elem_ordrs = 0
@@ -3101,6 +3103,10 @@ contains
        np2=elem_nodes(2,ne)
        if(np.EQ.np2)THEN
           DUPLICATE=.TRUE.
+          write(*,'('' WARNING: duplicated nodes found in element'',i6)') ne
+          problem = .true.
+          write(*,'('' (continue at your own peril.....) '')')
+          read(*,*)
        endif
     enddo
     
@@ -3111,15 +3117,54 @@ contains
        num_attach=elems_at_node(np,0)
        if(num_attach.EQ.0)THEN
           DISCONNECT=.TRUE.
+          write(*,'('' WARNING: node'',i6,'' is disconnected'')') np
+          problem = .true.
        elseif(num_attach.EQ.1)THEN
           ne=elems_at_node(np,1)
           if(elem_cnct(1,0,ne).EQ.0) OUTLETS=OUTLETS+1
-          if(elem_cnct(-1,0,ne).EQ.0) INLETS=INLETS+1
+          if(elem_cnct(-1,0,ne).EQ.0)then
+             INLETS=INLETS+1
+          endif
+       elseif(num_attach.eq.2)then
+          ne1 = elems_at_node(np,1)
+          ne2 = elems_at_node(np,2)
+          if(elem_nodes(1,ne1).eq.elem_nodes(1,ne2))then
+             write(*,'('' WARNING: node'',i6,'' has diverging elements'')') np
+             problem = .true.
+          elseif(elem_nodes(2,ne1).eq.elem_nodes(2,ne2))then
+             write(*,'('' WARNING: node'',i6,'' has converging elements'')') np
+             problem = .true.
+          endif
+       elseif(num_attach.eq.3)then
+          ne1 = elems_at_node(np,1)
+          ne2 = elems_at_node(np,2)
+          ne3 = elems_at_node(np,3)
+          if(elem_nodes(1,ne1).eq.elem_nodes(1,ne2).and. &
+               elem_nodes(1,ne1).eq.elem_nodes(1,ne3))then
+             write(*,'('' WARNING: node'',i6,'' has converging elements'')') np
+             problem = .true.
+          elseif(elem_nodes(2,ne1).eq.elem_nodes(2,ne2).and. &
+               elem_nodes(2,ne1).eq.elem_nodes(2,ne3))then
+             write(*,'('' WARNING: node'',i6,'' has diverging elements'')') np
+             problem = .true.
+          endif
        elseif(num_attach.GT.3)THEN
-          WRITE(*,*) ' Node ',np,' attached to',num_attach,' elements'
+          write(*,'('' WARNING: node'',i6,'' is attached to'',i4,'' elements'')') np,num_attach
+          problem = .true.
        endif
+       if(problem) exit
     enddo
-    
+
+    if(inlets.gt.1)then
+       write(*,'('' WARNING: the mesh has'',i5,'' inlets'')') inlets
+       problem = .true.
+    endif
+
+    if(problem)then
+       write(*,'('' (continue at your own peril.....) '')')
+       read(*,*)
+    endif
+
     call enter_exit(sub_name,2)
     
   end subroutine evaluate_ordering
@@ -3431,7 +3476,7 @@ contains
     do while (.not.found)
        if(nodes(np).eq.np_global)then
           found=.true.
-       elseif(np.gt.num_nodes)then
+       elseif(np.ge.num_nodes)then
           found = .true.
           write(*,'('' Global node '',I6,'' not in node list'')') np_global
           read(*,*)
