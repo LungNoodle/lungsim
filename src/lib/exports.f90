@@ -15,9 +15,9 @@ module exports
   use diagnostics
   use indices
   use other_consts
-  
+
   implicit none
- 
+
   private
   public &
        export_1d_elem_geometry, &
@@ -47,7 +47,7 @@ contains
     use geometry,only: coord_at_xi
     character(len=*) :: EXFILE
     character(len=*) :: groupname
-    
+
     integer,allocatable :: nodes_at_centre(:),nodes_on_lines(:), &
          node_xyz_2d_temp(:,:,:,:)
     integer,allocatable :: nodes_cl(:),nodes_cl_elems(:,:)
@@ -60,7 +60,7 @@ contains
     character(len=300) :: writefile
 
     call enter_exit(sub_name,1)
-    
+
     ! overallocating the minimum required memory, just to make indexing of nodes easy
     allocate(nodes_on_lines(num_nodes_2d+num_lines_2d))
     nodes_on_lines = 0
@@ -178,12 +178,12 @@ contains
     enddo
     close(10)
     close(20)
-    
+
     deallocate(nodes_on_lines)
     deallocate(nodes_at_centre)
     deallocate(nodes_cl_elems)
     deallocate(xyz)
-    
+
     call enter_exit(sub_name,2)
 
   end subroutine export_cubic_lagrange_2d
@@ -202,12 +202,12 @@ contains
     character(len=1) :: char1
     character(len=100) :: writefile
     character(len=60) :: sub_name
-    
+
     ! --------------------------------------------------------------------------
-    
+
     sub_name = 'export_triangle_elements'
     call enter_exit(sub_name,1)
-    
+
     if(index(EXELEMFILE, ".exelem")> 0) then !full filename is given
        writefile = EXELEMFILE(1:100)
     else ! need to append the correct filename extension
@@ -225,7 +225,7 @@ contains
        write(10,'( '' Element: 0 0 '',I5)') nline+3
        nline = nline+3
     enddo !ne
-       
+
     !**        write the elements
     write(10,'( '' Shape. Dimension=2, line*line'' )')
     write(10,'( '' #Scale factor sets=1'' )')
@@ -233,7 +233,7 @@ contains
     write(10,'( '' #Nodes= '',I2 )') 4
     write(10,'( '' #Fields=1'' )')
     write(10,'( '' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
-       
+
     do nj = 1,3
        if(nj==1) char1='x'; if(nj==2) char1='y'; if(nj==3) char1='z';
        write(10,'(''  '',A2,''. l.Lagrange*l.Lagrange, no modify, standard node based.'')') char1
@@ -244,7 +244,7 @@ contains
           write(10,'(''     Scale factor indices: '',I4)') nn
        enddo !nn
     enddo !nj
-       
+
     nline = 0
     do ne = 1,num_triangles
        !**         write the element
@@ -268,7 +268,7 @@ contains
     call enter_exit(sub_name,2)
 
   end subroutine export_triangle_elements
-  
+
 !
 !##############################################################################
 !
@@ -283,12 +283,12 @@ contains
     integer :: i,nj
     character(len=100) :: writefile
     character(len=60) :: sub_name
-    
+
     ! --------------------------------------------------------------------------
-    
+
     sub_name = 'export_triangle_nodes'
     call enter_exit(sub_name,1)
-    
+
     if(index(EXNODEFILE, ".exnode")> 0) then !full filename is given
        writefile = EXNODEFILE(1:100)
     else ! need to append the correct filename extension
@@ -316,7 +316,7 @@ contains
        write(10,'(2x,3(f12.6))') vertex_xyz(:,i)
     enddo
     close(10)
-       
+
     call enter_exit(sub_name,2)
 
   end subroutine export_triangle_nodes
@@ -338,9 +338,9 @@ contains
     logical :: CHANGED
     character(len=300) :: writefile
     character(len=60) :: sub_name
-    
+
     ! --------------------------------------------------------------------------
-    
+
     sub_name = 'export_1d_elem_field'
     call enter_exit(sub_name,1)
 
@@ -349,7 +349,7 @@ contains
     else ! need to append the correct filename extension
        writefile = trim(EXELEMFILE)//'.exelem'
     endif
-    
+
     open(10, file=writefile, status='replace')
 
     len_end=len_trim(group_name)
@@ -374,7 +374,7 @@ contains
           write(10,'( ''  #xi1=1'')')
        endif
 
-       write(10,'(1X,''Element: '',I12,'' 0 0'' )') elems(ne)
+       write(10,'(1X,''Element: '',I12,'' 0 0'' )') ne
        write(10,'(3X,''Values:'' )')
        write(10,'(4X,2(1X,E12.5))') elem_field(ne_field,ne),elem_field(ne_field,ne)
     enddo !no_nelist (ne)
@@ -398,9 +398,9 @@ contains
     logical :: CHANGED
     character(len=300) :: writefile
     character(len=60) :: sub_name
-    
+
     ! --------------------------------------------------------------------------
-    
+
     sub_name = 'export_1d_elem_geometry'
     call enter_exit(sub_name,1)
 
@@ -409,9 +409,9 @@ contains
     else ! need to append the correct filename extension
        writefile = trim(EXELEMFILE)//'.exelem'
     endif
-    
+
     open(10, file=writefile, status='replace')
-    
+
     len_end=len_trim(name)
     !**     write the group name
     write(10,'( '' Group name: '',A)') name(:len_end)
@@ -450,7 +450,7 @@ contains
     close(10)
 
     call enter_exit(sub_name,2)
-    
+
   end subroutine export_1d_elem_geometry
 
 !
@@ -478,7 +478,7 @@ contains
     else ! need to append the correct filename extension
        writefile = trim(EXELEMFILE)//'.exelem'
     endif
-    
+
     open(10, file=writefile, status='replace')
 
     !**     write the group name
@@ -535,7 +535,7 @@ contains
           WRITE(10,'( '' #Nodes= '',I2 )') numnodes_ex
           WRITE(10,'( '' #Fields= 1'' )')
           WRITE(10,'( '' 1) coordinates, coordinate, rectangular cartesian, #Components=3'')')
-          
+
           do nj=1,3
              if(nj==1) char1='x'; if(nj==2) char1='y'; if(nj==3) char1='z';
              WRITE(10,'(''  '',A2,''.  c.Hermite*c.Hermite, no modify, standard node based.'')') char1
@@ -589,9 +589,9 @@ contains
     logical :: FIRST_NODE
     character(len=300) :: writefile
     character(len=60) :: sub_name
-    
+
     ! --------------------------------------------------------------------------
-    
+
     sub_name = 'export_node_geometry'
     call enter_exit(sub_name,1)
 
@@ -600,7 +600,7 @@ contains
     else ! need to append the correct filename extension
        writefile = trim(EXNODEFILE)//'.exnode'
     endif
-    
+
     len_end=len_trim(name)
     if(num_nodes.GT.0) THEN
        open(10, file=writefile, status='replace')
@@ -636,7 +636,7 @@ contains
     close(10)
 
     call enter_exit(sub_name,2)
-    
+
   end subroutine export_node_geometry
 
 !
@@ -663,7 +663,7 @@ contains
     else ! need to append the correct filename extension
        writefile = trim(EXNODEFILE)//'.exnode'
     endif
-    
+
     if(num_nodes_2d.gt.0)then
        open(10, file=writefile, status='replace')
 
@@ -786,9 +786,9 @@ contains
     else ! need to append the correct filename extension
        writefile = trim(EXNODEFILE)//'.exnode'
     endif
-    
+
     len_end=len_trim(name)
-    
+
     if(num_units.GT.0) THEN
        open(10, file=writefile, status='replace')
        !**     write the group name
@@ -859,7 +859,7 @@ contains
     close(10)
 
   end subroutine export_terminal_solution
-  
+
 !
 !##############################################################################
 !
@@ -997,7 +997,7 @@ contains
     close(10)
 
   end subroutine export_terminal_ssgexch
-  
+
 !
 !##############################################################################
 !
