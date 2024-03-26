@@ -374,7 +374,7 @@ contains
           write(10,'( ''  #xi1=1'')')
        endif
 
-       write(10,'(1X,''Element: '',I12,'' 0 0'' )') ne
+       write(10,'(1X,''Element: '',I12,'' 0 0'' )') elems(ne)
        write(10,'(3X,''Values:'' )')
        write(10,'(4X,2(1X,E12.5))') elem_field(ne_field,ne),elem_field(ne_field,ne)
     enddo !no_nelist (ne)
