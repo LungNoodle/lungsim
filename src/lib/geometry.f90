@@ -276,7 +276,7 @@ contains
     call reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
     noelem0=0
     ne0 = num_elems ! the starting local element number
-    ne_global = elems(ne0) ! assumes this is the highest element number (!!!)
+    ne_global = maxval(elems) ! assumes this is the highest element number (!!!)
     np0 = num_nodes ! the starting local node number
     np_global = nodes(np0) ! assumes this is the highest node number (!!!)
 
@@ -337,7 +337,7 @@ contains
     !update current no of nodes and elements to determine connectivity
     np0=np !current highest node
     ne1=ne !current highest element
-    noelem0=num_elems*2+noelem0
+    noelem0=maxval(elems)
     if(mesh_type.eq.'ladder')then
        !To be implemented
     elseif(mesh_type.eq.'terminal')then
