@@ -57,14 +57,14 @@ For installing the packages required for building the documentation with Sphinx:
 
 Windows
 =======
+Install the following requirements:
 
-On Windows, Visual Studio is the recommended toolchain with the Intel fortran compiler.
-CMake is readily available and a binary is supplied on the CMake `download page <CMakeDownload_>`_.
-SWIG 4.0 is available from the SWIG `download page <SWIGDownload_>`_.
-The latest release at this time is version 4.0.2.
-For Sphinx you will first need to have Python installed, which is required when creating the Python bindings anyway.
-Python 3.9 works well with Visual Studio 2017 when building Python extension libraries (which is what the bindings are when used from Python).
-Python 3.9 is availble from the Python `download page <PythonDownload>`_.
+* **Git**: `download page <GitDownload_>`_
+* **Python**: `download page <PythonDownload_>`_. Select the add to path option
+* **CMake**: `download page <CMakeDownload_>`_. Select the add to path option
+* **SWIG**: `download page <SWIGDownload_>`_. Extract and put in your Program Files (x86) directory, e.g.: C:\\Program Files (x86)\\SWIG\\swigwin-4.1.1
+* **Visual Studio**: `download page <VisualStudioDownload_>`_. (The community version is free). Install with C++ desktop development. Add the IDE folder to your Path environment variable, e.g.: C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE
+* **Intel Fortran Compiler**: `download page <IntelFortranCompilerDownload_>`_. Select the integrate with Visual Studio option.
 
 macOS
 =====
@@ -85,6 +85,7 @@ GNU/Linux
 The package manager for the distro will (most likely) have the required packages to install.
 Before installing check to see if any of the requirements are already available::
 
+  git --version
   gfortran --version
   cmake --version
   python --version
@@ -93,10 +94,12 @@ Before installing check to see if any of the requirements are already available:
 In the case of the python package we require the *development* package for python this must be installed for the python bindings to become available.
 For the Ubuntu distribution you can get the missing packages with the following commands::
 
-  sudo apt-get install gfortran
-  sudo apt-get install cmake
-  sudo apt-get install pythonX.Y-dev # Where X and Y are the major and minor version numbers of the Python you want to install, any version above 3.7 will work
-  sudo apt-get install swig
+    sudo apt install git
+    sudo apt install python3-dev
+    sudo apt install python-is-python3
+    sudo apt install cmake
+    sudo apt install gfortran
+    sudo apt install swig
 
 -----
 CMake
@@ -170,6 +173,13 @@ From the terminal change into the 'lungsim' directory, then run the **make** com
 
 .. note:: Not recently checked to see if this is still working.
 
+
+
+.. _IntelFortranCompilerDownload: https://www.intel.com/content/www/us/en/developer/tools/oneapi/hpc-toolkit-download.html
+
+.. _VisualStudioDownload: https://visualstudio.microsoft.com/downloads/
+
+.. _GitDownload: https://git-scm.com/downloads
 
 .. _CMakeDownload: https://cmake.org/download
 

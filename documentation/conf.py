@@ -36,7 +36,9 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinxfortran.fortran_domain',
     'sphinxfortran.fortran_autodoc',
+    'sphinx.ext.autosectionlabel'
 ]
+autosectionlabel_prefix_document = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -53,7 +55,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'Ventilation'
+project = 'Aether'
 copyright = '2022, Lung Group ABI'
 author = 'Lung Group ABI'
 
@@ -81,7 +83,7 @@ language = None
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = []
+exclude_patterns = ["_build"]
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -167,9 +169,9 @@ html_static_path = ['_static']
 
 # Custom sidebar templates, maps document names to template names.
 #html_sidebars = {}
-html_sidebars = {
-   '**': ['localtoc.html', 'forksidebar.html', 'sourcelink.html', 'searchbox.html'],
-}
+# html_sidebars = {
+#    '**': ['localtoc.html', 'forksidebar.html', 'sourcelink.html', 'searchbox.html'],
+# }
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
