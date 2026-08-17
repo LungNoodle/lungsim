@@ -51,7 +51,7 @@ contains
   subroutine adjust_branch_angle(Nth,ne,np1,np2,np,angle_max,angle_min)
 
     use indices
-    use mesh_utilities,only: angle_btwn_vectors,unit_vector,vector_length
+    use math_utilities,only: angle_btwn_vectors,unit_vector,vector_length
     use other_consts
 
     integer :: Nth,ne,np1,np2,np
@@ -129,8 +129,8 @@ contains
     length_parent,shortest_length,candidate_xyz,make_branch)
 
     use indices
-    use math_utilities,only: sort_real_list
-    use mesh_utilities,only: distance_between_points,unit_vector,vector_length
+    use math_utilities,only: sort_real_list,unit_vector,vector_length
+    use mesh_utilities,only: distance_between_points
 
     integer :: map_seed_to_elem(*),map_seed_to_space(*),nen,np1
     real(dp) :: COFM(3),branch_fraction,length_limit,length_parent,&
@@ -376,8 +376,8 @@ contains
   !
   subroutine check_rotation_angle(ne,np00,np0,np1,np2,np3,np4,rotation_limit)
 
-    use mesh_utilities,only: angle_btwn_vectors,cross_product,distance_between_points, &
-         unit_vector
+    use math_utilities,only: angle_btwn_vectors,cross_product,unit_vector
+    use mesh_utilities,only: distance_between_points
     use other_consts
 
     integer,intent(in) :: ne,np00,np0,np1,np2,np3,np4
@@ -623,8 +623,8 @@ contains
        num_terminal,local_parent,DISTANCE_LIMIT)
 
     use indices
-    use math_utilities,only: sort_integer_list
-    use mesh_utilities,only: distance_between_points,inlist
+    use math_utilities,only: inlist,sort_integer_list
+    use mesh_utilities,only: distance_between_points
 
     integer :: num_next_parents,local_parent(:),map_array(:),num_seeds_from_elem(*),&
          num_terminal
@@ -758,8 +758,8 @@ contains
        num_seeds_from_elem,num_terminal,local_parent)
 
     use indices
-    use math_utilities,only: sort_integer_list
-    use mesh_utilities,only: distance_between_points,inlist
+    use math_utilities,only: inlist,sort_integer_list
+    use mesh_utilities,only: distance_between_points
 
     integer :: num_parents,local_parent(:),map_array(:),map_seed_to_space(:), &
          num_seeds_from_elem(*),num_terminal
@@ -884,8 +884,9 @@ contains
        angle_min, branch_fraction, length_limit, shortest_length, rotation_limit, grouping)
 
     use indices
+    use math_utilities,only: inlist
     use mesh_utilities,only: calc_branch_direction,distance_between_points, &
-         get_local_elem_2d,inlist,point_internal_to_surface
+         get_local_elem_2d,point_internal_to_surface
 
     integer,intent(in)  :: num_elems_new
     integer,intent(in)  :: parent_list(:)           ! list of end branch elements to grow from
@@ -1166,8 +1167,8 @@ contains
        np_prnt_start,np_start,angle_max,angle_min)
 
     use indices
-    use mesh_utilities,only: angle_btwn_vectors,cross_product,distance_between_points, &
-         mesh_a_x_eq_b,unit_vector
+    use math_utilities,only: angle_btwn_vectors,cross_product,mesh_a_x_eq_b,unit_vector
+    use mesh_utilities,only: distance_between_points
 
     integer,intent(in) :: ne,ne_parent,np,np_prnt_start,np_start
     real(dp) :: angle_max,angle_min
@@ -1248,7 +1249,7 @@ contains
 
   subroutine reduce_branch_angle(np1,np2,np,candidate_xyz,factor)
 
-    use mesh_utilities,only: angle_btwn_vectors,unit_vector,vector_length
+    use math_utilities,only: angle_btwn_vectors,unit_vector,vector_length
 
     integer,intent(in) :: np1,np2,np
     real(dp),intent(in) :: factor
@@ -1330,7 +1331,8 @@ contains
   subroutine align_terminals_with_seeds(seed_dist)
 
     use indices
-    use mesh_utilities,only: distance_between_points, unit_vector, vector_length
+    use math_utilities,only: unit_vector,vector_length
+    use mesh_utilities,only: distance_between_points
     
 !!! Inputs
     real(dp),intent(in) :: seed_dist
@@ -1458,7 +1460,8 @@ contains
   !
   subroutine split_seed_points(map_seed_to_elem,ne1,ne,np1,np2,np3,COFM,enough_points)
 
-    use mesh_utilities,only: check_colinear_points,make_plane_from_3points,scalar_product_3
+    use math_utilities,only: scalar_product_3
+    use mesh_utilities,only: check_colinear_points,make_plane_from_3points
 
     integer :: map_seed_to_elem(*),ne,ne1,np1,np2,np3
     real(dp) :: COFM(3)
@@ -1544,7 +1547,8 @@ contains
   !
   subroutine split_seed_points_initial(map_array,ne_stem)
 
-    use mesh_utilities,only: make_plane_from_3points,scalar_product_3
+    use math_utilities,only: scalar_product_3
+    use mesh_utilities,only: make_plane_from_3points
 
     integer :: map_array(:),ne_stem
 
@@ -1715,7 +1719,8 @@ contains
   !
   function rotation_angle(np1,np2,np3,np4,np5)
 
-    use mesh_utilities,only: angle_btwn_vectors,make_plane_from_3points
+    use math_utilities,only: angle_btwn_vectors
+    use mesh_utilities,only: make_plane_from_3points
 
     integer,intent(in) :: np1,np2,np3,np4,np5
 
@@ -1741,7 +1746,7 @@ contains
   !
   function vector_for_angle_limit(U,V,angle_with_u,angle_with_v)
 
-    use mesh_utilities,only: cross_product,mesh_a_x_eq_b,unit_vector
+    use math_utilities,only: cross_product,mesh_a_x_eq_b,unit_vector
 
     real(dp),intent(in) :: U(*),V(*),angle_with_u,angle_with_v
 

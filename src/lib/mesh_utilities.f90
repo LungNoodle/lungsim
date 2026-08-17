@@ -9,6 +9,8 @@ module mesh_utilities
 
   use arrays
   use diagnostics
+  use math_utilities, only: angle_btwn_vectors, cross_product, scalar_product_3, &
+       scalar_triple_product, unit_vector, vector_length
   use other_consts
   use precision ! sets dp for precision
 
@@ -20,34 +22,25 @@ module mesh_utilities
        area_between_three_points, &
        area_between_two_vectors, &
        angle_btwn_points, &
-       angle_btwn_vectors, &
        bifurcation_element, &
        calc_arclengths, &
        calc_branch_direction, &
        calc_scale_factors_2d, &
        check_colinear_points, &
-       check_vectors_same, &
-       cross_product,&
        direction_point_to_point, &
        distance_between_points, &
        distance_from_plane_to_point, &
        get_local_elem_2d, &
        group_elem_by_parent, &
        hermite, &
-       inlist, &
        linear, &
        make_plane_from_3points, &
-       mesh_a_x_eq_b, &
        point_internal_to_surface, &
-       scalar_product_3, &
-       scalar_triple_product, &
        scale_mesh, &
        stem_element, &
        terminal_element, &
        unit_norm_to_plane_two_vectors, &
        unit_norm_to_three_points, &
-       unit_vector, &
-       vector_length, &
        volume_internal_to_surface, &
        which_child
 
@@ -425,24 +418,6 @@ contains
 
 !!!#############################################################################
   
-  function inlist(item,ilist)
-    
-    integer :: item,ilist(:)
-    ! Local variables
-    integer :: n
-    logical :: inlist
-
-    ! --------------------------------------------------------------------------
-
-    inlist = .false.
-    do n=1,size(ilist)
-       if(item == ilist(n)) inlist = .true.
-    enddo
-    
-  end function inlist
-  
-!!! ##########################################################################      
-
   function hermite(i,j,k,xi)
     !*hermite*: evaluates the cubic Hermite basis function at xi. the function
     ! is returned for values(k=1) or first(k=2) or second(k=3) derivatives, at
@@ -566,28 +541,6 @@ contains
   
 !!!##################################################
 
-  function angle_btwn_vectors(U,V)
-    
-    !###    ANGLE calculates the angle between two vectors
-    
-    real(dp),intent(in) :: U(3),V(3)
-
-    real(dp) :: ANGLE,angle_btwn_vectors,N_U(3),N_V(3)
-    
-    N_U = unit_vector(U)
-    N_V = unit_vector(V)
-
-    ANGLE = scalar_product_3(N_U,N_V)
-    ANGLE = max(-1.0_dp,ANGLE)
-    ANGLE = min(1.0_dp,ANGLE)
-    ANGLE = acos(ANGLE)
-
-    angle_btwn_vectors=ANGLE
-    
-  end function angle_btwn_vectors
-  
-!!!###############################################################
-  
   function check_colinear_points(POINT1,POINT2,POINT3)
     
     !###    check_colinear_points checks whether two vectors are colinear.
@@ -620,46 +573,6 @@ contains
   
 
 !!!###############################################################
-
-  function check_vectors_same(vector1, vector2)
-
-    ! check whether two vectors have the same direction
-
-    real(dp) :: vector1(3),vector2(3)
-
-    real(dp) :: norm_v1(3),norm_v2(3),u(3),v(3)
-    logical :: check_vectors_same
-
-    check_vectors_same = .false.
-    norm_v1 = unit_vector(vector1)
-    norm_v2 = unit_vector(vector2)
-    u(1:3) = norm_v1(1:3) - norm_v2(1:3)
-    v(1:3) = norm_v1(1:3) + norm_v2(1:3)
-
-    if((abs(u(1))+abs(u(2))+abs(u(3)).lt.zero_tol).or. &
-         (abs(v(1))+abs(v(2))+abs(v(3)).lt.zero_tol)) &
-         check_vectors_same = .true.
-
-  end function check_vectors_same
-  
-!!!###############################################################
-  
-  function cross_product(A,B)
-    
-    !###  cross_product returns the vector cross product of A*B in C.
-    
-    !     Parameter List
-    real(dp),intent(in) :: A(3),B(3)
-
-    real(dp) :: cross_product(3)
-    
-    cross_product(1) = A(2)*B(3)-A(3)*B(2)
-    cross_product(2) = A(3)*B(1)-A(1)*B(3)
-    cross_product(3) = A(1)*B(2)-A(2)*B(1)
-    
-  end function cross_product
-  
-!!! ##########################################################################   
 
   function direction_point_to_point(point_start,point_end)
 
@@ -694,22 +607,6 @@ contains
 
 !!!###############################################################
   
-  function scalar_triple_product(A,B,C)
-    
-    !###  scalar_triple_product returns A.(BxC)
-    
-    !     Parameter List
-    real(dp),intent(in) :: A(3),B(3),C(3)
-
-    real(dp) :: scalar_triple_product
-    
-    scalar_triple_product = A(1)*(B(2)*C(3)-B(3)*C(2)) + &
-         A(2)*(B(3)*C(1)-B(1)*C(3)) + A(3)*(B(1)*C(2)-B(2)*C(1))
-    
-  end function scalar_triple_product
-  
-!!!###############################################################
-  
   function distance_between_points(point1, point2)
     
     !###    calculates the distance between two arbitrary points
@@ -728,109 +625,6 @@ contains
   
 !!!###############################################################
   
-  function mesh_a_x_eq_b(MATRIX,VECTOR)
-    
-    real(dp) :: MATRIX(3,3),VECTOR(3)
-    !Local variables
-    integer :: i,j,k,pivot_row
-    real(dp) :: A(3,4),max,pivot_value,SOLUTION(3),TEMP(4)
-    real(dp) :: mesh_a_x_eq_b(3)
-    
-    
-    A(1:3,1:3) = MATRIX(1:3,1:3)
-    A(1:3,4) = VECTOR(1:3)
-    do k=1,2
-       max=0.0_dp
-       do i=k,3
-          if(DABS(A(i,k)).GT.max)then
-             max=DABS(A(i,k))
-             pivot_row=i
-          endif
-       enddo !i
-       if(pivot_row.ne.k)then
-          do j=1,4
-             TEMP(j)=A(k,j)
-             A(k,j)=A(pivot_row,j)
-             A(pivot_row,j)=TEMP(j)
-          enddo !j
-       endif
-       pivot_value = A(k,k)
-       A(k,1:4) = A(k,1:4)/pivot_value
-       do i=k+1,3
-          do j=k+1,4
-             A(i,j) = A(i,j)-A(i,k)*A(k,j)
-          enddo
-          A(i,k) = 0.0_dp
-       enddo
-    enddo !N
-    A(3,4) = A(3,4)/A(3,3)
-    A(2,4) = A(2,4)-A(3,4)*A(2,3)
-    A(1,4) = A(1,4)-A(3,4)*A(1,3)-A(2,4)*A(1,2)
-
-    SOLUTION(1:3) = A(1:3,4)
-    
-    mesh_a_x_eq_b = solution
-
-  end function mesh_a_x_eq_b
-  
-!!!##################################################
-  
-  function scalar_product_3(A,B)
-    
-    !### calculates scalar product of two vectors A,B of length 3.
-    
-    real(dp),intent(in) :: A(*),B(*)
-
-    integer :: i
-    real(dp) :: scalar_product_3
-    
-    scalar_product_3 = 0.0_dp
-    do i=1,3
-       scalar_product_3 = scalar_product_3 + A(i)*B(i)
-    enddo
-    
-  end function scalar_product_3
-  
-!!!###############################################################
-  
-  function unit_vector(A)
-    
-    !###  Calculates the unit vector for an arbitrary 3x1 vector 
-    
-    real(dp),intent(in) :: A(*)
-    real(dp) :: length_a,unit_vector(3)
-
-    length_a = vector_length(A)
-    if(length_a.gt.1.0e-6_dp)then
-       unit_vector(1:3) = A(1:3)/length_a
-    else
-       WRITE(*,*) ' >>WARNING: Cannot normalise a zero length vector'
-       WRITE(*,*) ' We recommend debugging, but hit enter to continue'
-       read(*,*)
-    endif
-
-  end function unit_vector
-
-!!!##################################################
-  
-  function vector_length(A)
-    
-    !###  Calculates the length of a 3x1 vector 
-    
-    real(dp),intent(in) :: A(*)
-    real(dp) :: vector_length
-    integer :: i
-    
-    vector_length = 0.0_dp
-    do i=1,3
-       vector_length = vector_length + A(i)*A(i)
-    enddo
-    vector_length = dsqrt(vector_length)
-    
-  end function vector_length
-  
-!!!###############################################################
-
   function volume_internal_to_surface(triangles,vertex_xyz)
 
     ! calculates the volume enclosed by a list of surface elements

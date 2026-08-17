@@ -1,5 +1,5 @@
 module math_utilities
-!*Brief Description:* This module contains solvers required for lung problems
+!*Brief Description:* This module contains mathematical and numerical utilities
 !
 !*LICENSE:*
 !
@@ -19,9 +19,176 @@ module math_utilities
   public ax_cr,diagonal_pointer_cr,ilu_cr,lus_cr,mult_givens,rearrange_cr,bessel_complex
   public sort_integer_list
   public sort_real_list
+  public angle_btwn_vectors,check_vectors_same,cross_product,inlist
+  public mesh_a_x_eq_b,scalar_product_3,scalar_triple_product
+  public unit_vector,vector_length
 
 
 contains
+
+  function angle_btwn_vectors(U,V)
+    real(dp),intent(in) :: U(3),V(3)
+
+    real(dp) :: ANGLE,angle_btwn_vectors,N_U(3),N_V(3)
+
+    N_U = unit_vector(U)
+    N_V = unit_vector(V)
+
+    ANGLE = scalar_product_3(N_U,N_V)
+    ANGLE = max(-1.0_dp,ANGLE)
+    ANGLE = min(1.0_dp,ANGLE)
+    ANGLE = acos(ANGLE)
+
+    angle_btwn_vectors=ANGLE
+  end function angle_btwn_vectors
+
+!
+!###########################################################################
+!
+  function check_vectors_same(vector1, vector2)
+    real(dp) :: vector1(3),vector2(3)
+
+    real(dp) :: norm_v1(3),norm_v2(3),u(3),v(3)
+    logical :: check_vectors_same
+
+    check_vectors_same = .false.
+    norm_v1 = unit_vector(vector1)
+    norm_v2 = unit_vector(vector2)
+    u(1:3) = norm_v1(1:3) - norm_v2(1:3)
+    v(1:3) = norm_v1(1:3) + norm_v2(1:3)
+
+    if((abs(u(1))+abs(u(2))+abs(u(3)).lt.zero_tol).or. &
+         (abs(v(1))+abs(v(2))+abs(v(3)).lt.zero_tol)) &
+         check_vectors_same = .true.
+  end function check_vectors_same
+
+!
+!###########################################################################
+!
+  function cross_product(A,B)
+    real(dp),intent(in) :: A(3),B(3)
+    real(dp) :: cross_product(3)
+
+    cross_product(1) = A(2)*B(3)-A(3)*B(2)
+    cross_product(2) = A(3)*B(1)-A(1)*B(3)
+    cross_product(3) = A(1)*B(2)-A(2)*B(1)
+  end function cross_product
+
+!
+!###########################################################################
+!
+  function inlist(item,ilist)
+    integer :: item,ilist(:)
+    integer :: n
+    logical :: inlist
+
+    inlist = .false.
+    do n=1,size(ilist)
+       if(item == ilist(n)) inlist = .true.
+    enddo
+  end function inlist
+
+!
+!###########################################################################
+!
+  function mesh_a_x_eq_b(MATRIX,VECTOR)
+    real(dp) :: MATRIX(3,3),VECTOR(3)
+
+    integer :: i,j,k,pivot_row
+    real(dp) :: A(3,4),max,pivot_value,SOLUTION(3),TEMP(4)
+    real(dp) :: mesh_a_x_eq_b(3)
+
+    A(1:3,1:3) = MATRIX(1:3,1:3)
+    A(1:3,4) = VECTOR(1:3)
+    do k=1,2
+       max=0.0_dp
+       do i=k,3
+          if(DABS(A(i,k)).GT.max)then
+             max=DABS(A(i,k))
+             pivot_row=i
+          endif
+       enddo !i
+       if(pivot_row.ne.k)then
+          do j=1,4
+             TEMP(j)=A(k,j)
+             A(k,j)=A(pivot_row,j)
+             A(pivot_row,j)=TEMP(j)
+          enddo !j
+       endif
+       pivot_value = A(k,k)
+       A(k,1:4) = A(k,1:4)/pivot_value
+       do i=k+1,3
+          do j=k+1,4
+             A(i,j) = A(i,j)-A(i,k)*A(k,j)
+          enddo
+          A(i,k) = 0.0_dp
+       enddo
+    enddo !N
+    A(3,4) = A(3,4)/A(3,3)
+    A(2,4) = A(2,4)-A(3,4)*A(2,3)
+    A(1,4) = A(1,4)-A(3,4)*A(1,3)-A(2,4)*A(1,2)
+
+    SOLUTION(1:3) = A(1:3,4)
+    mesh_a_x_eq_b = solution
+  end function mesh_a_x_eq_b
+
+!
+!###########################################################################
+!
+  function scalar_product_3(A,B)
+    real(dp),intent(in) :: A(*),B(*)
+
+    integer :: i
+    real(dp) :: scalar_product_3
+
+    scalar_product_3 = 0.0_dp
+    do i=1,3
+       scalar_product_3 = scalar_product_3 + A(i)*B(i)
+    enddo
+  end function scalar_product_3
+
+!
+!###########################################################################
+!
+  function scalar_triple_product(A,B,C)
+    real(dp),intent(in) :: A(3),B(3),C(3)
+    real(dp) :: scalar_triple_product
+
+    scalar_triple_product = A(1)*(B(2)*C(3)-B(3)*C(2)) + &
+         A(2)*(B(3)*C(1)-B(1)*C(3)) + A(3)*(B(1)*C(2)-B(2)*C(1))
+  end function scalar_triple_product
+
+!
+!###########################################################################
+!
+  function unit_vector(A)
+    real(dp),intent(in) :: A(*)
+    real(dp) :: length_a,unit_vector(3)
+
+    length_a = vector_length(A)
+    if(length_a.gt.1.0e-6_dp)then
+       unit_vector(1:3) = A(1:3)/length_a
+    else
+       WRITE(*,*) ' >>WARNING: Cannot normalise a zero length vector'
+       WRITE(*,*) ' We recommend debugging, but hit enter to continue'
+       read(*,*)
+    endif
+  end function unit_vector
+
+!
+!###########################################################################
+!
+  function vector_length(A)
+    real(dp),intent(in) :: A(*)
+    real(dp) :: vector_length
+    integer :: i
+
+    vector_length = 0.0_dp
+    do i=1,3
+       vector_length = vector_length + A(i)*A(i)
+    enddo
+    vector_length = dsqrt(vector_length)
+  end function vector_length
 
   subroutine bessel_complex(z, bessel0, bessel1)
     use, intrinsic :: ieee_arithmetic
