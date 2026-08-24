@@ -12,6 +12,7 @@
 
 module indices
 
+  use arrays, only: dp, num_units, unit_field
   use diagnostics
   use other_consts
   
@@ -28,11 +29,12 @@ module indices
        ne_resist=0,ne_t_resist=0,ne_Vdot=0,ne_Vdot0=0,ne_a_A=0,&
        ne_dvdt=0,ne_radius_in=0,ne_radius_in0=0,&
        ne_radius_out=0,ne_radius_out0=0,ne_group=0,ne_Qdot=0, &
-       ne_vd_bel=0, ne_vol_bel=0
+       ne_vd_bel=0, ne_vol_bel=0, ne_unit=0, ne_lymph_flux=0, ne_lymph_intsat=0
   ! indices for unit_field
   integer :: num_nu,nu_vol=0,nu_comp=0,nu_conc2=0,nu_Vdot0=0,nu_Vdot1=0, &
        nu_Vdot2=0,nu_dpdt=0,nu_pe=0,nu_vt=0,nu_air_press=0,nu_conc1=0,nu_vent=0,&
-       nu_vd=0,nu_perf=0,nu_blood_press=0
+       nu_vd=0,nu_perf=0,nu_blood_press=0,nu_capillary_press=0,nu_sa=0,nu_tt=0,nu_Pe_max=0, &
+       nu_Pe_min=0,nu_flux=0,nu_intsat=0,nu_av_flux=0,nu_lymphflow=0,nu_time=0
   !indices for gas exchange field
   ! indices for gasex_field
   integer,parameter :: num_gx = 12
@@ -60,12 +62,13 @@ module indices
        ne_resist,ne_t_resist,ne_Vdot,ne_Vdot0,ne_a_A,&
        ne_dvdt,ne_radius_in,ne_radius_in0,ne_radius_out,&
        ne_radius_out0,ne_group,ne_Qdot, &
-       ne_vd_bel, ne_vol_bel
+       ne_vd_bel, ne_vol_bel, ne_unit, ne_lymph_flux, ne_lymph_intsat
   
   public num_nu,nu_vol,nu_comp, nu_conc2,nu_Vdot0,nu_Vdot1, &
        nu_Vdot2,nu_dpdt,nu_pe,nu_vt,nu_air_press,&
        nu_conc1,nu_vent,nu_vd,&
-       nu_perf,nu_blood_press
+       nu_perf,nu_blood_press,nu_capillary_press,nu_sa,nu_tt,nu_Pe_max,nu_Pe_min,nu_flux,nu_intsat, &
+       nu_av_flux,nu_lymphflow,nu_time
   
   public num_gx, ng_p_alv_o2,ng_p_alv_co2,ng_p_ven_o2,ng_p_ven_co2, &
        ng_p_cap_o2, ng_p_cap_co2,ng_source_o2,ng_source_co2, &
@@ -76,8 +79,8 @@ module indices
   
   !Interfaces
   private
-  public define_problem_type,ventilation_indices, perfusion_indices, get_ne_radius, get_nj_conc1, &
-       growing_indices
+  public define_problem_type, lymphatic_indices, ventilation_indices, perfusion_indices, &
+       get_ne_radius, get_ne_lymph_flux, get_ne_lymph_intsat, get_nj_conc1, growing_indices
   
 contains
   
@@ -100,6 +103,10 @@ contains
     case ('gas_transfer')
        print *, 'You are solving a gas transfer model, setting up indices'
        call exchange_indices
+    case ('lymphatic_transport')
+       print *, 'You are solving a lymphatic transport model, setting up indices'
+       call lymphatic_indices
+       call update_units
     case ('perfusion')
        print *, 'You are solving a static perfusion model, setting up indices'
        call perfusion_indices
@@ -121,6 +128,9 @@ contains
     
     sub_name = 'exchange_indices'
     call enter_exit(sub_name,1)
+    ne_unit = 0
+    ne_lymph_flux = 0
+    ne_lymph_intsat = 0
     ! indices for elem_ordrs. These dont usually change.
     ! indices for node_field
     num_nj=5
@@ -174,6 +184,9 @@ contains
     
     sub_name = 'gasmix_indices'
     call enter_exit(sub_name,1)
+    ne_unit = 0
+    ne_lymph_flux = 0
+    ne_lymph_intsat = 0
     ! indices for elem_ordrs. These dont usually change.
     ! indices for node_field
     num_nj=3
@@ -215,6 +228,9 @@ contains
     
     sub_name = 'ventilation_indices'
     call enter_exit(sub_name,1)
+    ne_unit = 0
+    ne_lymph_flux = 0
+    ne_lymph_intsat = 0
     ! indices for elem_ordrs. These dont usually change.
     ! indices for node_field
     num_nj=2 !number of nodal fields
@@ -232,7 +248,7 @@ contains
     ne_vd_bel = 9
     ne_vol_bel = 10
     ! indices for unit_field
-    num_nu=10
+    num_nu=12
     nu_vol=1
     nu_comp=2
     nu_Vdot0=3
@@ -243,8 +259,38 @@ contains
     nu_vt=8
     nu_air_press=9
     nu_vent=10
+    nu_Pe_max=11
+    nu_Pe_min=12
     call enter_exit(sub_name,2)
   end subroutine ventilation_indices
+
+!!!#############################################################################
+
+  !> Indices used by the published pulmonary lymphatic transport model.
+  subroutine lymphatic_indices
+
+    character(len=60) :: sub_name
+
+    sub_name = 'lymphatic_indices'
+    call enter_exit(sub_name,1)
+
+    num_nu = 12
+    nu_perf = 1
+    nu_blood_press = 2
+    nu_sa = 3
+    nu_tt = 4
+    nu_capillary_press = 5
+    nu_Pe_max = 6
+    nu_Pe_min = 7
+    nu_flux = 8
+    nu_intsat = 9
+    nu_av_flux = 10
+    nu_lymphflow = 11
+    nu_time = 12
+
+    call enter_exit(sub_name,2)
+
+  end subroutine lymphatic_indices
 
 !!!#############################################################################
 
@@ -257,6 +303,9 @@ contains
 
     sub_name = 'growing_indices'
     call enter_exit(sub_name,1)
+    ne_unit = 0
+    ne_lymph_flux = 0
+    ne_lymph_intsat = 0
     
     ! indices for elem_ordrs. These dont usually change.
     ! indices for node_field
@@ -292,7 +341,7 @@ contains
     num_nj=1
     nj_bv_press=1 !pressure in blood vessel
     ! indices for elem_field
-    num_ne=9
+    num_ne=12
     ne_radius=1 !strained average radius over whole element
     ne_radius_in=2 !strained radius into an element
     ne_radius_out=3 !strained radius out of an element
@@ -302,13 +351,39 @@ contains
     ne_Qdot=7 !flow in an element
     ne_resist=8 !resistance of a blood vessel
     ne_group=9!Groups vessels into arteries (field=0), capillaries (field=1) and veins(field=2)
+    ne_unit=10 !maps terminal arterial elements to unit_field columns
+    ne_lymph_flux=11 !averaged lymphatic flux mapped onto the arterial tree
+    ne_lymph_intsat=12 !interstitial saturation mapped onto the arterial tree
     !indices for units
-    num_nu=2
+    num_nu=5
     nu_perf=1
     nu_blood_press=2
+    nu_sa=3
+    nu_tt=4
+    nu_capillary_press=5
     
     call enter_exit(sub_name,2)
   end subroutine perfusion_indices
+
+  subroutine update_units
+    ! Reallocate unit_field when switching from perfusion to lymphatics while
+    ! preserving the fields already calculated or imported.
+    integer :: fields_to_copy, num_nu_old
+    real(dp), allocatable :: unit_temp(:,:)
+
+    if (allocated(unit_field)) then
+       num_nu_old = size(unit_field,1)
+       allocate(unit_temp(num_nu_old,num_units))
+       unit_temp = unit_field
+       deallocate(unit_field)
+       allocate(unit_field(num_nu,num_units))
+       unit_field = 0.0_dp
+       fields_to_copy = min(num_nu_old,num_nu)
+       unit_field(1:fields_to_copy,:) = unit_temp(1:fields_to_copy,:)
+       deallocate(unit_temp)
+    endif
+
+  end subroutine update_units
   
   function get_ne_radius() result(res)
     
@@ -323,6 +398,22 @@ contains
     
     call enter_exit(sub_name,2)
   end function get_ne_radius
+
+  function get_ne_lymph_flux() result(res)
+
+    integer :: res
+
+    res = ne_lymph_flux
+
+  end function get_ne_lymph_flux
+
+  function get_ne_lymph_intsat() result(res)
+
+    integer :: res
+
+    res = ne_lymph_intsat
+
+  end function get_ne_lymph_intsat
   
   function get_nj_conc1() result(res)
     

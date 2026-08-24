@@ -4,9 +4,12 @@
 #include <string.h>
 
 void define_problem_type_c(const char *PROBLEMTYPE,int *PROBLEMTYPE_LEN);
+void lymphatic_indices_c();
 void ventilation_indices_c();
 void perfusion_indices_c();
 int get_ne_radius_c();
+int get_ne_lymph_flux_c();
+int get_ne_lymph_intsat_c();
 int get_nj_conc1_c();
 
 
@@ -23,6 +26,11 @@ void ventilation_indices()
   ventilation_indices_c();
 }
 
+void lymphatic_indices()
+{
+  lymphatic_indices_c();
+}
+
 void perfusion_indices()
 {
   perfusion_indices_c();
@@ -31,6 +39,16 @@ void perfusion_indices()
 int get_ne_radius()
 {
   return get_ne_radius_c();
+}
+
+int get_ne_lymph_flux()
+{
+  return get_ne_lymph_flux_c();
+}
+
+int get_ne_lymph_intsat()
+{
+  return get_ne_lymph_intsat_c();
 }
 
 int get_nj_conc1()

@@ -3,6 +3,7 @@
 set(
   TESTS
   "diagnostics"
+  "lymphatic_parameters"
 )
 set(
   TEST_SRCS

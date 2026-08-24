@@ -11,6 +11,7 @@ module parameter_types
   public :: Q_params
   public :: solve_gx_params
   public :: species_params
+  public :: lymphatic_params
 
   ! make the 'update' subroutines accessible via python bindings
   public :: update_lung
@@ -21,6 +22,7 @@ module parameter_types
   public :: update_solve_gx
   public :: update_solve_V
   public :: update_species
+  public :: update_lymphatics
 
   type :: fundamental_constants
      ! fixed constants; no update option
@@ -95,6 +97,38 @@ module parameter_types
      real(dp) :: shunt_fraction = 0.02_dp    !proportion of cardiac output that is shunt
   end type cardiac_parameters
 
+  type :: lymphatic_parameters
+     ! Published human defaults for the pulmonary lymphatic transport model.
+     real(dp) :: lung_mass_g = 639.0_dp
+     real(dp) :: breathing_rate_bpm = 15.0_dp
+     real(dp) :: capillary_hydraulic_conductivity = 4.41335e-8_dp
+     real(dp) :: interstitial_capacity_ml_per_100g = 30.0_dp
+     real(dp) :: initial_interstitial_saturation = 0.48_dp
+     real(dp) :: interstitial_compartment_a_fraction = 0.005_dp
+     real(dp) :: interstitial_pressure_min_mmhg = -8.0_dp
+     real(dp) :: interstitial_pressure_max_mmhg = -1.0_dp
+     real(dp) :: lymphatic_pressure_min_mmhg = -8.0_dp
+     real(dp) :: lymphatic_pressure_max_mmhg = 1.0_dp
+     real(dp) :: lymphatic_density = 1.0_dp
+     real(dp) :: lymphatic_saturation_threshold = 0.3_dp
+     real(dp) :: lymphatic_baseline_conductivity_ratio = 1.48_dp
+     real(dp) :: lymphatic_conductivity_coefficient_1 = 845.87_dp
+     real(dp) :: lymphatic_conductivity_coefficient_2 = -2416.7_dp
+     real(dp) :: lymphatic_conductivity_coefficient_3 = 2388.5_dp
+     real(dp) :: lymphatic_conductivity_coefficient_4 = -922.24_dp
+     real(dp) :: lymphatic_conductivity_coefficient_5 = 125.85_dp
+     real(dp) :: lymphatic_conductivity_coefficient_6 = -0.0067_dp
+     real(dp) :: pressure_phase_offset_radians = 1.570796326794895_dp
+     integer :: integration_steps_per_transit = 96
+     real(dp) :: convergence_tolerance = 0.000005_dp
+     ! Retained legacy fields. Integrity and test_time are not used by the
+     ! published equations; reflection_coefficient only affects the inactive
+     ! osmotic pathway.
+     real(dp) :: lymphatic_integrity = 1.0_dp
+     real(dp) :: reflection_coefficient = 0.0_dp
+     real(dp) :: test_time = 86400.0_dp
+  end type lymphatic_parameters
+
   type :: solve_gx_parameters
      ! parameters to control gas exchange and gas mixing solutions and solver
      integer  :: num_breaths = 20                       ! max # breaths to solve for
@@ -132,12 +166,125 @@ module parameter_types
   type(gasexchange_parameters) :: gx_params
   type(ventilation_parameters) :: V_params
   type(cardiac_parameters)     :: Q_params
+  type(lymphatic_parameters)   :: lymphatic_params
   type(solve_gx_parameters)    :: solve_gx_params
   type(solve_vent_parameters)  :: solve_V_params
   type(species_parameters)     :: species_params
 
   
   contains
+
+    subroutine update_lymphatics(param_name, param_value)
+      character(len=*), intent(in) :: param_name
+      real(dp), intent(in) :: param_value
+
+      select case (trim(param_name))
+      case ('lung_mass_g')
+         lymphatic_params%lung_mass_g = param_value
+      case ('breathing_rate_bpm')
+         lymphatic_params%breathing_rate_bpm = param_value
+      case ('capillary_hydraulic_conductivity')
+         lymphatic_params%capillary_hydraulic_conductivity = param_value
+      case ('interstitial_capacity_ml_per_100g')
+         lymphatic_params%interstitial_capacity_ml_per_100g = param_value
+      case ('initial_interstitial_saturation')
+         lymphatic_params%initial_interstitial_saturation = param_value
+      case ('interstitial_compartment_a_fraction')
+         lymphatic_params%interstitial_compartment_a_fraction = param_value
+      case ('interstitial_pressure_min_mmhg')
+         lymphatic_params%interstitial_pressure_min_mmhg = param_value
+      case ('interstitial_pressure_max_mmhg')
+         lymphatic_params%interstitial_pressure_max_mmhg = param_value
+      case ('lymphatic_pressure_min_mmhg')
+         lymphatic_params%lymphatic_pressure_min_mmhg = param_value
+      case ('lymphatic_pressure_max_mmhg')
+         lymphatic_params%lymphatic_pressure_max_mmhg = param_value
+      case ('lymphatic_surface_area_ratio')
+         ! Descriptive alias for the historical lymphatic_density name.
+         lymphatic_params%lymphatic_density = param_value
+      case ('lymphatic_density')
+         lymphatic_params%lymphatic_density = param_value
+      case ('lymphatic_saturation_threshold')
+         lymphatic_params%lymphatic_saturation_threshold = param_value
+      case ('lymphatic_baseline_conductivity_ratio')
+         lymphatic_params%lymphatic_baseline_conductivity_ratio = param_value
+      case ('lymphatic_conductivity_coefficient_1')
+         lymphatic_params%lymphatic_conductivity_coefficient_1 = param_value
+      case ('lymphatic_conductivity_coefficient_2')
+         lymphatic_params%lymphatic_conductivity_coefficient_2 = param_value
+      case ('lymphatic_conductivity_coefficient_3')
+         lymphatic_params%lymphatic_conductivity_coefficient_3 = param_value
+      case ('lymphatic_conductivity_coefficient_4')
+         lymphatic_params%lymphatic_conductivity_coefficient_4 = param_value
+      case ('lymphatic_conductivity_coefficient_5')
+         lymphatic_params%lymphatic_conductivity_coefficient_5 = param_value
+      case ('lymphatic_conductivity_coefficient_6')
+         lymphatic_params%lymphatic_conductivity_coefficient_6 = param_value
+      case ('pressure_phase_offset_radians')
+         lymphatic_params%pressure_phase_offset_radians = param_value
+      case ('integration_steps_per_transit')
+         lymphatic_params%integration_steps_per_transit = nint(param_value)
+      case ('convergence_tolerance')
+         lymphatic_params%convergence_tolerance = param_value
+      case ('lymphatic_integrity')
+         lymphatic_params%lymphatic_integrity = param_value
+      case ('reflection_coefficient')
+         lymphatic_params%reflection_coefficient = param_value
+      case ('test_time')
+         lymphatic_params%test_time = param_value
+      case ('help')
+         call print_lymphatic_parameters()
+      case default
+         write(*,*) 'WARNING: unknown lymphatic parameter name: ', trim(param_name)
+         write(*,*) '         parameters are case sensitive: use all lowercase'
+      end select
+
+    end subroutine update_lymphatics
+
+    subroutine print_lymphatic_parameters()
+      write(*,'('' Current values for update_lymphatics:'')')
+      write(*,'(''    - lung_mass_g = '',es12.5)') lymphatic_params%lung_mass_g
+      write(*,'(''    - breathing_rate_bpm = '',es12.5)') lymphatic_params%breathing_rate_bpm
+      write(*,'(''    - capillary_hydraulic_conductivity = '',es12.5)') &
+           lymphatic_params%capillary_hydraulic_conductivity
+      write(*,'(''    - interstitial_capacity_ml_per_100g = '',es12.5)') &
+           lymphatic_params%interstitial_capacity_ml_per_100g
+      write(*,'(''    - initial_interstitial_saturation = '',es12.5)') &
+           lymphatic_params%initial_interstitial_saturation
+      write(*,'(''    - interstitial_compartment_a_fraction = '',es12.5)') &
+           lymphatic_params%interstitial_compartment_a_fraction
+      write(*,'(''    - interstitial_pressure_min_mmhg = '',es12.5)') &
+           lymphatic_params%interstitial_pressure_min_mmhg
+      write(*,'(''    - interstitial_pressure_max_mmhg = '',es12.5)') &
+           lymphatic_params%interstitial_pressure_max_mmhg
+      write(*,'(''    - lymphatic_pressure_min_mmhg = '',es12.5)') &
+           lymphatic_params%lymphatic_pressure_min_mmhg
+      write(*,'(''    - lymphatic_pressure_max_mmhg = '',es12.5)') &
+           lymphatic_params%lymphatic_pressure_max_mmhg
+      write(*,'(''    - lymphatic_density = '',es12.5)') lymphatic_params%lymphatic_density
+      write(*,'(''    - lymphatic_saturation_threshold = '',es12.5)') &
+           lymphatic_params%lymphatic_saturation_threshold
+      write(*,'(''    - lymphatic_baseline_conductivity_ratio = '',es12.5)') &
+           lymphatic_params%lymphatic_baseline_conductivity_ratio
+      write(*,'(''    - lymphatic_conductivity_coefficient_1 = '',es12.5)') &
+           lymphatic_params%lymphatic_conductivity_coefficient_1
+      write(*,'(''    - lymphatic_conductivity_coefficient_2 = '',es12.5)') &
+           lymphatic_params%lymphatic_conductivity_coefficient_2
+      write(*,'(''    - lymphatic_conductivity_coefficient_3 = '',es12.5)') &
+           lymphatic_params%lymphatic_conductivity_coefficient_3
+      write(*,'(''    - lymphatic_conductivity_coefficient_4 = '',es12.5)') &
+           lymphatic_params%lymphatic_conductivity_coefficient_4
+      write(*,'(''    - lymphatic_conductivity_coefficient_5 = '',es12.5)') &
+           lymphatic_params%lymphatic_conductivity_coefficient_5
+      write(*,'(''    - lymphatic_conductivity_coefficient_6 = '',es12.5)') &
+           lymphatic_params%lymphatic_conductivity_coefficient_6
+      write(*,'(''    - pressure_phase_offset_radians = '',es12.5)') &
+           lymphatic_params%pressure_phase_offset_radians
+      write(*,'(''    - integration_steps_per_transit = '',i0)') &
+           lymphatic_params%integration_steps_per_transit
+      write(*,'(''    - convergence_tolerance = '',es12.5)') &
+           lymphatic_params%convergence_tolerance
+    end subroutine print_lymphatic_parameters
 
     
     subroutine update_lung(param_name, param_value)

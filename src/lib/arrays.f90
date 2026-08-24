@@ -186,7 +186,8 @@ module arrays
        elasticity_param, two_parameter, three_parameter, four_parameter, all_admit_param, &
        mesh_from_depvar, depvar_at_node, depvar_at_elem, SparseCol, SparseRow, triangle, &
        update_resistance_entries, vertex_xyz, &
-       SparseVal, RHS, prq_solution, solver_solution, FIX, gasex, airway_elems, airway_nodes
+       SparseVal, RHS, prq_solution, solver_solution, FIX, gasex, airway_elems, airway_nodes, &
+       update_parameter
 
 contains
   subroutine set_node_field_value(row, col, value)
@@ -198,5 +199,17 @@ contains
     node_field(row, col) = value
 
   end subroutine set_node_field_value
+
+  subroutine update_parameter(parameter_name, parameter_value)
+    use parameter_types, only: update_lymphatics
+
+    ! Backward-compatible name for update_lymphatics.
+    !DEC$ ATTRIBUTES DLLEXPORT,ALIAS:"SO_UPDATE_PARAMETER" :: UPDATE_PARAMETER
+    character(len=*), intent(in) :: parameter_name
+    real(dp), intent(in) :: parameter_value
+
+    call update_lymphatics(parameter_name, parameter_value)
+
+  end subroutine update_parameter
 
 end module arrays
