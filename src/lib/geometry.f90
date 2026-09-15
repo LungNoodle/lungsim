@@ -11,6 +11,8 @@ module geometry
   use arrays
   use diagnostics
   use indices
+  use math_utilities, only: angle_btwn_vectors, cross_product, inlist, &
+       mesh_a_x_eq_b, scalar_product_3, unit_vector
   use mesh_utilities
   use other_consts ! currently has pi
   use precision ! sets dp for precision
@@ -459,16 +461,16 @@ contains
 !!!#############################################################################
 
   subroutine define_1d_elements(ELEMFILE)
-    !*define_1d_elements:* Reads in an 1D element ipelem file to define a geometry
+    !*define_1d_elements:* Reads a 1D exelem file to define a geometry.
 
     character(len=MAX_FILENAME_LEN), intent(in) :: ELEMFILE
     !     Local Variables
-    integer :: ibeg,iend,ierror,i_ss_end,j,ne,ne_global,&
-         nn,np,np1,np2,np_global
-    logical :: internal_reorder
-    character(LEN=132) :: ctemp1
+    integer :: dimension,ierror,j,max_node_number,ne,ne_global,nn,np,np1,np2,&
+         np_global(2)
+    integer,allocatable :: node_lookup(:)
+    logical :: found_1d_shape,found_nodes,higher_dimension,internal_reorder,in_1d_section
+    character(LEN=300) :: ctemp1
     character(len=300) :: readfile
-    character(LEN=40) :: sub_string
     character(len=60) :: sub_name
 
     ! --------------------------------------------------------------------------
@@ -476,21 +478,65 @@ contains
     sub_name = 'define_1d_elements'
     call enter_exit(sub_name,1)
 
-    if(index(ELEMFILE, ".ipelem")> 0) then !full filename is given
+    if(index(ELEMFILE, ".ipelem")> 0) then
+       write(*,'(a)') 'define_1d_elements no longer reads ipelem files; provide an exelem file.'
+       stop 1
+    elseif(index(ELEMFILE, ".exelem")> 0) then !full filename is given
        readfile = ELEMFILE
     else ! need to append the correct filename extension
-       readfile = trim(ELEMFILE)//'.ipelem'
+       readfile = trim(ELEMFILE)//'.exelem'
     endif
 
-    open(10, file=readfile, status='old')
+    open(10, file=readfile, status='old', action='read', iostat=ierror)
+    if(ierror.ne.0)then
+       write(*,'(a,a)') 'Unable to open exelem file: ',trim(readfile)
+       stop 1
+    endif
 
+    ! Count only elements in the one-dimensional shape section. Reject a 2D/3D
+    ! exelem explicitly so that this reader cannot silently import its line faces.
+    num_elems = 0
+    dimension = 0
+    found_1d_shape = .false.
+    higher_dimension = .false.
+    in_1d_section = .false.
     read_number_of_elements : do
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-       if(index(ctemp1, "elements")> 0) then
-          num_elems = get_final_integer(ctemp1) !return the final integer
-          exit read_number_of_elements
+       if(ierror.lt.0) exit read_number_of_elements
+       if(ierror.gt.0)then
+          write(*,'(a,a)') 'Error while reading exelem file: ',trim(readfile)
+          stop 1
+       endif
+       if(index(ctemp1, "Shape.")>0 .and. index(ctemp1, "Dimension=")>0)then
+          read(ctemp1(index(ctemp1,"Dimension=")+10:),*,iostat=ierror) dimension
+          if(ierror.ne.0)then
+             write(*,'(a)') 'Invalid Shape.Dimension declaration in exelem file.'
+             stop 1
+          endif
+          in_1d_section = dimension.eq.1
+          found_1d_shape = found_1d_shape.or.in_1d_section
+          higher_dimension = higher_dimension.or.dimension.gt.1
+       elseif(in_1d_section .and. index(adjustl(ctemp1), "Element:").eq.1)then
+          num_elems = num_elems+1
        endif
     end do read_number_of_elements
+    close(10)
+
+    if(.not.found_1d_shape)then
+       write(*,'(a)') 'No Shape. Dimension=1 section was found in the exelem file.'
+       stop 1
+    elseif(higher_dimension)then
+       write(*,'(a)') 'define_1d_elements only accepts a purely 1D exelem file.'
+       stop 1
+    elseif(num_elems.eq.0)then
+       write(*,'(a)') 'No 1D elements were found in the exelem file.'
+       stop 1
+    endif
+
+    if(num_nodes.le.0 .or. .not.allocated(nodes))then
+       write(*,'(a)') 'Define the 1D nodes from an exnode file before reading the exelem file.'
+       stop 1
+    endif
 
 !!! allocate memory for element arrays
     if(allocated(elems)) deallocate(elems)
@@ -524,40 +570,90 @@ contains
     elem_field = 0.0_dp
     if(model_type.eq.'gas_mix')expansile = .false.
 
-    ne=0
+    ! Use a dense global-to-local node lookup for normal exnode numbering. This
+    ! avoids the quadratic node search that made large trees prohibitively slow.
+    max_node_number = maxval(nodes)
+    if(minval(nodes).ge.0 .and. max_node_number.le.max(1000000,10*num_nodes))then
+       allocate(node_lookup(0:max_node_number))
+       node_lookup = 0
+       do np=1,num_nodes
+          node_lookup(nodes(np)) = np
+       enddo
+    endif
 
+    open(10, file=readfile, status='old', action='read', iostat=ierror)
+    if(ierror.ne.0)then
+       write(*,'(a,a)') 'Unable to reopen exelem file: ',trim(readfile)
+       stop 1
+    endif
+
+    ne = 0
+    in_1d_section = .false.
     read_an_element : do
-       !.......read element number
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-       if(index(ctemp1, "Element")> 0) then
-          ne_global = get_final_integer(ctemp1) !return the final integer
-          ne=ne+1
-          elems(ne)=ne_global
-
-          read_element_nodes : do
-             read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-             if(index(ctemp1, "global")> 0) then !found the correct line
-                iend=len(ctemp1)
-                ibeg=index(ctemp1,":")+1 !get location of first integer in string
-                sub_string = adjustl(ctemp1(ibeg:iend)) ! get the characters beyond : remove leading blanks
-                i_ss_end=len(sub_string) !get the end location of the sub-string
-                ibeg=1
-                do nn=1,2
-                   iend=index(sub_string," ") !get location of first blank in sub-string
-                   read (sub_string(ibeg:iend-1), '(i7)' ) np_global
-                   call get_local_node(np_global,np) ! get local node np for global node
-                   elem_nodes(nn,ne)=np ! the local node number, not global
-                   sub_string = adjustl(sub_string(iend:i_ss_end)) ! get chars beyond blank, remove leading blanks
-                end do
-                exit read_element_nodes
-             endif !index
-          end do read_element_nodes
-          if(ne.ge.num_elems) exit read_an_element
+       if(ierror.lt.0) exit read_an_element
+       if(ierror.gt.0)then
+          write(*,'(a,a)') 'Error while reading exelem file: ',trim(readfile)
+          stop 1
        endif
 
-    end do read_an_element
+       if(index(ctemp1, "Shape.")>0 .and. index(ctemp1, "Dimension=")>0)then
+          read(ctemp1(index(ctemp1,"Dimension=")+10:),*,iostat=ierror) dimension
+          in_1d_section = ierror.eq.0 .and. dimension.eq.1
+       elseif(in_1d_section .and. index(adjustl(ctemp1), "Element:").eq.1)then
+          read(ctemp1(index(ctemp1,":")+1:),*,iostat=ierror) ne_global
+          if(ierror.ne.0)then
+             write(*,'(a)') 'Invalid element identifier in exelem file.'
+             stop 1
+          endif
+
+          ne = ne+1
+          elems(ne) = ne_global
+          found_nodes = .false.
+          read_element_nodes : do
+             read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+             if(ierror.ne.0) exit read_element_nodes
+             if(index(adjustl(ctemp1), "Nodes:").eq.1)then
+                read(unit=10,fmt=*,iostat=ierror) np_global(1:2)
+                found_nodes = ierror.eq.0
+                exit read_element_nodes
+             elseif(index(adjustl(ctemp1), "Element:").eq.1)then
+                exit read_element_nodes
+             endif
+          enddo read_element_nodes
+
+          if(.not.found_nodes)then
+             write(*,'(a,i0,a)') 'No two-node geometry was found for element ',ne_global,'.'
+             stop 1
+          endif
+
+          do nn=1,2
+             np = 0
+             if(allocated(node_lookup))then
+                if(np_global(nn).ge.lbound(node_lookup,1) .and. &
+                     np_global(nn).le.ubound(node_lookup,1)) np = node_lookup(np_global(nn))
+             else
+                do j=1,num_nodes
+                   if(nodes(j).eq.np_global(nn))then
+                      np = j
+                      exit
+                   endif
+                enddo
+             endif
+             if(np.eq.0)then
+                write(*,'(a,i0,a,i0)') 'Element ',ne_global, &
+                     ' references a node absent from the exnode file: ',np_global(nn)
+                stop 1
+             endif
+             elem_nodes(nn,ne) = np
+          enddo
+
+          if(ne.ge.num_elems) exit read_an_element
+       endif
+    enddo read_an_element
 
     close(10)
+    if(allocated(node_lookup)) deallocate(node_lookup)
 
     ! calculate the element lengths and directions
     do ne=1,num_elems
@@ -847,13 +943,15 @@ contains
 !!!#############################################################################
 
   subroutine define_node_geometry(NODEFILE)
-    !*define_node_geometry:* Reads in an ipnode file to define a tree geometry
+    !*define_node_geometry:* Reads an exnode file to define a 1D tree geometry.
 
     character(len=MAX_FILENAME_LEN), intent(in) :: NODEFILE !Input nodefile
     !     Local Variables
-    integer :: i,ierror,np,np_global,num_nodes_temp,num_versions,nv,NJT=0
-    real(dp) :: point
-    logical :: overwrite = .false. ! initialised
+    integer :: component_values,coordinate_component,coordinate_value_index(3),&
+         ierror,index_location,number_of_derivatives,number_of_versions,np,np_global,&
+         num_nodes_temp,values_per_node
+    real(dp),allocatable :: node_values(:)
+    logical :: coordinate_field,overwrite
     character(len=300) :: ctemp1,readfile
     character(len=60) :: sub_name
 
@@ -862,80 +960,140 @@ contains
     sub_name = 'define_node_geometry'
     call enter_exit(sub_name,1)
 
-    if(index(NODEFILE, ".ipnode")> 0) then !full filename is given
+    if(index(NODEFILE, ".ipnode")> 0) then
+       write(*,'(a)') 'define_node_geometry no longer reads ipnode files; provide an exnode file.'
+       stop 1
+    elseif(index(NODEFILE, ".exnode")> 0) then !full filename is given
        readfile = NODEFILE
     else ! need to append the correct filename extension
-       readfile = trim(NODEFILE)//'.ipnode'
+       readfile = trim(NODEFILE)//'.exnode'
     endif
 
-    open(10, file=readfile, status='old')
+    open(10, file=readfile, status='old', action='read', iostat=ierror)
+    if(ierror.ne.0)then
+       write(*,'(a,a)') 'Unable to open exnode file: ',trim(readfile)
+       stop 1
+    endif
 
-    if(num_nodes.gt.0) overwrite = .true.
-
-    !.....read in the total number of nodes. read each line until one is found
-    !.....that has the correct keyword (nodes). then return the integer that is
-    !.....at the end of the line
-    read_number_of_nodes : do !define a do loop name
-       read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !read a line into ctemp1
-       if(index(ctemp1, "number of nodes")> 0) then !keyword "nodes" is found in ctemp1
-          num_nodes_temp = get_final_integer(ctemp1) !return the final integer
-          exit read_number_of_nodes !exit the named do loop
-       endif
-    end do read_number_of_nodes
-
-    if(.not.overwrite) call allocate_node_arrays(num_nodes_temp) ! don't allocate if just overwriting
-
-    !.....read in the number of coordinates
-    read_number_of_coords : do !define a do loop name
-       read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !read a line into ctemp1
-       if(index(ctemp1, "coordinates")> 0) then !keyword "coordinates" is found
-          NJT = get_final_integer(ctemp1) !return the final integer
-          exit read_number_of_coords !exit the named do loop
-       endif
-    end do read_number_of_coords
-
-    ! note that only the first version of coordinate is currently read in
-
-    !.....read the coordinate, derivative, and version information for each node.
-    np=0
-    read_a_node : do !define a do loop name
-       !.......read node number
+    ! exnode files do not declare the total node count, so count Node records.
+    num_nodes_temp = 0
+    read_number_of_nodes : do
        read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-       if(index(ctemp1, "Node")> 0) then
-          np_global = get_final_integer(ctemp1) !get node number
+       if(ierror.lt.0) exit read_number_of_nodes
+       if(ierror.gt.0)then
+          write(*,'(a,a)') 'Error while reading exnode file: ',trim(readfile)
+          stop 1
+       endif
+       if(index(adjustl(ctemp1), "Node:").eq.1) num_nodes_temp = num_nodes_temp+1
+    enddo read_number_of_nodes
+    close(10)
+
+    if(num_nodes_temp.eq.0)then
+       write(*,'(a)') 'No nodes were found in the exnode file.'
+       stop 1
+    endif
+
+    overwrite = .false.
+    if(allocated(nodes) .and. allocated(node_xyz))then
+       overwrite = size(nodes).eq.num_nodes_temp .and. &
+            size(node_xyz,2).eq.num_nodes_temp
+    endif
+    if(.not.overwrite)then
+       if(allocated(nodes)) deallocate(nodes)
+       if(allocated(node_xyz)) deallocate(node_xyz)
+       if(allocated(node_field)) deallocate(node_field)
+       if(allocated(elems_at_node)) deallocate(elems_at_node)
+       if(allocated(airway_nodes%xyz)) deallocate(airway_nodes%xyz)
+       call allocate_node_arrays(num_nodes_temp)
+    else
+       nodes = 0
+       node_xyz = 0.0_dp
+    endif
+    num_nodes = num_nodes_temp
+
+    open(10, file=readfile, status='old', action='read', iostat=ierror)
+    if(ierror.ne.0)then
+       write(*,'(a,a)') 'Unable to reopen exnode file: ',trim(readfile)
+       stop 1
+    endif
+
+    ! Track the active exnode field schema. Values are stored in component order,
+    ! including derivatives and versions; the 1D tree keeps the first value of
+    ! each coordinates component and safely skips all other fields.
+    coordinate_component = 0
+    coordinate_value_index = 0
+    coordinate_field = .false.
+    values_per_node = 0
+    np = 0
+    read_a_node : do
+       read(unit=10, fmt="(a)", iostat=ierror) ctemp1
+       if(ierror.lt.0) exit read_a_node
+       if(ierror.gt.0)then
+          write(*,'(a,a)') 'Error while reading exnode file: ',trim(readfile)
+          stop 1
+       endif
+
+       if(index(ctemp1,"#Fields=")>0)then
+          coordinate_component = 0
+          coordinate_value_index = 0
+          coordinate_field = .false.
+          values_per_node = 0
+       elseif(index(ctemp1,"#Components=")>0)then
+          coordinate_field = index(ctemp1,"coordinates, coordinate")>0
+          if(coordinate_field) coordinate_component = 0
+       elseif(index(ctemp1,"Value index")>0)then
+          number_of_derivatives = 0
+          number_of_versions = 1
+          index_location = index(ctemp1,"#Derivatives=")
+          if(index_location>0)then
+             read(ctemp1(index_location+13:),*,iostat=ierror) number_of_derivatives
+             if(ierror.ne.0) number_of_derivatives = 0
+          endif
+          index_location = index(ctemp1,"#Versions=")
+          if(index_location>0)then
+             read(ctemp1(index_location+10:),*,iostat=ierror) number_of_versions
+             if(ierror.ne.0) number_of_versions = 1
+          endif
+          component_values = (number_of_derivatives+1)*max(1,number_of_versions)
+          if(coordinate_field)then
+             coordinate_component = coordinate_component+1
+             if(coordinate_component.le.3) &
+                  coordinate_value_index(coordinate_component) = values_per_node+1
+          endif
+          values_per_node = values_per_node+component_values
+       elseif(index(adjustl(ctemp1),"Node:").eq.1)then
+          if(values_per_node.le.0 .or. any(coordinate_value_index.eq.0))then
+             write(*,'(a)') 'The exnode schema does not contain three coordinate components.'
+             stop 1
+          endif
+
+          if(allocated(node_values))then
+             if(size(node_values).ne.values_per_node) deallocate(node_values)
+          endif
+          if(.not.allocated(node_values)) allocate(node_values(values_per_node))
+
+          read(ctemp1(index(ctemp1,":")+1:),*,iostat=ierror) np_global
+          if(ierror.ne.0)then
+             write(*,'(a)') 'Invalid node identifier in exnode file.'
+             stop 1
+          endif
+          read(unit=10,fmt=*,iostat=ierror) node_values
+          if(ierror.ne.0)then
+             write(*,'(a,i0,a)') 'Unable to read values for node ',np_global,'.'
+             stop 1
+          endif
 
           np = np+1
           nodes(np) = np_global
-          !.......read coordinates
-          do i=1,3 ! for the x,y,z coordinates
-             num_versions=1
-             read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-             if(index(ctemp1, "versions")> 0) then
-                num_versions = get_final_integer(ctemp1)
-                if(num_versions > 1)then
-                   read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !temporary line
-                   read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                   point = get_final_real(ctemp1)
-                   do nv=2,num_versions
-                      read(unit=10, fmt="(a)", iostat=ierror) ctemp1 !temporary line
-                      read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                   enddo
-                else
-                   read(unit=10, fmt="(a)", iostat=ierror) ctemp1
-                   point = get_final_real(ctemp1)
-                endif
-             else ! no prompting for versions
-                point = get_final_real(ctemp1)
-             endif
-             node_xyz(i,np)=point
-          end do !i
-       endif !index
-       if(np.ge.num_nodes_temp) exit read_a_node
-    end do read_a_node
-
-    if(.not.overwrite) num_nodes = num_nodes_temp
+          node_xyz(1,np) = node_values(coordinate_value_index(1))
+          node_xyz(2,np) = node_values(coordinate_value_index(2))
+          node_xyz(3,np) = node_values(coordinate_value_index(3))
+          if(np.ge.num_nodes_temp) exit read_a_node
+       endif
+    enddo read_a_node
 
     close(10)
+    if(allocated(node_values)) deallocate(node_values)
 
     call enter_exit(sub_name,2)
 
