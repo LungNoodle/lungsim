@@ -5,6 +5,7 @@ module surface_fitting
   use arrays
   use diagnostics
   use geometry
+  use math_utilities, only: inlist
   use other_consts
   use mesh_utilities
   use precision
