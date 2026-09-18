@@ -184,25 +184,7 @@ jobs:
           -D AETHER_ENABLE_TESTS=FALSE \
           -D CMAKE_BUILD_TYPE=${{ inputs.build_type || matrix.config.build_type }}
 
-    - name: Build lungsim - macOS
-      if: runner.os == 'macOS'
-      shell: bash
-      run: |
-        set -o pipefail
-        cmake --build build-lungsim --config Release 2>&1 | tee build-lungsim.log
-
-    - name: Report macOS build failure
-      if: failure() && runner.os == 'macOS'
-      shell: bash
-      run: |
-        log=$(tail -n 80 build-lungsim.log)
-        log=${log//'%'/'%25'}
-        log=${log//$'\r'/'%0D'}
-        log=${log//$'\n'/'%0A'}
-        echo "::error title=macOS build log::$log"
-
     - name: Build lungsim
-      if: runner.os != 'macOS'
       run: |
         cmake --build build-lungsim --config Release
 
