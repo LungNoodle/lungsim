@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it using the metadata from this file."
+message: "If you use this software, please cite the publications relevant to the LungSim functionality used."
 title: "Pulmonary Simulation Library (LungSim)"
 abstract: "A Fortran library with C and Python bindings for simulating pulmonary function."
 authors:
@@ -12,3 +12,305 @@ keywords:
   - "computational-physiology"
   - "lung-modelling"
   - "pulmonary-simulation"
+references:
+  - type: article
+    notes: "For growing and volume-filling branching."
+    title: "CT-based geometry analysis and finite element models of the human and ovine bronchial tree"
+    authors:
+      - family-names: "Tawhai"
+        given-names: "Merryn H."
+      - family-names: "Hunter"
+        given-names: "Peter"
+      - family-names: "Tschirren"
+        given-names: "Juerg"
+      - family-names: "Reinhardt"
+        given-names: "Joseph"
+      - family-names: "McLennan"
+        given-names: "Geoffrey"
+      - family-names: "Hoffman"
+        given-names: "Eric A."
+    journal: "Journal of Applied Physiology"
+    year: 2004
+    month: 12
+    volume: "97"
+    issue: "6"
+    pages: "2310-2321"
+    issn: "8750-7587"
+    doi: "10.1152/japplphysiol.00520.2004"
+
+  - type: article
+    notes: "For ventilation."
+    title: "A computational model of the topographic distribution of ventilation in healthy human lungs"
+    authors:
+      - family-names: "Swan"
+        given-names: "Annalisa J."
+      - family-names: "Clark"
+        given-names: "Alys R."
+      - family-names: "Tawhai"
+        given-names: "Merryn H."
+    journal: "Journal of Theoretical Biology"
+    year: 2012
+    month: 5
+    volume: "300"
+    pages: "222-231"
+    issn: "0022-5193"
+    doi: "10.1016/j.jtbi.2012.01.042"
+    url: "https://www.sciencedirect.com/science/article/pii/S0022519312000628"
+    abstract: >-
+      The topographic distribution of ventilation in the lungs is determined
+      by the interaction of several factors, including lung shape, airway tree
+      geometry, posture, and tissue deformation. Inter-species differences in
+      lung structure-function and technical difficulty in obtaining high
+      resolution imaging of the upright human lung means that it is not
+      straightforward to experimentally determine the contribution of each of
+      these factors to ventilation distribution. We present a mathematical
+      model for predicting the topological distribution of inhaled air in the
+      upright healthy human lung, based on anatomically structured model
+      geometries and biophysical equations for model function. Gravitational
+      deformation of the lung tissue is predicted using a continuum model.
+      Airflow is simulated in anatomically based conducting airways coupled to
+      geometrically simplified terminal acinar units with varying
+      volume-dependent compliances. The predicted ventilation distribution is
+      hence governed by local tissue density and elastic recoil pressure,
+      airway resistance and acinar compliance. Results suggest that there is
+      significant spatial variation in intrinsic tissue properties in the
+      lungs. The model confirms experimental evidence that in the healthy
+      lungs tissue compliance has a far greater effect than airway resistance
+      on the spatial distribution of ventilation, and hence a realistic
+      description of tissue deformation is essential in models of
+      ventilation.
+    keywords:
+      - "ventilation distribution"
+      - "tissue deformation"
+      - "structure-function"
+
+  - type: article
+    notes: "For perfusion."
+    title: "Simulating Multi-Scale Pulmonary Vascular Function by Coupling Computational Fluid Dynamics With an Anatomic Network Model"
+    authors:
+      - family-names: "Ebrahimi"
+        given-names: "Behdad Shaarbaf"
+      - family-names: "Kumar"
+        given-names: "Haribalan"
+      - family-names: "Tawhai"
+        given-names: "Merryn H."
+      - family-names: "Burrowes"
+        given-names: "Kelly S."
+      - family-names: "Hoffman"
+        given-names: "Eric A."
+      - family-names: "Clark"
+        given-names: "Alys R."
+    journal: "Frontiers in Network Physiology"
+    year: 2022
+    month: 4
+    volume: "2"
+    pages: "867551"
+    issn: "2674-0109"
+    doi: "10.3389/fnetp.2022.867551"
+
+  - type: article
+    notes: "For perfusion."
+    title: "The interdependent contributions of gravitational and structural features to perfusion distribution in a multiscale model of the pulmonary circulation"
+    authors:
+      - family-names: "Clark"
+        given-names: "Alys R."
+      - family-names: "Tawhai"
+        given-names: "Merryn H."
+      - family-names: "Hoffman"
+        given-names: "Eric A."
+      - family-names: "Burrowes"
+        given-names: "Kelly S."
+    journal: "Journal of Applied Physiology"
+    year: 2011
+    month: 4
+    volume: "110"
+    issue: "4"
+    pages: "943-955"
+    issn: "8750-7587"
+    doi: "10.1152/japplphysiol.00775.2010"
+
+  - type: article
+    notes: "For perfusion."
+    title: "Contribution of serial and parallel microperfusion to spatial variability in pulmonary inter- and intra-acinar blood flow"
+    authors:
+      - family-names: "Clark"
+        given-names: "Alys R."
+      - family-names: "Burrowes"
+        given-names: "Kelly S."
+      - family-names: "Tawhai"
+        given-names: "Merryn H."
+    journal: "Journal of Applied Physiology"
+    year: 2010
+    month: 5
+    volume: "108"
+    issue: "5"
+    pages: "1116-1126"
+    issn: "8750-7587"
+    doi: "10.1152/japplphysiol.01177.2009"
+
+  - type: article
+    notes: "For wave transmission."
+    title: "Temporal and spatial heterogeneity in pulmonary perfusion: a mathematical model to predict interactions between macro- and micro-vessels in health and disease"
+    authors:
+      - family-names: "Clark"
+        given-names: "Alys R."
+      - family-names: "Tawhai"
+        given-names: "Merryn H."
+    journal: "The ANZIAM Journal"
+    year: 2018
+    month: 4
+    volume: "59"
+    issue: "4"
+    pages: "562-580"
+    issn: "1446-1811"
+    doi: "10.1017/S1446181118000111"
+
+  - type: article
+    notes: "For wave transmission."
+    title: "A computational model of contributors to pulmonary hypertensive disease: impacts of whole lung and focal disease distributions"
+    authors:
+      - family-names: "Ebrahimi"
+        given-names: "Behdad Shaarbaf"
+      - family-names: "Tawhai"
+        given-names: "Merryn H."
+      - family-names: "Kumar"
+        given-names: "Haribalan"
+      - family-names: "Burrowes"
+        given-names: "Kelly S."
+      - family-names: "Hoffman"
+        given-names: "Eric A."
+      - family-names: "Wilsher"
+        given-names: "Margaret L."
+      - family-names: "Milne"
+        given-names: "David"
+      - family-names: "Clark"
+        given-names: "Alys R."
+    journal: "Pulmonary Circulation"
+    year: 2021
+    month: 10
+    volume: "11"
+    issue: "4"
+    pages: "1-15"
+    issn: "2045-8940"
+    doi: "10.1177/20458940211056527"
+
+  - type: article
+    notes: "For surface fitting."
+    title: "Lung and fissure shape is associated with age in healthy never-smoking adults aged 20–90 years"
+    authors:
+      - family-names: "Osanlouy"
+        given-names: "Mahyar"
+      - family-names: "Clark"
+        given-names: "Alys R."
+      - family-names: "Kumar"
+        given-names: "Haribalan"
+      - family-names: "King"
+        given-names: "Clair"
+      - family-names: "Wilsher"
+        given-names: "Margaret L."
+      - family-names: "Milne"
+        given-names: "David G."
+      - family-names: "Whyte"
+        given-names: "Ken"
+      - family-names: "Hoffman"
+        given-names: "Eric A."
+      - family-names: "Tawhai"
+        given-names: "Merryn H."
+    journal: "Scientific Reports"
+    year: 2020
+    month: 9
+    volume: "10"
+    issue: "1"
+    pages: "16135"
+    issn: "2045-2322"
+    doi: "10.1038/s41598-020-73117-w"
+
+  - type: article
+    notes: "For surface fitting."
+    title: "Quantitative Analysis of Lung Shape in Idiopathic Pulmonary Fibrosis: Insights Into Disease- and Age-Associated Patterns"
+    authors:
+      - family-names: "John"
+        given-names: "Joyce"
+      - family-names: "Clark"
+        given-names: "Alys R."
+      - family-names: "Kumar"
+        given-names: "Haribalan"
+      - family-names: "Burrowes"
+        given-names: "Kelly S."
+      - family-names: "Vandal"
+        given-names: "Alain C."
+      - family-names: "Wilsher"
+        given-names: "Margaret L."
+      - family-names: "Milne"
+        given-names: "David G."
+      - family-names: "Bartholmai"
+        given-names: "Brian J."
+      - family-names: "Levin"
+        given-names: "David L."
+      - family-names: "Tawhai"
+        given-names: "Merryn H."
+    journal: "Academic Radiology"
+    year: 2024
+    month: 11
+    volume: "31"
+    issue: "11"
+    pages: "4650-4660"
+    issn: "1076-6332"
+    doi: "10.1016/j.acra.2024.04.026"
+    url: "https://www.sciencedirect.com/science/article/pii/S1076633224002356"
+    abstract: >-
+      Fibrotic scarring in idiopathic pulmonary fibrosis (IPF) typically
+      develops first in the posterior-basal lung tissue before advancing to
+      involve more of the lung. The complexity of lung shape in the
+      costo-diaphragmatic region has been proposed as a potential factor in
+      this regional development. Intrinsic and disease-related shape could
+      therefore be important for understanding IPF risk and its staging. We
+      hypothesized that lung and lobe shape in IPF would have important
+      differences from controls. A principal component (PC) analysis was used
+      to derive a statistical shape model (SSM) of the lung for a control
+      cohort aged >50 years (N=39), using segmented lung and fissure surface
+      data from CT imaging. Individual patient shape models derived for
+      baseline (N=18) and follow-up (N=16) CT scans in patients with IPF were
+      projected to the SSM to describe shape as the sum of the SSM average and
+      weighted PC modes. Associations between the first four PC shape modes,
+      lung function, percentage of fibrosis (fibrosis%) and pulmonary
+      vessel-related structures (PVRS%), and other tissue metrics were
+      assessed and compared between the two cohorts. Shape was different
+      between IPF and controls (P<0.05 for all shape modes), with IPF shape
+      forming a distinct shape cluster. Shape had a negative relationship with
+      age in controls (P=0.013), but a positive relationship with age in IPF
+      (P=0.026). Some features of shape changed on follow-up. Shape in IPF was
+      associated with fibrosis% (P<0.05) and PVRS% (P<0.05). Quantitative
+      comparison of lung and lobe shape in IPF with controls of a similar age
+      reveals shape differences that are strongly associated with age and
+      percent fibrosis. The clustering of IPF cohort shape suggests that it
+      could be an important feature to describe disease.
+    keywords:
+      - "idiopathic pulmonary fibrosis"
+      - "statistical shape model"
+      - "principal component analysis"
+      - "quantitative CT"
+      - "lung shape"
+
+  - type: article
+    notes: "For lymphatics."
+    title: "An in silico approach to understanding the interaction between cardiovascular and pulmonary lymphatic dysfunction"
+    authors:
+      - family-names: "Ashworth"
+        given-names: "E. T."
+      - family-names: "Burrowes"
+        given-names: "K. S."
+      - family-names: "Clark"
+        given-names: "A. R."
+      - family-names: "Ebrahimi"
+        given-names: "Behdad Shaarbaf"
+      - family-names: "Tawhai"
+        given-names: "M. H."
+    journal: "American Journal of Physiology-Heart and Circulatory Physiology"
+    year: 2023
+    month: 3
+    volume: "324"
+    issue: "3"
+    pages: "H318-H329"
+    issn: "0363-6135"
+    doi: "10.1152/ajpheart.00591.2022"
