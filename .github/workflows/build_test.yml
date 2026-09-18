@@ -195,12 +195,11 @@ jobs:
       if: failure() && runner.os == 'macOS'
       shell: bash
       run: |
-        tail -n 40 build-lungsim.log | while IFS= read -r line; do
-          line=${line//'%'/'%25'}
-          line=${line//$'\r'/'%0D'}
-          line=${line//$'\n'/'%0A'}
-          echo "::error title=macOS build log::$line"
-        done
+        log=$(tail -n 80 build-lungsim.log)
+        log=${log//'%'/'%25'}
+        log=${log//$'\r'/'%0D'}
+        log=${log//$'\n'/'%0A'}
+        echo "::error title=macOS build log::$log"
 
     - name: Build lungsim
       if: runner.os != 'macOS'
