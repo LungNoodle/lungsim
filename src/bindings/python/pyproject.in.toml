@@ -8,7 +8,7 @@ version = "@Aether_VERSION@"
 description = "Aether library of routines for modelling the lung."
 readme = { file = "README.rst", content-type = "text/x-rst" }
 authors = [    { name = "Lung Group, Auckland Bioengineering Institute.", email = "m.tawhai@auckland.ac.nz" }]
-license = { text = "Apache-2.0" }
+license = { file = "LICENCE.txt" }
 urls = { homepage = "https://lung.bioeng.auckland.ac.nz/" }
 classifiers = [
 @CLASSIFIERS@

@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata from this file."
+title: "Pulmonary Simulation Library (LungSim)"
+abstract: "A Fortran library with C and Python bindings for simulating pulmonary function."
+authors:
+  - name: "Lung Group, Auckland Bioengineering Institute"
+version: "0.1.0"
+repository-code: "https://github.com/LungNoodle/lungsim"
+license: "Apache-2.0"
+keywords:
+  - "biomedical-engineering"
+  - "computational-physiology"
+  - "lung-modelling"
+  - "pulmonary-simulation"
