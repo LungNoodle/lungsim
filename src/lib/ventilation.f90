@@ -116,6 +116,8 @@ contains
     sum_tidal = 0.0_dp ! initialise the inspired and expired volumes
     sum_expid = 0.0_dp
     last_vol = 0.0_dp
+    unit_field(nu_Pe_max,:) = -huge(1.0_dp)
+    unit_field(nu_Pe_min,:) = huge(1.0_dp)
 
 !!! set dynamic pressure at entry. only changes for the 'pressure' option
     press_in_total = V_params%press_in
@@ -520,6 +522,10 @@ contains
        !estimate an elastic recoil pressure for the unit
        unit_field(nu_pe,nunit) = mech_params%cc / 2.0_dp * ab_term * (lambda**2.0_dp &
             -1.0_dp) * exp_term/lambda
+       unit_field(nu_Pe_max,nunit) = max(unit_field(nu_Pe_max,nunit), &
+            unit_field(nu_pe,nunit))
+       unit_field(nu_Pe_min,nunit) = min(unit_field(nu_Pe_min,nunit), &
+            unit_field(nu_pe,nunit))
     enddo !nunit
 
   end subroutine tissue_compliance

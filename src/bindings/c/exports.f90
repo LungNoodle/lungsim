@@ -166,6 +166,57 @@ contains
 
 !!!########################################################################
 
+  subroutine export_terminal_lymphatic_c(EXNODEFILE, filename_len, name, name_len) bind(C, name="export_terminal_lymphatic_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use exports, only: export_terminal_lymphatic
+    use other_consts, only: MAX_STRING_LEN, MAX_FILENAME_LEN
+    implicit none
+    integer,intent(in) :: filename_len, name_len
+    type(c_ptr), value, intent(in) :: EXNODEFILE, name
+    character(len=MAX_FILENAME_LEN) :: filename_f
+    character(len=MAX_STRING_LEN) :: name_f
+
+    call strncpy(filename_f, EXNODEFILE, filename_len)
+    call strncpy(name_f, name, name_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_export_terminal_lymphatic(filename_f, name_f)
+#else
+    call export_terminal_lymphatic(filename_f, name_f)
+#endif
+
+  end subroutine export_terminal_lymphatic_c
+
+!!!########################################################################
+
+  subroutine export_terminal_lymphatic_inputs_c(EXNODEFILE, filename_len, name, name_len) &
+       bind(C, name="export_terminal_lymphatic_inputs_c")
+
+    use iso_c_binding, only: c_ptr
+    use utils_c, only: strncpy
+    use exports, only: export_terminal_lymphatic_inputs
+    use other_consts, only: MAX_STRING_LEN, MAX_FILENAME_LEN
+    implicit none
+    integer,intent(in) :: filename_len, name_len
+    type(c_ptr), value, intent(in) :: EXNODEFILE, name
+    character(len=MAX_FILENAME_LEN) :: filename_f
+    character(len=MAX_STRING_LEN) :: name_f
+
+    call strncpy(filename_f, EXNODEFILE, filename_len)
+    call strncpy(name_f, name, name_len)
+
+#if defined _WIN32 && defined __INTEL_COMPILER
+    call so_export_terminal_lymphatic_inputs(filename_f, name_f)
+#else
+    call export_terminal_lymphatic_inputs(filename_f, name_f)
+#endif
+
+  end subroutine export_terminal_lymphatic_inputs_c
+
+!!!########################################################################
+
   subroutine export_terminal_solution_c(EXNODEFILE, filename_len, name, name_len) bind(C, name="export_terminal_solution_c")
 
     use iso_c_binding, only: c_ptr

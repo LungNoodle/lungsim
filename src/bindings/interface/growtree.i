@@ -11,12 +11,12 @@
   $2 = (int *) malloc(($1)*sizeof(int));
   for (i = 0; i < $1; i++) {
     PyObject *o = PyList_GetItem($input, i);
-    if (!PyInt_Check(o)) {
+    if (!PyLong_Check(o)) {
       free($2);
       PyErr_SetString(PyExc_ValueError, "List items must be integers");
       SWIG_fail;
     }
-    $2[i] = PyInt_AsLong(o);
+    $2[i] = (int) PyLong_AsLong(o);
   }
  }
 

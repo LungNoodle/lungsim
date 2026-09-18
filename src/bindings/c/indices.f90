@@ -22,6 +22,16 @@ contains
 
   end subroutine define_problem_type_c
 
+  !> Lymphatic indices
+  subroutine lymphatic_indices_c() bind(C, name="lymphatic_indices_c")
+
+    use indices, only: lymphatic_indices
+    implicit none
+
+    call lymphatic_indices()
+
+  end subroutine lymphatic_indices_c
+
 
   !> Ventilation indices
   subroutine ventilation_indices_c() bind(C, name="ventilation_indices_c")
@@ -54,6 +64,26 @@ contains
     res = get_ne_radius()
 
   end function get_ne_radius_c
+
+  function get_ne_lymph_flux_c() result(res) bind(C, name="get_ne_lymph_flux_c")
+
+    use indices, only: get_ne_lymph_flux
+    implicit none
+    integer :: res
+
+    res = get_ne_lymph_flux()
+
+  end function get_ne_lymph_flux_c
+
+  function get_ne_lymph_intsat_c() result(res) bind(C, name="get_ne_lymph_intsat_c")
+
+    use indices, only: get_ne_lymph_intsat
+    implicit none
+    integer :: res
+
+    res = get_ne_lymph_intsat()
+
+  end function get_ne_lymph_intsat_c
 
   function get_nj_conc1_c() result(res) bind(C, name="get_nj_conc1_c")
 

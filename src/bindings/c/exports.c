@@ -13,6 +13,8 @@ void export_1d_elem_geometry_c(const char *EXELEMFILE, int *EXELEMFILE_LEN,
 			       const char *name, int *name_len);
 void export_elem_geometry_2d_c(const char *EXELEMFILE, int *EXELEMFILE_LEN,
 			       const char *name, int *name_len, int *offset_elem, int *offset_node);
+void export_terminal_lymphatic_c(const char *EXNODEFILE, int *EXNODEFILE_LEN, const char *name, int *name_len);
+void export_terminal_lymphatic_inputs_c(const char *EXNODEFILE, int *EXNODEFILE_LEN, const char *name, int *name_len);
 void export_node_field_c(int *nj_field, const char *EXNODEFIELD, int *EXNODEFIELD_LEN,
                          const char *name, int *name_len, const char *field_name, int *field_name_len);
 void export_elem_geometry_2d_c(const char *EXELEMFILE, int *EXELEMFILE_LEN,
@@ -85,6 +87,22 @@ void export_node_field(int nj_field, const char *EXNODEFIELD,
 
   export_node_field_c(&nj_field, EXNODEFIELD, &filename_len, name,
 		      &name_len, field_name, &field_name_len);
+}
+
+void export_terminal_lymphatic(const char *EXNODEFILE, const char *name)
+{
+  int filename_len = strlen(EXNODEFILE);
+  int name_len = strlen(name);
+
+  export_terminal_lymphatic_c(EXNODEFILE, &filename_len, name, &name_len);
+}
+
+void export_terminal_lymphatic_inputs(const char *EXNODEFILE, const char *name)
+{
+  int filename_len = strlen(EXNODEFILE);
+  int name_len = strlen(name);
+
+  export_terminal_lymphatic_inputs_c(EXNODEFILE, &filename_len, name, &name_len);
 }
 
 void export_terminal_solution(const char *EXNODEFILE, const char *name)

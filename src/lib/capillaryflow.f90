@@ -136,7 +136,7 @@ contains
     real(dp) :: area_scale,length_scale,alpha_c
 
     ! Local variables
-    integer :: i,iter,j,gen,zone,num_sheet
+    integer :: i,iter,j,gen,zone,num_sheet,nunit
     integer, allocatable :: SparseCol(:)
     integer, allocatable ::SparseRow(:)
     real(dp) :: area_new,ErrorEstimate,Hart,Hven,Pin_SHEET,Pout_SHEET
@@ -334,6 +334,13 @@ contains
         '(I6,X,5(F9.2,X),2(F8.5,X),F10.2,X,F8.4,X,F10.4,X,F10.3,X,F8.4,X,F9.4,X)') &
          ne,x,y,z,Pin,Pout,Q01_mthrees*1.d9,Qtot*1.d9,Rtot/1000.d0**3.d0,&
          TOTAL_CAP_VOL,TOTAL_SHEET_SA,TT_TOTAL,TOTAL_SHEET_H,Ppl
+
+          ! Retain the capillary inputs needed by the lymphatic model. The
+          ! connector element's arterial parent carries the unit index.
+          nunit = int(elem_field(ne_unit,elem_cnct(-1,1,ne)))
+          unit_field(nu_capillary_press,nunit) = (Pin+Pout)/2.0_dp
+          unit_field(nu_tt,nunit) = TT_TOTAL
+          unit_field(nu_sa,nunit) = TOTAL_SHEET_SA
         ENDIF
 !
     deallocate (SparseCol, STAT = AllocateStatus)
