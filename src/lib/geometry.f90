@@ -1208,12 +1208,13 @@ contains
 !!!#############################################################################
 
   subroutine define_data_geometry(datafile)
-    !*define_data_geometry:* reads data points from a file
+    !*define_data_geometry:* reads data points from an exdata or ipdata file
 
     character(len=*) :: datafile
     ! Local variables
-    integer :: iend,ierror,length_string,ncount,nj,itemp
-    character(len=132) :: buffer,readfile
+    integer :: filename_length
+    logical :: exdata_format
+    character(len=MAX_FILENAME_LEN) :: readfile
     character(len=60) :: sub_name
 
     ! --------------------------------------------------------------------------
@@ -1221,80 +1222,234 @@ contains
     sub_name = 'define_data_geometry'
     call enter_exit(sub_name,1)
 
-    if(index(datafile, ".ipdata")> 0) then !full filename is given
-       readfile = datafile
-    else ! need to append the correct filename extension
-       readfile = trim(datafile)//'.ipdata'
+    filename_length = len_trim(datafile)
+    if(filename_length.ge.7)then
+       if(datafile(filename_length-6:filename_length).eq.'.ipdata')then
+          readfile = datafile
+          exdata_format = .false.
+       elseif(datafile(filename_length-6:filename_length).eq.'.exdata')then
+          readfile = datafile
+          exdata_format = .true.
+       else
+          readfile = trim(datafile)//'.exdata'
+          exdata_format = .true.
+       endif
+    else
+       readfile = trim(datafile)//'.exdata'
+       exdata_format = .true.
     endif
 
-    open(10, file=readfile, status='old')
-    read(unit=10, fmt="(a)", iostat=ierror) buffer
-
-    !set the counted number of data points to zero
-    ncount = 0
-
-!!! first run through to count the number of data points
-    read_line_to_count : do
-       read(unit=10, fmt="(a)", iostat=ierror) buffer
-       if(ierror<0) exit !ierror<0 means end of file
-       ncount = ncount + 1
-    end do read_line_to_count
-    num_data = ncount
-    close (10)
-    write(*,'('' Read'',I7,'' data points from file'')') num_data
-
-!!! allocate arrays now that we know the size required
-    if(allocated(data_xyz)) deallocate(data_xyz)
-    if(allocated(data_weight)) deallocate(data_weight)
-    allocate(data_xyz(3,num_data))
-    allocate(data_weight(3,num_data))
-
-!!! read the data point information
-    open(10, file=readfile, status='old')
-    read(unit=10, fmt="(a)", iostat=ierror) buffer
-
-    !set the counted number of data points to zero
-    ncount = 0
-    read_line_of_data : do
-
-       ! read the data #; z; y; z; wd1; wd2; wd3 for each data point
-       read(unit=10, fmt="(a)", iostat=ierror) buffer
-       if(ierror<0) exit !ierror<0 means end of file
-       length_string = len_trim(buffer) !length of buffer, and removed trailing blanks
-
-       ! read data number
-       buffer=adjustl(buffer) !remove leading blanks
-       iend=index(buffer," ",.false.)-1 !index returns location of first blank
-       if(length_string == 0) exit
-       ncount=ncount+1
-       read (buffer(1:iend), '(i6)') itemp
-
-       do nj=1,3
-          ! read x,y,z coordinates
-          buffer = adjustl(buffer(iend+1:length_string)) !remove data number from string
-          buffer = adjustl(buffer) !remove leading blanks
-          length_string = len(buffer) !new length of buffer
-          iend=index(buffer," ",.false.)-1 !index returns location of first blank
-          read (buffer(1:iend), '(D25.17)') data_xyz(nj,ncount)
-       enddo !nj
-
-       do nj=1,3
-          !        ! read weightings
-          !        buffer = adjustl(buffer(iend+1:length_string)) !remove data number from string
-          !        buffer = adjustl(buffer) !remove leading blanks
-          !        length_string = len(buffer) !new length of buffer
-          !        iend=index(buffer," ",.false.)-1 !index returns location of first blank
-          !        read (buffer(1:iend), '(D25.17)') data_weight(nj,ncount)
-          data_weight(nj,ncount)=1.0_dp
-       enddo !nj
-
-    enddo read_line_of_data
-
-    close(10)
+    if(exdata_format)then
+       call read_exdata_geometry(readfile)
+    else
+       call read_ipdata_geometry(readfile)
+    endif
 
     call enter_exit(sub_name,2)
 
   end subroutine define_data_geometry
+
+!!!#############################################################################
+
+  subroutine read_exdata_geometry(readfile)
+    !*read_exdata_geometry:* reads coordinate data points from an exdata file
+
+    character(len=*),intent(in) :: readfile
+    ! Local variables
+    integer :: component_values,coordinate_component,coordinate_value_index(3), &
+         data_number,ierror,index_location,ncount,number_of_derivatives, &
+         number_of_versions,unit_number,values_per_data
+    real(dp),allocatable :: data_values(:)
+    logical :: coordinate_field
+    character(len=300) :: buffer
+
+    open(newunit=unit_number, file=trim(readfile), status='old', action='read', &
+         iostat=ierror)
+    if(ierror.ne.0)then
+       write(*,'(a,a)') 'Unable to open exdata file: ',trim(readfile)
+       stop 1
+    endif
+
+    ! Exdata files do not declare the total point count, so count Node records.
+    num_data = 0
+    read_number_of_data : do
+       read(unit=unit_number, fmt='(a)', iostat=ierror) buffer
+       if(ierror.lt.0) exit read_number_of_data
+       if(ierror.gt.0)then
+          write(*,'(a,a)') 'Error while reading exdata file: ',trim(readfile)
+          stop 1
+       endif
+       if(index(adjustl(buffer),'Node:').eq.1) num_data = num_data+1
+    enddo read_number_of_data
+    close(unit_number)
+
+    if(num_data.eq.0)then
+       write(*,'(a)') 'No data points were found in the exdata file.'
+       stop 1
+    endif
+
+    if(allocated(data_xyz)) deallocate(data_xyz)
+    if(allocated(data_weight)) deallocate(data_weight)
+    allocate(data_xyz(3,num_data))
+    allocate(data_weight(3,num_data))
+    data_xyz = 0.0_dp
+    data_weight = 1.0_dp
+
+    open(newunit=unit_number, file=trim(readfile), status='old', action='read', &
+         iostat=ierror)
+    if(ierror.ne.0)then
+       write(*,'(a,a)') 'Unable to reopen exdata file: ',trim(readfile)
+       stop 1
+    endif
+
+    coordinate_component = 0
+    coordinate_value_index = 0
+    coordinate_field = .false.
+    values_per_data = 0
+    ncount = 0
+    read_data_point : do
+       read(unit=unit_number, fmt='(a)', iostat=ierror) buffer
+       if(ierror.lt.0) exit read_data_point
+       if(ierror.gt.0)then
+          write(*,'(a,a)') 'Error while reading exdata file: ',trim(readfile)
+          stop 1
+       endif
+
+       if(index(buffer,'#Fields=')>0)then
+          coordinate_component = 0
+          coordinate_value_index = 0
+          coordinate_field = .false.
+          values_per_data = 0
+       elseif(index(buffer,'#Components=')>0)then
+          coordinate_field = index(buffer,'coordinates, coordinate')>0
+          if(coordinate_field) coordinate_component = 0
+       elseif(index(buffer,'Value index')>0)then
+          number_of_derivatives = 0
+          number_of_versions = 1
+          index_location = index(buffer,'#Derivatives=')
+          if(index_location>0)then
+             read(buffer(index_location+13:),*,iostat=ierror) number_of_derivatives
+             if(ierror.ne.0) number_of_derivatives = 0
+          endif
+          index_location = index(buffer,'#Versions=')
+          if(index_location>0)then
+             read(buffer(index_location+10:),*,iostat=ierror) number_of_versions
+             if(ierror.ne.0) number_of_versions = 1
+          endif
+          component_values = (number_of_derivatives+1)*max(1,number_of_versions)
+          if(coordinate_field)then
+             coordinate_component = coordinate_component+1
+             if(coordinate_component.le.3) &
+                  coordinate_value_index(coordinate_component) = values_per_data+1
+          endif
+          values_per_data = values_per_data+component_values
+       elseif(index(adjustl(buffer),'Node:').eq.1)then
+          if(values_per_data.le.0 .or. any(coordinate_value_index.eq.0))then
+             write(*,'(a)') 'The exdata schema does not contain three coordinate components.'
+             stop 1
+          endif
+
+          if(allocated(data_values))then
+             if(size(data_values).ne.values_per_data) deallocate(data_values)
+          endif
+          if(.not.allocated(data_values)) allocate(data_values(values_per_data))
+
+          read(buffer(index(buffer,':')+1:),*,iostat=ierror) data_number
+          if(ierror.ne.0)then
+             write(*,'(a)') 'Invalid data point identifier in exdata file.'
+             stop 1
+          endif
+          read(unit=unit_number,fmt=*,iostat=ierror) data_values
+          if(ierror.ne.0)then
+             write(*,'(a,i0,a)') 'Unable to read values for data point ',data_number,'.'
+             stop 1
+          endif
+
+          ncount = ncount+1
+          data_xyz(1,ncount) = data_values(coordinate_value_index(1))
+          data_xyz(2,ncount) = data_values(coordinate_value_index(2))
+          data_xyz(3,ncount) = data_values(coordinate_value_index(3))
+          if(ncount.ge.num_data) exit read_data_point
+       endif
+    enddo read_data_point
+
+    close(unit_number)
+    if(allocated(data_values)) deallocate(data_values)
+    write(*,'('' Read'',I7,'' data points from file'')') num_data
+
+  end subroutine read_exdata_geometry
+
+!!!#############################################################################
+
+  subroutine read_ipdata_geometry(readfile)
+    !*read_ipdata_geometry:* reads coordinate data points from a legacy ipdata file
+
+    character(len=*),intent(in) :: readfile
+    ! Local variables
+    integer :: data_number,ierror,ncount,unit_number
+    character(len=300) :: buffer
+
+    open(newunit=unit_number, file=trim(readfile), status='old', action='read', &
+         iostat=ierror)
+    if(ierror.ne.0)then
+       write(*,'(a,a)') 'Unable to open ipdata file: ',trim(readfile)
+       stop 1
+    endif
+    read(unit=unit_number, fmt='(a)', iostat=ierror) buffer
+
+    num_data = 0
+    read_number_of_ipdata : do
+       read(unit=unit_number, fmt='(a)', iostat=ierror) buffer
+       if(ierror.lt.0) exit read_number_of_ipdata
+       if(ierror.gt.0)then
+          write(*,'(a,a)') 'Error while reading ipdata file: ',trim(readfile)
+          stop 1
+       endif
+       if(len_trim(buffer)>0) num_data = num_data+1
+    enddo read_number_of_ipdata
+    close(unit_number)
+
+    if(num_data.eq.0)then
+       write(*,'(a)') 'No data points were found in the ipdata file.'
+       stop 1
+    endif
+
+    if(allocated(data_xyz)) deallocate(data_xyz)
+    if(allocated(data_weight)) deallocate(data_weight)
+    allocate(data_xyz(3,num_data))
+    allocate(data_weight(3,num_data))
+    data_xyz = 0.0_dp
+    data_weight = 1.0_dp
+
+    open(newunit=unit_number, file=trim(readfile), status='old', action='read', &
+         iostat=ierror)
+    if(ierror.ne.0)then
+       write(*,'(a,a)') 'Unable to reopen ipdata file: ',trim(readfile)
+       stop 1
+    endif
+    read(unit=unit_number, fmt='(a)', iostat=ierror) buffer
+
+    ncount = 0
+    read_ipdata_point : do
+       read(unit=unit_number, fmt='(a)', iostat=ierror) buffer
+       if(ierror.lt.0) exit read_ipdata_point
+       if(ierror.gt.0)then
+          write(*,'(a,a)') 'Error while reading ipdata file: ',trim(readfile)
+          stop 1
+       endif
+       if(len_trim(buffer).eq.0) cycle read_ipdata_point
+       ncount = ncount+1
+       read(buffer,*,iostat=ierror) data_number,data_xyz(1:3,ncount)
+       if(ierror.ne.0)then
+          write(*,'(a,i0,a)') 'Unable to read values for ipdata point ',ncount,'.'
+          stop 1
+       endif
+    enddo read_ipdata_point
+
+    close(unit_number)
+    write(*,'('' Read'',I7,'' data points from file'')') num_data
+
+  end subroutine read_ipdata_geometry
 
 !!!#############################################################################
 
