@@ -44,15 +44,15 @@ contains
 
 !!!#############################################################################
 
-  subroutine evaluate_vent(filename)
+  subroutine evaluate_vent(flow_filename, pressure_filename)
     !*evaluate_vent:* Sets up and solves dynamic ventilation model
 
     use parameter_types, only: lung_params, mech_params, solve_V_params, V_params
 
 !!! Inputs
-    character(len=MAX_FILENAME_LEN),intent(in) :: filename
+    character(len=MAX_FILENAME_LEN),intent(in) :: flow_filename,pressure_filename
 !!! Locals
-    integer :: iter_step,n,ne,nunit
+    integer :: flow_name_len,iter_step,max_flow_steps,n,ne,nunit,num_flow_steps
     real(dp) :: chestwall_restvol     ! resting volume of chest wall
     real(dp) :: p_mus                 ! muscle (driving) pressure
     real(dp) :: pmus_factor_ex        ! pmus_factor (_in and _ex) used to scale 
@@ -70,8 +70,9 @@ contains
          current_vol,Pcw,ppl_current,pptrans,prev_flow,ptrans_frc, &
          sum_dpmus,sum_dpmus_ei,time,totalc,Tpass,ttime,volume_tree,WOBe,WOBr, &
          WOBe_insp,WOBr_insp,WOB_insp
-    character(len=300) :: writefile
-    logical :: CONTINUE,converged, op_litres
+    real(dp),allocatable :: flow_history(:,:),flow_times(:),pressure_history(:,:)
+    character(len=300) :: flow_writefile,pressure_writefile,writefile
+    logical :: CONTINUE,converged,op_litres
     character(len=60) :: sub_name
 
     ! --------------------------------------------------------------------------
@@ -79,10 +80,32 @@ contains
     sub_name = 'evaluate_vent'
     call enter_exit(sub_name,1)
 
-    if(index(filename, ".exflow")> 0) then !full filename is given
-       writefile = filename
-    else ! need to append the correct filename extension
-       writefile = trim(filename)//'.exflow'
+    if(len_trim(flow_filename).eq.0)then
+       error stop 'A filename is required for time-dependent element flows'
+    endif
+    if(len_trim(pressure_filename).eq.0)then
+       error stop 'A filename is required for time-dependent element pressures'
+    endif
+
+    call set_text_filename(flow_filename,flow_writefile)
+    call set_text_filename(pressure_filename,pressure_writefile)
+    if(trim(flow_writefile).eq.trim(pressure_writefile))then
+       error stop 'Flow and pressure output filenames must be different'
+    endif
+
+    flow_name_len = len_trim(flow_filename)
+    if(flow_name_len.ge.4)then
+       if(flow_filename(flow_name_len-3:flow_name_len).eq.'.txt')then
+          if(flow_name_len.eq.4)then
+             writefile = 'ventilation.exflow'
+          else
+             writefile = flow_filename(1:flow_name_len-4)//'.exflow'
+          endif
+       else
+          writefile = trim(flow_filename)//'.exflow'
+       endif
+    else
+       writefile = trim(flow_filename)//'.exflow'
     endif
     open(10, file=writefile, status='replace')
     
@@ -107,6 +130,14 @@ contains
        units_flow = 'mL/s'
        units_vol = 'L'
     endif
+
+    max_flow_steps = ceiling(V_params%T_interval / solve_V_params%dt) + 2
+    allocate(flow_history(num_elems,max_flow_steps))
+    allocate(pressure_history(num_elems,max_flow_steps))
+    allocate(flow_times(max_flow_steps))
+    flow_history = 0.0_dp
+    pressure_history = 0.0_dp
+    flow_times = 0.0_dp
     
 !!! Initialise variables:
     pmus_factor_in = 1.0_dp
@@ -164,6 +195,12 @@ contains
        p_mus = 0.0_dp 
        ptrans_frc = SUM(unit_field(nu_pe,1:num_units))/num_units !ptrans at frc
 
+       num_flow_steps = 1
+       flow_times(num_flow_steps) = 0.0_dp
+       flow_history(:,num_flow_steps) = elem_field(ne_Vdot,1:num_elems)
+       pressure_history(:,num_flow_steps) = &
+            node_field(nj_aw_press,elem_nodes(2,1:num_elems))
+
        if(n.gt.1)then !write out 'end of breath' information
           call write_end_of_breath(init_vol,current_vol,pmus_factor_in, &
                sum_expid,sum_tidal,WOBe_insp, &
@@ -196,6 +233,15 @@ contains
                dpmus,converged,iter_step)
 !!!.......update the estimate of pleural pressure
           call update_pleural_pressure(ppl_current) ! new pleural pressure
+
+          num_flow_steps = num_flow_steps + 1
+          if(num_flow_steps.gt.max_flow_steps)then
+             error stop 'Ventilation history exceeded the allocated number of time steps'
+          endif
+          flow_times(num_flow_steps) = ttime
+          flow_history(:,num_flow_steps) = elem_field(ne_Vdot,1:num_elems)
+          pressure_history(:,num_flow_steps) = &
+               node_field(nj_aw_press,elem_nodes(2,1:num_elems))
            
           call write_flow_step_results(init_vol, &
                current_vol,ppl_current,pptrans,Pcw,p_mus,time,ttime)
@@ -209,6 +255,14 @@ contains
 
     call write_end_of_breath(init_vol,current_vol,pmus_factor_in, &
          sum_expid,sum_tidal,WOBe_insp,WOBr_insp,WOB_insp)
+
+    call write_time_dependent_field(flow_writefile,'flows',units_flow, &
+         flow_times,flow_history,num_flow_steps,flow_scale_op)
+    call write_time_dependent_field(pressure_writefile,'pressures','cmH2O', &
+         flow_times,pressure_history,num_flow_steps,Pa_cmH2O)
+    deallocate(flow_history)
+    deallocate(pressure_history)
+    deallocate(flow_times)
 
 !!! Transfer the tidal volume for each elastic unit to the terminal branches,
 !!! and sum up the tree. Divide by inlet flow. This gives the time-averaged and
@@ -227,6 +281,69 @@ contains
     call enter_exit(sub_name,2)
     
   end subroutine evaluate_vent
+
+!!!#############################################################################
+
+  subroutine set_text_filename(filename,writefile)
+    ! Append the text extension unless it is already present.
+
+    character(len=*),intent(in) :: filename
+    character(len=*),intent(out) :: writefile
+
+    integer :: filename_len
+
+    filename_len = len_trim(filename)
+    if(filename_len.ge.4)then
+       if(filename(filename_len-3:filename_len).eq.'.txt')then
+          writefile = trim(filename)
+       else
+          writefile = trim(filename)//'.txt'
+       endif
+    else
+       writefile = trim(filename)//'.txt'
+    endif
+
+  end subroutine set_text_filename
+
+!!!#############################################################################
+
+  subroutine write_time_dependent_field(filename,field_name,field_units, &
+       times,field_values,num_steps,scale)
+    ! Write the final simulated breath with one row per global element number.
+
+    character(len=*),intent(in) :: filename,field_name,field_units
+    integer,intent(in) :: num_steps
+    real(dp),intent(in) :: times(:),field_values(:,:),scale
+
+    integer :: io_status,ne,nstep,output_unit
+
+    open(newunit=output_unit,file=trim(filename),status='replace',action='write', &
+         iostat=io_status)
+    if(io_status.ne.0) error stop 'Unable to open time-dependent ventilation output file'
+
+    write(output_unit,'(A,A,A)') '# Time-dependent ventilation ',trim(field_name), &
+         ' for the final simulated breath'
+    write(output_unit,'(A)') '# Time units: s'
+    write(output_unit,'(A,A)') '# Value units: ',trim(field_units)
+    write(output_unit,'(A)',advance='no') '# Element'
+    do nstep = 1,num_steps
+       write(output_unit,'(1X,ES16.8)',advance='no') times(nstep)
+    enddo
+    write(output_unit,*)
+
+    do ne = 1,num_elems
+       write(output_unit,'(I12)',advance='no') elems(ne)
+       do nstep = 1,num_steps
+          write(output_unit,'(1X,ES16.8)',advance='no') &
+               field_values(ne,nstep) / scale
+       enddo
+       write(output_unit,*)
+    enddo
+
+    close(output_unit,iostat=io_status)
+    if(io_status.ne.0) error stop 'Unable to close time-dependent ventilation output file'
+
+  end subroutine write_time_dependent_field
 
 !!!#############################################################################
 

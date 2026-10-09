@@ -120,6 +120,32 @@ Calling ``set_perfusion_flows([], [])`` also clears the setting.  Element identi
 must be unique and valid for the current mesh, and a selected element cannot also be
 the inlet element fixed by the standard ``flow`` boundary condition.
 
+Exporting time-dependent ventilation flows
+-------------------------------------------
+
+``evaluate_vent`` always exports the flow and distal pressure for every airway
+element at every solver time step.  Pass the two required output filenames::
+
+  from aether.ventilation import evaluate_vent
+
+  evaluate_vent(
+      "output/flows",
+      "output/pressures",
+  )
+
+``.txt`` is appended to each filename when needed.  The example above therefore
+writes ``flows.txt`` and ``pressures.txt``.  The established whole-lung ``.exflow``
+summary is also retained and uses the flow filename as its stem.
+
+Both text exports contain the final simulated breath, since earlier breaths are
+used to converge the ventilation solution.  The first column contains global
+element numbers.  Each remaining column contains the signed element flow or the
+pressure at the element's distal node at the time shown in the header.  The number
+and spacing of the time columns follow the solver time step; they are not fixed to
+a particular number of samples.  Comment lines at the top of each file state the
+time and value units.  Flows use the model's reported flow unit and pressures are
+reported in ``cmH2O``.
+
 Finally
 -------
 
