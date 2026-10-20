@@ -16,7 +16,7 @@ jobs:
   cla:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run CLA Bot
         uses: overtrue/cla-bot@v0.0.10
         with:
