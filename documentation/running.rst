@@ -149,12 +149,13 @@ reported in ``cmH2O``.
 Exporting time-dependent perfusion waveforms
 ---------------------------------------------
 
-``evaluate_wave_transmission`` writes the total flow and distal pressure for every
-arterial element to ``flows.txt`` and ``pressures.txt``.  Both files cover one
-cardiac cycle and use the same column layout as the ventilation exports: the first
-column contains element numbers and each remaining column contains the value at the
-time shown in the header.  Perfusion flows are reported in ``mm^3/s`` and pressures
-in ``Pa``.
+``evaluate_wave_transmission`` writes the total flow and upstream pressure for every
+arterial and venous element to ``flows.txt`` and ``pressures.txt``.  This matches
+the complete vascular waveform export used by the ``peter`` model.  Both files
+cover one cardiac cycle and use the same column layout as the ventilation exports:
+the first column contains element numbers and each remaining column contains the
+value at the time shown in the header.  Perfusion flows are reported in ``mm^3/s``
+and pressures in ``Pa``.
 
 Finally
 -------

@@ -2101,10 +2101,11 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
     write(200,fmt=*) ne, WSS ! WSS for element 1 to be added to WSS_arterial.txt
     write(210,fmt=*) ne, elem_rad ! radius for element 1 to be added to radii.txt
     write(220,fmt=*) ne, forward_flow - reflected_flow + elem_field(ne_Qdot,ne) ! Flow for element 1 to be added to flows.txt
-    write(230,fmt=*) ne, p_terminal ! Pressure for element 1 to be added to pressures.txt
+    write(230,fmt=*) ne, forward_pressure + reflected_pressure + &
+      node_field(nj_bv_press,np_previous) ! Upstream pressure for element 1
 
 
-    do ne =2,min_ven-1  ! reporting time-dependent radius and WSS for all the arteries
+    do ne =2,num_elems  ! reporting time-dependent results for all the vessels
       ne_previous=elem_cnct(-1,1,ne)
       forward_pressure=0.0_dp
       reflected_pressure=0.0_dp
@@ -2172,7 +2173,8 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
       write(200,fmt=*) ne, WSS ! elements wall shear stress in cardiac cycle
       write(210,fmt=*) ne, elem_rad ! elements radii in cardiac cycle
       write(220,fmt=*) ne, forward_flow-reflected_flow+elem_field(ne_Qdot,ne) ! elem flows in cardiac cycle
-      write(230,fmt=*) ne, p_terminal ! element pressures in cardiac cycle
+      write(230,fmt=*) ne, forward_pressure + reflected_pressure + &
+        node_field(nj_bv_press,np_previous) ! upstream element pressures in cardiac cycle
     enddo
 
     do ne = 1, num_elems
