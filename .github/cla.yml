@@ -1,0 +1,8 @@
+document:
+  version: v1
+  url: https://github.com/LungNoodle/lungsim/blob/develop/CONTRIBUTOR_LICENSE_AGREEMENT.md
+
+registry:
+  type: issue
+  repository: LungNoodle/lungsim
+
