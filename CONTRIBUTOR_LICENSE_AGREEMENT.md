@@ -47,4 +47,5 @@ To sign this Agreement for a pull request, post the exact comment requested by
 the CLA check. The current signing statement is:
 
 > I have read and agree to the CLA.
+> I have read and agree to the CLA.
 
