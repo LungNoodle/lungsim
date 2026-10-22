@@ -123,19 +123,23 @@ the inlet element fixed by the standard ``flow`` boundary condition.
 Exporting time-dependent ventilation flows
 -------------------------------------------
 
-``evaluate_vent`` always exports the flow and distal pressure for every airway
-element at every solver time step.  Pass the two required output filenames::
+``evaluate_vent`` retains the flow and distal pressure for every airway element
+at every solver time step. Export those results explicitly after the solve::
 
-  from aether.ventilation import evaluate_vent
+  from aether.ventilation import (
+      evaluate_vent,
+      export_time_dependent_ventilation,
+  )
 
-  evaluate_vent(
+  evaluate_vent("output/ventilation")
+  export_time_dependent_ventilation(
       "output/flows",
       "output/pressures",
   )
 
-``.txt`` is appended to each filename when needed.  The example above therefore
-writes ``flows.txt`` and ``pressures.txt``.  The established whole-lung ``.exflow``
-summary is also retained and uses the flow filename as its stem.
+``.txt`` is appended to each export filename when needed. The example above
+therefore writes ``flows.txt`` and ``pressures.txt``. The established whole-lung
+``.exflow`` summary is written by ``evaluate_vent`` using its filename argument.
 
 Both text exports contain the final simulated breath, since earlier breaths are
 used to converge the ventilation solution.  The first column contains global
@@ -149,10 +153,16 @@ reported in ``cmH2O``.
 Exporting time-dependent perfusion waveforms
 ---------------------------------------------
 
-``evaluate_wave_transmission`` writes the total flow and upstream pressure for every
-arterial and venous element to ``flows.txt`` and ``pressures.txt``.  This matches
-the complete vascular waveform export used by the ``peter`` model.  Both files
-cover one cardiac cycle and use the same column layout as the ventilation exports:
+``evaluate_wave_transmission`` retains the total flow and upstream pressure for
+every arterial and venous element. Write the waveforms after the solve with::
+
+  from aether.wave_transmission import export_time_dependent_perfusion
+
+  export_time_dependent_perfusion("output/flows", "output/pressures")
+
+This matches the complete vascular waveform export used by the ``peter`` model.
+Both files cover one cardiac cycle and use the same column layout as the
+ventilation exports:
 the first column contains element numbers and each remaining column contains the
 value at the time shown in the header.  Perfusion flows are reported in ``mm^3/s``
 and pressures in ``Pa``.
@@ -160,11 +170,11 @@ and pressures in ``Pa``.
 Exporting terminal seed mappings
 --------------------------------
 
-``grow_tree`` can export the association between each seed data point and the
-terminal element generated for it. This is useful when values defined at seed
-points need to be transferred to the completed tree::
+After ``grow_tree`` completes, the association between each seed data point and
+the terminal element generated for it can be exported explicitly. This is useful
+when values defined at seed points need to be transferred to the completed tree::
 
-  from aether.growtree import grow_tree
+  from aether.growtree import export_terminal_seed_mapping, grow_tree
 
   grow_tree(
       [22],
@@ -175,15 +185,13 @@ points need to be transferred to the completed tree::
       1.2,
       180.0,
       grouping="split",
-      to_export=True,
-      filename="output/RUL_seed_terminal_mapping",
   )
+  export_terminal_seed_mapping("output/RUL_seed_terminal_mapping")
 
 LungSim appends ``.txt`` to the filename. The first column of the resulting file
 is the data-point number and the second is the global terminal element number.
-The default ``to_export=False`` retains the previous behaviour when a mapping is
-not required. The ``grouping``, ``to_export``, and ``filename`` options may also
-be supplied positionally for compatibility with existing applications.
+The mapping retained in memory is replaced by each subsequent ``grow_tree`` call,
+so export it before growing another lobe when separate mapping files are required.
 
 Finally
 -------

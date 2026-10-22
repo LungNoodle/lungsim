@@ -41,40 +41,24 @@ contains
   !
   !###################################################################################
   !
-  ! grow a volume-filling tree and optionally export the seed-to-terminal mapping.
-  subroutine grow_tree_with_export_c(parent_elems_len, parent_elems, &
-       angle_max, angle_min, branch_fraction, length_limit, shortest_length, rotation_limit, &
-       grouping, grouping_len, to_export, filename, filename_len) &
-       bind(C, name="grow_tree_with_export_c")
+  ! export the seed-to-terminal mapping produced by the most recent tree growth.
+  subroutine export_terminal_seed_mapping_c(filename, filename_len) &
+       bind(C, name="export_terminal_seed_mapping_c")
 
-    use arrays,only: dp
     use iso_c_binding, only: c_ptr
     use utils_c, only: strncpy
     use other_consts, only: MAX_FILENAME_LEN
-    use growtree,only: grow_tree
+    use growtree,only: export_terminal_seed_mapping
     implicit none
 
-    integer,intent(in) :: parent_elems_len
-    integer,intent(in) :: parent_elems(parent_elems_len)
-    real(dp),intent(in) :: angle_max
-    real(dp),intent(in) :: angle_min
-    real(dp),intent(in) :: branch_fraction
-    real(dp),intent(in) :: length_limit
-    real(dp),intent(in) :: shortest_length
-    real(dp),intent(in) :: rotation_limit
-    integer,intent(in) :: grouping_len
-    integer,intent(in) :: to_export
     integer,intent(in) :: filename_len
-    type(c_ptr), value, intent(in) :: grouping, filename
-    character(len=MAX_FILENAME_LEN) :: grouping_f, filename_f
+    type(c_ptr), value, intent(in) :: filename
+    character(len=MAX_FILENAME_LEN) :: filename_f
 
-    call strncpy(grouping_f, grouping, grouping_len)
     call strncpy(filename_f, filename, filename_len)
+    call export_terminal_seed_mapping(filename_f)
 
-    call grow_tree(parent_elems, angle_max, angle_min, branch_fraction, length_limit, &
-         shortest_length, rotation_limit, grouping_f, to_export /= 0, filename_f)
-
-  end subroutine grow_tree_with_export_c
+  end subroutine export_terminal_seed_mapping_c
 
   !
   !###################################################################################
