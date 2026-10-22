@@ -157,6 +157,34 @@ the first column contains element numbers and each remaining column contains the
 value at the time shown in the header.  Perfusion flows are reported in ``mm^3/s``
 and pressures in ``Pa``.
 
+Exporting terminal seed mappings
+--------------------------------
+
+``grow_tree`` can export the association between each seed data point and the
+terminal element generated for it. This is useful when values defined at seed
+points need to be transferred to the completed tree::
+
+  from aether.growtree import grow_tree
+
+  grow_tree(
+      [22],
+      60.0,
+      40.0,
+      0.4,
+      1.0,
+      1.2,
+      180.0,
+      grouping="split",
+      to_export=True,
+      filename="output/RUL_seed_terminal_mapping",
+  )
+
+LungSim appends ``.txt`` to the filename. The first column of the resulting file
+is the data-point number and the second is the global terminal element number.
+The default ``to_export=False`` retains the previous behaviour when a mapping is
+not required. The ``grouping``, ``to_export``, and ``filename`` options may also
+be supplied positionally for compatibility with existing applications.
+
 Finally
 -------
 

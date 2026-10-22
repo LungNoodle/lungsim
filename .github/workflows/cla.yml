@@ -1,0 +1,23 @@
+name: CLA Check
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created, edited]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  checks: write
+
+jobs:
+  cla:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run CLA Bot
+        uses: overtrue/cla-bot@v0.0.10
+        with:
+          github-token: ${{ github.token }}
