@@ -27,12 +27,17 @@ module ventilation
   !Module variables
   real(dp) :: ds_scale_op, flow_scale_op, vol_scale_op               ! scaling to appropriate units
   character(len=8) :: units_ds, units_flow, units_vol   ! controls the units in output
+  real(dp), allocatable :: ventilation_flow_history(:,:)
+  real(dp), allocatable :: ventilation_pressure_history(:,:)
+  real(dp), allocatable :: ventilation_times(:)
+  integer :: ventilation_num_steps = 0
   
 
   !Interfaces
   private
   public evaluate_vent
   public evaluate_uniform_flow
+  public export_time_dependent_ventilation
   public sum_elem_field_from_periphery
 
   real(dp),parameter,private :: gravity = 9.81e3_dp         ! mm/s2
@@ -44,15 +49,15 @@ contains
 
 !!!#############################################################################
 
-  subroutine evaluate_vent(flow_filename, pressure_filename)
+  subroutine evaluate_vent(filename)
     !*evaluate_vent:* Sets up and solves dynamic ventilation model
 
     use parameter_types, only: lung_params, mech_params, solve_V_params, V_params
 
 !!! Inputs
-    character(len=MAX_FILENAME_LEN),intent(in) :: flow_filename,pressure_filename
+    character(len=*),intent(in) :: filename
 !!! Locals
-    integer :: flow_name_len,iter_step,max_flow_steps,n,ne,nunit,num_flow_steps
+    integer :: iter_step,max_flow_steps,n,ne,nunit,num_flow_steps
     real(dp) :: chestwall_restvol     ! resting volume of chest wall
     real(dp) :: p_mus                 ! muscle (driving) pressure
     real(dp) :: pmus_factor_ex        ! pmus_factor (_in and _ex) used to scale 
@@ -70,8 +75,7 @@ contains
          current_vol,Pcw,ppl_current,pptrans,prev_flow,ptrans_frc, &
          sum_dpmus,sum_dpmus_ei,time,totalc,Tpass,ttime,volume_tree,WOBe,WOBr, &
          WOBe_insp,WOBr_insp,WOB_insp
-    real(dp),allocatable :: flow_history(:,:),flow_times(:),pressure_history(:,:)
-    character(len=300) :: flow_writefile,pressure_writefile,writefile
+    character(len=300) :: writefile
     logical :: CONTINUE,converged,op_litres
     character(len=60) :: sub_name
 
@@ -80,32 +84,10 @@ contains
     sub_name = 'evaluate_vent'
     call enter_exit(sub_name,1)
 
-    if(len_trim(flow_filename).eq.0)then
-       error stop 'A filename is required for time-dependent element flows'
-    endif
-    if(len_trim(pressure_filename).eq.0)then
-       error stop 'A filename is required for time-dependent element pressures'
-    endif
-
-    call set_text_filename(flow_filename,flow_writefile)
-    call set_text_filename(pressure_filename,pressure_writefile)
-    if(trim(flow_writefile).eq.trim(pressure_writefile))then
-       error stop 'Flow and pressure output filenames must be different'
-    endif
-
-    flow_name_len = len_trim(flow_filename)
-    if(flow_name_len.ge.4)then
-       if(flow_filename(flow_name_len-3:flow_name_len).eq.'.txt')then
-          if(flow_name_len.eq.4)then
-             writefile = 'ventilation.exflow'
-          else
-             writefile = flow_filename(1:flow_name_len-4)//'.exflow'
-          endif
-       else
-          writefile = trim(flow_filename)//'.exflow'
-       endif
+    if(index(filename,'.exflow').gt.0)then
+       writefile = filename
     else
-       writefile = trim(flow_filename)//'.exflow'
+       writefile = trim(filename)//'.exflow'
     endif
     open(10, file=writefile, status='replace')
     
@@ -132,12 +114,16 @@ contains
     endif
 
     max_flow_steps = ceiling(V_params%T_interval / solve_V_params%dt) + 2
-    allocate(flow_history(num_elems,max_flow_steps))
-    allocate(pressure_history(num_elems,max_flow_steps))
-    allocate(flow_times(max_flow_steps))
-    flow_history = 0.0_dp
-    pressure_history = 0.0_dp
-    flow_times = 0.0_dp
+    if(allocated(ventilation_flow_history)) deallocate(ventilation_flow_history)
+    if(allocated(ventilation_pressure_history)) deallocate(ventilation_pressure_history)
+    if(allocated(ventilation_times)) deallocate(ventilation_times)
+    ventilation_num_steps = 0
+    allocate(ventilation_flow_history(num_elems,max_flow_steps))
+    allocate(ventilation_pressure_history(num_elems,max_flow_steps))
+    allocate(ventilation_times(max_flow_steps))
+    ventilation_flow_history = 0.0_dp
+    ventilation_pressure_history = 0.0_dp
+    ventilation_times = 0.0_dp
     
 !!! Initialise variables:
     pmus_factor_in = 1.0_dp
@@ -196,9 +182,9 @@ contains
        ptrans_frc = SUM(unit_field(nu_pe,1:num_units))/num_units !ptrans at frc
 
        num_flow_steps = 1
-       flow_times(num_flow_steps) = 0.0_dp
-       flow_history(:,num_flow_steps) = elem_field(ne_Vdot,1:num_elems)
-       pressure_history(:,num_flow_steps) = &
+       ventilation_times(num_flow_steps) = 0.0_dp
+       ventilation_flow_history(:,num_flow_steps) = elem_field(ne_Vdot,1:num_elems)
+       ventilation_pressure_history(:,num_flow_steps) = &
             node_field(nj_aw_press,elem_nodes(2,1:num_elems))
 
        if(n.gt.1)then !write out 'end of breath' information
@@ -238,9 +224,9 @@ contains
           if(num_flow_steps.gt.max_flow_steps)then
              error stop 'Ventilation history exceeded the allocated number of time steps'
           endif
-          flow_times(num_flow_steps) = ttime
-          flow_history(:,num_flow_steps) = elem_field(ne_Vdot,1:num_elems)
-          pressure_history(:,num_flow_steps) = &
+          ventilation_times(num_flow_steps) = ttime
+          ventilation_flow_history(:,num_flow_steps) = elem_field(ne_Vdot,1:num_elems)
+          ventilation_pressure_history(:,num_flow_steps) = &
                node_field(nj_aw_press,elem_nodes(2,1:num_elems))
            
           call write_flow_step_results(init_vol, &
@@ -256,13 +242,7 @@ contains
     call write_end_of_breath(init_vol,current_vol,pmus_factor_in, &
          sum_expid,sum_tidal,WOBe_insp,WOBr_insp,WOB_insp)
 
-    call write_time_dependent_field(flow_writefile,'flows',units_flow, &
-         flow_times,flow_history,num_flow_steps,flow_scale_op)
-    call write_time_dependent_field(pressure_writefile,'pressures','cmH2O', &
-         flow_times,pressure_history,num_flow_steps,Pa_cmH2O)
-    deallocate(flow_history)
-    deallocate(pressure_history)
-    deallocate(flow_times)
+    ventilation_num_steps = num_flow_steps
 
 !!! Transfer the tidal volume for each elastic unit to the terminal branches,
 !!! and sum up the tree. Divide by inlet flow. This gives the time-averaged and
@@ -281,6 +261,40 @@ contains
     call enter_exit(sub_name,2)
     
   end subroutine evaluate_vent
+
+!!!#############################################################################
+
+  subroutine export_time_dependent_ventilation(flow_filename,pressure_filename)
+    ! Write the final breath retained by the most recent evaluate_vent call.
+
+    character(len=*),intent(in) :: flow_filename,pressure_filename
+
+    character(len=300) :: flow_writefile,pressure_writefile
+
+    if(ventilation_num_steps.le.0 .or. .not.allocated(ventilation_flow_history) .or. &
+         .not.allocated(ventilation_pressure_history) .or. &
+         .not.allocated(ventilation_times))then
+       error stop 'evaluate_vent must be called before exporting time-dependent ventilation'
+    endif
+    if(len_trim(flow_filename).eq.0)then
+       error stop 'A filename is required for time-dependent element flows'
+    endif
+    if(len_trim(pressure_filename).eq.0)then
+       error stop 'A filename is required for time-dependent element pressures'
+    endif
+
+    call set_text_filename(flow_filename,flow_writefile)
+    call set_text_filename(pressure_filename,pressure_writefile)
+    if(trim(flow_writefile).eq.trim(pressure_writefile))then
+       error stop 'Flow and pressure output filenames must be different'
+    endif
+
+    call write_time_dependent_field(flow_writefile,'flows',units_flow, &
+         ventilation_times,ventilation_flow_history,ventilation_num_steps,flow_scale_op)
+    call write_time_dependent_field(pressure_writefile,'pressures','cmH2O', &
+         ventilation_times,ventilation_pressure_history,ventilation_num_steps,Pa_cmH2O)
+
+  end subroutine export_time_dependent_ventilation
 
 !!!#############################################################################
 

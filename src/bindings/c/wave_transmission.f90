@@ -46,4 +46,25 @@ subroutine evaluate_wave_transmission_c(grav_dirn,grav_factor,n_time,heartrate,&
 end subroutine evaluate_wave_transmission_c
 
 !###################################################################################
+
+subroutine export_time_dependent_perfusion_c(flow_filename,flow_filename_len, &
+  pressure_filename,pressure_filename_len) bind(C, name="export_time_dependent_perfusion_c")
+
+  use iso_c_binding, only: c_ptr
+  use utils_c, only: strncpy
+  use other_consts, only: MAX_FILENAME_LEN
+  use wave_transmission, only: export_time_dependent_perfusion
+  implicit none
+
+  type(c_ptr),value,intent(in) :: flow_filename,pressure_filename
+  integer,intent(in) :: flow_filename_len,pressure_filename_len
+  character(len=MAX_FILENAME_LEN) :: flow_filename_f,pressure_filename_f
+
+  call strncpy(flow_filename_f,flow_filename,flow_filename_len)
+  call strncpy(pressure_filename_f,pressure_filename,pressure_filename_len)
+  call export_time_dependent_perfusion(flow_filename_f,pressure_filename_f)
+
+end subroutine export_time_dependent_perfusion_c
+
+!###################################################################################
 end module wave_transmission_c
