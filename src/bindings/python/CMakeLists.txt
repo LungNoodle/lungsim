@@ -67,6 +67,7 @@ get_target_property(AETHER_C_INCLUDES aether_c INTERFACE_INCLUDE_DIRECTORIES)
 
 foreach(interface ${INTERFACE_SRCS})
   get_filename_component(module ${interface} NAME_WE)
+  set(module_header "${CMAKE_CURRENT_SOURCE_DIR}/../c/${module}.h")
 
   swig_add_library(${module}
     TYPE MODULE
@@ -75,6 +76,15 @@ foreach(interface ${INTERFACE_SRCS})
     OUTFILE_DIR ${SWIG_GEN_DIR}
     SOURCES ${interface}
   )
+
+  # SWIG does not track headers included by an interface file by default.
+  # Make an incremental build regenerate the Python wrapper when its public
+  # C API changes.
+  if(EXISTS "${module_header}")
+    set_property(TARGET ${module} APPEND PROPERTY
+      SWIG_DEPENDS "${module_header}"
+    )
+  endif()
 
   # Apply SWIG flags per target
   set_target_properties(${module} PROPERTIES

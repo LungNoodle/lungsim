@@ -1943,7 +1943,12 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
     open(fid7, file = 'terminal_WSS.txt',action='write')
     open(200, file = 'WSS_arterial.txt', action='write')
     open(210, file = 'radii.txt', action='write')
-    open(220, file = 'flows.txt', action='write')
+    open(220, file='flows.txt', status='replace', action='write')
+    open(230, file='pressures.txt', status='replace', action='write')
+    call write_time_dependent_perfusion_header(220,'flows','mm^3/s', &
+      start_time,dt,n_time)
+    call write_time_dependent_perfusion_header(230,'pressures','Pa', &
+      start_time,dt,n_time)
     do nu =1,num_units
         ne=units(nu)  ! terminal elements
         ne_previous=elem_cnct(-1,1,ne)
@@ -2096,9 +2101,11 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
     write(200,fmt=*) ne, WSS ! WSS for element 1 to be added to WSS_arterial.txt
     write(210,fmt=*) ne, elem_rad ! radius for element 1 to be added to radii.txt
     write(220,fmt=*) ne, forward_flow - reflected_flow + elem_field(ne_Qdot,ne) ! Flow for element 1 to be added to flows.txt
+    write(230,fmt=*) ne, forward_pressure + reflected_pressure + &
+      node_field(nj_bv_press,np_previous) ! Upstream pressure for element 1
 
 
-    do ne =2,min_ven-1  ! reporting time-dependent radius and WSS for all the arteries
+    do ne =2,num_elems  ! reporting time-dependent results for all the vessels
       ne_previous=elem_cnct(-1,1,ne)
       forward_pressure=0.0_dp
       reflected_pressure=0.0_dp
@@ -2166,6 +2173,8 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
       write(200,fmt=*) ne, WSS ! elements wall shear stress in cardiac cycle
       write(210,fmt=*) ne, elem_rad ! elements radii in cardiac cycle
       write(220,fmt=*) ne, forward_flow-reflected_flow+elem_field(ne_Qdot,ne) ! elem flows in cardiac cycle
+      write(230,fmt=*) ne, forward_pressure + reflected_pressure + &
+        node_field(nj_bv_press,np_previous) ! upstream element pressures in cardiac cycle
     enddo
 
     do ne = 1, num_elems
@@ -2271,6 +2280,8 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
     close(190)
     close(200)
     close(210)
+    close(220)
+    close(230)
 
 
   !!DEALLOCATE MEMORY
@@ -2293,6 +2304,29 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   deallocate(WSS, STAT=AllocateStatus)
   call enter_exit(sub_name,2)
 end subroutine evaluate_wave_transmission
+!
+!##############################################################################
+!
+subroutine write_time_dependent_perfusion_header(output_unit,field_name,field_units, &
+  start_time,dt,n_time)
+
+  integer, intent(in) :: output_unit,n_time
+  character(len=*), intent(in) :: field_name,field_units
+  real(dp), intent(in) :: start_time,dt
+
+  integer :: nt
+
+  write(output_unit,'(A,A,A)') '# Time-dependent perfusion ',trim(field_name), &
+    ' for one cardiac cycle'
+  write(output_unit,'(A)') '# Time units: s'
+  write(output_unit,'(A,A)') '# Value units: ',trim(field_units)
+  write(output_unit,'(A)',advance='no') '# Element'
+  do nt=1,n_time
+    write(output_unit,'(1X,ES16.8)',advance='no') start_time+(nt-1)*dt
+  enddo
+  write(output_unit,*)
+
+end subroutine write_time_dependent_perfusion_header
 !
 !##############################################################################
 !
