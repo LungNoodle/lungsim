@@ -24,10 +24,16 @@ module wave_transmission
   !Module types
 
   !Module variables
+  real(dp), allocatable :: perfusion_flow_history(:,:)
+  real(dp), allocatable :: perfusion_pressure_history(:,:)
+  real(dp) :: perfusion_start_time = 0.0_dp
+  real(dp) :: perfusion_time_step = 0.0_dp
+  integer :: perfusion_num_steps = 0
 
   !Interfaces
   private
   public evaluate_wave_transmission
+  public export_time_dependent_perfusion
 
 
 contains
@@ -1934,6 +1940,15 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
     end_time=60.0_dp/heartrate
     dt=(end_time-start_time)/n_time
     time=start_time
+    if(allocated(perfusion_flow_history)) deallocate(perfusion_flow_history)
+    if(allocated(perfusion_pressure_history)) deallocate(perfusion_pressure_history)
+    perfusion_num_steps = 0
+    allocate(perfusion_flow_history(num_elems,n_time))
+    allocate(perfusion_pressure_history(num_elems,n_time))
+    perfusion_flow_history = 0.0_dp
+    perfusion_pressure_history = 0.0_dp
+    perfusion_start_time = start_time
+    perfusion_time_step = dt
     !consider first pressure and flow into the vessel (at x=0)
     open(fid, file = 'incident_pressure.txt', action='write')
     open(fid2, file = 'incident_flow.txt',action='write')
@@ -1943,12 +1958,6 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
     open(fid7, file = 'terminal_WSS.txt',action='write')
     open(200, file = 'WSS_arterial.txt', action='write')
     open(210, file = 'radii.txt', action='write')
-    open(220, file='flows.txt', status='replace', action='write')
-    open(230, file='pressures.txt', status='replace', action='write')
-    call write_time_dependent_perfusion_header(220,'flows','mm^3/s', &
-      start_time,dt,n_time)
-    call write_time_dependent_perfusion_header(230,'pressures','Pa', &
-      start_time,dt,n_time)
     do nu =1,num_units
         ne=units(nu)  ! terminal elements
         ne_previous=elem_cnct(-1,1,ne)
@@ -2100,9 +2109,9 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
     write(fid13,fmt=*) reflected_pressure !Inlet reflected pressure
     write(200,fmt=*) ne, WSS ! WSS for element 1 to be added to WSS_arterial.txt
     write(210,fmt=*) ne, elem_rad ! radius for element 1 to be added to radii.txt
-    write(220,fmt=*) ne, forward_flow - reflected_flow + elem_field(ne_Qdot,ne) ! Flow for element 1 to be added to flows.txt
-    write(230,fmt=*) ne, forward_pressure + reflected_pressure + &
-      node_field(nj_bv_press,np_previous) ! Upstream pressure for element 1
+    perfusion_flow_history(ne,:) = forward_flow-reflected_flow+elem_field(ne_Qdot,ne)
+    perfusion_pressure_history(ne,:) = forward_pressure+reflected_pressure+ &
+      node_field(nj_bv_press,np_previous)
 
 
     do ne =2,num_elems  ! reporting time-dependent results for all the vessels
@@ -2172,9 +2181,9 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
       enddo
       write(200,fmt=*) ne, WSS ! elements wall shear stress in cardiac cycle
       write(210,fmt=*) ne, elem_rad ! elements radii in cardiac cycle
-      write(220,fmt=*) ne, forward_flow-reflected_flow+elem_field(ne_Qdot,ne) ! elem flows in cardiac cycle
-      write(230,fmt=*) ne, forward_pressure + reflected_pressure + &
-        node_field(nj_bv_press,np_previous) ! upstream element pressures in cardiac cycle
+      perfusion_flow_history(ne,:) = forward_flow-reflected_flow+elem_field(ne_Qdot,ne)
+      perfusion_pressure_history(ne,:) = forward_pressure+reflected_pressure+ &
+        node_field(nj_bv_press,np_previous)
     enddo
 
     do ne = 1, num_elems
@@ -2280,8 +2289,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
     close(190)
     close(200)
     close(210)
-    close(220)
-    close(230)
+    perfusion_num_steps = n_time
 
 
   !!DEALLOCATE MEMORY
@@ -2304,6 +2312,71 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   deallocate(WSS, STAT=AllocateStatus)
   call enter_exit(sub_name,2)
 end subroutine evaluate_wave_transmission
+!
+!##############################################################################
+!
+subroutine export_time_dependent_perfusion(flow_filename,pressure_filename)
+  ! Write the element waveforms retained by the most recent wave-transmission solve.
+
+  character(len=*), intent(in) :: flow_filename,pressure_filename
+
+  character(len=:), allocatable :: flow_writefile,pressure_writefile
+  integer :: flow_filename_len,flow_unit,io_status,ne,pressure_filename_len,pressure_unit
+
+  if(perfusion_num_steps.le.0 .or. .not.allocated(perfusion_flow_history) .or. &
+      .not.allocated(perfusion_pressure_history))then
+    error stop 'evaluate_wave_transmission must be called before exporting perfusion waveforms'
+  endif
+  if(len_trim(flow_filename).eq.0)then
+    error stop 'A filename is required for time-dependent perfusion flows'
+  endif
+  if(len_trim(pressure_filename).eq.0)then
+    error stop 'A filename is required for time-dependent perfusion pressures'
+  endif
+
+  flow_filename_len = len_trim(flow_filename)
+  if(flow_filename_len.ge.4 .and. &
+      flow_filename(flow_filename_len-3:flow_filename_len).eq.'.txt')then
+    flow_writefile = trim(flow_filename)
+  else
+    flow_writefile = trim(flow_filename)//'.txt'
+  endif
+  pressure_filename_len = len_trim(pressure_filename)
+  if(pressure_filename_len.ge.4 .and. &
+      pressure_filename(pressure_filename_len-3:pressure_filename_len).eq.'.txt')then
+    pressure_writefile = trim(pressure_filename)
+  else
+    pressure_writefile = trim(pressure_filename)//'.txt'
+  endif
+  if(flow_writefile.eq.pressure_writefile)then
+    error stop 'Flow and pressure output filenames must be different'
+  endif
+
+  open(newunit=flow_unit,file=flow_writefile,status='replace',action='write', &
+    iostat=io_status)
+  if(io_status.ne.0) error stop 'Unable to open time-dependent perfusion flow file'
+  open(newunit=pressure_unit,file=pressure_writefile,status='replace',action='write', &
+    iostat=io_status)
+  if(io_status.ne.0)then
+    close(flow_unit)
+    error stop 'Unable to open time-dependent perfusion pressure file'
+  endif
+
+  call write_time_dependent_perfusion_header(flow_unit,'flows','mm^3/s', &
+    perfusion_start_time,perfusion_time_step,perfusion_num_steps)
+  call write_time_dependent_perfusion_header(pressure_unit,'pressures','Pa', &
+    perfusion_start_time,perfusion_time_step,perfusion_num_steps)
+  do ne=1,size(perfusion_flow_history,1)
+    write(flow_unit,*) ne,perfusion_flow_history(ne,1:perfusion_num_steps)
+    write(pressure_unit,*) ne,perfusion_pressure_history(ne,1:perfusion_num_steps)
+  enddo
+
+  close(flow_unit,iostat=io_status)
+  if(io_status.ne.0) error stop 'Unable to close time-dependent perfusion flow file'
+  close(pressure_unit,iostat=io_status)
+  if(io_status.ne.0) error stop 'Unable to close time-dependent perfusion pressure file'
+
+end subroutine export_time_dependent_perfusion
 !
 !##############################################################################
 !

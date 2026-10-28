@@ -31,10 +31,12 @@ module growtree
   !Module types
 
   !Module variables
+  integer, allocatable :: seed_terminal_mapping(:)
 
   !Interfaces
   private
   public align_terminals_with_seeds
+  public export_terminal_seed_mapping
   public grow_tree
   public smooth_1d_tree
 
@@ -817,7 +819,7 @@ contains
 !!!#############################################################################
 
   subroutine grow_tree(parent_elems, angle_max, angle_min, branch_fraction, &
-       length_limit, shortest_length, rotation_limit, grouping, to_export, filename)
+       length_limit, shortest_length, rotation_limit, grouping)
     !interface to the grow_recursive_tree subroutine
 
     use geometry,only: element_connectivity_1d,evaluate_ordering,get_local_elem_1d, &
@@ -832,21 +834,9 @@ contains
     real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
     real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
     character(len=*), intent(in) :: grouping
-    logical, intent(in), optional :: to_export      ! export seed-to-terminal element mapping
-    character(len=*), intent(in), optional :: filename
 
     integer :: i, global_ne, j, nparents, num_elems_new, num_nodes_new, parent_ne
     integer,allocatable :: parent_list(:), super_list(:)
-    logical :: export_mapping
-    character(len=:), allocatable :: mapping_filename
-
-    export_mapping = .false.
-    if (present(to_export)) export_mapping = to_export
-    mapping_filename = ''
-    if (present(filename)) mapping_filename = trim(filename)
-    if (export_mapping .and. len_trim(mapping_filename) == 0) then
-       error stop 'A filename is required when exporting the terminal seed mapping'
-    endif
 
     ! set up for growing from 1 or more parents
     allocate(parent_list(num_elems)) ! store all terminal element parents
@@ -876,8 +866,7 @@ contains
 !!! generate a branching tree inside the triangulated mesh
     call grow_recursive_tree(num_elems_new, parent_list, &
          parent_ne, angle_max, angle_min, branch_fraction, &
-         length_limit, shortest_length, rotation_limit, grouping, &
-         export_mapping, mapping_filename)
+         length_limit, shortest_length, rotation_limit, grouping)
 
 !!! update the tree connectivity
     call element_connectivity_1d
@@ -896,8 +885,7 @@ contains
   ! tree into a closed surface.
   !
   subroutine grow_recursive_tree(num_elems_new, parent_list, parent_ne, angle_max, &
-       angle_min, branch_fraction, length_limit, shortest_length, rotation_limit, grouping, &
-       to_export, filename)
+       angle_min, branch_fraction, length_limit, shortest_length, rotation_limit, grouping)
 
     use indices
     use math_utilities,only: inlist
@@ -914,8 +902,6 @@ contains
     real(dp),intent(in) :: shortest_length          ! length that short branches are reset to (shortest in model)
     real(dp),intent(in) :: rotation_limit           ! maximum angle of rotation of branching plane
     character(len=*), intent(in) :: grouping
-    logical,intent(in) :: to_export                 ! export seed-to-terminal element mapping
-    character(len=*),intent(in) :: filename
 
     !Local variables
     integer,allocatable :: local_parent(:)          ! stores current generation of local parent elements
@@ -924,7 +910,7 @@ contains
     integer,allocatable :: map_seed_to_space(:)     ! records initial elem associated w. data points (the 'space')
     integer,allocatable :: num_seeds_from_elem(:)   ! records # of seeds currently grouped with an elem
 
-    integer :: i,io_status,j,kount,M,mapping_unit,N,nd,nd_min,ne,ne_global,ne_grnd_parent,ne_parent,ne_start,ne_stem,&
+    integer :: i,j,kount,M,N,nd,nd_min,ne,ne_global,ne_grnd_parent,ne_parent,ne_start,ne_stem,&
          noelem_parent,np,np_global,np_start,np_prnt_start,np_grnd_start,num_seeds_in_space,num_next_parents, &
          num_parents,num_terminal
 
@@ -1164,17 +1150,11 @@ contains
     num_nodes=np !highest node # in nr
     num_elems=ne !highest element # in nr
 
-    if(to_export)then
-       open(newunit=mapping_unit, file=trim(filename)//'.txt', status='replace', &
-            action='write', iostat=io_status)
-       if(io_status /= 0) error stop 'Unable to open terminal seed mapping file'
-       write(mapping_unit,'('' Data point number          Terminal element number'')')
-       do nd = 1,num_data
-          write(mapping_unit,*) nd,elems(map_seed_to_space(nd))
-       enddo
-       close(mapping_unit, iostat=io_status)
-       if(io_status /= 0) error stop 'Unable to close terminal seed mapping file'
-    endif
+    if(allocated(seed_terminal_mapping)) deallocate(seed_terminal_mapping)
+    allocate(seed_terminal_mapping(num_data))
+    do nd = 1,num_data
+       seed_terminal_mapping(nd) = elems(map_seed_to_space(nd))
+    enddo
 
 !!! deallocate temporary arrays
     deallocate(local_parent_temp)
@@ -1184,6 +1164,45 @@ contains
     deallocate(num_seeds_from_elem)
 
   end subroutine grow_recursive_tree
+
+
+  !###############################################################
+  !
+  !*export_terminal_seed_mapping:* writes the seed data-point to terminal
+  ! element mapping produced by the most recent call to grow_tree.
+  !
+  subroutine export_terminal_seed_mapping(filename)
+
+    character(len=*),intent(in) :: filename
+
+    integer :: filename_len,io_status,mapping_unit,nd
+    character(len=:),allocatable :: writefile
+
+    if(.not.allocated(seed_terminal_mapping))then
+       error stop 'grow_tree must be called before exporting the terminal seed mapping'
+    endif
+    if(len_trim(filename).eq.0)then
+       error stop 'A filename is required when exporting the terminal seed mapping'
+    endif
+
+    filename_len = len_trim(filename)
+    if(filename_len.ge.4 .and. filename(filename_len-3:filename_len).eq.'.txt')then
+       writefile = trim(filename)
+    else
+       writefile = trim(filename)//'.txt'
+    endif
+
+    open(newunit=mapping_unit,file=writefile,status='replace',action='write', &
+         iostat=io_status)
+    if(io_status.ne.0) error stop 'Unable to open terminal seed mapping file'
+    write(mapping_unit,'('' Data point number          Terminal element number'')')
+    do nd = 1,size(seed_terminal_mapping)
+       write(mapping_unit,*) nd,seed_terminal_mapping(nd)
+    enddo
+    close(mapping_unit,iostat=io_status)
+    if(io_status.ne.0) error stop 'Unable to close terminal seed mapping file'
+
+  end subroutine export_terminal_seed_mapping
 
 
   !###############################################################
