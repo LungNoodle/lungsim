@@ -256,7 +256,7 @@ contains
     integer :: num_nodes_new,num_elems_new,ne,ne_global,np,np_global,np0, &
          nonode,np_m
     integer :: nj,ne_m,noelem,ne0,n,nindex,ne1,noelem0,nu,cap_conns, &
-         cap_term,np1,np2
+         cap_term,np1,np2,ne_conn,ne_vein
     integer, allocatable :: np_map(:)
     character(len=60) :: sub_name
 
@@ -285,15 +285,17 @@ contains
     call reallocate_node_elem_arrays(num_elems_new,num_nodes_new)
     noelem0=0
     ne0 = num_elems ! the starting local element number
-    ne_global = maxval(elems) ! assumes this is the highest element number (!!!)
+    ne_global = maxval(elems(1:ne0))
     np0 = num_nodes ! the starting local node number
-    np_global = nodes(np0) ! assumes this is the highest node number (!!!)
+    np_global = maxval(nodes(1:np0))
 
-    do nonode=1,num_nodes
-       np=np_global+nonode
-       np_m=nodes(nonode)
-       np_map(np_m)=np !maps new to old node numbering
-       nodes(np0+nonode)=np
+    ! Geometry arrays use dense local indices. Global labels in nodes() may be
+    ! arbitrary, so duplicate by local position and assign fresh global labels.
+    do nonode=1,np0
+       np_m=nonode
+       np=np0+nonode
+       np_map(np_m)=np
+       nodes(np)=np_global+nonode
        do nj=1,3
           node_xyz(nj,np)=node_xyz(nj,np_m)+offset(nj)
        enddo
@@ -301,12 +303,14 @@ contains
        !Doesnt map versions, would be added here
     enddo
 
-    do noelem=1,num_elems
-       ne_m=elems(noelem)
-       ne=ne_global+ne_m ! element num ordering for veins matchs artery
+    ! Duplicate elements by local position as well. This keeps every array
+    ! access dense even if the imported global element labels contain gaps.
+    do noelem=1,ne0
+       ne_m=noelem
+       ne=ne0+noelem
        elem_field(ne_group,ne)=2.0_dp!VEIN
        elem_field(ne_group,ne_m)=0.0_dp!ARTERY
-       elems(ne0+noelem)=ne
+       elems(ne)=ne_global+noelem
        if(.NOT.REVERSE)then
           elem_nodes(1,ne)=np_map(elem_nodes(1,ne_m))
           elem_nodes(2,ne)=np_map(elem_nodes(2,ne_m))
@@ -345,9 +349,9 @@ contains
     enddo
 
     !update current no of nodes and elements to determine connectivity
-    np0=np !current highest node
-    ne1=maxval(elems) !current highest element
-    noelem0=maxval(elems)
+    np0=num_nodes_new !current highest local node
+    ne1=maxval(elems) !current highest global element label
+    noelem0=2*ne0 !current highest local element
     if(mesh_type.eq.'ladder')then
        !To be implemented
     elseif(mesh_type.eq.'terminal')then
@@ -359,29 +363,31 @@ contains
           np1=elem_nodes(2,ne)
           np2=np_map(np1)
           noelem0=noelem0+1
+          ne_conn=noelem0
           ne1=ne1+1
-          elems(noelem0)=ne1
-          elem_nodes(1,ne1)=np1
-          elem_nodes(2,ne1)=np2
+          elems(ne_conn)=ne1
+          elem_nodes(1,ne_conn)=np1
+          elem_nodes(2,ne_conn)=np2
           elems_at_node(np1,0)=elems_at_node(np1,0)+1
-          elems_at_node(np1,elems_at_node(np1,0))=ne1
+          elems_at_node(np1,elems_at_node(np1,0))=ne_conn
           elems_at_node(np2,0)=elems_at_node(np2,0)+1
-          elems_at_node(np2,elems_at_node(np2,0))=ne1
-          elem_cnct(1,elem_cnct(1,0,ne)+1,ne)=ne1
+          elems_at_node(np2,elems_at_node(np2,0))=ne_conn
+          elem_cnct(1,elem_cnct(1,0,ne)+1,ne)=ne_conn
           elem_cnct(1,0,ne)=elem_cnct(1,0,ne)+1
-          elem_cnct(-1,elem_cnct(-1,0,ne+ne_global)+1,ne+ne_global)=ne1
-          elem_cnct(-1,0,ne+ne_global)=elem_cnct(-1,0,ne+ne_global)+1
-          elem_cnct(-1,0,ne1)=1
-          elem_cnct(1,0,ne1)=1
-          elem_cnct(-1,1,ne1)=ne
-          elem_cnct(1,1,ne1)=ne+ne0
+          ne_vein=ne+ne0
+          elem_cnct(-1,elem_cnct(-1,0,ne_vein)+1,ne_vein)=ne_conn
+          elem_cnct(-1,0,ne_vein)=elem_cnct(-1,0,ne_vein)+1
+          elem_cnct(-1,0,ne_conn)=1
+          elem_cnct(1,0,ne_conn)=1
+          elem_cnct(-1,1,ne_conn)=ne
+          elem_cnct(1,1,ne_conn)=ne_vein
           nindex=no_gen
-          elem_ordrs(nindex,ne1)=elem_ordrs(nindex,ne_m)
+          elem_ordrs(nindex,ne_conn)=elem_ordrs(nindex,ne)
           nindex=no_sord
-          elem_ordrs(nindex,ne1)=elem_ordrs(nindex,ne_m)
+          elem_ordrs(nindex,ne_conn)=elem_ordrs(nindex,ne)
           nindex=no_hord
-          elem_ordrs(nindex,ne1)=elem_ordrs(nindex,ne_m)
-          elem_field(ne_group,ne1)=1.0_dp!connection between meshes
+          elem_ordrs(nindex,ne_conn)=elem_ordrs(nindex,ne)
+          elem_field(ne_group,ne_conn)=1.0_dp!connection between meshes
        enddo
        print *, 'Number of connections', cap_term
     endif

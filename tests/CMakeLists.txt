@@ -3,6 +3,7 @@
 set(
   TESTS
   "diagnostics"
+  "geometry"
   "lymphatic_parameters"
 )
 set(
