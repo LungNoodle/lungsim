@@ -74,6 +74,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   complex(dp), allocatable :: prop_const(:,:)
   complex(dp), allocatable :: p_factor(:,:)
   complex(dp), allocatable :: q_factor(:,:)
+  complex(dp), allocatable :: cap_transfer(:,:)
   real(dp), allocatable :: forward_pressure(:)
   real(dp), allocatable :: reflected_pressure(:)
   real(dp), allocatable :: forward_pressure_previous(:)
@@ -227,6 +228,8 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   if (AllocateStatus /= 0) STOP "*** Not enough memory for p_factor array ***"
   allocate (q_factor(1:no_freq,num_elems), STAT = AllocateStatus)
   if (AllocateStatus /= 0) STOP "*** Not enough memory for q_factor array ***"
+  allocate (cap_transfer(1:no_freq,num_elems), STAT = AllocateStatus)
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for cap_transfer array ***"
   allocate (forward_pressure(n_time), STAT = AllocateStatus)
   if (AllocateStatus /= 0) STOP "*** Not enough memory for forward_p array ***"
   allocate (reflected_pressure(n_time), STAT = AllocateStatus)
@@ -260,6 +263,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   ! venous tree or capillary connectors.
   p_factor=cmplx(0.0_dp,0.0_dp,dp)
   q_factor=cmplx(0.0_dp,0.0_dp,dp)
+  cap_transfer=cmplx(0.0_dp,0.0_dp,dp)
   alpha=0.0_dp
   !calculate characteristic admittance of each branch
   call characteristic_admittance(no_freq,char_admit,prop_const,alpha,harmonic_scale, &
@@ -291,7 +295,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
         call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
             min_ven,max_ven,tree_direction)
 !        !cap admittance
-        call capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
+        call capillary_admittance(no_freq,eff_admit,cap_transfer,char_admit,reflect,prop_const,harmonic_scale,&
             min_cap,max_cap,elast_param,mechanics_parameters,grav_vect,cap_model)!
         !art admittance
         tree_direction='diverging'
@@ -305,13 +309,19 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
             min_art,max_art,tree_direction)
     endif
 
-    ! Propagate harmonics through the arterial tree.  The matched venous tree
-    ! cannot use this diverging-tree recurrence: each terminal vein must first
-    ! be seeded by the output transfer of its capillary ladder.  Until that
-    ! transfer is exposed by cap_flow_admit, its factors deliberately remain
-    ! zero instead of inheriting the inlet waveform.
+    ! Propagate through the diverging arterial tree first.
     call pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,char_admit,eff_admit,&
     harmonic_scale,min_art,max_art,bc_type)
+    if(mesh_type.eq.'full_plus_ladder')then
+      ! The model-1 capillary transfer currently assumes oscillatory flow is
+      ! conserved across each loaded microvascular bed.  This is the minimal
+      ! extension of the existing one-port capillary calculation and can be
+      ! replaced by an exact ladder transfer without changing the venous pass.
+      call seed_terminal_veins(no_freq,p_factor,q_factor,cap_transfer,reflect,prop_const,&
+        char_admit,min_cap,max_cap)
+      call venous_pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,&
+        char_admit,min_ven,max_ven)
+    endif
     if(lobe_imped.eq.'ON') then ! export lobe imped
       ! Open output file
       open(unit=10, file='lobe_imped.json', status='replace')
@@ -2319,6 +2329,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   deallocate (prop_const, STAT=AllocateStatus)
   deallocate (p_factor, STAT=AllocateStatus)
   deallocate (q_factor, STAT=AllocateStatus)
+  deallocate (cap_transfer, STAT=AllocateStatus)
   deallocate (forward_pressure, STAT=AllocateStatus)
   deallocate (reflected_pressure, STAT=AllocateStatus)
   deallocate (forward_pressure_previous, STAT=AllocateStatus)
@@ -2903,11 +2914,12 @@ end subroutine tree_admittance
 !##################################################################
 !
 !*capillaryadmittance:* Calculates the total admittance of a tree
-subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
+subroutine capillary_admittance(no_freq,eff_admit,cap_transfer,char_admit,reflect,prop_const,harmonic_scale,&
   min_elem,max_elem,elast_param,mechanics_parameters,grav_vect,cap_model)
 
   integer, intent(in) :: no_freq
   complex(dp), intent(inout) :: eff_admit(1:no_freq,num_elems)
+  complex(dp), intent(inout) :: cap_transfer(1:no_freq,num_elems)
   complex(dp), intent(inout) :: char_admit(1:no_freq,num_elems)
   complex(dp), intent(inout) :: reflect(1:no_freq,num_elems)
   complex(dp), intent(in) :: prop_const(1:no_freq,num_elems)
@@ -2955,6 +2967,15 @@ subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,
     call cap_flow_admit(ne,eff_admit(:,ne),eff_admit_downstream,Lin,Lout,P1,P2,&
                         Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,&
                         elast_param,cap_model)
+    do nf=1,no_freq
+      if(cap_model.eq.1.and.abs(eff_admit_downstream(nf)).gt.tiny(1.0_dp))then
+        ! Loaded pressure transfer under oscillatory flow continuity:
+        ! Qin=Yin*Pin=Qout=Yven*Pven.
+        cap_transfer(nf,ne)=eff_admit(nf,ne)/eff_admit_downstream(nf)
+      else
+        cap_transfer(nf,ne)=cmplx(0.0_dp,0.0_dp,dp)
+      endif
+    enddo
    enddo!ne
 
 end subroutine capillary_admittance
@@ -3019,5 +3040,132 @@ subroutine pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,cha
 
   call enter_exit(sub_name,2)
 end subroutine pressure_flow_factor
+
+!
+!##############################################################################
+!
+!*seed_terminal_veins:* Transfers each arterial terminal harmonic across its
+! loaded capillary bed and converts the venous-side total pressure to an
+! incident pressure amplitude in the matching terminal vein.
+subroutine seed_terminal_veins(no_freq,p_factor,q_factor,cap_transfer,reflect,prop_const,&
+  char_admit,min_cap,max_cap)
+
+  integer, intent(in) :: no_freq,min_cap,max_cap
+  complex(dp), intent(inout) :: p_factor(1:no_freq,num_elems)
+  complex(dp), intent(inout) :: q_factor(1:no_freq,num_elems)
+  complex(dp), intent(in) :: cap_transfer(1:no_freq,num_elems)
+  complex(dp), intent(in) :: reflect(1:no_freq,num_elems)
+  complex(dp), intent(in) :: prop_const(1:no_freq,num_elems)
+  complex(dp), intent(in) :: char_admit(1:no_freq,num_elems)
+
+  integer :: ne,nf,ne_art,ne_ven
+  complex(dp) :: p_art_out,p_ven_in,round_trip,denominator
+  real(dp) :: scale
+
+  do ne=min_cap,max_cap
+    ne_art=elem_cnct(-1,1,ne)
+    ne_ven=elem_cnct(1,1,ne)
+    do nf=1,no_freq
+      p_art_out=p_factor(nf,ne_art)*&
+        exp(-prop_const(nf,ne_art)*elem_field(ne_length,ne_art))*&
+        (1.0_dp+reflect(nf,ne_art))
+      p_ven_in=cap_transfer(nf,ne)*p_art_out
+      round_trip=reflect(nf,ne_ven)*&
+        exp(-2.0_dp*prop_const(nf,ne_ven)*elem_field(ne_length,ne_ven))
+      denominator=1.0_dp+round_trip
+      scale=max(1.0_dp,abs(round_trip))
+      if(abs(denominator).le.1.0e-12_dp*scale)then
+        write(*,*) 'ERROR: Near-singular terminal vein pressure transfer',ne_ven,nf
+        error stop
+      endif
+      p_factor(nf,ne_ven)=p_ven_in/denominator
+      q_factor(nf,ne_ven)=p_factor(nf,ne_ven)*char_admit(nf,ne_ven)
+    enddo
+  enddo
+
+end subroutine seed_terminal_veins
+
+!
+!##############################################################################
+!
+!*venous_pressure_flow_factor:* Propagates the capillary-seeded harmonics from
+! terminal veins toward the outlet.  At each merge, incoming distal flows are
+! summed before solving for the incident amplitude of the downstream vein.
+subroutine venous_pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,&
+  char_admit,min_ven,max_ven)
+
+  integer, intent(in) :: no_freq,min_ven,max_ven
+  complex(dp), intent(inout) :: p_factor(1:no_freq,num_elems)
+  complex(dp), intent(inout) :: q_factor(1:no_freq,num_elems)
+  complex(dp), intent(in) :: reflect(1:no_freq,num_elems)
+  complex(dp), intent(in) :: prop_const(1:no_freq,num_elems)
+  complex(dp), intent(in) :: char_admit(1:no_freq,num_elems)
+
+  complex(dp), allocatable :: flow_at_merge(:),pressure_at_merge(:)
+  integer, allocatable :: merge_count(:)
+  integer :: ne,nf,ne_down,mismatch_count
+  complex(dp) :: q_out,p_out,round_trip,denominator,p_in,p_expected
+  real(dp) :: scale,relative_error,max_relative_error
+
+  allocate(flow_at_merge(num_elems),pressure_at_merge(num_elems),merge_count(num_elems))
+  mismatch_count=0
+  max_relative_error=0.0_dp
+
+  do nf=1,no_freq
+    flow_at_merge=cmplx(0.0_dp,0.0_dp,dp)
+    pressure_at_merge=cmplx(0.0_dp,0.0_dp,dp)
+    merge_count=0
+
+    do ne=max_ven,min_ven,-1
+      if(merge_count(ne).gt.0)then
+        round_trip=reflect(nf,ne)*&
+          exp(-2.0_dp*prop_const(nf,ne)*elem_field(ne_length,ne))
+        denominator=char_admit(nf,ne)*(1.0_dp-round_trip)
+        scale=max(1.0_dp,abs(char_admit(nf,ne)),abs(round_trip*char_admit(nf,ne)))
+        if(abs(denominator).le.1.0e-12_dp*scale)then
+          write(*,*) 'ERROR: Near-singular venous flow transfer',ne,nf
+          error stop
+        endif
+        p_factor(nf,ne)=flow_at_merge(ne)/denominator
+        q_factor(nf,ne)=p_factor(nf,ne)*char_admit(nf,ne)
+
+        p_in=p_factor(nf,ne)*(1.0_dp+round_trip)
+        p_expected=pressure_at_merge(ne)/real(merge_count(ne),dp)
+        scale=max(1.0_dp,abs(p_in),abs(p_expected))
+        relative_error=abs(p_in-p_expected)/scale
+        if(relative_error.gt.1.0e-3_dp)then
+          mismatch_count=mismatch_count+1
+          max_relative_error=max(max_relative_error,relative_error)
+        endif
+      endif
+
+      if(elem_cnct(1,0,ne).gt.0)then
+        ne_down=elem_cnct(1,1,ne)
+        if(ne_down.lt.min_ven.or.ne_down.gt.max_ven)cycle
+        if(ne_down.ge.ne)then
+          write(*,*) 'ERROR: Venous elements are not in downstream descending order',ne,ne_down
+          error stop
+        endif
+        q_out=char_admit(nf,ne)*p_factor(nf,ne)*&
+          exp(-prop_const(nf,ne)*elem_field(ne_length,ne))*&
+          (1.0_dp-reflect(nf,ne))
+        p_out=p_factor(nf,ne)*&
+          exp(-prop_const(nf,ne)*elem_field(ne_length,ne))*&
+          (1.0_dp+reflect(nf,ne))
+        flow_at_merge(ne_down)=flow_at_merge(ne_down)+q_out
+        pressure_at_merge(ne_down)=pressure_at_merge(ne_down)+p_out
+        merge_count(ne_down)=merge_count(ne_down)+1
+      endif
+    enddo
+  enddo
+
+  if(mismatch_count.gt.0)then
+    write(*,*) 'WARNING: Venous pressure-continuity mismatches:',mismatch_count,&
+      ' maximum relative error:',max_relative_error
+  endif
+
+  deallocate(flow_at_merge,pressure_at_merge,merge_count)
+
+end subroutine venous_pressure_flow_factor
 
 end module wave_transmission
