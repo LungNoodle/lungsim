@@ -251,8 +251,15 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   if (AllocateStatus /= 0) STOP "*** Not enough memory for elasticity array ***"
 
   !initialise admittance
-  char_admit=0.0_dp
-  eff_admit=0.0_dp
+  char_admit=cmplx(0.0_dp,0.0_dp,dp)
+  eff_admit=cmplx(0.0_dp,0.0_dp,dp)
+  reflect=cmplx(0.0_dp,0.0_dp,dp)
+  prop_const=cmplx(0.0_dp,0.0_dp,dp)
+  ! A zero factor means that the harmonic has not been propagated to that
+  ! element.  In particular, do not silently apply the inlet waveform to the
+  ! venous tree or capillary connectors.
+  p_factor=cmplx(0.0_dp,0.0_dp,dp)
+  q_factor=cmplx(0.0_dp,0.0_dp,dp)
   alpha=0.0_dp
   !calculate characteristic admittance of each branch
   call characteristic_admittance(no_freq,char_admit,prop_const,alpha,harmonic_scale, &
@@ -298,8 +305,11 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
             min_art,max_art,tree_direction)
     endif
 
-    !calculate pressure drop through arterial tree (note to do veins too need to implement this concept thro' whole ladder model)
-    !Also need to implement in reverse for veins
+    ! Propagate harmonics through the arterial tree.  The matched venous tree
+    ! cannot use this diverging-tree recurrence: each terminal vein must first
+    ! be seeded by the output transfer of its capillary ladder.  Until that
+    ! transfer is exposed by cap_flow_admit, its factors deliberately remain
+    ! zero instead of inheriting the inlet waveform.
     call pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,char_admit,eff_admit,&
     harmonic_scale,min_art,max_art,bc_type)
     if(lobe_imped.eq.'ON') then ! export lobe imped
@@ -1971,41 +1981,48 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
         terminals_radius=0.0_dp
         WSS=0.0_dp
         do nt=1,n_time
+            time=start_time+(nt-1)*dt
             do nf=1,no_freq
                 omega=2*pi*nf*harmonic_scale
-                forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8)))
-                forward_pressure_previous(nt)=forward_pressure_previous(nt)+abs(p_factor(nf,ne_previous))*&
-                a(nf)*cos(omega*time+b(nf)+atan2(dimag(p_factor(nf,ne_previous)),real(p_factor(nf,ne_previous), 8)))
+                ! Distal pressure at x=L.  p_factor is the incident amplitude
+                ! at x=0, so both components travel one vessel length here.
+                forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*&
+                    exp(-elem_field(ne_length,ne)*real(prop_const(nf,ne),dp))*&
+                    cos(omega*time+b(nf)+atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne),dp))-&
+                    elem_field(ne_length,ne)*dimag(prop_const(nf,ne)))
+                ! Total pressure at the inlet of this same terminal element.
+                forward_pressure_previous(nt)=forward_pressure_previous(nt)+abs(p_factor(nf,ne))*&
+                    a(nf)*cos(omega*time+b(nf)+atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne),dp)))
 
                 reflected_pressure(nt)=reflected_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*&
-                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                    abs(reflect(nf,ne))*exp(-elem_field(ne_length,ne)*real(prop_const(nf,ne),dp))*&
                     cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                    (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
-                    atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8)))
-                reflected_pressure_previous(nt)=reflected_pressure_previous(nt)+abs(p_factor(nf,ne_previous))*&
-                a(nf)*abs(reflect(nf,ne_previous))*exp((-2*elem_field(ne_length,ne_previous))*&
-                (real(prop_const(nf,ne_previous), 8)))*cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne_previous)),real(p_factor(nf,ne_previous), 8))+&
-                    (-2*elem_field(ne_length,ne_previous))*(dimag(prop_const(nf,ne_previous)))+&
-                    atan2(dimag(reflect(nf,ne_previous)),real(reflect(nf,ne_previous), 8)))
+                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne),dp))-&
+                    elem_field(ne_length,ne)*dimag(prop_const(nf,ne))+&
+                    atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne),dp)))
+                reflected_pressure_previous(nt)=reflected_pressure_previous(nt)+abs(p_factor(nf,ne))*&
+                    a(nf)*abs(reflect(nf,ne))*exp(-2.0_dp*elem_field(ne_length,ne)*&
+                    real(prop_const(nf,ne),dp))*cos(omega*time+b(nf)+&
+                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne),dp))-&
+                    2.0_dp*elem_field(ne_length,ne)*dimag(prop_const(nf,ne))+&
+                    atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne),dp)))
 
                 forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
+                    exp(-elem_field(ne_length,ne)*real(prop_const(nf,ne),dp))*&
                     cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                    atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne),dp))-&
+                    elem_field(ne_length,ne)*dimag(prop_const(nf,ne))+&
+                    atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne),dp)))
 
                 reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
-                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                    abs(reflect(nf,ne))*exp(-elem_field(ne_length,ne)*real(prop_const(nf,ne),dp))*&
                     cos(omega*time+b(nf)+&
-                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                    (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
-                    atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))+&
-                    atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne),dp))-&
+                    elem_field(ne_length,ne)*dimag(prop_const(nf,ne))+&
+                    atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne),dp))+&
+                    atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne),dp)))
 
             enddo
-            time=time+dt
         enddo
 
         np=elem_nodes(2,ne) ! terminals
@@ -2055,6 +2072,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
     elem_rad=0.0_dp
     WSS=0.0_dp
     do nt=1,n_time
+        time=start_time+(nt-1)*dt
         do nf=1,no_freq
             omega=2*pi*nf*harmonic_scale
             forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
@@ -2081,7 +2099,6 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
                 atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
 
         enddo
-        time=time+dt
     enddo
 
     np=elem_nodes(2,ne) ! end node of an elem
@@ -2126,6 +2143,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
       elem_rad=0.0_dp
       elem_flow=0.0_dp
       do nt=1,n_time
+          time=start_time+(nt-1)*dt
           do nf=1,no_freq
               omega=2*pi*nf*harmonic_scale
               forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
@@ -2160,7 +2178,6 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
                   atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
 
           enddo
-          time=time+dt
       enddo
 
       np=elem_nodes(2,ne) ! end node of an elem
@@ -2202,6 +2219,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
     reflected_flow=0.0_dp ! resetting the array for outlet
     if (bc_type.eq.'pressure')then
       do nt=1,n_time
+          time=start_time+(nt-1)*dt
           do nf=1,no_freq
               omega=2*pi*nf*harmonic_scale
               forward_pressure(nt)=forward_pressure(nt)+abs(p_factor(nf,ne))*a(nf)*cos(omega*time+b(nf)+&
@@ -2228,10 +2246,10 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
                   atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
 
           enddo
-          time=time+dt
       enddo
     elseif(bc_type.eq.'flow')then
       do nt=1,n_time
+          time=start_time+(nt-1)*dt
           do nf=1,no_freq
               omega=2*pi*nf*harmonic_scale
 
@@ -2259,7 +2277,6 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
                   atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8)))
 
           enddo
-          time=time+dt
       enddo
     else
       print *, "ERROR: Boundary condition type not recognised. Choose flow or pressure type."
@@ -2799,7 +2816,10 @@ subroutine tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmo
 
     sub_name = 'tree_admittance'
     call enter_exit(sub_name,1)
-    reflect(:,:)=cmplx(0.0_dp,0.0_dp,8)
+    ! Only initialise the tree handled by this call.  Clearing the complete
+    ! array here discarded the venous reflection coefficients when the
+    ! arterial tree was processed afterwards.
+    reflect(:,min_elem:max_elem)=cmplx(0.0_dp,0.0_dp,dp)
 
     if(tree_direction.eq.'diverging')then
         do nf=1,no_freq
@@ -2850,9 +2870,16 @@ subroutine tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmo
                         endif
                     enddo
                 enddo
-                m1=1.0_dp+2.0_dp*(b/a)*((2*a*b-a**2-1)*char_admit(nf,ne)+&
-                    (a**2-1)*sister_admit+(a**2-1)*daughter_admit)/((1-b**2)*char_admit(nf,ne)+&
-                    (1+b**2-2*a*b)*sister_admit+(1-b**2)*daughter_admit)
+                ! A unary segment has no sister.  In that case a and b have
+                ! not been assigned and the sister correction is unnecessary.
+                if(abs(sister_admit).gt.tiny(1.0_dp))then
+                    m1=1.0_dp+2.0_dp*(b/a)*((2*a*b-a**2-1)*char_admit(nf,ne)+&
+                        (a**2-1)*sister_admit+(a**2-1)*daughter_admit)/&
+                        ((1-b**2)*char_admit(nf,ne)+(1+b**2-2*a*b)*sister_admit+&
+                        (1-b**2)*daughter_admit)
+                else
+                    m1=cmplx(0.0_dp,0.0_dp,dp)
+                endif
                 if(elem_cnct(1,0,ne).gt.0)then !not a terminal
                     reflect(nf,ne)=(char_admit(nf,ne)-m1*sister_admit-daughter_admit)/&
                         (char_admit(nf,ne)+daughter_admit+sister_admit)!ARC- to check
@@ -2903,7 +2930,9 @@ subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,
 
   sub_name = 'capillary_admittance'
   call enter_exit(sub_name,1)
-  reflect(:,:)=cmplx(0.0_dp,0.0_dp,8)
+  ! Capillary connectors do not currently expose a large-vessel reflection
+  ! coefficient.  Clear only their slice, preserving the venous values.
+  reflect(:,min_elem:max_elem)=cmplx(0.0_dp,0.0_dp,dp)
 
   do ne=min_elem,max_elem
     ne0=elem_cnct(-1,1,ne)!upstream element number
@@ -2953,19 +2982,31 @@ subroutine pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,cha
 !local variables
   integer :: ne, nf,ne_up
   real(dp) :: omega
+  complex(dp) :: round_trip
 
   sub_name = 'pressure_flow_factor'
   call enter_exit(sub_name,1)
 
-  p_factor=1.0_dp
-  q_factor=1.0_dp
+  p_factor(:,ne_min:ne_max)=cmplx(0.0_dp,0.0_dp,dp)
+  q_factor(:,ne_min:ne_max)=cmplx(0.0_dp,0.0_dp,dp)
     do nf=1,no_freq
       omega=nf*2*PI*harmonic_scale
       do ne=ne_min,ne_max
         !look for upstream element
-        if(elem_cnct(-1,0,ne).eq.0)then !no upstream elements, inlet, ignore
-        ne_up=ne_min
-          p_factor(nf,ne)=(1.0_dp)!* &!assumes input admittance is the same as characteristic admittance for this vessel
+        if(elem_cnct(-1,0,ne).eq.0)then !no upstream elements: prescribed inlet
+          round_trip=reflect(nf,ne)*exp(-2.0_dp*elem_field(ne_length,ne)*prop_const(nf,ne))
+          if(trim(bc_type).eq.'pressure')then
+            ! a(nf) is the total inlet-pressure harmonic, not merely the
+            ! incident component.
+            p_factor(nf,ne)=1.0_dp/(1.0_dp+round_trip)
+          elseif(trim(bc_type).eq.'flow')then
+            ! Convert the total inlet-flow harmonic to incident pressure.
+            p_factor(nf,ne)=1.0_dp/(char_admit(nf,ne)*(1.0_dp-round_trip))
+          else
+            write(*,*) 'ERROR: Boundary condition type not recognised: ',trim(bc_type)
+            stop 1
+          endif
+          q_factor(nf,ne)=p_factor(nf,ne)*char_admit(nf,ne)
         else
           ne_up=elem_cnct(-1,1,ne)
           p_factor(nf,ne)=p_factor(nf,ne_up)*(1+reflect(nf,ne_up))* &
