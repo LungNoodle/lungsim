@@ -315,7 +315,8 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
         error stop
       endif
       call matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop_const,&
-        char_admit,cap_port,min_art,max_art,min_ven,max_ven,min_cap,max_cap,bc_type)
+        char_admit,cap_port,min_art,max_art,min_ven,max_ven,min_cap,max_cap,bc_type,&
+        admit_param%bc_type)
     else
       call pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,char_admit,eff_admit,&
         harmonic_scale,min_art,max_art,bc_type)
@@ -3047,7 +3048,8 @@ end subroutine pressure_flow_factor
 ! venous subtree to a two-port, applies the inlet and venous-outlet harmonic
 ! boundary conditions at the root, and back-substitutes through both trees.
 subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop_const,&
-  char_admit,cap_port,min_art,max_art,min_ven,max_ven,min_cap,max_cap,bc_type)
+  char_admit,cap_port,min_art,max_art,min_ven,max_ven,min_cap,max_cap,bc_type,&
+  outlet_bc_type)
 
   integer, intent(in) :: no_freq,min_art,max_art,min_ven,max_ven,min_cap,max_cap
   complex(dp), intent(inout) :: p_factor(1:no_freq,num_elems)
@@ -3056,7 +3058,7 @@ subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop
   complex(dp), intent(in) :: prop_const(1:no_freq,num_elems)
   complex(dp), intent(inout) :: char_admit(1:no_freq,num_elems)
   complex(dp), intent(in) :: cap_port(2,2,no_freq,max_cap-min_cap+1)
-  character(len=60), intent(in) :: bc_type
+  character(len=*), intent(in) :: bc_type,outlet_bc_type
 
   complex(dp), allocatable :: subtree(:,:,:),left_pressure(:),right_pressure(:)
   integer, allocatable :: cap_for_artery(:)
@@ -3064,6 +3066,7 @@ subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop
   complex(dp) :: temporary_port(2,2),remaining_port(2,2)
   complex(dp) :: p_art_junction,p_ven_junction,q_art_in,q_art_port2
   complex(dp) :: q_ven_in,q_ven_port2,q_cap_in
+  complex(dp) :: outlet_admittance,input_admittance,root_denominator
   integer :: nf,ne,n,num_children,ne_child,ne_vein,ne_cap,cap_index
   integer :: AllocateStatus
 
@@ -3120,19 +3123,43 @@ subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop
 
     left_pressure=cmplx(0.0_dp,0.0_dp,dp)
     right_pressure=cmplx(0.0_dp,0.0_dp,dp)
-    right_pressure(min_art)=cmplx(0.0_dp,0.0_dp,dp)
+
+    ! Close the venous root with its configured load rather than prescribing
+    ! a pulsatile left-atrial pressure. For a zero-reflection termination the
+    ! load admittance is the characteristic admittance of the root vein. With
+    ! two-port currents directed into the vascular network,
+    !   I2 + Yload*P2 = 0,
+    ! so P2=-Y21*P1/(Y22+Yload).
+    if(trim(outlet_bc_type).eq.'zero_reflection')then
+      outlet_admittance=char_admit(nf,min_ven)
+    else
+      write(*,*) 'ERROR: Coupled vascular wave propagation currently requires ',&
+        'a zero-reflection venous outlet.'
+      error stop
+    endif
+    root_denominator=subtree(2,2,min_art)+outlet_admittance
+    if(abs(root_denominator).le.1.0e-12_dp*&
+      max(abs(subtree(2,2,min_art)),abs(outlet_admittance),tiny(1.0_dp)))then
+      write(*,*) 'ERROR: Singular loaded venous outlet at frequency',nf
+      error stop
+    endif
+
     if(trim(bc_type).eq.'pressure')then
       left_pressure(min_art)=cmplx(1.0_dp,0.0_dp,dp)
     elseif(trim(bc_type).eq.'flow')then
-      if(abs(subtree(1,1,min_art)).le.tiny(1.0_dp))then
+      input_admittance=subtree(1,1,min_art)-subtree(1,2,min_art)*&
+        subtree(2,1,min_art)/root_denominator
+      if(abs(input_admittance).le.tiny(1.0_dp))then
         write(*,*) 'ERROR: Singular root input admittance at frequency',nf
         error stop
       endif
-      left_pressure(min_art)=1.0_dp/subtree(1,1,min_art)
+      left_pressure(min_art)=1.0_dp/input_admittance
     else
       write(*,*) 'ERROR: Boundary condition type not recognised: ',trim(bc_type)
       error stop
     endif
+    right_pressure(min_art)=-subtree(2,1,min_art)*left_pressure(min_art)/&
+      root_denominator
 
     ! Top-down recovery. Each child subtree shares the arterial and venous
     ! junction pressures of its siblings; its port currents then split without
