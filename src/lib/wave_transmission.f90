@@ -74,6 +74,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   complex(dp), allocatable :: prop_const(:,:)
   complex(dp), allocatable :: p_factor(:,:)
   complex(dp), allocatable :: q_factor(:,:)
+  complex(dp), allocatable :: cap_port(:,:,:,:)
   real(dp), allocatable :: forward_pressure(:)
   real(dp), allocatable :: reflected_pressure(:)
   real(dp), allocatable :: forward_pressure_previous(:)
@@ -285,13 +286,16 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
         enddo
         min_cap=ne
         max_cap=num_elems
+        allocate(cap_port(2,2,no_freq,max_cap-min_cap+1), STAT=AllocateStatus)
+        if(AllocateStatus /= 0) STOP "*** Not enough memory for capillary two-port array ***"
+        cap_port=cmplx(0.0_dp,0.0_dp,dp)
 
         !vein admittance
         tree_direction='converging'
         call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
             min_ven,max_ven,tree_direction)
 !        !cap admittance
-        call capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
+        call capillary_admittance(no_freq,eff_admit,cap_port,char_admit,reflect,prop_const,harmonic_scale,&
             min_cap,max_cap,elast_param,mechanics_parameters,grav_vect,cap_model)!
         !art admittance
         tree_direction='diverging'
@@ -305,13 +309,17 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
             min_art,max_art,tree_direction)
     endif
 
-    ! Propagate harmonics through the arterial tree.  The matched venous tree
-    ! cannot use this diverging-tree recurrence: each terminal vein must first
-    ! be seeded by the output transfer of its capillary ladder.  Until that
-    ! transfer is exposed by cap_flow_admit, its factors deliberately remain
-    ! zero instead of inheriting the inlet waveform.
-    call pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,char_admit,eff_admit,&
-    harmonic_scale,min_art,max_art,bc_type)
+    if(mesh_type.eq.'full_plus_ladder')then
+      if(cap_model.ne.1)then
+        write(*,*) 'ERROR: Coupled vascular wave propagation currently supports cap_model 1 only.'
+        error stop
+      endif
+      call matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop_const,&
+        char_admit,cap_port,min_art,max_art,min_ven,max_ven,min_cap,max_cap,bc_type)
+    else
+      call pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,char_admit,eff_admit,&
+        harmonic_scale,min_art,max_art,bc_type)
+    endif
     if(lobe_imped.eq.'ON') then ! export lobe imped
       ! Open output file
       open(unit=10, file='lobe_imped.json', status='replace')
@@ -2319,6 +2327,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   deallocate (prop_const, STAT=AllocateStatus)
   deallocate (p_factor, STAT=AllocateStatus)
   deallocate (q_factor, STAT=AllocateStatus)
+  if(allocated(cap_port)) deallocate(cap_port, STAT=AllocateStatus)
   deallocate (forward_pressure, STAT=AllocateStatus)
   deallocate (reflected_pressure, STAT=AllocateStatus)
   deallocate (forward_pressure_previous, STAT=AllocateStatus)
@@ -2903,11 +2912,12 @@ end subroutine tree_admittance
 !##################################################################
 !
 !*capillaryadmittance:* Calculates the total admittance of a tree
-subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
+subroutine capillary_admittance(no_freq,eff_admit,cap_port,char_admit,reflect,prop_const,harmonic_scale,&
   min_elem,max_elem,elast_param,mechanics_parameters,grav_vect,cap_model)
 
   integer, intent(in) :: no_freq
   complex(dp), intent(inout) :: eff_admit(1:no_freq,num_elems)
+  complex(dp), intent(out) :: cap_port(2,2,no_freq,max_elem-min_elem+1)
   complex(dp), intent(inout) :: char_admit(1:no_freq,num_elems)
   complex(dp), intent(inout) :: reflect(1:no_freq,num_elems)
   complex(dp), intent(in) :: prop_const(1:no_freq,num_elems)
@@ -2952,7 +2962,8 @@ subroutine capillary_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,
     do i=1,no_freq
       eff_admit_downstream(i)=eff_admit(i,ne1)
     enddo
-    call cap_flow_admit(ne,eff_admit(:,ne),eff_admit_downstream,Lin,Lout,P1,P2,&
+    call cap_flow_admit(ne,eff_admit(:,ne),cap_port(:,:,:,ne-min_elem+1),&
+                        eff_admit_downstream,Lin,Lout,P1,P2,&
                         Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,&
                         elast_param,cap_model)
    enddo!ne
@@ -3019,5 +3030,257 @@ subroutine pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,cha
 
   call enter_exit(sub_name,2)
 end subroutine pressure_flow_factor
+
+!
+!##############################################################################
+!
+!*matched_vascular_pressure_flow:* Reduces every matched arterial-capillary-
+! venous subtree to a two-port, applies the inlet and venous-outlet harmonic
+! boundary conditions at the root, and back-substitutes through both trees.
+subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop_const,&
+  char_admit,cap_port,min_art,max_art,min_ven,max_ven,min_cap,max_cap,bc_type)
+
+  integer, intent(in) :: no_freq,min_art,max_art,min_ven,max_ven,min_cap,max_cap
+  complex(dp), intent(inout) :: p_factor(1:no_freq,num_elems)
+  complex(dp), intent(inout) :: q_factor(1:no_freq,num_elems)
+  complex(dp), intent(inout) :: reflect(1:no_freq,num_elems)
+  complex(dp), intent(in) :: prop_const(1:no_freq,num_elems)
+  complex(dp), intent(in) :: char_admit(1:no_freq,num_elems)
+  complex(dp), intent(in) :: cap_port(2,2,no_freq,max_cap-min_cap+1)
+  character(len=60), intent(in) :: bc_type
+
+  complex(dp), allocatable :: subtree(:,:,:),left_pressure(:),right_pressure(:)
+  integer, allocatable :: cap_for_artery(:)
+  complex(dp) :: inner_port(2,2),artery_port(2,2),vein_port(2,2)
+  complex(dp) :: temporary_port(2,2),remaining_port(2,2)
+  complex(dp) :: p_art_junction,p_ven_junction,q_art_in,q_art_port2
+  complex(dp) :: q_ven_in,q_ven_port2
+  integer :: nf,ne,n,num_children,ne_child,ne_vein,ne_cap,cap_index
+  integer :: AllocateStatus
+
+  if(max_art-min_art.ne.max_ven-min_ven)then
+    write(*,*) 'ERROR: Matched arterial and venous trees have different sizes.'
+    error stop
+  endif
+
+  allocate(subtree(2,2,max_art),left_pressure(max_art),right_pressure(max_art),&
+    cap_for_artery(max_art),STAT=AllocateStatus)
+  if(AllocateStatus.ne.0) STOP '*** Not enough memory for matched vascular wave solve ***'
+
+  cap_for_artery=0
+  do ne_cap=min_cap,max_cap
+    ne=elem_cnct(-1,1,ne_cap)
+    if(ne.ge.min_art.and.ne.le.max_art) cap_for_artery(ne)=ne_cap-min_cap+1
+  enddo
+
+  do nf=1,no_freq
+    subtree=cmplx(0.0_dp,0.0_dp,dp)
+
+    ! Bottom-up reduction. Imported LungSim trees store parents before their
+    ! daughters, so reverse local element order is a post-order traversal.
+    do ne=max_art,min_art,-1
+      inner_port=cmplx(0.0_dp,0.0_dp,dp)
+      cap_index=cap_for_artery(ne)
+      if(cap_index.gt.0)then
+        inner_port=cap_port(:,:,nf,cap_index)
+      else
+        num_children=0
+        do n=1,elem_cnct(1,0,ne)
+          ne_child=elem_cnct(1,n,ne)
+          if(ne_child.ge.min_art.and.ne_child.le.max_art)then
+            if(ne_child.le.ne)then
+              write(*,*) 'ERROR: Arterial tree is not in parent-before-child order',ne,ne_child
+              error stop
+            endif
+            inner_port=inner_port+subtree(:,:,ne_child)
+            num_children=num_children+1
+          endif
+        enddo
+        if(num_children.eq.0)then
+          write(*,*) 'ERROR: Arterial terminal has no capillary connector',ne
+          error stop
+        endif
+      endif
+
+      ne_vein=min_ven+(ne-min_art)
+      call large_vessel_two_port(ne,nf,char_admit,prop_const,artery_port)
+      call large_vessel_two_port(ne_vein,nf,char_admit,prop_const,vein_port)
+      call vascular_cascade(artery_port,inner_port,temporary_port,ne,nf)
+      call vascular_cascade(temporary_port,vein_port,subtree(:,:,ne),ne,nf)
+    enddo
+
+    left_pressure=cmplx(0.0_dp,0.0_dp,dp)
+    right_pressure=cmplx(0.0_dp,0.0_dp,dp)
+    right_pressure(min_art)=cmplx(0.0_dp,0.0_dp,dp)
+    if(trim(bc_type).eq.'pressure')then
+      left_pressure(min_art)=cmplx(1.0_dp,0.0_dp,dp)
+    elseif(trim(bc_type).eq.'flow')then
+      if(abs(subtree(1,1,min_art)).le.tiny(1.0_dp))then
+        write(*,*) 'ERROR: Singular root input admittance at frequency',nf
+        error stop
+      endif
+      left_pressure(min_art)=1.0_dp/subtree(1,1,min_art)
+    else
+      write(*,*) 'ERROR: Boundary condition type not recognised: ',trim(bc_type)
+      error stop
+    endif
+
+    ! Top-down recovery. Each child subtree shares the arterial and venous
+    ! junction pressures of its siblings; its port currents then split without
+    ! violating either pressure continuity or flow conservation.
+    do ne=min_art,max_art
+      inner_port=cmplx(0.0_dp,0.0_dp,dp)
+      cap_index=cap_for_artery(ne)
+      if(cap_index.gt.0)then
+        inner_port=cap_port(:,:,nf,cap_index)
+      else
+        do n=1,elem_cnct(1,0,ne)
+          ne_child=elem_cnct(1,n,ne)
+          if(ne_child.ge.min_art.and.ne_child.le.max_art)then
+            inner_port=inner_port+subtree(:,:,ne_child)
+          endif
+        enddo
+      endif
+
+      ne_vein=min_ven+(ne-min_art)
+      call large_vessel_two_port(ne,nf,char_admit,prop_const,artery_port)
+      call large_vessel_two_port(ne_vein,nf,char_admit,prop_const,vein_port)
+      call vascular_cascade(inner_port,vein_port,remaining_port,ne,nf)
+      call cascade_middle_pressure(artery_port,remaining_port,left_pressure(ne),&
+        right_pressure(ne),p_art_junction,ne,nf)
+      call cascade_middle_pressure(inner_port,vein_port,p_art_junction,&
+        right_pressure(ne),p_ven_junction,ne,nf)
+
+      q_art_in=artery_port(1,1)*left_pressure(ne)+artery_port(1,2)*p_art_junction
+      q_art_port2=artery_port(2,1)*left_pressure(ne)+artery_port(2,2)*p_art_junction
+      call total_to_wave_factors(ne,nf,left_pressure(ne),q_art_in,p_art_junction,&
+        -q_art_port2,p_factor,q_factor,reflect,prop_const,char_admit)
+
+      q_ven_in=vein_port(1,1)*p_ven_junction+vein_port(1,2)*right_pressure(ne)
+      q_ven_port2=vein_port(2,1)*p_ven_junction+vein_port(2,2)*right_pressure(ne)
+      call total_to_wave_factors(ne_vein,nf,p_ven_junction,q_ven_in,right_pressure(ne),&
+        -q_ven_port2,p_factor,q_factor,reflect,prop_const,char_admit)
+
+      if(cap_index.eq.0)then
+        do n=1,elem_cnct(1,0,ne)
+          ne_child=elem_cnct(1,n,ne)
+          if(ne_child.ge.min_art.and.ne_child.le.max_art)then
+            left_pressure(ne_child)=p_art_junction
+            right_pressure(ne_child)=p_ven_junction
+          endif
+        enddo
+      endif
+    enddo
+  enddo
+
+  deallocate(subtree,left_pressure,right_pressure,cap_for_artery)
+
+end subroutine matched_vascular_pressure_flow
+
+!
+!##############################################################################
+!
+subroutine large_vessel_two_port(ne,nf,char_admit,prop_const,port)
+
+  integer, intent(in) :: ne,nf
+  complex(dp), intent(in) :: char_admit(:,:),prop_const(:,:)
+  complex(dp), intent(out) :: port(2,2)
+
+  complex(dp) :: z,sinh_z
+
+  z=prop_const(nf,ne)*elem_field(ne_length,ne)
+  sinh_z=sinh(z)
+  if(abs(sinh_z).le.tiny(1.0_dp))then
+    write(*,*) 'ERROR: Singular large-vessel two-port',ne,nf
+    error stop
+  endif
+  port(1,1)=char_admit(nf,ne)/tanh(z)
+  port(1,2)=-char_admit(nf,ne)/sinh_z
+  port(2,1)=port(1,2)
+  port(2,2)=port(1,1)
+
+end subroutine large_vessel_two_port
+
+!
+!##############################################################################
+!
+subroutine vascular_cascade(left_port,right_port,result_port,ne,nf)
+
+  complex(dp), intent(in) :: left_port(2,2),right_port(2,2)
+  complex(dp), intent(out) :: result_port(2,2)
+  integer, intent(in) :: ne,nf
+
+  complex(dp) :: denominator
+  real(dp) :: scale
+
+  denominator=left_port(2,2)+right_port(1,1)
+  scale=max(abs(left_port(2,2)),abs(right_port(1,1)),tiny(1.0_dp))
+  if(abs(denominator).le.1.0e-12_dp*scale)then
+    write(*,*) 'ERROR: Near-singular vascular cascade',ne,nf,denominator
+    error stop
+  endif
+  result_port(1,1)=left_port(1,1)-left_port(1,2)*left_port(2,1)/denominator
+  result_port(1,2)=-left_port(1,2)*right_port(1,2)/denominator
+  result_port(2,1)=-right_port(2,1)*left_port(2,1)/denominator
+  result_port(2,2)=right_port(2,2)-right_port(2,1)*right_port(1,2)/denominator
+
+end subroutine vascular_cascade
+
+!
+!##############################################################################
+!
+subroutine cascade_middle_pressure(left_port,right_port,left_pressure,right_pressure,&
+  middle_pressure,ne,nf)
+
+  complex(dp), intent(in) :: left_port(2,2),right_port(2,2)
+  complex(dp), intent(in) :: left_pressure,right_pressure
+  complex(dp), intent(out) :: middle_pressure
+  integer, intent(in) :: ne,nf
+
+  complex(dp) :: denominator
+  real(dp) :: scale
+
+  denominator=left_port(2,2)+right_port(1,1)
+  scale=max(abs(left_port(2,2)),abs(right_port(1,1)),tiny(1.0_dp))
+  if(abs(denominator).le.1.0e-12_dp*scale)then
+    write(*,*) 'ERROR: Near-singular pressure back-substitution',ne,nf
+    error stop
+  endif
+  middle_pressure=-(left_port(2,1)*left_pressure+&
+    right_port(1,2)*right_pressure)/denominator
+
+end subroutine cascade_middle_pressure
+
+!
+!##############################################################################
+!
+subroutine total_to_wave_factors(ne,nf,p_in,q_in,p_out,q_out,p_factor,q_factor,&
+  reflect,prop_const,char_admit)
+
+  integer, intent(in) :: ne,nf
+  complex(dp), intent(in) :: p_in,q_in,p_out,q_out
+  complex(dp), intent(inout) :: p_factor(:,:),q_factor(:,:),reflect(:,:)
+  complex(dp), intent(in) :: prop_const(:,:),char_admit(:,:)
+
+  complex(dp) :: forward_in,forward_out,backward_out
+  real(dp) :: scale
+
+  if(abs(char_admit(nf,ne)).le.tiny(1.0_dp))then
+    write(*,*) 'ERROR: Zero characteristic admittance',ne,nf
+    error stop
+  endif
+  forward_in=0.5_dp*(p_in+q_in/char_admit(nf,ne))
+  forward_out=0.5_dp*(p_out+q_out/char_admit(nf,ne))
+  backward_out=0.5_dp*(p_out-q_out/char_admit(nf,ne))
+  scale=max(abs(p_out),abs(q_out/char_admit(nf,ne)),tiny(1.0_dp))
+  if(abs(forward_out).le.1.0e-12_dp*scale)then
+    write(*,*) 'ERROR: Vanishing forward wave at vessel outlet',ne,nf
+    error stop
+  endif
+  p_factor(nf,ne)=forward_in
+  q_factor(nf,ne)=forward_in*char_admit(nf,ne)
+  reflect(nf,ne)=backward_out/forward_out
+
+end subroutine total_to_wave_factors
 
 end module wave_transmission

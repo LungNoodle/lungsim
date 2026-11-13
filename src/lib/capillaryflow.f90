@@ -914,13 +914,14 @@ end subroutine cap_specific_parameters
 !
 !################################################
 !
-subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
+subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,&
   Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param,&
   cap_model)
 
   integer,intent(in) :: ne
   integer,intent(in) :: no_freq
   complex(dp), intent(inout) :: admit(no_freq)
+  complex(dp), intent(out) :: cap_port(2,2,no_freq)
   complex(dp), intent(in) :: eff_admit_downstream(no_freq)
   real(dp), intent(inout) ::Lin,Lout,P1,P2,Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap
   real(dp), intent(in) :: harmonic_scale
@@ -973,6 +974,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
 
   sub_name = 'cap_flow_admit'
   call enter_exit(sub_name,1)
+  cap_port=cmplx(0.0_dp,0.0_dp,dp)
 
   !     Number of non-zero entries in solution matrix.
   NonZeros=3
@@ -1429,6 +1431,11 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      admit(nf)=tube_eff_admit(1,nf)!tube_eff_admit(1,nf) !!effective daughter admittance of first arteriole
    enddo
 
+   if(cap_model == 1)then
+     call build_model1_capillary_port(ngen,no_freq,tube_admit,cap_admit,prop_const,&
+       prop_const_cap,L_a,L_v,cap_param%L_c,cap_port)
+   endif
+
   deallocate(cap_admit)
   deallocate(tube_admit)
   deallocate(cap_eff_admit)
@@ -1449,6 +1456,109 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   call enter_exit(sub_name,2)
 
 end subroutine cap_flow_admit
+
+!
+!###################################################################################
+!
+! Build the exact two-sided frequency-domain representation of the constant-height
+! symmetric ladder.  Each generation contains a local capillary sheet in parallel
+! with two identical daughter ladders.  The two rail halves are then cascaded on
+! the arterial and venous sides.
+subroutine build_model1_capillary_port(ngen,no_freq,tube_admit,cap_admit,prop_const,&
+  prop_const_cap,L_a,L_v,L_c,cap_port)
+
+  integer, intent(in) :: ngen,no_freq
+  complex(dp), intent(in) :: tube_admit(4*ngen,no_freq)
+  complex(dp), intent(in) :: cap_admit(ngen,no_freq)
+  complex(dp), intent(in) :: prop_const(4*ngen,no_freq)
+  complex(dp), intent(in) :: prop_const_cap(ngen,no_freq)
+  real(dp), intent(in) :: L_a(ngen),L_v(ngen),L_c
+  complex(dp), intent(out) :: cap_port(2,2,no_freq)
+
+  integer :: nf,gen
+  complex(dp) :: network(2,2),children(2,2),path(2,2),middle(2,2),temp(2,2)
+  complex(dp) :: art_first(2,2),art_second(2,2),ven_first(2,2),ven_second(2,2)
+  complex(dp) :: cap_sheet(2,2)
+
+  do nf=1,no_freq
+    call transmission_line_port(cap_admit(ngen,nf),prop_const_cap(ngen,nf),&
+      L_c*1000.0_dp,network)
+
+    do gen=ngen-1,1,-1
+      children=2.0_dp*network
+
+      call transmission_line_port(tube_admit(gen+ngen,nf),prop_const(gen+ngen,nf),&
+        L_a(gen)*1000.0_dp/2.0_dp,art_second)
+      call transmission_line_port(tube_admit(gen+3*ngen,nf),prop_const(gen+3*ngen,nf),&
+        L_v(gen)*1000.0_dp/2.0_dp,ven_second)
+      call cascade_two_ports(art_second,children,temp)
+      call cascade_two_ports(temp,ven_second,path)
+
+      call transmission_line_port(cap_admit(gen,nf),prop_const_cap(gen,nf),&
+        L_c*1000.0_dp,cap_sheet)
+      middle=path+cap_sheet
+
+      call transmission_line_port(tube_admit(gen,nf),prop_const(gen,nf),&
+        L_a(gen)*1000.0_dp/2.0_dp,art_first)
+      call transmission_line_port(tube_admit(gen+2*ngen,nf),prop_const(gen+2*ngen,nf),&
+        L_v(gen)*1000.0_dp/2.0_dp,ven_first)
+      call cascade_two_ports(art_first,middle,temp)
+      call cascade_two_ports(temp,ven_first,network)
+    enddo
+
+    cap_port(:,:,nf)=network
+  enddo
+
+end subroutine build_model1_capillary_port
+
+!
+!###################################################################################
+!
+subroutine transmission_line_port(characteristic_admit,gamma,length,port)
+
+  complex(dp), intent(in) :: characteristic_admit,gamma
+  real(dp), intent(in) :: length
+  complex(dp), intent(out) :: port(2,2)
+
+  complex(dp) :: z,sinh_z
+
+  z=gamma*length
+  sinh_z=sinh(z)
+  if(abs(sinh_z).le.tiny(1.0_dp))then
+    write(*,*) 'ERROR: Singular transmission-line two-port',characteristic_admit,gamma,length
+    error stop
+  endif
+  port(1,1)=characteristic_admit/tanh(z)
+  port(1,2)=-characteristic_admit/sinh_z
+  port(2,1)=port(1,2)
+  port(2,2)=port(1,1)
+
+end subroutine transmission_line_port
+
+!
+!###################################################################################
+!
+subroutine cascade_two_ports(left_port,right_port,result_port)
+
+  complex(dp), intent(in) :: left_port(2,2),right_port(2,2)
+  complex(dp), intent(out) :: result_port(2,2)
+
+  complex(dp) :: denominator
+  real(dp) :: scale
+
+  denominator=left_port(2,2)+right_port(1,1)
+  scale=max(abs(left_port(2,2)),abs(right_port(1,1)),tiny(1.0_dp))
+  if(abs(denominator).le.1.0e-12_dp*scale)then
+    write(*,*) 'ERROR: Near-singular two-port cascade',denominator
+    error stop
+  endif
+
+  result_port(1,1)=left_port(1,1)-left_port(1,2)*left_port(2,1)/denominator
+  result_port(1,2)=-left_port(1,2)*right_port(1,2)/denominator
+  result_port(2,1)=-right_port(2,1)*left_port(2,1)/denominator
+  result_port(2,2)=right_port(2,2)-right_port(2,1)*right_port(1,2)/denominator
+
+end subroutine cascade_two_ports
 
 !
 !################################################################
