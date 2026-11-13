@@ -1409,15 +1409,15 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
      if(gen.eq.(cap_param%num_symm_gen-1))then
        daughter_admit=2.0_dp*cap_eff_admit(cap_param%num_symm_gen,nf)
      else
-       daughter_admit=2.0_dp*tube_eff_admit((gen+1)+2*ngen,nf)
+       daughter_admit=2.0_dp*tube_eff_admit(gen+1,nf)
      endif
-     reflect_coeff=(tube_admit(gen+2*ngen,nf)-daughter_admit)/&
-              (tube_admit(gen+2*ngen,nf)+daughter_admit)
-     tube_eff_admit(gen+2*ngen,nf)=tube_admit(gen+2*ngen,nf)*(1&
-              -reflect_coeff*exp(-2.0_dp*prop_const(gen+2*ngen,nf)*L_a(gen)*1000.0_dp/2.0_dp))/&
-              (1+reflect_coeff*exp(-2.0_dp*prop_const(gen+2*ngen,nf)*L_a(gen)*1000.0_dp/2.0_dp))
+     reflect_coeff=(tube_admit(gen+ngen,nf)-daughter_admit)/&
+              (tube_admit(gen+ngen,nf)+daughter_admit)
+     tube_eff_admit(gen+ngen,nf)=tube_admit(gen+ngen,nf)*(1&
+              -reflect_coeff*exp(-2.0_dp*prop_const(gen+ngen,nf)*L_a(gen)*1000.0_dp/2.0_dp))/&
+              (1+reflect_coeff*exp(-2.0_dp*prop_const(gen+ngen,nf)*L_a(gen)*1000.0_dp/2.0_dp))
       !first half of arteriole, daughter admittance is second half of arteriole plus cap
-      daughter_admit=tube_eff_admit(gen+2*ngen,nf)+cap_eff_admit(gen,nf)
+      daughter_admit=tube_eff_admit(gen+ngen,nf)+cap_eff_admit(gen,nf)
       reflect_coeff=(tube_admit(gen,nf)-daughter_admit)/&
               (tube_admit(gen,nf)+daughter_admit)
       tube_eff_admit(gen,nf)=tube_admit(gen,nf)*(1&
@@ -1506,7 +1506,11 @@ subroutine build_model1_capillary_port(ngen,no_freq,tube_admit,cap_admit,prop_co
       call cascade_two_ports(temp,ven_first,network)
     enddo
 
-    cap_port(:,:,nf)=network
+    ! There are two identical first-generation paths in the steady ladder
+    ! (all first-generation rail resistances are divided by two).  The
+    ! frequency-domain terminal unit must therefore expose the same two paths
+    ! in parallel at its large-vessel ports.
+    cap_port(:,:,nf)=2.0_dp*network
   enddo
 
 end subroutine build_model1_capillary_port

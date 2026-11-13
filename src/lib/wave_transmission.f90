@@ -41,7 +41,8 @@ contains
 !##############################################################################
 !
 subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,no_freq,a,b,n_adparams,&
-  admittance_param,n_model,model_definition,cap_model,remodeling_grade,bc_type,lobe_imped)
+  admittance_param,n_model,model_definition,cap_model,remodeling_grade,bc_type,lobe_imped,&
+  outlet_a,outlet_b)
 
   integer, intent(in) :: n_time
   real(dp), intent(in) :: heartrate
@@ -49,6 +50,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   integer, intent(in):: no_freq
   real(dp), intent(in) :: a(no_freq)
   real(dp), intent(in) :: b(no_freq)
+  real(dp), intent(in), optional :: outlet_a(no_freq),outlet_b(no_freq)
   integer, intent(in) :: n_adparams
   real(dp), intent(in) :: admittance_param(n_adparams)
   integer, intent(in) :: n_model
@@ -75,6 +77,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   complex(dp), allocatable :: p_factor(:,:)
   complex(dp), allocatable :: q_factor(:,:)
   complex(dp), allocatable :: cap_port(:,:,:,:)
+  complex(dp), allocatable :: outlet_factor(:)
   real(dp), allocatable :: forward_pressure(:)
   real(dp), allocatable :: reflected_pressure(:)
   real(dp), allocatable :: forward_pressure_previous(:)
@@ -90,7 +93,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   integer :: AllocateStatus,fid=10,fid2=20,fid3=30,fid4=40,fid5=50,fid6=60,fid7=70,fid8=80,fid9=90
   integer :: fid10=100,fid11=110,fid12=120,fid13=130
   character(len=60) :: sub_name
-  logical :: vein_found=.False.
+  logical :: capillary_reporting_element,vein_found=.False.
   integer :: vein_elem=0
   integer, parameter :: num_freq = 101, num_vessels = 17
   integer :: i, j
@@ -228,6 +231,8 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   if (AllocateStatus /= 0) STOP "*** Not enough memory for p_factor array ***"
   allocate (q_factor(1:no_freq,num_elems), STAT = AllocateStatus)
   if (AllocateStatus /= 0) STOP "*** Not enough memory for q_factor array ***"
+  allocate (outlet_factor(1:no_freq), STAT = AllocateStatus)
+  if (AllocateStatus /= 0) STOP "*** Not enough memory for outlet_factor array ***"
   allocate (forward_pressure(n_time), STAT = AllocateStatus)
   if (AllocateStatus /= 0) STOP "*** Not enough memory for forward_p array ***"
   allocate (reflected_pressure(n_time), STAT = AllocateStatus)
@@ -261,7 +266,24 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   ! venous tree or capillary connectors.
   p_factor=cmplx(0.0_dp,0.0_dp,dp)
   q_factor=cmplx(0.0_dp,0.0_dp,dp)
+  outlet_factor=cmplx(0.0_dp,0.0_dp,dp)
   alpha=0.0_dp
+  if(present(outlet_a).neqv.present(outlet_b))then
+    error stop 'Both outlet pressure amplitudes and phases must be supplied together.'
+  endif
+  if(present(outlet_a))then
+    if(mesh_type.ne.'full_plus_ladder')then
+      error stop 'A pulsatile venous outlet is only supported for full_plus_ladder.'
+    endif
+    do nf=1,no_freq
+      if(abs(a(nf)).gt.tiny(1.0_dp))then
+        outlet_factor(nf)=outlet_a(nf)/a(nf)*cmplx(&
+          cos(outlet_b(nf)-b(nf)),sin(outlet_b(nf)-b(nf)),dp)
+      elseif(abs(outlet_a(nf)).gt.tiny(1.0_dp))then
+        error stop 'A nonzero outlet harmonic requires a nonzero inlet harmonic.'
+      endif
+    enddo
+  endif
   !calculate characteristic admittance of each branch
   call characteristic_admittance(no_freq,char_admit,prop_const,alpha,harmonic_scale, &
     density,viscosity,admit_param,elast_param,mechanics_parameters,grav_vect,remodeling_grade)
@@ -315,7 +337,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
         error stop
       endif
       call matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop_const,&
-        char_admit,cap_port,min_art,max_art,min_ven,max_ven,min_cap,max_cap,bc_type)
+        char_admit,cap_port,outlet_factor,min_art,max_art,min_ven,max_ven,min_cap,max_cap,bc_type)
     else
       call pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,char_admit,eff_admit,&
         harmonic_scale,min_art,max_art,bc_type)
@@ -2141,6 +2163,10 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
 
     do ne =2,num_elems  ! reporting time-dependent results for all the vessels
       ne_previous=elem_cnct(-1,1,ne)
+      capillary_reporting_element=.false.
+      if(mesh_type.eq.'full_plus_ladder')then
+        capillary_reporting_element=ne.ge.min_cap
+      endif
       forward_pressure=0.0_dp
       reflected_pressure=0.0_dp
       forward_pressure_previous=0.0_dp
@@ -2172,18 +2198,23 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
                   (-2*elem_field(ne_length,ne_previous))*(dimag(prop_const(nf,ne_previous)))+&
                   atan2(dimag(reflect(nf,ne_previous)),real(reflect(nf,ne_previous), 8)))
 
-              forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
-                  cos(omega*time+b(nf)+&
-                  atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                  atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+              if(capillary_reporting_element)then
+                forward_flow(nt)=forward_flow(nt)+abs(q_factor(nf,ne))*a(nf)*&
+                  cos(omega*time+b(nf)+atan2(dimag(q_factor(nf,ne)),real(q_factor(nf,ne),dp)))
+              else
+                forward_flow(nt)=forward_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
+                    cos(omega*time+b(nf)+&
+                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                    atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
 
-              reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
-                  abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
-                  cos(omega*time+b(nf)+&
-                  atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
-                  (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
-                  atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))+&
-                  atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+                reflected_flow(nt)=reflected_flow(nt)+abs(char_admit(nf,ne))*abs(p_factor(nf,ne))*a(nf)*&
+                    abs(reflect(nf,ne))*exp((-2*elem_field(ne_length,ne))*(real(prop_const(nf,ne), 8)))*&
+                    cos(omega*time+b(nf)+&
+                    atan2(dimag(p_factor(nf,ne)),real(p_factor(nf,ne), 8))+&
+                    (-2*elem_field(ne_length,ne))*(dimag(prop_const(nf,ne)))+&
+                    atan2(dimag(reflect(nf,ne)),real(reflect(nf,ne), 8))+&
+                    atan2(dimag(char_admit(nf,ne)),real(char_admit(nf,ne), 8)))
+              endif
 
           enddo
       enddo
@@ -2315,6 +2346,9 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
     close(200)
     close(210)
     perfusion_num_steps = n_time
+    if(mesh_type.eq.'full_plus_ladder')then
+      call validate_full_vascular_history(bc_type,min_art,min_ven)
+    endif
 
 
   !!DEALLOCATE MEMORY
@@ -2327,6 +2361,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   deallocate (prop_const, STAT=AllocateStatus)
   deallocate (p_factor, STAT=AllocateStatus)
   deallocate (q_factor, STAT=AllocateStatus)
+  deallocate (outlet_factor, STAT=AllocateStatus)
   if(allocated(cap_port)) deallocate(cap_port, STAT=AllocateStatus)
   deallocate (forward_pressure, STAT=AllocateStatus)
   deallocate (reflected_pressure, STAT=AllocateStatus)
@@ -2338,6 +2373,49 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   deallocate(WSS, STAT=AllocateStatus)
   call enter_exit(sub_name,2)
 end subroutine evaluate_wave_transmission
+!
+!##############################################################################
+!
+subroutine validate_full_vascular_history(bc_type,min_art,min_ven)
+
+  character(len=*), intent(in) :: bc_type
+  integer, intent(in) :: min_art,min_ven
+
+  real(dp) :: arterial_pressure_pulse,mean_inlet_flow,min_inlet_flow
+  real(dp) :: venous_pressure_pulse,reversal_fraction
+
+  mean_inlet_flow=sum(perfusion_flow_history(min_art,1:perfusion_num_steps))/&
+    real(perfusion_num_steps,dp)
+  min_inlet_flow=minval(perfusion_flow_history(min_art,1:perfusion_num_steps))
+  arterial_pressure_pulse=maxval(perfusion_pressure_history(min_art,1:perfusion_num_steps))-&
+    minval(perfusion_pressure_history(min_art,1:perfusion_num_steps))
+  venous_pressure_pulse=maxval(perfusion_pressure_history(min_ven,1:perfusion_num_steps))-&
+    minval(perfusion_pressure_history(min_ven,1:perfusion_num_steps))
+
+  if(abs(mean_inlet_flow).gt.tiny(1.0_dp))then
+    reversal_fraction=-min_inlet_flow/abs(mean_inlet_flow)
+  else
+    reversal_fraction=huge(1.0_dp)
+  endif
+
+  if(trim(bc_type).eq.'pressure'.and.min_inlet_flow.lt.0.0_dp)then
+    write(*,'(A)') 'WARNING: The prescribed arterial pressure waveform produces reverse inlet flow.'
+    write(*,'(A,ES13.5,A,ES13.5)') '         Minimum/mean inlet flow: ',min_inlet_flow,' / ',mean_inlet_flow
+    if(reversal_fraction.gt.0.05_dp)then
+      write(*,'(A)') '         This is a boundary-model result, not a conservation error.'
+      write(*,'(A)') '         Use a measured flow waveform (bc_type=flow) or a coupled heart/valve model.'
+    endif
+  endif
+
+  if(arterial_pressure_pulse.gt.tiny(1.0_dp).and.&
+      venous_pressure_pulse/arterial_pressure_pulse.lt.0.01_dp)then
+    write(*,'(A,ES13.5,A,ES13.5)') 'NOTICE: Arterial/venous-root pressure pulses: ',&
+      arterial_pressure_pulse,' / ',venous_pressure_pulse
+    write(*,'(A)') '        The vascular solve imposes zero pulsatile pressure at the venous outlet.'
+    write(*,'(A)') '        A physiological pulmonary-vein waveform requires a left-atrial outlet waveform.'
+  endif
+
+end subroutine validate_full_vascular_history
 !
 !##############################################################################
 !
@@ -3038,15 +3116,16 @@ end subroutine pressure_flow_factor
 ! venous subtree to a two-port, applies the inlet and venous-outlet harmonic
 ! boundary conditions at the root, and back-substitutes through both trees.
 subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop_const,&
-  char_admit,cap_port,min_art,max_art,min_ven,max_ven,min_cap,max_cap,bc_type)
+  char_admit,cap_port,outlet_factor,min_art,max_art,min_ven,max_ven,min_cap,max_cap,bc_type)
 
   integer, intent(in) :: no_freq,min_art,max_art,min_ven,max_ven,min_cap,max_cap
   complex(dp), intent(inout) :: p_factor(1:no_freq,num_elems)
   complex(dp), intent(inout) :: q_factor(1:no_freq,num_elems)
   complex(dp), intent(inout) :: reflect(1:no_freq,num_elems)
   complex(dp), intent(in) :: prop_const(1:no_freq,num_elems)
-  complex(dp), intent(in) :: char_admit(1:no_freq,num_elems)
+  complex(dp), intent(inout) :: char_admit(1:no_freq,num_elems)
   complex(dp), intent(in) :: cap_port(2,2,no_freq,max_cap-min_cap+1)
+  complex(dp), intent(in) :: outlet_factor(1:no_freq)
   character(len=60), intent(in) :: bc_type
 
   complex(dp), allocatable :: subtree(:,:,:),left_pressure(:),right_pressure(:)
@@ -3054,7 +3133,7 @@ subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop
   complex(dp) :: inner_port(2,2),artery_port(2,2),vein_port(2,2)
   complex(dp) :: temporary_port(2,2),remaining_port(2,2)
   complex(dp) :: p_art_junction,p_ven_junction,q_art_in,q_art_port2
-  complex(dp) :: q_ven_in,q_ven_port2
+  complex(dp) :: q_ven_in,q_ven_port2,q_cap_in
   integer :: nf,ne,n,num_children,ne_child,ne_vein,ne_cap,cap_index
   integer :: AllocateStatus
 
@@ -3111,7 +3190,7 @@ subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop
 
     left_pressure=cmplx(0.0_dp,0.0_dp,dp)
     right_pressure=cmplx(0.0_dp,0.0_dp,dp)
-    right_pressure(min_art)=cmplx(0.0_dp,0.0_dp,dp)
+    right_pressure(min_art)=outlet_factor(nf)
     if(trim(bc_type).eq.'pressure')then
       left_pressure(min_art)=cmplx(1.0_dp,0.0_dp,dp)
     elseif(trim(bc_type).eq.'flow')then
@@ -3119,7 +3198,8 @@ subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop
         write(*,*) 'ERROR: Singular root input admittance at frequency',nf
         error stop
       endif
-      left_pressure(min_art)=1.0_dp/subtree(1,1,min_art)
+      left_pressure(min_art)=(cmplx(1.0_dp,0.0_dp,dp)-&
+        subtree(1,2,min_art)*right_pressure(min_art))/subtree(1,1,min_art)
     else
       write(*,*) 'ERROR: Boundary condition type not recognised: ',trim(bc_type)
       error stop
@@ -3161,7 +3241,22 @@ subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop
       call total_to_wave_factors(ne_vein,nf,p_ven_junction,q_ven_in,right_pressure(ne),&
         -q_ven_port2,p_factor,q_factor,reflect,prop_const,char_admit)
 
-      if(cap_index.eq.0)then
+      if(cap_index.gt.0)then
+        ! A capillary connector represents the entire ladder rather than a
+        ! single transmission line.  Store its arterial-port total pressure
+        ! and inflow as a reflection-free reporting phasor so exported
+        ! terminal-unit histories are no longer silently steady.
+        ne_cap=min_cap+cap_index-1
+        q_cap_in=inner_port(1,1)*p_art_junction+inner_port(1,2)*p_ven_junction
+        p_factor(nf,ne_cap)=p_art_junction
+        q_factor(nf,ne_cap)=q_cap_in
+        reflect(nf,ne_cap)=cmplx(0.0_dp,0.0_dp,dp)
+        if(abs(p_art_junction).gt.tiny(1.0_dp))then
+          char_admit(nf,ne_cap)=q_cap_in/p_art_junction
+        else
+          char_admit(nf,ne_cap)=cmplx(0.0_dp,0.0_dp,dp)
+        endif
+      else
         do n=1,elem_cnct(1,0,ne)
           ne_child=elem_cnct(1,n,ne)
           if(ne_child.ge.min_art.and.ne_child.le.max_art)then

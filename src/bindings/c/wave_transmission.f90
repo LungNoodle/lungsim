@@ -47,6 +47,36 @@ end subroutine evaluate_wave_transmission_c
 
 !###################################################################################
 
+subroutine evaluate_wave_transmission_with_outlet_c(grav_dirn,grav_factor,n_time,heartrate,&
+  a0,no_freq,a,b,outlet_a,outlet_b,n_adparams,admittance_param,n_model,model_definition,&
+  cap_model,remodeling_grade,bc_type,bc_type_len,lobe_imped,lobe_imped_len) &
+  bind(C, name="evaluate_wave_transmission_with_outlet_c")
+
+  use iso_c_binding, only: c_ptr
+  use utils_c, only: strncpy
+  use other_consts, only: MAX_STRING_LEN
+  use wave_transmission, only: evaluate_wave_transmission
+  use arrays,only:dp
+  implicit none
+
+  integer,intent(in) :: grav_dirn,n_time,no_freq,n_adparams,n_model,cap_model
+  real(dp),intent(in) :: grav_factor,heartrate,a0,remodeling_grade
+  real(dp),intent(in) :: a(no_freq),b(no_freq),outlet_a(no_freq),outlet_b(no_freq)
+  real(dp),intent(in) :: admittance_param(n_adparams),model_definition(n_model)
+  type(c_ptr),value,intent(in) :: bc_type,lobe_imped
+  integer,intent(in) :: bc_type_len,lobe_imped_len
+  character(len=MAX_STRING_LEN) :: bc_type_f,lobe_imped_f
+
+  call strncpy(bc_type_f,bc_type,bc_type_len)
+  call strncpy(lobe_imped_f,lobe_imped,lobe_imped_len)
+  call evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,no_freq,a,b,&
+    n_adparams,admittance_param,n_model,model_definition,cap_model,remodeling_grade,&
+    bc_type_f,lobe_imped_f,outlet_a,outlet_b)
+
+end subroutine evaluate_wave_transmission_with_outlet_c
+
+!###################################################################################
+
 subroutine export_time_dependent_perfusion_c(flow_filename,flow_filename_len, &
   pressure_filename,pressure_filename_len) bind(C, name="export_time_dependent_perfusion_c")
 
