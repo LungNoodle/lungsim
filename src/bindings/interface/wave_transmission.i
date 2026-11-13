@@ -20,9 +20,7 @@
 %apply (int DIM1, double* IN_ARRAY1) {(int len1, double* vec1),
                                       (int len2, double* vec2),
                                       (int len3, double* vec3),
-                                      (int len4, double* vec4),
-                                      (int len5, double* vec5),
-                                      (int len6, double* vec6)}
+                                      (int len4, double* vec4)}
 
 
 %rename (evaluate_wave_transmission) my_evaluate_wave_transmission;
@@ -41,26 +39,5 @@ void my_evaluate_wave_transmission(int grav_dirn, double grav_factor,int n_time,
         return;
     }
     evaluate_wave_transmission(grav_dirn, grav_factor, n_time, heartrate, a0, len1, vec1, vec2, len3, vec3, len4, vec4, cap_model, remodeling_grade, bc_type, lobe_imped);
-}
-%}
-
-%rename (evaluate_wave_transmission_with_outlet) my_evaluate_wave_transmission_with_outlet;
-
-%exception my_evaluate_wave_transmission_with_outlet {
-    $action
-    if (PyErr_Occurred()) SWIG_fail;
-}
-
-%inline %{
-void my_evaluate_wave_transmission_with_outlet(int grav_dirn, double grav_factor,int n_time, double heartrate, double a0, int len1, double* vec1, int len2, double* vec2, int len3, double* vec3, int len4, double* vec4, int len5, double* vec5, int len6, double* vec6, int cap_model, double remodeling_grade, const char *bc_type, const char *lobe_imped) {
-    if (len1 != len2 || len1 != len3 || len1 != len4) {
-        PyErr_Format(PyExc_ValueError,
-                     "Inlet and outlet waveform arrays must have equal lengths (%d,%d,%d,%d)",
-                     len1, len2, len3, len4);
-        return;
-    }
-    evaluate_wave_transmission_with_outlet(grav_dirn, grav_factor, n_time, heartrate, a0,
-        len1, vec1, vec2, vec3, vec4, len5, vec5, len6, vec6, cap_model,
-        remodeling_grade, bc_type, lobe_imped);
 }
 %}
