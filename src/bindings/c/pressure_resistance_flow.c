@@ -5,7 +5,6 @@ void compliance_list_c(int *elemlist2_len, int elemlist2[]);
 void occlusion_list_c(int *elemlist_len, int elemlist[]);
 void set_perfusion_flows_c(int *element_ids_len, int element_ids[], int *flow_values_len, double flow_values[]);
 void clear_perfusion_flows_c(void);
-void set_perfusion_flow_mode_c(const char *mode, int *mode_len);
 
 void evaluate_prq_c(const char *mesh_type, int *mesh_type_len, const char *vessel_type, int *vessel_type_len,int *grav_dirn, double *grav_factor, const char *bc_type, int *bc_type_len,  double *inlet_bc, double *outlet_bc,  double *remodeling_grade);
 
@@ -27,12 +26,6 @@ void set_perfusion_flows(int element_ids_len, int element_ids[], int flow_values
 void clear_perfusion_flows(void)
 {
   clear_perfusion_flows_c();
-}
-
-void set_perfusion_flow_mode(const char *mode)
-{
-  int mode_len = strlen(mode);
-  set_perfusion_flow_mode_c(mode, &mode_len);
 }
 
 void evaluate_prq(const char *mesh_type, const char *vessel_type,int grav_dirn, double grav_factor, const char *bc_type, double inlet_bc, double outlet_bc, double remodeling_grade)

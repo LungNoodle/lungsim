@@ -23,7 +23,6 @@ module pressure_resistance_flow
   ! Prescribed perfusion flows are imposed by adjusting vessel resistances.
   ! ctrl_group(ne): -1 = not controlled, 0 = independently controlled element,
   ! >0 = controlled child of junction node ctrl_group(ne) (a 'junction group').
-  character(len=20) :: perfusion_flow_mode = 'geometric'
   integer,allocatable :: ctrl_group(:)
   logical,allocatable :: ctrl_prescribed(:)
   real(dp),allocatable :: ctrl_target(:),ctrl_logscale(:),ctrl_mult(:),resist_base(:)
@@ -40,7 +39,7 @@ module pressure_resistance_flow
   !Interfaces
   private
   public evaluate_prq,calculate_ppl,occlusion_list,compliance_list
-  public set_perfusion_flows,clear_perfusion_flows,set_perfusion_flow_mode
+  public set_perfusion_flows,clear_perfusion_flows
 contains
 !###################################################################################
 !
@@ -599,25 +598,6 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     if(allocated(perfusion_flow_values))deallocate(perfusion_flow_values)
   end subroutine clear_perfusion_flows
 
-!###################################################################################
-!*set_perfusion_flow_mode:* Chooses how resistances are shared between the
-! children of a junction whose flows are all known (see setup_flow_control).
-!   'geometric' (default): the children's resistance multipliers have a
-!                geometric mean of one (smallest symmetric change).
-!   'constrict': resistances only increase (smallest multiplier is one).
-!   'dilate':    resistances only decrease (largest multiplier is one).
-  subroutine set_perfusion_flow_mode(mode)
-    character(len=*),intent(in) :: mode
-
-    select case(trim(adjustl(mode)))
-    case('geometric','constrict','dilate')
-      perfusion_flow_mode=trim(adjustl(mode))
-    case default
-      print *, 'ERROR: unknown prescribed perfusion flow mode: ',trim(mode)
-      print *, '       expected geometric, constrict or dilate'
-      call exit(1)
-    end select
-  end subroutine set_perfusion_flow_mode
 
 !###################################################################################
 !*elem_root_node:* The node at which an element joins its parent (trunk) vessel:
@@ -671,8 +651,9 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 ! controlled: this makes the result independent of which children were named
 ! (e.g. prescribing RPA=70% or LPA=30% of a known MPA flow is the same problem).
 ! Such a junction has one more multiplier than independent constraints; the
-! extra degree of freedom is fixed by perfusion_flow_mode.  Any other prescribed
-! element is controlled independently by its own multiplier.
+! extra degree of freedom is fixed by giving the children's multipliers a
+! geometric mean of one (the smallest symmetric change in resistance).  Any other
+! prescribed element is controlled independently by its own multiplier.
   subroutine setup_flow_control(bc_type,inletbc,flow_control)
     character(len=60),intent(in) :: bc_type
     real(dp),intent(in) :: inletbc
@@ -889,7 +870,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 !###################################################################################
 !*update_flow_control:* Compares solved flows with the targets and updates the
 ! scale factors (multiplicative update, exact for parallel branches), then
-! applies the junction normalisation chosen by perfusion_flow_mode.
+! normalises each junction group to a geometric mean multiplier of one.
   subroutine update_flow_control(prq_solution,depvar_at_elem,mesh_dof,flow_err)
     integer,intent(in) :: mesh_dof
     real(dp),intent(in) :: prq_solution(mesh_dof,2)
@@ -913,7 +894,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
       ctrl_logscale(ne)=ctrl_logscale(ne)+max(-max_step,min(max_step,step))
     enddo
 
-    ! Junction groups: remove the redundant common factor.
+    ! Junction groups: remove the redundant common factor (geometric mean = 1).
     do ne=1,num_elems
       np=ctrl_group(ne)
       if(np.le.0)cycle
@@ -921,28 +902,14 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
       ! process each group once, from its first child at node np
       if(first_group_child(np).ne.ne)cycle
       n=0
-      select case(trim(perfusion_flow_mode))
-      case('constrict')
-        shift=huge(1.0_dp)
-      case('dilate')
-        shift=-huge(1.0_dp)
-      case default
-        shift=0.0_dp
-      end select
+      shift=0.0_dp
       do k=1,elems_at_node(np,0)
         ne2=elems_at_node(np,k)
         if(ctrl_group(ne2).ne.np)cycle
         n=n+1
-        select case(trim(perfusion_flow_mode))
-        case('constrict')
-          shift=min(shift,ctrl_logscale(ne2))
-        case('dilate')
-          shift=max(shift,ctrl_logscale(ne2))
-        case default
-          shift=shift+ctrl_logscale(ne2)
-        end select
+        shift=shift+ctrl_logscale(ne2)
       enddo
-      if(trim(perfusion_flow_mode).eq.'geometric')shift=shift/n
+      shift=shift/n
       do k=1,elems_at_node(np,0)
         ne2=elems_at_node(np,k)
         if(ctrl_group(ne2).eq.np)ctrl_logscale(ne2)=ctrl_logscale(ne2)-shift
@@ -978,7 +945,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     integer :: ne
     character(len=10) :: kind
 
-    print *,'Prescribed perfusion flows (mode = ',trim(perfusion_flow_mode),'):'
+    print *,'Prescribed perfusion flows (matched by scaling resistances):'
     print '(a)','     element       kind   junction        target      achieved  R multiplier'
     do ne=1,num_elems
       if(ctrl_group(ne).lt.0)cycle

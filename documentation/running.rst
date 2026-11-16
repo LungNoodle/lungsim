@@ -95,7 +95,6 @@ one-based element identifiers and flow values before calling ``evaluate_prq``::
   from aether.pressure_resistance_flow import (
       clear_perfusion_flows,
       evaluate_prq,
-      set_perfusion_flow_mode,
       set_perfusion_flows,
   )
 
@@ -118,12 +117,9 @@ At a junction where the parent flow is known and every child flow is known
 (prescribed or implied), all children are controlled together, so the answer does
 not depend on which children were named.  For example, with a fixed MPA flow,
 prescribing 70% to the RPA or 30% to the LPA gives identical results.  Such a
-junction has one more resistance factor than it has constraints, and the remaining
-choice is set by::
-
-  set_perfusion_flow_mode("geometric")  # default: product of the children's factors is 1
-  set_perfusion_flow_mode("constrict")  # resistances only increase (smallest factor is 1)
-  set_perfusion_flow_mode("dilate")     # resistances only decrease (largest factor is 1)
+junction has one more resistance factor than it has constraints; the remaining
+choice is made by keeping the geometric mean of the children's factors at one,
+i.e. the smallest symmetric change in resistance.
 
 A prescribed element whose junction is not fully determined (for example a single
 branch deep in the tree whose siblings are free) is controlled on its own.  Prescribed
