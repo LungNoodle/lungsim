@@ -95,6 +95,7 @@ one-based element identifiers and flow values before calling ``evaluate_prq``::
   from aether.pressure_resistance_flow import (
       clear_perfusion_flows,
       evaluate_prq,
+      set_perfusion_flow_mode,
       set_perfusion_flows,
   )
 
@@ -103,13 +104,32 @@ one-based element identifiers and flow values before calling ``evaluate_prq``::
       "simple_tree", "rigid", 3, 1.0, "flow", 200.0, 0.0, 0.0
   )
 
-Each selected element flow is fixed to the supplied value while the solver computes
-the remaining flows and pressures.  Nodal flow conservation is retained, so fixing
-the flow in the unique element entering a subtree fixes the total flow delivered to
-that subtree.  The prescribed-flow condition replaces that element's pressure-drop
-equation, allowing the pressure jump required to impose the flow to be determined by
-the rest of the network.  The solver keeps its topology-aware equation ordering so
-the reduced matrix has the structural diagonal required by the ILU preconditioner.
+Each selected flow is achieved by adjusting vessel resistances; Poiseuille's law
+(plus the hydrostatic term) still holds in every element, so no artificial pressure
+jump is introduced.  A controlled element multiplies the resistance of its whole
+subtree (down to the next controlled element) by a factor that the solver finds
+iteratively.  Factors are nested, so any number of flows can be prescribed at
+different depths of the tree, and they combine with elastic vessels, gravity and
+remodelling (remodelling changes the radii; the factors are applied on top of the
+resulting resistances).  The converged factors are printed after the solve.
+
+Flows implied by conservation are worked out first, starting from the inlet flow.
+At a junction where the parent flow is known and every child flow is known
+(prescribed or implied), all children are controlled together, so the answer does
+not depend on which children were named.  For example, with a fixed MPA flow,
+prescribing 70% to the RPA or 30% to the LPA gives identical results.  Such a
+junction has one more resistance factor than it has constraints, and the remaining
+choice is set by::
+
+  set_perfusion_flow_mode("geometric")  # default: product of the children's factors is 1
+  set_perfusion_flow_mode("constrict")  # resistances only increase (smallest factor is 1)
+  set_perfusion_flow_mode("dilate")     # resistances only decrease (largest factor is 1)
+
+A prescribed element whose junction is not fully determined (for example a single
+branch deep in the tree whose siblings are free) is controlled on its own.  Prescribed
+flows must be positive, must not be on an inlet or capillary element, and must
+satisfy conservation wherever they fully determine a junction.  Flows can be
+prescribed with ``flow`` or ``pressure`` boundary conditions.
 
 The setting persists for later PRQ solves in the same process.  Clear it to restore
 the original solver behaviour::

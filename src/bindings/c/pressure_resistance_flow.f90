@@ -20,6 +20,20 @@ contains
     call set_perfusion_flows(element_ids,flow_values)
   end subroutine set_perfusion_flows_c
 
+  subroutine set_perfusion_flow_mode_c(mode,mode_len) bind(C,name="set_perfusion_flow_mode_c")
+    use iso_c_binding,only: c_ptr
+    use utils_c,only: strncpy
+    use other_consts,only: MAX_STRING_LEN
+    use pressure_resistance_flow,only: set_perfusion_flow_mode
+    implicit none
+    type(c_ptr),value,intent(in) :: mode
+    integer,intent(in) :: mode_len
+    character(len=MAX_STRING_LEN) :: mode_f
+
+    call strncpy(mode_f,mode,mode_len)
+    call set_perfusion_flow_mode(mode_f)
+  end subroutine set_perfusion_flow_mode_c
+
   subroutine clear_perfusion_flows_c() bind(C,name="clear_perfusion_flows_c")
     use pressure_resistance_flow,only: clear_perfusion_flows
     implicit none

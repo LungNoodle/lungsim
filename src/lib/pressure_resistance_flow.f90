@@ -20,6 +20,16 @@ module pressure_resistance_flow
   integer,allocatable :: occ_list(:),compl_list(:)
   integer,allocatable :: perfusion_flow_elements(:)
   real(dp),allocatable :: perfusion_flow_values(:)
+  ! Prescribed perfusion flows are imposed by adjusting vessel resistances.
+  ! ctrl_group(ne): -1 = not controlled, 0 = independently controlled element,
+  ! >0 = controlled child of junction node ctrl_group(ne) (a 'junction group').
+  character(len=20) :: perfusion_flow_mode = 'geometric'
+  integer,allocatable :: ctrl_group(:)
+  logical,allocatable :: ctrl_prescribed(:)
+  real(dp),allocatable :: ctrl_target(:),ctrl_logscale(:),ctrl_mult(:),resist_base(:)
+  integer :: num_ctrl = 0
+  real(dp),parameter :: ctrl_flow_tol = 1.0e-5_dp
+  integer,parameter :: ctrl_max_iterations = 500
 
   !Module parameters
 
@@ -30,7 +40,7 @@ module pressure_resistance_flow
   !Interfaces
   private
   public evaluate_prq,calculate_ppl,occlusion_list,compliance_list
-  public set_perfusion_flows,clear_perfusion_flows
+  public set_perfusion_flows,clear_perfusion_flows,set_perfusion_flow_mode
 contains
 !###################################################################################
 !
@@ -57,7 +67,8 @@ contains
     real(dp), allocatable :: prq_solution(:,:),solver_solution(:)
     real(dp) :: viscosity,density,inlet_bc,outlet_bc,inletbc,outletbc,grav_vect(3),gamma,total_resistance,ERR
     logical, allocatable :: FIX(:)
-    logical :: ADD=.FALSE.,CONVERGED=.FALSE.
+    logical :: ADD=.FALSE.,CONVERGED=.FALSE.,flow_control,flow_ok
+    real(dp) :: flow_err
     character(len=60) :: sub_name,mesh_type,vessel_type,mechanics_type,bc_type
     integer :: grav_dirn,no,depvar,KOUNT,nz,ne,SOLVER_FLAG,ne0,ne1,nj
     real(dp) :: MIN_ERR,N_MIN_ERR,elasticity_parameters(3),mechanics_parameters(2),grav_factor,P1
@@ -65,6 +76,10 @@ contains
 
     sub_name = 'evaluate_prq'
     call enter_exit(sub_name,1)
+    ! ADD and CONVERGED are initialised in their declarations (implicit SAVE),
+    ! so reset them to allow repeated solves in the same process.
+    ADD=.FALSE.
+    CONVERGED=.FALSE.
 !!---------DESCRIPTION OF MODEL Types -----------
 !mesh_type: can be simple_tree, full_plus_ladder, full_sheet, full_tube The first can be airways, arteries, veins but no special features at the terminal level, the last one has arteries and veins connected by capillary units of some type (lung ladder acinus, lung sheet capillary bed, capillaries are just tubes represented by an element)
 
@@ -136,10 +151,6 @@ elseif(bc_type.eq.'flow')then
       print *,"unsupported bc_type",bc_type
       call exit(1)
     endif
-    if(allocated(perfusion_flow_elements).and.bc_type.ne.'flow')then
-      print *, 'ERROR: prescribed perfusion flows require bc_type="flow"'
-      call exit(1)
-    endif
 
 !!---------PHYSICAL PARAMETERS-----------
 !viscosity: fluid viscosity
@@ -185,11 +196,15 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
             depvar_at_node,depvar_at_elem,prq_solution,mesh_dof,mesh_type)
     endif
 
-    call apply_perfusion_flow_bcs(FIX,depvar_at_elem,prq_solution,mesh_dof)
+    ! Prescribed flows (if any) are matched by scaling vessel resistances.
+    call setup_flow_control(bc_type,inletbc,flow_control)
+    flow_ok=.TRUE.
+    flow_err=0.0_dp
 
     KOUNT=0
 !! Calculate resistance of each element
    call calculate_resistance(viscosity,KOUNT)
+   if(flow_control)call store_and_scale_resistance()
 
 !! Calculate sparsity structure for solution matrices
     !Determine size of and allocate solution vectors/matrices
@@ -249,7 +264,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
             SparseVal(nz)=-elem_field(ne_resist,ne) !Just updating resistance
           endif
         enddo
-        if(bc_type.eq.'flow'.or.allocated(perfusion_flow_elements))then
+        if(bc_type.eq.'flow')then
           do ne=1,num_elems
             if(update_fixed_flow_rhs_rows(ne).gt.0)then
               depvar = depvar_at_elem(1,1,ne)
@@ -297,6 +312,20 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
       if(vessel_type.eq.'rigid')then
         ERR=0.0_dp
         CONVERGED=.TRUE.
+        if(flow_control)then
+          ! Resistances only change through the flow-control multipliers.
+          call update_flow_control(prq_solution,depvar_at_elem,mesh_dof,flow_err)
+          flow_ok=(flow_err.le.ctrl_flow_tol)
+          print *,"Prescribed flow mismatch (max relative) =",flow_err
+          if(.not.flow_ok)then
+            call rescale_resistance()
+            CONVERGED=.FALSE.
+          endif
+          if((.not.flow_ok).and.(KOUNT.ge.ctrl_max_iterations))then
+            print *,'WARNING: prescribed flows not matched after',KOUNT,'iterations'
+            CONVERGED=.TRUE.
+          endif
+        endif
       else
 !Update vessel radii based on predicted pressures and then update resistance through tree
         call calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
@@ -327,9 +356,19 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
               endif
            enddo
          endif
+         if(flow_control)then
+           call update_flow_control(prq_solution,depvar_at_elem,mesh_dof,flow_err)
+           flow_ok=(flow_err.le.ctrl_flow_tol)
+           call store_and_scale_resistance()
+           print *,"Prescribed flow mismatch (max relative) =",flow_err
+           if((.not.flow_ok).and.(KOUNT.ge.ctrl_max_iterations))then
+             print *,'WARNING: prescribed flows not matched after',KOUNT,'iterations'
+             flow_ok=.TRUE.
+           endif
+         endif
 
          ERR=ERR/MatrixSize !sum of error divided by no of unknown depvar
-         if(ERR.LE.1.d-6.AND.(KOUNT.NE.1))then
+         if(ERR.LE.1.d-6.AND.(KOUNT.NE.1).AND.flow_ok)then
            CONVERGED=.TRUE.
             print *,"Convergence achieved after",KOUNT,"iterations",ERR
          else !if error not converged
@@ -345,6 +384,10 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 
 !need to write solution to element/nodal fields for export
     call map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof)
+    if(flow_control)then
+      call report_flow_control()
+      call free_flow_control()
+    endif
     !NEED TO UPDATE TERMINAL SOLUTION HERE. LOOP THO' UNITS AND TAKE FLOW AND PRESSURE AT TERMINALS
     call map_flow_to_terminals
     !EXPORT LADDER SOLUTION
@@ -557,48 +600,407 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
   end subroutine clear_perfusion_flows
 
 !###################################################################################
-  logical function is_perfusion_flow(ne)
-    integer,intent(in) :: ne
-    integer :: no
+!*set_perfusion_flow_mode:* Chooses how resistances are shared between the
+! children of a junction whose flows are all known (see setup_flow_control).
+!   'geometric' (default): the children's resistance multipliers have a
+!                geometric mean of one (smallest symmetric change).
+!   'constrict': resistances only increase (smallest multiplier is one).
+!   'dilate':    resistances only decrease (largest multiplier is one).
+  subroutine set_perfusion_flow_mode(mode)
+    character(len=*),intent(in) :: mode
 
-    is_perfusion_flow=.FALSE.
-    if(.not.allocated(perfusion_flow_elements))return
-    do no=1,size(perfusion_flow_elements)
-      if(perfusion_flow_elements(no).eq.ne)then
-        is_perfusion_flow=.TRUE.
-        return
-      endif
-    enddo
-  end function is_perfusion_flow
+    select case(trim(adjustl(mode)))
+    case('geometric','constrict','dilate')
+      perfusion_flow_mode=trim(adjustl(mode))
+    case default
+      print *, 'ERROR: unknown prescribed perfusion flow mode: ',trim(mode)
+      print *, '       expected geometric, constrict or dilate'
+      call exit(1)
+    end select
+  end subroutine set_perfusion_flow_mode
 
 !###################################################################################
-  subroutine apply_perfusion_flow_bcs(FIX,depvar_at_elem,prq_solution,mesh_dof)
-    integer,intent(in) :: mesh_dof
-    integer,intent(in) :: depvar_at_elem(0:2,2,num_elems)
-    logical,intent(inout) :: FIX(mesh_dof)
-    real(dp),intent(inout) :: prq_solution(mesh_dof,2)
-    integer :: no,ne,depvar
+!*elem_root_node:* The node at which an element joins its parent (trunk) vessel:
+! the proximal node for arteries/capillaries, the distal node for veins.
+  integer function elem_root_node(ne)
+    integer,intent(in) :: ne
 
+    if(nint(elem_field(ne_group,ne)).eq.2)then
+      elem_root_node=elem_nodes(2,ne)
+    else
+      elem_root_node=elem_nodes(1,ne)
+    endif
+  end function elem_root_node
+
+!###################################################################################
+!*elem_trunk:* The parent element of ne (towards the inlet for arteries, towards
+! the outlet for veins) within the same vessel group, or 0 if there is none.
+  integer function elem_trunk(ne)
+    integer,intent(in) :: ne
+    integer :: ne0
+
+    elem_trunk=0
+    if(nint(elem_field(ne_group,ne)).eq.2)then
+      if(elem_cnct(1,0,ne).ge.1)then
+        ne0=elem_cnct(1,1,ne)
+      else
+        return
+      endif
+    else
+      if(elem_cnct(-1,0,ne).ge.1)then
+        ne0=elem_cnct(-1,1,ne)
+      else
+        return
+      endif
+    endif
+    if(nint(elem_field(ne_group,ne0)).eq.nint(elem_field(ne_group,ne)))elem_trunk=ne0
+  end function elem_trunk
+
+!###################################################################################
+!*setup_flow_control:* Prepares resistance control for prescribed flows.
+!
+! A prescribed flow is imposed by multiplying the resistance of every vessel in
+! the subtree fed by the prescribed element (down to the next controlled element)
+! by a factor that is found iteratively; Poiseuille's law is retained in every
+! element.  Multipliers are nested, so a controlled element inside a controlled
+! subtree redistributes flow within it.
+!
+! Flows that follow from conservation are found first, propagating from the inlet
+! (flow BCs) towards the periphery.  At a junction where the parent flow is known
+! and every child flow is known (prescribed or implied), all children become
+! controlled: this makes the result independent of which children were named
+! (e.g. prescribing RPA=70% or LPA=30% of a known MPA flow is the same problem).
+! Such a junction has one more multiplier than independent constraints; the
+! extra degree of freedom is fixed by perfusion_flow_mode.  Any other prescribed
+! element is controlled independently by its own multiplier.
+  subroutine setup_flow_control(bc_type,inletbc,flow_control)
+    character(len=60),intent(in) :: bc_type
+    real(dp),intent(in) :: inletbc
+    logical,intent(out) :: flow_control
+
+    integer :: no,ne,ne2,np,k,n_unknown,ne_unknown,num_inlets,num_outlets,allocate_status
+    integer :: n_trunk,n_child
+    logical :: changed,all_known,any_prescribed
+    logical,allocatable :: known(:)
+    real(dp),allocatable :: flow_value(:)
+    real(dp) :: trunk_sum,child_sum,scale
+
+    flow_control=.FALSE.
+    num_ctrl=0
     if(.not.allocated(perfusion_flow_elements))return
+    flow_control=.TRUE.
+
+    call free_flow_control()
+    allocate(ctrl_group(num_elems),ctrl_prescribed(num_elems),ctrl_target(num_elems), &
+      ctrl_logscale(num_elems),ctrl_mult(num_elems),resist_base(num_elems), &
+      known(num_elems),flow_value(num_elems),stat=allocate_status)
+    if(allocate_status.ne.0)stop '*** Not enough memory for prescribed perfusion flows ***'
+    ctrl_group=-1
+    ctrl_prescribed=.FALSE.
+    ctrl_target=0.0_dp
+    ctrl_logscale=0.0_dp
+    ctrl_mult=1.0_dp
+    resist_base=0.0_dp
+    known=.FALSE.
+    flow_value=0.0_dp
+
+    !--- validate the prescribed elements
     do no=1,size(perfusion_flow_elements)
       ne=perfusion_flow_elements(no)
       if(ne.lt.1.or.ne.gt.num_elems)then
         print *, 'ERROR: prescribed perfusion element is outside the mesh:',ne
         call exit(1)
       endif
-      if(count(perfusion_flow_elements.eq.ne).gt.1)then
+      if(ctrl_prescribed(ne))then
         print *, 'ERROR: prescribed perfusion element occurs more than once:',ne
         call exit(1)
       endif
-      depvar=depvar_at_elem(0,1,ne)
-      if(FIX(depvar))then
-        print *, 'ERROR: prescribed perfusion flow duplicates an existing flow BC:',ne
+      if(elem_cnct(-1,0,ne).eq.0)then
+        print *, 'ERROR: prescribed perfusion flow is on an inlet element:',ne
         call exit(1)
       endif
-      FIX(depvar)=.TRUE.
-      prq_solution(depvar,1)=perfusion_flow_values(no)
+      if(nint(elem_field(ne_group,ne)).eq.1)then
+        print *, 'ERROR: prescribed perfusion flow is on a capillary element:',ne
+        call exit(1)
+      endif
+      if(perfusion_flow_values(no).le.0.0_dp)then
+        print *, 'ERROR: prescribed perfusion flows must be positive (element',ne,')'
+        call exit(1)
+      endif
+      ctrl_prescribed(ne)=.TRUE.
+      known(ne)=.TRUE.
+      flow_value(ne)=perfusion_flow_values(no)
     enddo
-  end subroutine apply_perfusion_flow_bcs
+
+    !--- flows known from the boundary conditions
+    if(bc_type.eq.'flow')then
+      num_inlets=0
+      num_outlets=0
+      do ne=1,num_elems
+        if(elem_cnct(-1,0,ne).eq.0)then
+          num_inlets=num_inlets+1
+          known(ne)=.TRUE.
+          flow_value(ne)=inletbc
+        endif
+      enddo
+      do ne=1,num_elems
+        if(elem_cnct(1,0,ne).eq.0.and.nint(elem_field(ne_group,ne)).eq.2)num_outlets=num_outlets+1
+      enddo
+      if(num_outlets.eq.1)then
+        do ne=1,num_elems
+          if(elem_cnct(1,0,ne).eq.0.and.nint(elem_field(ne_group,ne)).eq.2)then
+            known(ne)=.TRUE.
+            flow_value(ne)=inletbc*num_inlets
+          endif
+        enddo
+      endif
+    endif
+
+    !--- propagate known flows from trunk to children by conservation
+    changed=.TRUE.
+    do while(changed)
+      changed=.FALSE.
+      do np=1,num_nodes
+        if(elems_at_node(np,0).lt.2)cycle
+        all_known=.TRUE.
+        n_trunk=0
+        n_unknown=0
+        ne_unknown=0
+        trunk_sum=0.0_dp
+        child_sum=0.0_dp
+        do k=1,elems_at_node(np,0)
+          ne=elems_at_node(np,k)
+          if(elem_root_node(ne).eq.np)then
+            if(known(ne))then
+              child_sum=child_sum+flow_value(ne)
+            else
+              n_unknown=n_unknown+1
+              ne_unknown=ne
+            endif
+          else
+            n_trunk=n_trunk+1
+            if(known(ne))then
+              trunk_sum=trunk_sum+flow_value(ne)
+            else
+              all_known=.FALSE.
+            endif
+          endif
+        enddo
+        if(.not.all_known.or.n_trunk.eq.0)cycle
+        if(n_unknown.eq.1)then
+          known(ne_unknown)=.TRUE.
+          flow_value(ne_unknown)=trunk_sum-child_sum
+          changed=.TRUE.
+        endif
+      enddo
+    enddo
+
+    !--- identify junction groups and independently controlled elements
+    do np=1,num_nodes
+      if(elems_at_node(np,0).lt.2)cycle
+      all_known=.TRUE.
+      any_prescribed=.FALSE.
+      n_trunk=0
+      n_child=0
+      trunk_sum=0.0_dp
+      child_sum=0.0_dp
+      do k=1,elems_at_node(np,0)
+        ne=elems_at_node(np,k)
+        if(.not.known(ne))all_known=.FALSE.
+        if(elem_root_node(ne).eq.np)then
+          n_child=n_child+1
+          child_sum=child_sum+flow_value(ne)
+          if(ctrl_prescribed(ne))any_prescribed=.TRUE.
+        else
+          n_trunk=n_trunk+1
+          trunk_sum=trunk_sum+flow_value(ne)
+        endif
+      enddo
+      if(.not.all_known.or.n_trunk.eq.0.or.n_child.eq.0)cycle
+      scale=max(abs(trunk_sum),abs(child_sum),1.0e-30_dp)
+      if(abs(trunk_sum-child_sum).gt.1.0e-6_dp*scale)then
+        print *, 'ERROR: prescribed perfusion flows violate conservation at node',np
+        print *, '       flow in =',trunk_sum,' flow out =',child_sum
+        call exit(1)
+      endif
+      if(.not.any_prescribed)cycle
+      do k=1,elems_at_node(np,0)
+        ne=elems_at_node(np,k)
+        if(elem_root_node(ne).ne.np)cycle
+        if(nint(elem_field(ne_group,ne)).eq.1)then
+          print *, 'ERROR: prescribed perfusion flows imply a capillary flow at node',np
+          call exit(1)
+        endif
+        if(flow_value(ne).le.0.0_dp)then
+          print *, 'ERROR: prescribed perfusion flows imply a non-positive flow in element',ne
+          print *, '       implied flow =',flow_value(ne)
+          call exit(1)
+        endif
+        ctrl_group(ne)=np
+        ctrl_target(ne)=flow_value(ne)
+      enddo
+    enddo
+    do no=1,size(perfusion_flow_elements)
+      ne=perfusion_flow_elements(no)
+      if(ctrl_group(ne).lt.0)then
+        ctrl_group(ne)=0
+        ctrl_target(ne)=flow_value(ne)
+      endif
+    enddo
+    num_ctrl=count(ctrl_group.ge.0)
+
+    deallocate(known,flow_value)
+  end subroutine setup_flow_control
+
+!###################################################################################
+!*compute_ctrl_multipliers:* Resistance multiplier of every element: product of
+! the scale factors of all controlled elements on its path to the trunk.
+  subroutine compute_ctrl_multipliers()
+    integer :: ne,ne0
+    real(dp) :: logsum
+
+    do ne=1,num_elems
+      logsum=0.0_dp
+      if(nint(elem_field(ne_group,ne)).ne.1)then
+        ne0=ne
+        do while(ne0.gt.0)
+          if(ctrl_group(ne0).ge.0)logsum=logsum+ctrl_logscale(ne0)
+          ne0=elem_trunk(ne0)
+        enddo
+      endif
+      ctrl_mult(ne)=exp(logsum)
+    enddo
+  end subroutine compute_ctrl_multipliers
+
+!###################################################################################
+!*store_and_scale_resistance:* Call after resistances have been freshly computed
+! from vessel radii: keeps them as the base and applies the control multipliers.
+  subroutine store_and_scale_resistance()
+    resist_base(1:num_elems)=elem_field(ne_resist,1:num_elems)
+    call rescale_resistance()
+  end subroutine store_and_scale_resistance
+
+!###################################################################################
+  subroutine rescale_resistance()
+    call compute_ctrl_multipliers()
+    elem_field(ne_resist,1:num_elems)=resist_base(1:num_elems)*ctrl_mult(1:num_elems)
+  end subroutine rescale_resistance
+
+!###################################################################################
+!*update_flow_control:* Compares solved flows with the targets and updates the
+! scale factors (multiplicative update, exact for parallel branches), then
+! applies the junction normalisation chosen by perfusion_flow_mode.
+  subroutine update_flow_control(prq_solution,depvar_at_elem,mesh_dof,flow_err)
+    integer,intent(in) :: mesh_dof
+    real(dp),intent(in) :: prq_solution(mesh_dof,2)
+    integer,intent(in) :: depvar_at_elem(0:2,2,num_elems)
+    real(dp),intent(out) :: flow_err
+
+    integer :: ne,ne2,np,k,n
+    real(dp) :: q,step,shift
+    real(dp),parameter :: max_step=log(4.0_dp),max_log=log(1.0e8_dp)
+
+    flow_err=0.0_dp
+    do ne=1,num_elems
+      if(ctrl_group(ne).lt.0)cycle
+      q=prq_solution(depvar_at_elem(0,1,ne),1)
+      flow_err=max(flow_err,abs(q-ctrl_target(ne))/ctrl_target(ne))
+      if(q.gt.0.0_dp)then
+        step=log(q/ctrl_target(ne))
+      else
+        step=-max_step !reversed flow: lower the resistance
+      endif
+      ctrl_logscale(ne)=ctrl_logscale(ne)+max(-max_step,min(max_step,step))
+    enddo
+
+    ! Junction groups: remove the redundant common factor.
+    do ne=1,num_elems
+      np=ctrl_group(ne)
+      if(np.le.0)cycle
+      if(elem_root_node(ne).ne.np)cycle
+      ! process each group once, from its first child at node np
+      if(first_group_child(np).ne.ne)cycle
+      n=0
+      select case(trim(perfusion_flow_mode))
+      case('constrict')
+        shift=huge(1.0_dp)
+      case('dilate')
+        shift=-huge(1.0_dp)
+      case default
+        shift=0.0_dp
+      end select
+      do k=1,elems_at_node(np,0)
+        ne2=elems_at_node(np,k)
+        if(ctrl_group(ne2).ne.np)cycle
+        n=n+1
+        select case(trim(perfusion_flow_mode))
+        case('constrict')
+          shift=min(shift,ctrl_logscale(ne2))
+        case('dilate')
+          shift=max(shift,ctrl_logscale(ne2))
+        case default
+          shift=shift+ctrl_logscale(ne2)
+        end select
+      enddo
+      if(trim(perfusion_flow_mode).eq.'geometric')shift=shift/n
+      do k=1,elems_at_node(np,0)
+        ne2=elems_at_node(np,k)
+        if(ctrl_group(ne2).eq.np)ctrl_logscale(ne2)=ctrl_logscale(ne2)-shift
+      enddo
+    enddo
+
+    do ne=1,num_elems
+      if(ctrl_group(ne).lt.0)cycle
+      if(abs(ctrl_logscale(ne)).gt.max_log)then
+        print *,'WARNING: resistance multiplier for prescribed flow in element',ne, &
+          'reached its limit; the requested flow may not be achievable'
+        ctrl_logscale(ne)=sign(max_log,ctrl_logscale(ne))
+      endif
+    enddo
+  end subroutine update_flow_control
+
+!###################################################################################
+  integer function first_group_child(np)
+    integer,intent(in) :: np
+    integer :: k
+
+    first_group_child=0
+    do k=1,elems_at_node(np,0)
+      if(ctrl_group(elems_at_node(np,k)).eq.np)then
+        first_group_child=elems_at_node(np,k)
+        return
+      endif
+    enddo
+  end function first_group_child
+
+!###################################################################################
+  subroutine report_flow_control()
+    integer :: ne
+    character(len=10) :: kind
+
+    print *,'Prescribed perfusion flows (mode = ',trim(perfusion_flow_mode),'):'
+    print '(a)','     element       kind   junction        target      achieved  R multiplier'
+    do ne=1,num_elems
+      if(ctrl_group(ne).lt.0)cycle
+      if(ctrl_prescribed(ne))then
+        kind='prescribed'
+      else
+        kind='   implied'
+      endif
+      print '(i12,1x,a10,i11,2es14.5,es14.5)',ne,kind,ctrl_group(ne),ctrl_target(ne), &
+        elem_field(ne_Qdot,ne),exp(ctrl_logscale(ne))
+    enddo
+  end subroutine report_flow_control
+
+!###################################################################################
+  subroutine free_flow_control()
+    if(allocated(ctrl_group))deallocate(ctrl_group)
+    if(allocated(ctrl_prescribed))deallocate(ctrl_prescribed)
+    if(allocated(ctrl_target))deallocate(ctrl_target)
+    if(allocated(ctrl_logscale))deallocate(ctrl_logscale)
+    if(allocated(ctrl_mult))deallocate(ctrl_mult)
+    if(allocated(resist_base))deallocate(resist_base)
+  end subroutine free_flow_control
 !
 !###################################################################################
 !
@@ -848,16 +1250,8 @@ subroutine calc_sparse_1dtree(bc_type,density,FIX,grav_vect,mesh_dof,depvar_at_e
     FlowBalancedNodes = .FALSE. !.TRUE. for nodes which have had a conservation of flow equation done
     NodePressureDone = .FALSE.  !.TRUE. for nodes which have been processed
     ElementPressureEquationDone = .FALSE.
-    if(allocated(perfusion_flow_elements))then
-      do ne2=1,size(perfusion_flow_elements)
-        ElementPressureEquationDone(perfusion_flow_elements(ne2))=.TRUE.
-      enddo
-    endif
     offset=0!variable position offset
 
-    ! Prescribing an internal element flow makes that element a flow boundary.
-    ! Its pressure-drop equation is replaced by the prescribed-flow condition;
-    ! conservation equations remain active on both sides of the boundary.
     ! Keep the coupling-style variable-driven equation ordering so the reduced
     ! matrix stays structurally aligned with the ILU diagonal.
     do ne=1,num_elems
@@ -868,8 +1262,7 @@ subroutine calc_sparse_1dtree(bc_type,density,FIX,grav_vect,mesh_dof,depvar_at_e
         if((.NOT.NodePressureDone(np)).AND.(.NOT.FIX(depvar)))then
             ne2=0
             if(nn.EQ.1)then
-                if((.not.allocated(perfusion_flow_elements)).or. &
-                  (.not.ElementPressureEquationDone(ne)))ne2=ne
+                ne2=ne
             elseif(nn.EQ.2)then
                 if((bc_type.EQ.'pressure').OR.(.NOT.ElementPressureEquationDone(ne)))then
                     ne2=ne
@@ -1009,20 +1402,6 @@ subroutine calc_sparse_1dtree(bc_type,density,FIX,grav_vect,mesh_dof,depvar_at_e
     enddo
 
     NonZeros=nzz-1
-    if(allocated(perfusion_flow_elements))then
-      do np=1,num_nodes
-        if((elems_at_node(np,0).gt.1).and.(.not.FlowBalancedNodes(np)))then
-          print *, 'ERROR: prescribed-flow assembly omitted conservation at node:',np
-          call exit(1)
-        endif
-      enddo
-      do ne=1,num_elems
-        if((.not.is_perfusion_flow(ne)).and.(.not.ElementPressureEquationDone(ne)))then
-          print *, 'ERROR: prescribed-flow assembly omitted pressure equation for element:',ne
-          call exit(1)
-        endif
-      enddo
-    endif
     if(nzz_row-1.ne.MatrixSize)then
       print *, 'ERROR: sparse PRQ assembly row mismatch:',nzz_row-1,MatrixSize
       call exit(1)
