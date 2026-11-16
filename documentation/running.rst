@@ -127,6 +127,17 @@ flows must be positive, must not be on an inlet or capillary element, and must
 satisfy conservation wherever they fully determine a junction.  Flows can be
 prescribed with ``flow`` or ``pressure`` boundary conditions.
 
+Prescribed flows work with both ``simple_tree`` and ``full_plus_ladder`` meshes.
+In a ``full_plus_ladder`` network (built with ``append_units`` and
+``add_matching_mesh``) the factors only scale vessels of the same type as the
+prescribed element: an arterial element scales its downstream arterial subtree, a
+venous element scales the veins draining into it, and capillaries are never
+scaled.  Because each arterial subtree drains only into its own venous subtree,
+prescribing the flow in an artery also fixes the flow in the matching vein, so
+prescribe a given split on one side only.  In a ladder network the factor updates
+are under-relaxed, because the capillary resistances are recomputed from the
+solution in the same iteration.
+
 The setting persists for later PRQ solves in the same process.  Clear it to restore
 the original solver behaviour::
 

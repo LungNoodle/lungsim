@@ -28,6 +28,9 @@ module pressure_resistance_flow
   real(dp),allocatable :: ctrl_target(:),ctrl_logscale(:),ctrl_mult(:),resist_base(:)
   integer :: num_ctrl = 0
   real(dp),parameter :: ctrl_flow_tol = 1.0e-5_dp
+  ! Under-relaxation of the multiplier step when capillary (ladder) resistances
+  ! are recomputed from the solution in the same iteration.
+  real(dp),parameter :: ctrl_relax_ladder = 0.25_dp
   integer,parameter :: ctrl_max_iterations = 500
 
   !Module parameters
@@ -313,7 +316,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
         CONVERGED=.TRUE.
         if(flow_control)then
           ! Resistances only change through the flow-control multipliers.
-          call update_flow_control(prq_solution,depvar_at_elem,mesh_dof,flow_err)
+          call update_flow_control(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof,1.0_dp,flow_err)
           flow_ok=(flow_err.le.ctrl_flow_tol)
           print *,"Prescribed flow mismatch (max relative) =",flow_err
           if(.not.flow_ok)then
@@ -356,7 +359,16 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
            enddo
          endif
          if(flow_control)then
-           call update_flow_control(prq_solution,depvar_at_elem,mesh_dof,flow_err)
+           ! In a ladder network the capillary resistances are recomputed from
+           ! the solution in the same iteration; under-relax the multiplier step
+           ! there to keep the coupled iteration stable.
+           if(mesh_type.eq.'full_plus_ladder')then
+             call update_flow_control(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof, &
+               ctrl_relax_ladder,flow_err)
+           else
+             call update_flow_control(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof, &
+               1.0_dp,flow_err)
+           endif
            flow_ok=(flow_err.le.ctrl_flow_tol)
            call store_and_scale_resistance()
            print *,"Prescribed flow mismatch (max relative) =",flow_err
@@ -674,6 +686,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     call free_flow_control()
     allocate(ctrl_group(num_elems),ctrl_prescribed(num_elems),ctrl_target(num_elems), &
       ctrl_logscale(num_elems),ctrl_mult(num_elems),resist_base(num_elems), &
+
       known(num_elems),flow_value(num_elems),stat=allocate_status)
     if(allocate_status.ne.0)stop '*** Not enough memory for prescribed perfusion flows ***'
     ctrl_group=-1
@@ -869,32 +882,81 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 
 !###################################################################################
 !*update_flow_control:* Compares solved flows with the targets and updates the
-! scale factors (multiplicative update, exact for parallel branches), then
-! normalises each junction group to a geometric mean multiplier of one.
-  subroutine update_flow_control(prq_solution,depvar_at_elem,mesh_dof,flow_err)
+! scale factors, then normalises each junction group to a geometric mean
+! multiplier of one.  The update is a Newton step in log space,
+!   ln(s) <- ln(s) + ln(Q/Q_target)/g,  g = -dln(Q)/dln(s).
+! Scaling a subtree that carries a fraction f of the frictional (R*Q) pressure
+! drop along its flow paths gives g = f, so g is taken from the current solution
+! as that fraction (see ctrl_friction_fraction).  In a simple tree the scaled
+! subtree reaches the outlets and g = 1; in a full_plus_ladder network the
+! capillaries and veins are in series with an arterial subtree and g < 1.
+! For the children of a junction group the steps d_i and the geometric-mean
+! normalisation are solved together: the linearised flow errors after the step
+! are e_i - g_i*d_i + c, where c is common to the group because the junction's
+! total flow is fixed, so d_i = (e_i + c)/g_i with c chosen such that the
+! children's log multipliers sum to zero.
+  subroutine update_flow_control(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof,relax,flow_err)
     integer,intent(in) :: mesh_dof
+    real(dp),intent(in) :: relax
     real(dp),intent(in) :: prq_solution(mesh_dof,2)
     integer,intent(in) :: depvar_at_elem(0:2,2,num_elems)
+    integer,intent(in) :: depvar_at_node(num_nodes,0:2,2)
     real(dp),intent(out) :: flow_err
 
     integer :: ne,ne2,np,k,n
-    real(dp) :: q,step,shift
+    real(dp) :: q,shift,csum,wsum
+    integer,allocatable :: stack(:)
+    real(dp),allocatable :: cum(:),err(:),gain(:)
     real(dp),parameter :: max_step=log(4.0_dp),max_log=log(1.0e8_dp)
 
+    allocate(stack(num_elems),cum(num_elems),err(num_elems),gain(num_elems))
+    err=0.0_dp
+    gain=1.0_dp
     flow_err=0.0_dp
     do ne=1,num_elems
       if(ctrl_group(ne).lt.0)cycle
       q=prq_solution(depvar_at_elem(0,1,ne),1)
       flow_err=max(flow_err,abs(q-ctrl_target(ne))/ctrl_target(ne))
       if(q.gt.0.0_dp)then
-        step=log(q/ctrl_target(ne))
+        err(ne)=log(q/ctrl_target(ne))
+        gain(ne)=ctrl_friction_fraction(ne)
       else
-        step=-max_step !reversed flow: lower the resistance
+        err(ne)=max_step !reversed flow: lower the resistance
+        gain(ne)=1.0_dp
       endif
-      ctrl_logscale(ne)=ctrl_logscale(ne)+max(-max_step,min(max_step,step))
     enddo
 
-    ! Junction groups: remove the redundant common factor (geometric mean = 1).
+    ! Independently controlled elements.
+    do ne=1,num_elems
+      if(ctrl_group(ne).ne.0)cycle
+      ctrl_logscale(ne)=ctrl_logscale(ne)+max(-max_step,min(max_step,relax*err(ne)/gain(ne)))
+    enddo
+
+    ! Junction groups: step and normalisation solved together.
+    do ne=1,num_elems
+      np=ctrl_group(ne)
+      if(np.le.0)cycle
+      if(first_group_child(np).ne.ne)cycle
+      csum=0.0_dp
+      wsum=0.0_dp
+      do k=1,elems_at_node(np,0)
+        ne2=elems_at_node(np,k)
+        if(ctrl_group(ne2).ne.np)cycle
+        csum=csum+ctrl_logscale(ne2)+err(ne2)/gain(ne2)
+        wsum=wsum+1.0_dp/gain(ne2)
+      enddo
+      shift=-csum/wsum !this is c
+      do k=1,elems_at_node(np,0)
+        ne2=elems_at_node(np,k)
+        if(ctrl_group(ne2).ne.np)cycle
+        ctrl_logscale(ne2)=ctrl_logscale(ne2)+ &
+          max(-max_step,min(max_step,relax*(err(ne2)+shift)/gain(ne2)))
+      enddo
+    enddo
+    deallocate(stack,cum,err,gain)
+
+    ! Junction groups: enforce the geometric-mean normalisation exactly (only
+    ! changes anything if a step above was limited by max_step).
     do ne=1,num_elems
       np=ctrl_group(ne)
       if(np.le.0)cycle
@@ -924,6 +986,69 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
         ctrl_logscale(ne)=sign(max_log,ctrl_logscale(ne))
       endif
     enddo
+  contains
+
+    ! Frictional pressure drop R*Q in element ne for the current solution.
+    real(dp) function fdrop(ne)
+      integer,intent(in) :: ne
+      fdrop=elem_field(ne_resist,ne)*prq_solution(depvar_at_elem(0,1,ne),1)
+    end function fdrop
+
+    ! Fraction of the frictional pressure drop along the flow paths through
+    ! controlled element nc that is taken by the vessels its multiplier scales
+    ! (its whole subtree within the same vessel group), flow-weighted over the
+    ! paths leaving that subtree.  Bounded to [0.05,1].
+    real(dp) function ctrl_friction_fraction(nc)
+      integer,intent(in) :: nc
+      integer :: nstack,ne1,ne3,kk,grp,nnext,dirn,guard
+      real(dp) :: w,qq,d_in,d_out,rest
+
+      grp=nint(elem_field(ne_group,nc))
+      dirn=1 !arteries: scaled subtree lies downstream
+      if(grp.eq.2)dirn=-1 !veins: scaled subtree lies upstream
+      d_in=0.0_dp
+      d_out=0.0_dp
+      w=0.0_dp
+      nstack=1
+      stack(1)=nc
+      cum(nc)=fdrop(nc)
+      do while(nstack.gt.0)
+        ne1=stack(nstack)
+        nstack=nstack-1
+        nnext=0
+        do kk=1,elem_cnct(dirn,0,ne1)
+          ne3=elem_cnct(dirn,kk,ne1)
+          if(nint(elem_field(ne_group,ne3)).eq.grp)then
+            nstack=nstack+1
+            stack(nstack)=ne3
+            cum(ne3)=cum(ne1)+fdrop(ne3)
+            nnext=nnext+1
+          endif
+        enddo
+        if(nnext.eq.0)then !path leaves the scaled subtree here
+          qq=abs(prq_solution(depvar_at_elem(0,1,ne1),1))
+          ! frictional drop along the rest of the path to the outlet (arteries)
+          ! or back to the inlet (veins)
+          rest=0.0_dp
+          ne3=ne1
+          guard=0
+          do while(elem_cnct(dirn,0,ne3).gt.0.and.guard.lt.num_elems)
+            ne3=elem_cnct(dirn,1,ne3)
+            rest=rest+fdrop(ne3)
+            guard=guard+1
+          enddo
+          d_in=d_in+qq*cum(ne1)
+          d_out=d_out+qq*rest
+          w=w+qq
+        endif
+      enddo
+      ctrl_friction_fraction=1.0_dp
+      if(w.le.0.0_dp.or.d_in+d_out.le.0.0_dp)return
+      ctrl_friction_fraction=d_in/(d_in+d_out)
+      if(.not.(ctrl_friction_fraction.ge.0.05_dp))ctrl_friction_fraction=0.05_dp
+      ctrl_friction_fraction=min(1.0_dp,ctrl_friction_fraction)
+    end function ctrl_friction_fraction
+
   end subroutine update_flow_control
 
 !###################################################################################
