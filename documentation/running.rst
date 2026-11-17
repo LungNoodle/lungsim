@@ -123,9 +123,14 @@ i.e. the smallest symmetric change in resistance.
 
 A prescribed element whose junction is not fully determined (for example a single
 branch deep in the tree whose siblings are free) is controlled on its own.  Prescribed
-flows must be positive, must not be on an inlet or capillary element, and must
-satisfy conservation wherever they fully determine a junction.  Flows can be
-prescribed with ``flow`` or ``pressure`` boundary conditions.
+flows must be positive and must not be on an inlet or capillary element.  Before
+solving, the prescribed flows (with the inlet flow) are propagated by conservation
+up and down the tree: redundant but consistent values are accepted (for example
+both the LPA and RPA when they add up to the inlet flow, or two elements of the same
+unbranched vessel with the same flow), while values that cannot all hold, or that
+would force a zero or negative flow elsewhere, stop the run with an error naming
+the node or element.  Flows can be prescribed with ``flow`` or ``pressure``
+boundary conditions.
 
 Prescribed flows work with both ``simple_tree`` and ``full_plus_ladder`` meshes.
 In a ``full_plus_ladder`` network (built with ``append_units`` and

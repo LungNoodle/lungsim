@@ -750,6 +750,9 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
       endif
     endif
 
+    !--- check that the prescribed flows can all be satisfied together
+    call check_prescribed_flow_balance(known,flow_value)
+
     !--- propagate known flows from trunk to children by conservation
     changed=.TRUE.
     do while(changed)
@@ -845,6 +848,79 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 
     deallocate(known,flow_value)
   end subroutine setup_flow_control
+
+!###################################################################################
+!*check_prescribed_flow_balance:* Stops with an error if the prescribed flows
+! (together with the inlet/outlet flow BCs) cannot all hold at once.  Known
+! flows are propagated by conservation in both directions -- from a known parent
+! to the last unknown child, and from a complete set of children to their parent
+! -- and every junction whose flows are all known must balance.  Redundant but
+! consistent prescriptions (e.g. both children of a junction whose parent flow
+! is known) are accepted.  Works on copies; the caller's arrays are unchanged.
+  subroutine check_prescribed_flow_balance(known_in,flow_in)
+    logical,intent(in) :: known_in(num_elems)
+    real(dp),intent(in) :: flow_in(num_elems)
+
+    logical,allocatable :: known(:)
+    real(dp),allocatable :: flow(:)
+    integer :: np,k,ne,n_unknown,ne_unknown
+    logical :: changed,unknown_is_child
+    real(dp) :: trunk_sum,child_sum,scale,implied
+
+    allocate(known(num_elems),flow(num_elems))
+    known=known_in
+    flow=flow_in
+    changed=.TRUE.
+    do while(changed)
+      changed=.FALSE.
+      do np=1,num_nodes
+        if(elems_at_node(np,0).lt.2)cycle
+        n_unknown=0
+        ne_unknown=0
+        unknown_is_child=.FALSE.
+        trunk_sum=0.0_dp
+        child_sum=0.0_dp
+        do k=1,elems_at_node(np,0)
+          ne=elems_at_node(np,k)
+          if(known(ne))then
+            if(elem_root_node(ne).eq.np)then
+              child_sum=child_sum+flow(ne)
+            else
+              trunk_sum=trunk_sum+flow(ne)
+            endif
+          else
+            n_unknown=n_unknown+1
+            ne_unknown=ne
+            unknown_is_child=(elem_root_node(ne).eq.np)
+          endif
+        enddo
+        scale=max(abs(trunk_sum),abs(child_sum),1.0e-30_dp)
+        if(n_unknown.eq.0)then
+          if(abs(trunk_sum-child_sum).gt.1.0e-6_dp*scale)then
+            print *, 'ERROR: prescribed perfusion flows violate conservation at node',np
+            print *, '       flow in =',trunk_sum,' flow out =',child_sum
+            call exit(1)
+          endif
+        elseif(n_unknown.eq.1)then
+          if(unknown_is_child)then
+            implied=trunk_sum-child_sum
+          else
+            implied=child_sum-trunk_sum
+          endif
+          if(implied.le.1.0e-6_dp*scale)then
+            print *, 'ERROR: prescribed perfusion flows imply a non-positive flow in element', &
+              ne_unknown
+            print *, '       implied flow =',implied
+            call exit(1)
+          endif
+          known(ne_unknown)=.TRUE.
+          flow(ne_unknown)=implied
+          changed=.TRUE.
+        endif
+      enddo
+    enddo
+    deallocate(known,flow)
+  end subroutine check_prescribed_flow_balance
 
 !###################################################################################
 !*compute_ctrl_multipliers:* Resistance multiplier of every element: product of
