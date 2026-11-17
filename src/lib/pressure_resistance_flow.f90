@@ -27,10 +27,17 @@ module pressure_resistance_flow
   logical,allocatable :: ctrl_prescribed(:)
   real(dp),allocatable :: ctrl_target(:),ctrl_logscale(:),ctrl_mult(:),resist_base(:)
   integer :: num_ctrl = 0
+  ! Perfusion territory of each controlled element (all elements whose flow
+  ! passes entirely through it): ctrl_list(i) is the i-th controlled element and
+  ! its territory is terr_list(terr_ptr(i-1)+1:terr_ptr(i)).
+  integer,allocatable :: ctrl_list(:),ctrl_pos(:),terr_ptr(:),terr_list(:)
+  ! Step boost of an independently controlled element, adapted from the error
+  ! reduction it actually achieved, and its previous flow error.
+  real(dp),allocatable :: ctrl_boost(:),ctrl_prev_err(:)
   real(dp),parameter :: ctrl_flow_tol = 1.0e-5_dp
   ! Under-relaxation of the multiplier step when capillary (ladder) resistances
   ! are recomputed from the solution in the same iteration.
-  real(dp),parameter :: ctrl_relax_ladder = 0.25_dp
+  real(dp),parameter :: ctrl_relax_ladder = 0.5_dp
   integer,parameter :: ctrl_max_iterations = 500
 
   !Module parameters
@@ -624,29 +631,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     endif
   end function elem_root_node
 
-!###################################################################################
-!*elem_trunk:* The parent element of ne (towards the inlet for arteries, towards
-! the outlet for veins) within the same vessel group, or 0 if there is none.
-  integer function elem_trunk(ne)
-    integer,intent(in) :: ne
-    integer :: ne0
 
-    elem_trunk=0
-    if(nint(elem_field(ne_group,ne)).eq.2)then
-      if(elem_cnct(1,0,ne).ge.1)then
-        ne0=elem_cnct(1,1,ne)
-      else
-        return
-      endif
-    else
-      if(elem_cnct(-1,0,ne).ge.1)then
-        ne0=elem_cnct(-1,1,ne)
-      else
-        return
-      endif
-    endif
-    if(nint(elem_field(ne_group,ne0)).eq.nint(elem_field(ne_group,ne)))elem_trunk=ne0
-  end function elem_trunk
 
 !###################################################################################
 !*setup_flow_control:* Prepares resistance control for prescribed flows.
@@ -845,6 +830,10 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
       endif
     enddo
     num_ctrl=count(ctrl_group.ge.0)
+    call build_ctrl_territories()
+    allocate(ctrl_boost(num_elems),ctrl_prev_err(num_elems))
+    ctrl_boost=1.0_dp
+    ctrl_prev_err=0.0_dp
 
     deallocate(known,flow_value)
   end subroutine setup_flow_control
@@ -923,23 +912,98 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
   end subroutine check_prescribed_flow_balance
 
 !###################################################################################
-!*compute_ctrl_multipliers:* Resistance multiplier of every element: product of
-! the scale factors of all controlled elements on its path to the trunk.
-  subroutine compute_ctrl_multipliers()
-    integer :: ne,ne0
-    real(dp) :: logsum
+!*build_ctrl_territories:* For each controlled element, finds its perfusion
+! territory: every element whose flow passes entirely through it.  For an artery
+! this is its arterial subtree and, in a full_plus_ladder network, also the
+! capillaries it feeds and the veins that drain only those capillaries.  For a
+! vein it is the mirror image (veins upstream, their capillaries and the arteries
+! feeding only those).  In a simple tree it is just the subtree.  An element is
+! added once all elements on its upstream side (downstream side for a vein) are
+! already in the territory.
+  subroutine build_ctrl_territories()
+    integer :: i,nc,ne,ne2,k,dirn,nlist,head,tail,qsize,total
+    logical :: all_in
+    logical,allocatable :: in_terr(:)
+    integer,allocatable :: list(:),queue(:),tmp(:)
 
+    allocate(ctrl_list(num_ctrl),ctrl_pos(num_elems),terr_ptr(0:num_ctrl))
+    allocate(in_terr(num_elems),list(num_elems))
+    qsize=4*num_elems+4
+    allocate(queue(qsize))
+    allocate(terr_list(max(num_elems,1)))
+    ctrl_pos=0
+    i=0
     do ne=1,num_elems
-      logsum=0.0_dp
-      if(nint(elem_field(ne_group,ne)).ne.1)then
-        ne0=ne
-        do while(ne0.gt.0)
-          if(ctrl_group(ne0).ge.0)logsum=logsum+ctrl_logscale(ne0)
-          ne0=elem_trunk(ne0)
-        enddo
+      if(ctrl_group(ne).ge.0)then
+        i=i+1
+        ctrl_list(i)=ne
+        ctrl_pos(ne)=i
       endif
-      ctrl_mult(ne)=exp(logsum)
     enddo
+    terr_ptr(0)=0
+    total=0
+    in_terr=.FALSE.
+    do i=1,num_ctrl
+      nc=ctrl_list(i)
+      dirn=1
+      if(nint(elem_field(ne_group,nc)).eq.2)dirn=-1
+      in_terr(nc)=.TRUE.
+      nlist=1
+      list(1)=nc
+      head=1
+      tail=0
+      do k=1,elem_cnct(dirn,0,nc)
+        tail=tail+1
+        queue(tail)=elem_cnct(dirn,k,nc)
+      enddo
+      do while(head.le.tail)
+        ne=queue(head)
+        head=head+1
+        if(in_terr(ne))cycle
+        all_in=.TRUE.
+        do k=1,elem_cnct(-dirn,0,ne)
+          if(.not.in_terr(elem_cnct(-dirn,k,ne)))all_in=.FALSE.
+        enddo
+        if(.not.all_in)cycle !revisited when its last feeding element is added
+        in_terr(ne)=.TRUE.
+        nlist=nlist+1
+        list(nlist)=ne
+        do k=1,elem_cnct(dirn,0,ne)
+          ne2=elem_cnct(dirn,k,ne)
+          if(.not.in_terr(ne2).and.tail.lt.qsize)then
+            tail=tail+1
+            queue(tail)=ne2
+          endif
+        enddo
+      enddo
+      if(total+nlist.gt.size(terr_list))then
+        allocate(tmp(max(2*size(terr_list),total+nlist)))
+        tmp(1:total)=terr_list(1:total)
+        call move_alloc(tmp,terr_list)
+      endif
+      terr_list(total+1:total+nlist)=list(1:nlist)
+      total=total+nlist
+      terr_ptr(i)=total
+      in_terr(list(1:nlist))=.FALSE.
+    enddo
+    deallocate(in_terr,list,queue)
+  end subroutine build_ctrl_territories
+
+!###################################################################################
+!*compute_ctrl_multipliers:* Resistance multiplier of every element: product of
+! the scale factors of all controlled elements whose territory contains it.
+  subroutine compute_ctrl_multipliers()
+    integer :: i
+    real(dp),allocatable :: logsum(:)
+
+    allocate(logsum(num_elems))
+    logsum=0.0_dp
+    do i=1,num_ctrl
+      logsum(terr_list(terr_ptr(i-1)+1:terr_ptr(i)))= &
+        logsum(terr_list(terr_ptr(i-1)+1:terr_ptr(i)))+ctrl_logscale(ctrl_list(i))
+    enddo
+    ctrl_mult(1:num_elems)=exp(logsum)
+    deallocate(logsum)
   end subroutine compute_ctrl_multipliers
 
 !###################################################################################
@@ -961,11 +1025,12 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 ! scale factors, then normalises each junction group to a geometric mean
 ! multiplier of one.  The update is a Newton step in log space,
 !   ln(s) <- ln(s) + ln(Q/Q_target)/g,  g = -dln(Q)/dln(s).
-! Scaling a subtree that carries a fraction f of the frictional (R*Q) pressure
+! Scaling a territory that carries a fraction f of the frictional (R*Q) pressure
 ! drop along its flow paths gives g = f, so g is taken from the current solution
-! as that fraction (see ctrl_friction_fraction).  In a simple tree the scaled
-! subtree reaches the outlets and g = 1; in a full_plus_ladder network the
-! capillaries and veins are in series with an arterial subtree and g < 1.
+! as that fraction (see ctrl_friction_fraction).  In a simple tree the territory
+! reaches the outlets and g = 1; in a full_plus_ladder network the vessels
+! downstream of an arterial territory (the shared venous trunk) are in series
+! with it and g < 1.
 ! For the children of a junction group the steps d_i and the geometric-mean
 ! normalisation are solved together: the linearised flow errors after the step
 ! are e_i - g_i*d_i + c, where c is common to the group because the junction's
@@ -980,12 +1045,13 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     real(dp),intent(out) :: flow_err
 
     integer :: ne,ne2,np,k,n
-    real(dp) :: q,shift,csum,wsum
-    integer,allocatable :: stack(:)
-    real(dp),allocatable :: cum(:),err(:),gain(:)
+    real(dp) :: q,shift,csum,wsum,reduction
+    logical,allocatable :: in_terr(:)
+    real(dp),allocatable :: err(:),gain(:)
     real(dp),parameter :: max_step=log(4.0_dp),max_log=log(1.0e8_dp)
 
-    allocate(stack(num_elems),cum(num_elems),err(num_elems),gain(num_elems))
+    allocate(in_terr(num_elems),err(num_elems),gain(num_elems))
+    in_terr=.FALSE.
     err=0.0_dp
     gain=1.0_dp
     flow_err=0.0_dp
@@ -1002,10 +1068,24 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
       endif
     enddo
 
-    ! Independently controlled elements.
+    ! Independently controlled elements.  The estimated gain ignores that the
+    ! element competes for flow with the rest of the tree upstream of it, so it
+    ! can be too high (steps too small).  The step is therefore boosted by the
+    ! ratio of the intended to the achieved error reduction while the error keeps
+    ! its sign, and the boost is halved after an overshoot.
     do ne=1,num_elems
       if(ctrl_group(ne).ne.0)cycle
-      ctrl_logscale(ne)=ctrl_logscale(ne)+max(-max_step,min(max_step,relax*err(ne)/gain(ne)))
+      if(ctrl_prev_err(ne)*err(ne).gt.0.0_dp)then
+        reduction=1.0_dp-err(ne)/ctrl_prev_err(ne)
+        if(reduction.gt.0.0_dp.and.reduction.lt.relax)then
+          ctrl_boost(ne)=min(8.0_dp,ctrl_boost(ne)*relax/max(reduction,relax/8.0_dp))
+        endif
+      elseif(ctrl_prev_err(ne)*err(ne).lt.0.0_dp)then
+        ctrl_boost(ne)=max(1.0_dp,0.5_dp*ctrl_boost(ne))
+      endif
+      ctrl_prev_err(ne)=err(ne)
+      ctrl_logscale(ne)=ctrl_logscale(ne)+ &
+        max(-max_step,min(max_step,ctrl_boost(ne)*relax*err(ne)/gain(ne)))
     enddo
 
     ! Junction groups: step and normalisation solved together.
@@ -1029,7 +1109,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
           max(-max_step,min(max_step,relax*(err(ne2)+shift)/gain(ne2)))
       enddo
     enddo
-    deallocate(stack,cum,err,gain)
+    deallocate(in_terr,err,gain)
 
     ! Junction groups: enforce the geometric-mean normalisation exactly (only
     ! changes anything if a step above was limited by max_step).
@@ -1070,56 +1150,49 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
       fdrop=elem_field(ne_resist,ne)*prq_solution(depvar_at_elem(0,1,ne),1)
     end function fdrop
 
-    ! Fraction of the frictional pressure drop along the flow paths through
-    ! controlled element nc that is taken by the vessels its multiplier scales
-    ! (its whole subtree within the same vessel group), flow-weighted over the
-    ! paths leaving that subtree.  Bounded to [0.05,1].
+    ! Fraction of the frictional pressure drop along the flow path through
+    ! controlled element nc that is taken by its territory.  The flow-weighted
+    ! drop across the territory is its dissipation sum(Q*R*Q) divided by the
+    ! flow through nc; the drop beyond it is followed from each exit to the
+    ! outlet (arteries) or back to the inlet (veins).  Bounded to [0.05,1].
     real(dp) function ctrl_friction_fraction(nc)
       integer,intent(in) :: nc
-      integer :: nstack,ne1,ne3,kk,grp,nnext,dirn,guard
-      real(dp) :: w,qq,d_in,d_out,rest
+      integer :: i,j,ne1,ne3,kk,dirn,guard
+      real(dp) :: qc,d_in,d_out,w,qq,rest
 
-      grp=nint(elem_field(ne_group,nc))
-      dirn=1 !arteries: scaled subtree lies downstream
-      if(grp.eq.2)dirn=-1 !veins: scaled subtree lies upstream
+      i=ctrl_pos(nc)
+      dirn=1
+      if(nint(elem_field(ne_group,nc)).eq.2)dirn=-1
+      in_terr(terr_list(terr_ptr(i-1)+1:terr_ptr(i)))=.TRUE.
+      qc=abs(prq_solution(depvar_at_elem(0,1,nc),1))
       d_in=0.0_dp
       d_out=0.0_dp
       w=0.0_dp
-      nstack=1
-      stack(1)=nc
-      cum(nc)=fdrop(nc)
-      do while(nstack.gt.0)
-        ne1=stack(nstack)
-        nstack=nstack-1
-        nnext=0
+      do j=terr_ptr(i-1)+1,terr_ptr(i)
+        ne1=terr_list(j)
+        qq=abs(prq_solution(depvar_at_elem(0,1,ne1),1))
+        d_in=d_in+qq*abs(fdrop(ne1))
         do kk=1,elem_cnct(dirn,0,ne1)
           ne3=elem_cnct(dirn,kk,ne1)
-          if(nint(elem_field(ne_group,ne3)).eq.grp)then
-            nstack=nstack+1
-            stack(nstack)=ne3
-            cum(ne3)=cum(ne1)+fdrop(ne3)
-            nnext=nnext+1
-          endif
-        enddo
-        if(nnext.eq.0)then !path leaves the scaled subtree here
-          qq=abs(prq_solution(depvar_at_elem(0,1,ne1),1))
-          ! frictional drop along the rest of the path to the outlet (arteries)
-          ! or back to the inlet (veins)
-          rest=0.0_dp
-          ne3=ne1
+          if(in_terr(ne3))cycle
+          ! exit from the territory: follow the path to the outlet / inlet
+          rest=abs(fdrop(ne3))
           guard=0
           do while(elem_cnct(dirn,0,ne3).gt.0.and.guard.lt.num_elems)
             ne3=elem_cnct(dirn,1,ne3)
-            rest=rest+fdrop(ne3)
+            rest=rest+abs(fdrop(ne3))
             guard=guard+1
           enddo
-          d_in=d_in+qq*cum(ne1)
           d_out=d_out+qq*rest
           w=w+qq
-        endif
+        enddo
       enddo
+      in_terr(terr_list(terr_ptr(i-1)+1:terr_ptr(i)))=.FALSE.
       ctrl_friction_fraction=1.0_dp
-      if(w.le.0.0_dp.or.d_in+d_out.le.0.0_dp)return
+      if(qc.le.0.0_dp)return
+      d_in=d_in/qc
+      if(w.gt.0.0_dp)d_out=d_out/w
+      if(d_in+d_out.le.0.0_dp)return
       ctrl_friction_fraction=d_in/(d_in+d_out)
       if(.not.(ctrl_friction_fraction.ge.0.05_dp))ctrl_friction_fraction=0.05_dp
       ctrl_friction_fraction=min(1.0_dp,ctrl_friction_fraction)
@@ -1168,6 +1241,12 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     if(allocated(ctrl_logscale))deallocate(ctrl_logscale)
     if(allocated(ctrl_mult))deallocate(ctrl_mult)
     if(allocated(resist_base))deallocate(resist_base)
+    if(allocated(ctrl_list))deallocate(ctrl_list)
+    if(allocated(ctrl_pos))deallocate(ctrl_pos)
+    if(allocated(terr_ptr))deallocate(terr_ptr)
+    if(allocated(terr_list))deallocate(terr_list)
+    if(allocated(ctrl_boost))deallocate(ctrl_boost)
+    if(allocated(ctrl_prev_err))deallocate(ctrl_prev_err)
   end subroutine free_flow_control
 !
 !###################################################################################

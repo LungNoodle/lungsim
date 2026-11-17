@@ -106,8 +106,8 @@ one-based element identifiers and flow values before calling ``evaluate_prq``::
 Each selected flow is achieved by adjusting vessel resistances; Poiseuille's law
 (plus the hydrostatic term) still holds in every element, so no artificial pressure
 jump is introduced.  A controlled element multiplies the resistance of its whole
-subtree (down to the next controlled element) by a factor that the solver finds
-iteratively.  Factors are nested, so any number of flows can be prescribed at
+perfusion territory -- every vessel whose flow passes entirely through it -- by a
+factor that the solver finds iteratively.  Factors are nested, so any number of flows can be prescribed at
 different depths of the tree, and they combine with elastic vessels, gravity and
 remodelling (remodelling changes the radii; the factors are applied on top of the
 resulting resistances).  The converged factors are printed after the solve.
@@ -133,15 +133,17 @@ the node or element.  Flows can be prescribed with ``flow`` or ``pressure``
 boundary conditions.
 
 Prescribed flows work with both ``simple_tree`` and ``full_plus_ladder`` meshes.
-In a ``full_plus_ladder`` network (built with ``append_units`` and
-``add_matching_mesh``) the factors only scale vessels of the same type as the
-prescribed element: an arterial element scales its downstream arterial subtree, a
-venous element scales the veins draining into it, and capillaries are never
-scaled.  Because each arterial subtree drains only into its own venous subtree,
-prescribing the flow in an artery also fixes the flow in the matching vein, so
-prescribe a given split on one side only.  In a ladder network the factor updates
-are under-relaxed, because the capillary resistances are recomputed from the
-solution in the same iteration.
+In a ``simple_tree`` the territory of an element is its subtree.  In a
+``full_plus_ladder`` network (built with ``append_units`` and ``add_matching_mesh``)
+the territory of an artery is its arterial subtree, the capillaries it feeds and
+the veins that drain only those capillaries; for a vein it is the mirror image.
+Scaling the whole territory matters: the capillaries and veins carry most of the
+resistance along a flow path, so scaling the arteries alone cannot raise a
+branch's flow much above its natural value.  Because each arterial territory drains
+through its own veins, prescribing the flow in an artery also fixes the flow in
+the matching vein, so prescribe a given split on one side only.  In a ladder
+network the factor updates are under-relaxed, because the capillary resistances
+are recomputed from the solution in the same iteration.
 
 The setting persists for later PRQ solves in the same process.  Clear it to restore
 the original solver behaviour::
