@@ -331,8 +331,8 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
             CONVERGED=.FALSE.
           endif
           if((.not.flow_ok).and.(KOUNT.ge.ctrl_max_iterations))then
-            print *,'WARNING: prescribed flows not matched after',KOUNT,'iterations'
-            CONVERGED=.TRUE.
+            print *,'ERROR: prescribed flows not matched after',KOUNT,'iterations'
+            call exit(1)
           endif
         endif
       else
@@ -380,8 +380,8 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
            call store_and_scale_resistance()
            print *,"Prescribed flow mismatch (max relative) =",flow_err
            if((.not.flow_ok).and.(KOUNT.ge.ctrl_max_iterations))then
-             print *,'WARNING: prescribed flows not matched after',KOUNT,'iterations'
-             flow_ok=.TRUE.
+             print *,'ERROR: prescribed flows not matched after',KOUNT,'iterations'
+             call exit(1)
            endif
          endif
 

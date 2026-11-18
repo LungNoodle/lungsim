@@ -90,7 +90,9 @@ Prescribing selected element flows
 
 The pressure-resistance-flow solver retains its original behaviour unless prescribed
 perfusion flows are explicitly configured.  From Python, pass matching lists of
-one-based element identifiers and flow values before calling ``evaluate_prq``::
+one-based element identifiers and flow values before calling ``evaluate_prq``.  Flow
+values use the same units as ``inlet_bc`` and the element flow field (normally
+``mm^3/s``)::
 
   from aether.pressure_resistance_flow import (
       clear_perfusion_flows,
@@ -144,6 +146,12 @@ through its own veins, prescribing the flow in an artery also fixes the flow in
 the matching vein, so prescribe a given split on one side only.  In a ladder
 network the factor updates are under-relaxed, because the capillary resistances
 are recomputed from the solution in the same iteration.
+
+The resistance controller considers the flows matched when the maximum relative
+error over all controlled elements is at most ``1e-5``.  If it cannot meet that
+tolerance within 500 outer iterations, ``evaluate_prq`` terminates with a non-zero
+status instead of returning an approximate solution.  Requested flows must therefore
+be achievable under the selected pressure or flow boundary conditions.
 
 The setting persists for later PRQ solves in the same process.  Clear it to restore
 the original solver behaviour::
