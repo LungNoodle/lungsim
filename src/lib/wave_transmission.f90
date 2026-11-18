@@ -2532,7 +2532,8 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,alpha,harmoni
 
   !local variables
   real(dp) :: L,C,R, G,omega,gen_factor
-  real(dp) :: E,h_bar,h,wavespeed,wolmer !should be global - maybe express as alpha (i.e. pre multiply)
+  real(dp) :: E,h_bar,h,wolmer !should be global - maybe express as alpha (i.e. pre multiply)
+  complex(dp) :: wavespeed ! c0*sqrt(1-F10): the imaginary part carries viscous attenuation
   complex(dp) :: f10
   integer :: ne,nf,nn,np
   integer :: exit_status=0
