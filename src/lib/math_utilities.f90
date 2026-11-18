@@ -17,6 +17,7 @@ module math_utilities
   private
 
   public ax_cr,diagonal_pointer_cr,ilu_cr,lus_cr,mult_givens,rearrange_cr,bessel_complex
+  public womersley_f10
   public sort_integer_list
   public sort_real_list
   public angle_btwn_vectors,check_vectors_same,cross_product,inlist
@@ -362,6 +363,35 @@ contains
     end if
 
   end subroutine bessel_complex
+
+!
+!###################################################################################
+!
+!*womersley_f10:* Womersley's viscous function F10(W) = 2*J1(z)/(z*J0(z)),
+! z = i^(3/2)*W, for the e^(+i*omega*t) convention used in wave transmission.
+! F10 -> 1 - i*W^2/8 for small W (Poiseuille limit) and -> 2/z for large W
+! (inviscid limit). J1/J0 is evaluated with the backward continued fraction
+! J_n/J_(n-1) = 1/(2n/z - J_(n+1)/J_n), which is stable for all W.
+  function womersley_f10(wolmer) result(f10)
+    real(dp), intent(in) :: wolmer
+    complex(dp) :: f10
+
+    complex(dp) :: z,ratio
+    integer :: n,nterms
+
+    z = wolmer*exp(cmplx(0.0_dp,0.75_dp*pi,kind=dp))
+    if(abs(z).lt.1.0e-8_dp)then
+      f10 = cmplx(1.0_dp,0.0_dp,kind=dp)-z*z/8.0_dp
+      return
+    endif
+    nterms = int(abs(z)) + 60
+    ratio = cmplx(0.0_dp,0.0_dp,kind=dp)
+    do n = nterms,1,-1
+      ratio = 1.0_dp/(2.0_dp*real(n,dp)/z - ratio)
+    enddo
+    f10 = 2.0_dp*ratio/z
+
+  end function womersley_f10
 
 
 !
