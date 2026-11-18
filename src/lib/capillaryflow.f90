@@ -1429,8 +1429,10 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
    enddo
 
    if(cap_model == 1)then
+     ! Sheet path length as in the steady model (cap_flow_sheet): L_c scaled
+     ! by lung inflation.
      call build_model1_capillary_port(ngen,no_freq,tube_admit,cap_admit,prop_const,&
-       prop_const_cap,L_a,L_v,cap_param%L_c,cap_port)
+       prop_const_cap,L_a,L_v,cap_param%L_c*length_scale,cap_port)
    endif
 
   deallocate(cap_admit)
