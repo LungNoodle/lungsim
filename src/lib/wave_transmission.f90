@@ -75,6 +75,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   complex(dp), allocatable :: p_factor(:,:)
   complex(dp), allocatable :: q_factor(:,:)
   complex(dp), allocatable :: cap_port(:,:,:,:)
+  complex(dp), allocatable :: venous_load(:)
   complex(dp) :: outlet_forward,outlet_backward
   real(dp), allocatable :: forward_pressure(:)
   real(dp), allocatable :: reflected_pressure(:)
@@ -291,6 +292,16 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
         if(AllocateStatus /= 0) STOP "*** Not enough memory for capillary two-port array ***"
         cap_port=cmplx(0.0_dp,0.0_dp,dp)
 
+        ! Keep the venous-outlet load set by boundary_admittance before the
+        ! converging-tree pass overwrites eff_admit at the venous root.
+        if(elem_cnct(1,0,min_ven).ne.0)then
+          write(*,*) 'ERROR: First venous element is not the venous outlet',min_ven
+          error stop
+        endif
+        allocate(venous_load(no_freq), STAT=AllocateStatus)
+        if(AllocateStatus /= 0) STOP "*** Not enough memory for venous load array ***"
+        venous_load=eff_admit(:,min_ven)
+
         !vein admittance
         tree_direction='converging'
         call tree_admittance(no_freq,eff_admit,char_admit,reflect,prop_const,harmonic_scale,&
@@ -316,8 +327,8 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
         error stop
       endif
       call matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop_const,&
-        char_admit,cap_port,min_art,max_art,min_ven,max_ven,min_cap,max_cap,bc_type,&
-        admit_param%bc_type)
+        char_admit,cap_port,venous_load,min_art,max_art,min_ven,max_ven,min_cap,max_cap,&
+        bc_type,admit_param%bc_type)
     else
       call pressure_flow_factor(no_freq,p_factor,q_factor,reflect,prop_const,char_admit,eff_admit,&
         harmonic_scale,min_art,max_art,bc_type)
@@ -2295,6 +2306,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   deallocate (p_factor, STAT=AllocateStatus)
   deallocate (q_factor, STAT=AllocateStatus)
   if(allocated(cap_port)) deallocate(cap_port, STAT=AllocateStatus)
+  if(allocated(venous_load)) deallocate(venous_load, STAT=AllocateStatus)
   deallocate (forward_pressure, STAT=AllocateStatus)
   deallocate (reflected_pressure, STAT=AllocateStatus)
   deallocate (forward_pressure_previous, STAT=AllocateStatus)
@@ -3004,8 +3016,8 @@ end subroutine pressure_flow_factor
 ! venous subtree to a two-port, applies the inlet and venous-outlet harmonic
 ! boundary conditions at the root, and back-substitutes through both trees.
 subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop_const,&
-  char_admit,cap_port,min_art,max_art,min_ven,max_ven,min_cap,max_cap,bc_type,&
-  outlet_bc_type)
+  char_admit,cap_port,venous_load,min_art,max_art,min_ven,max_ven,min_cap,max_cap,&
+  bc_type,outlet_bc_type)
 
   integer, intent(in) :: no_freq,min_art,max_art,min_ven,max_ven,min_cap,max_cap
   complex(dp), intent(inout) :: p_factor(1:no_freq,num_elems)
@@ -3014,6 +3026,7 @@ subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop
   complex(dp), intent(in) :: prop_const(1:no_freq,num_elems)
   complex(dp), intent(inout) :: char_admit(1:no_freq,num_elems)
   complex(dp), intent(in) :: cap_port(2,2,no_freq,max_cap-min_cap+1)
+  complex(dp), intent(in) :: venous_load(no_freq)
   character(len=*), intent(in) :: bc_type,outlet_bc_type
 
   complex(dp), allocatable :: subtree(:,:,:),left_pressure(:),right_pressure(:)
@@ -3087,7 +3100,7 @@ subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop
     !   I2 + Yload*P2 = 0,
     ! so P2=-Y21*P1/(Y22+Yload).
     if(trim(outlet_bc_type).eq.'zero_reflection')then
-      outlet_admittance=char_admit(nf,min_ven)
+      outlet_admittance=venous_load(nf)
     else
       write(*,*) 'ERROR: Coupled vascular wave propagation currently requires ',&
         'a zero-reflection venous outlet.'
