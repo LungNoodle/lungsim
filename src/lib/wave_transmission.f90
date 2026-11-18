@@ -3099,11 +3099,16 @@ subroutine matched_vascular_pressure_flow(no_freq,p_factor,q_factor,reflect,prop
     ! two-port currents directed into the vascular network,
     !   I2 + Yload*P2 = 0,
     ! so P2=-Y21*P1/(Y22+Yload).
-    if(trim(outlet_bc_type).eq.'zero_reflection')then
+    ! zero_reflection (default): characteristic admittance of the root vein.
+    ! two_unit_wk / three_unit_wk: passive Windkessel load from
+    ! boundary_admittance, e.g. to represent the left atrium.
+    if(trim(outlet_bc_type).eq.'zero_reflection'.or.&
+       trim(outlet_bc_type).eq.'two_unit_wk'.or.&
+       trim(outlet_bc_type).eq.'three_unit_wk')then
       outlet_admittance=venous_load(nf)
     else
-      write(*,*) 'ERROR: Coupled vascular wave propagation currently requires ',&
-        'a zero-reflection venous outlet.'
+      write(*,*) 'ERROR: Venous outlet boundary condition not supported by the ',&
+        'coupled vascular solve: ',trim(outlet_bc_type)
       error stop
     endif
     root_denominator=subtree(2,2,min_art)+outlet_admittance
