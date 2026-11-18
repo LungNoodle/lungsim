@@ -938,7 +938,8 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
   real(dp) :: SHEET_RES,Q_c,Hart,Hven,RBC_TT,area,area_new,recruited,omega,nd_omega
   integer :: zone,nf
   complex(dp) :: f10
-  real(dp) :: wolmer,wavespeed
+  real(dp) :: wolmer
+  complex(dp) :: wavespeed ! c0*sqrt(1-F10): the imaginary part carries viscous attenuation
   integer :: i,iter,j,num_sheet
   integer, allocatable :: SparseCol(:)
   integer, allocatable ::SparseRow(:)
