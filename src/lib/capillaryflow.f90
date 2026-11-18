@@ -1435,6 +1435,14 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
      ! area/length. calc_cap_admit_consth assumes a width of L_c.
      allocate(sheet_width_factor(ngen))
      sheet_width_factor=(area*area_scale/(cap_param%L_c*length_scale))/cap_param%L_c
+     ! Recruitment and zone-2 (waterfall) area fractions of each sheet, from
+     ! the same steady pressures that set its height.
+     do gen=1,ngen-1
+       sheet_width_factor(gen)=sheet_width_factor(gen)*&
+         sheet_area_fraction(Pressure(4*gen-3),Pressure(4*gen-1))
+     enddo
+     sheet_width_factor(ngen)=sheet_width_factor(ngen)*&
+       sheet_area_fraction(Pressure(4*ngen-6),Pressure(4*ngen-4))
      call build_model1_capillary_port(ngen,no_freq,tube_admit,cap_admit,prop_const,&
        prop_const_cap,L_a,L_v,cap_param%L_c*length_scale,sheet_width_factor,cap_port)
      deallocate(sheet_width_factor)
@@ -1519,6 +1527,29 @@ subroutine build_model1_capillary_port(ngen,no_freq,tube_admit,cap_admit,prop_co
   enddo
 
 end subroutine build_model1_capillary_port
+
+!
+!###################################################################################
+!
+!*sheet_area_fraction:* Fraction of the sheet area perfused at the given
+! steady sheet inlet and outlet pressures: capillary recruitment, and zone-2
+! (waterfall) derecruitment, exactly as applied in cap_flow_sheet.
+function sheet_area_fraction(P_a,P_v) result(fraction)
+
+  real(dp), intent(in) :: P_a,P_v
+  real(dp) :: fraction
+
+  type(capillary_bf_parameters) :: cap_param
+  real(dp) :: P_ave
+
+  P_ave=(P_a+P_v)/2.0_dp
+  fraction=1.0_dp-cap_param%f_rec*exp(-(P_ave**2)/(cap_param%sigma_rec**2))
+  if((P_v-cap_param%Palv).le.cap_param%Plb_c)then
+    fraction=fraction*(1.0_dp-cap_param%F_sheet+cap_param%F_sheet*&
+      exp(-(P_v-cap_param%Palv)**2/(2.0_dp*cap_param%sigma_cap**2)))
+  endif
+
+end function sheet_area_fraction
 
 !
 !###################################################################################
