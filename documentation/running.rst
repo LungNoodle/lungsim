@@ -90,7 +90,9 @@ Prescribing selected element flows
 
 The pressure-resistance-flow solver retains its original behaviour unless prescribed
 perfusion flows are explicitly configured.  From Python, pass matching lists of
-one-based element identifiers and flow values before calling ``evaluate_prq``::
+one-based element identifiers and flow values before calling ``evaluate_prq``.  Flow
+values use the same units as ``inlet_bc`` and the element flow field (normally
+``mm^3/s``)::
 
   from aether.pressure_resistance_flow import (
       clear_perfusion_flows,
@@ -103,13 +105,53 @@ one-based element identifiers and flow values before calling ``evaluate_prq``::
       "simple_tree", "rigid", 3, 1.0, "flow", 200.0, 0.0, 0.0
   )
 
-Each selected element flow is fixed to the supplied value while the solver computes
-the remaining flows and pressures.  Nodal flow conservation is retained, so fixing
-the flow in the unique element entering a subtree fixes the total flow delivered to
-that subtree.  The prescribed-flow condition replaces that element's pressure-drop
-equation, allowing the pressure jump required to impose the flow to be determined by
-the rest of the network.  The solver keeps its topology-aware equation ordering so
-the reduced matrix has the structural diagonal required by the ILU preconditioner.
+Each selected flow is achieved by adjusting vessel resistances; Poiseuille's law
+(plus the hydrostatic term) still holds in every element, so no artificial pressure
+jump is introduced.  A controlled element multiplies the resistance of its whole
+perfusion territory -- every vessel whose flow passes entirely through it -- by a
+factor that the solver finds iteratively.  Factors are nested, so any number of flows can be prescribed at
+different depths of the tree, and they combine with elastic vessels, gravity and
+remodelling (remodelling changes the radii; the factors are applied on top of the
+resulting resistances).  The converged factors are printed after the solve.
+
+Flows implied by conservation are worked out first, starting from the inlet flow.
+At a junction where the parent flow is known and every child flow is known
+(prescribed or implied), all children are controlled together, so the answer does
+not depend on which children were named.  For example, with a fixed MPA flow,
+prescribing 70% to the RPA or 30% to the LPA gives identical results.  Such a
+junction has one more resistance factor than it has constraints; the remaining
+choice is made by keeping the geometric mean of the children's factors at one,
+i.e. the smallest symmetric change in resistance.
+
+A prescribed element whose junction is not fully determined (for example a single
+branch deep in the tree whose siblings are free) is controlled on its own.  Prescribed
+flows must be positive and must not be on an inlet or capillary element.  Before
+solving, the prescribed flows (with the inlet flow) are propagated by conservation
+up and down the tree: redundant but consistent values are accepted (for example
+both the LPA and RPA when they add up to the inlet flow, or two elements of the same
+unbranched vessel with the same flow), while values that cannot all hold, or that
+would force a zero or negative flow elsewhere, stop the run with an error naming
+the node or element.  Flows can be prescribed with ``flow`` or ``pressure``
+boundary conditions.
+
+Prescribed flows work with both ``simple_tree`` and ``full_plus_ladder`` meshes.
+In a ``simple_tree`` the territory of an element is its subtree.  In a
+``full_plus_ladder`` network (built with ``append_units`` and ``add_matching_mesh``)
+the territory of an artery is its arterial subtree, the capillaries it feeds and
+the veins that drain only those capillaries; for a vein it is the mirror image.
+Scaling the whole territory matters: the capillaries and veins carry most of the
+resistance along a flow path, so scaling the arteries alone cannot raise a
+branch's flow much above its natural value.  Because each arterial territory drains
+through its own veins, prescribing the flow in an artery also fixes the flow in
+the matching vein, so prescribe a given split on one side only.  In a ladder
+network the factor updates are under-relaxed, because the capillary resistances
+are recomputed from the solution in the same iteration.
+
+The resistance controller considers the flows matched when the maximum relative
+error over all controlled elements is at most ``1e-5``.  If it cannot meet that
+tolerance within 500 outer iterations, ``evaluate_prq`` terminates with a non-zero
+status instead of returning an approximate solution.  Requested flows must therefore
+be achievable under the selected pressure or flow boundary conditions.
 
 The setting persists for later PRQ solves in the same process.  Clear it to restore
 the original solver behaviour::

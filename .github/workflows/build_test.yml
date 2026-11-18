@@ -38,9 +38,9 @@ jobs:
             os: ubuntu-24.04,
           }
         - {
-            name: "macOS Sonoma",
+            name: "macOS Sequoia",
             build_type: "Release",
-            os: macos-14,
+            os: macos-15,
             gfortran: gfortran-14,
           }
 
