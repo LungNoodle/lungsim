@@ -403,7 +403,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 !need to write solution to element/nodal fields for export
     call map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof)
     if(flow_control)then
-      call report_flow_control()
+      ! call report_flow_control()
       call free_flow_control()
     endif
     !NEED TO UPDATE TERMINAL SOLUTION HERE. LOOP THO' UNITS AND TAKE FLOW AND PRESSURE AT TERMINALS
