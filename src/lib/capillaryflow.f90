@@ -1521,16 +1521,24 @@ subroutine transmission_line_port(characteristic_admit,gamma,length,port)
   real(dp), intent(in) :: length
   complex(dp), intent(out) :: port(2,2)
 
-  complex(dp) :: z,sinh_z
+  complex(dp) :: z,sinh_z,exp_m2z
 
   z=gamma*length
-  sinh_z=sinh(z)
-  if(abs(sinh_z).le.tiny(1.0_dp))then
-    write(*,*) 'ERROR: Singular transmission-line two-port',characteristic_admit,gamma,length
-    error stop
+  if(real(z,dp).gt.20.0_dp)then
+    ! Long or strongly attenuating line (e.g. a near-collapsed microvessel):
+    ! use exp(-2z) forms, since sinh(z) overflows for Re(z) > ~710.
+    exp_m2z=exp(-2.0_dp*z)
+    port(1,1)=characteristic_admit*(1.0_dp+exp_m2z)/(1.0_dp-exp_m2z)
+    port(1,2)=-characteristic_admit*2.0_dp*exp(-z)/(1.0_dp-exp_m2z)
+  else
+    sinh_z=sinh(z)
+    if(abs(sinh_z).le.tiny(1.0_dp))then
+      write(*,*) 'ERROR: Singular transmission-line two-port',characteristic_admit,gamma,length
+      error stop
+    endif
+    port(1,1)=characteristic_admit/tanh(z)
+    port(1,2)=-characteristic_admit/sinh_z
   endif
-  port(1,1)=characteristic_admit/tanh(z)
-  port(1,2)=-characteristic_admit/sinh_z
   port(2,1)=port(1,2)
   port(2,2)=port(1,1)
 
