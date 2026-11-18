@@ -3193,16 +3193,24 @@ subroutine large_vessel_two_port(ne,nf,char_admit,prop_const,port)
   complex(dp), intent(in) :: char_admit(:,:),prop_const(:,:)
   complex(dp), intent(out) :: port(2,2)
 
-  complex(dp) :: z,sinh_z
+  complex(dp) :: z,sinh_z,exp_m2z
 
   z=prop_const(nf,ne)*elem_field(ne_length,ne)
-  sinh_z=sinh(z)
-  if(abs(sinh_z).le.tiny(1.0_dp))then
-    write(*,*) 'ERROR: Singular large-vessel two-port',ne,nf
-    error stop
+  if(real(z,dp).gt.20.0_dp)then
+    ! Long or strongly attenuating line: use exp(-2z) forms, since sinh(z)
+    ! overflows for Re(z) > ~710.
+    exp_m2z=exp(-2.0_dp*z)
+    port(1,1)=char_admit(nf,ne)*(1.0_dp+exp_m2z)/(1.0_dp-exp_m2z)
+    port(1,2)=-char_admit(nf,ne)*2.0_dp*exp(-z)/(1.0_dp-exp_m2z)
+  else
+    sinh_z=sinh(z)
+    if(abs(sinh_z).le.tiny(1.0_dp))then
+      write(*,*) 'ERROR: Singular large-vessel two-port',ne,nf
+      error stop
+    endif
+    port(1,1)=char_admit(nf,ne)/tanh(z)
+    port(1,2)=-char_admit(nf,ne)/sinh_z
   endif
-  port(1,1)=char_admit(nf,ne)/tanh(z)
-  port(1,2)=-char_admit(nf,ne)/sinh_z
   port(2,1)=port(1,2)
   port(2,2)=port(1,1)
 
