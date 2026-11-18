@@ -2594,7 +2594,7 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,alpha,harmoni
          wolmer=(elem_field(ne_radius_out,ne))*sqrt(omega*density/viscosity)
          f10=womersley_f10(wolmer)
          wavespeed=sqrt(1.0_dp/(2*density*elast_param%elasticity_parameters(1)))*sqrt(1-f10)! !mm/s
-         char_admit(nf,ne)=PI*(elem_field(ne_radius_out,ne))**2/(density*wavespeed/(1-f10))*sqrt(1-f10)!mm3/Pa
+         char_admit(nf,ne)=PI*(elem_field(ne_radius_out,ne))**2/(density*wavespeed/sqrt(1-f10))*sqrt(1-f10)!mm3/Pa (Yc=pi r^2 sqrt(1-F10)/(rho c0))
          prop_const(nf,ne)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed)!1/mm
         enddo
       else !Unrecognised admittance model
@@ -2747,7 +2747,7 @@ subroutine characteristic_admittance(no_freq,char_admit,prop_const,alpha,harmoni
          else !apply normal elasticity on everything except arteries
            wavespeed=sqrt(1.0_dp/(2*density*elast_param%elasticity_parameters(1)))*sqrt(1-f10)! !mm/s
          endif
-         char_admit(nf,ne)=PI*(elem_field(ne_radius_out,ne))**2/(density*wavespeed/(1-f10))*sqrt(1-f10)!mm3/Pa
+         char_admit(nf,ne)=PI*(elem_field(ne_radius_out,ne))**2/(density*wavespeed/sqrt(1-f10))*sqrt(1-f10)!mm3/Pa (Yc=pi r^2 sqrt(1-F10)/(rho c0))
          prop_const(nf,ne)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed)!1/mm
        enddo
       else !Unrecognised admittance model
