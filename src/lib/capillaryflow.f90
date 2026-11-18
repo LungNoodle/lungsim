@@ -933,6 +933,7 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
   type(fluid_properties) :: fp
   integer :: ngen
   real(dp) :: alpha_c,area_scale,length_scale
+  real(dp), allocatable :: sheet_width_factor(:)
   real(dp) :: radupdate,P_exta,P_extv,R_art1,R_ven1,R_art2,R_ven2,Q01_mthrees,Pin,Pout
   integer :: gen
   real(dp) :: SHEET_RES,Q_c,Hart,Hven,RBC_TT,area,area_new,recruited,omega,nd_omega
@@ -1429,10 +1430,14 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
    enddo
 
    if(cap_model == 1)then
-     ! Sheet path length as in the steady model (cap_flow_sheet): L_c scaled
-     ! by lung inflation.
+     ! Sheet geometry as in the steady model (cap_flow_sheet): path length
+     ! L_c*length_scale and area area*area_scale, so the sheet width is
+     ! area/length. calc_cap_admit_consth assumes a width of L_c.
+     allocate(sheet_width_factor(ngen))
+     sheet_width_factor=(area*area_scale/(cap_param%L_c*length_scale))/cap_param%L_c
      call build_model1_capillary_port(ngen,no_freq,tube_admit,cap_admit,prop_const,&
-       prop_const_cap,L_a,L_v,cap_param%L_c*length_scale,cap_port)
+       prop_const_cap,L_a,L_v,cap_param%L_c*length_scale,sheet_width_factor,cap_port)
+     deallocate(sheet_width_factor)
    endif
 
   deallocate(cap_admit)
@@ -1464,7 +1469,7 @@ end subroutine cap_flow_admit
 ! with two identical daughter ladders.  The two rail halves are then cascaded on
 ! the arterial and venous sides.
 subroutine build_model1_capillary_port(ngen,no_freq,tube_admit,cap_admit,prop_const,&
-  prop_const_cap,L_a,L_v,L_c,cap_port)
+  prop_const_cap,L_a,L_v,L_c,sheet_width_factor,cap_port)
 
   integer, intent(in) :: ngen,no_freq
   complex(dp), intent(in) :: tube_admit(4*ngen,no_freq)
@@ -1472,6 +1477,7 @@ subroutine build_model1_capillary_port(ngen,no_freq,tube_admit,cap_admit,prop_co
   complex(dp), intent(in) :: prop_const(4*ngen,no_freq)
   complex(dp), intent(in) :: prop_const_cap(ngen,no_freq)
   real(dp), intent(in) :: L_a(ngen),L_v(ngen),L_c
+  real(dp), intent(in) :: sheet_width_factor(ngen) ! sheet width / L_c
   complex(dp), intent(out) :: cap_port(2,2,no_freq)
 
   integer :: nf,gen
@@ -1480,8 +1486,8 @@ subroutine build_model1_capillary_port(ngen,no_freq,tube_admit,cap_admit,prop_co
   complex(dp) :: cap_sheet(2,2)
 
   do nf=1,no_freq
-    call transmission_line_port(cap_admit(ngen,nf),prop_const_cap(ngen,nf),&
-      L_c*1000.0_dp,network)
+    call transmission_line_port(cap_admit(ngen,nf)*sheet_width_factor(ngen),&
+      prop_const_cap(ngen,nf),L_c*1000.0_dp,network)
 
     do gen=ngen-1,1,-1
       children=2.0_dp*network
@@ -1493,8 +1499,8 @@ subroutine build_model1_capillary_port(ngen,no_freq,tube_admit,cap_admit,prop_co
       call cascade_two_ports(art_second,children,temp)
       call cascade_two_ports(temp,ven_second,path)
 
-      call transmission_line_port(cap_admit(gen,nf),prop_const_cap(gen,nf),&
-        L_c*1000.0_dp,cap_sheet)
+      call transmission_line_port(cap_admit(gen,nf)*sheet_width_factor(gen),&
+        prop_const_cap(gen,nf),L_c*1000.0_dp,cap_sheet)
       middle=path+cap_sheet
 
       call transmission_line_port(tube_admit(gen,nf),prop_const(gen,nf),&
