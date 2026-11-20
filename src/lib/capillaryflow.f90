@@ -934,7 +934,7 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
   integer :: ngen
   real(dp) :: alpha_c,area_scale,length_scale
   real(dp), allocatable :: sheet_width_factor(:)
-  real(dp) :: radupdate,P_exta,P_extv,R_art1,R_ven1,R_art2,R_ven2,Q01_mthrees,Pin,Pout
+  real(dp) :: radupdate,P_exta,P_extv,Q01_mthrees,Pin,Pout
   integer :: gen
   real(dp) :: SHEET_RES,Q_c,Hart,Hven,RBC_TT,area,area_new,recruited,omega,nd_omega
   integer :: zone,nf
@@ -1143,19 +1143,21 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
   prop_const_cap=cmplx(0.0_dp,0.0_dp,8) !initialise
 
 
+  ! Arteriole and venule radii are taken from the converged steady ladder
+  ! pressures (Pressure), exactly as in populate_matrix_ladder, rather than
+  ! re-marching the pressure down the ladder.
   radupdate=0.d0
   do gen=1,cap_param%num_symm_gen-1
-    Q01_mthrees=Qtot/2.0_dp
 !!...    FIRST HALF OF ARTERIOLE
     if(rad_a(gen).LT.100.d-6) then
       P_exta=cap_param%Palv ! From Yen Alveolar pressure dominates vessels <200um diam
     else
       P_exta=-Ppl
     endif
-    if ((Pin-P_exta).LE.cap_param%Pub_a_v)THEN
-      radupdate=rad_a(gen)+cap_param%alpha_a*(Pin-P_exta)*&
+    if ((Pressure(4*gen-3)-P_exta).LE.cap_param%Pub_a_v)THEN
+      radupdate=rad_a(gen)+cap_param%alpha_a*(Pressure(4*gen-3)-P_exta)*&
          (gen-cap_param%num_symm_gen)/(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*&
-         (Pin-P_exta)/(2.d0-2.d0*cap_param%num_symm_gen)
+         (Pressure(4*gen-3)-P_exta)/(2.d0-2.d0*cap_param%num_symm_gen)
     else
       radupdate=rad_a(gen)+cap_param%alpha_a*cap_param%Pub_a_v*(gen-cap_param%num_symm_gen)&
         /(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*cap_param%Pub_a_v&
@@ -1163,8 +1165,6 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
     endif
 !!...  Calculate Poiseuille resistance in first half of arteriole - (only
 !!...  half total generation length)
-     R_art1=(8.d0*mu_app(gen)*L_a(gen)/2.d0)/(PI*radupdate**4.d0)
-     Pin=Pin-R_art1*Q01_mthrees
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
       !!!ARC TO FIX alpha_a is in m/Pa, need in 1/Pa (just read in from main model?)
        omega=nf*2*PI*harmonic_scale
@@ -1181,18 +1181,16 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
      else
        P_extv=-Ppl
      endif
-     if((Pout-P_extv).LE.cap_param%Pub_a_v)THEN
-       radupdate=rad_v(gen)+cap_param%alpha_v*(Pout-P_extv)*&
+     if((Pressure(4*gen-1)-P_extv).LE.cap_param%Pub_a_v)THEN
+       radupdate=rad_v(gen)+cap_param%alpha_v*(Pressure(4*gen-1)-P_extv)*&
          (gen-cap_param%num_symm_gen)/(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*&
-         (Pout-P_extv)/(2.d0-2.d0*cap_param%num_symm_gen)
+         (Pressure(4*gen-1)-P_extv)/(2.d0-2.d0*cap_param%num_symm_gen)
      else
        radupdate=rad_v(gen)+cap_param%alpha_v*cap_param%Pub_a_v*(gen-cap_param%num_symm_gen)&
          /(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*cap_param%Pub_a_v&
          /(2.d0-2.d0*cap_param%num_symm_gen)
      endif
 !!...   Calculate Poiseuille resistance in first half of venule
-     R_ven1=(8.0_dp*mu_app(gen)*L_v(gen)/2.0_dp)/(pi*radupdate**4.0_dp)
-     Pout=Pout+R_ven1*Q01_mthrees
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale
        wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
@@ -1203,7 +1201,6 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
      enddo
 
 !!...   CAPILLARY ELEMENT (arteriole + venule + capillary)
-     Q01_mthrees=Q01_mthrees-Q_sheet(gen)
      Hart=cap_param%H0+alpha_c*(Pressure(4*gen-3)-cap_param%Palv)
      Hven=cap_param%H0+alpha_c*(Pressure(4*gen-1)-cap_param%Palv)
     do nf = 1,no_freq
@@ -1220,10 +1217,10 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
     enddo
      !...   SECOND HALF OF ARTERIOLE
 !...    Update radius of arteriole based on inlet pressure
-     if(Pin-P_exta.LE.cap_param%Pub_a_v)THEN
-       radupdate=rad_a(gen)+cap_param%alpha_a*(Pin-P_exta)*&
+     if(Pressure(4*gen-2)-P_exta.LE.cap_param%Pub_a_v)THEN
+       radupdate=rad_a(gen)+cap_param%alpha_a*(Pressure(4*gen-2)-P_exta)*&
          (gen-cap_param%num_symm_gen)/(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*&
-         (Pin-P_exta)/(2.d0-2.d0*cap_param%num_symm_gen)
+         (Pressure(4*gen-2)-P_exta)/(2.d0-2.d0*cap_param%num_symm_gen)
      else
        radupdate=rad_a(gen)+cap_param%alpha_a*cap_param%Pub_a_v*(gen-cap_param%num_symm_gen)&
          /(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*cap_param%Pub_a_v&
@@ -1232,8 +1229,6 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
 
        !...  Calculate Poiseuille resistance in second half of arteriole - (only
        !...   half total generation length)
-      R_art2=(8*mu_app(gen)*L_a(gen)/2.d0)/(pi*radupdate**4.d0)
-      Pin=Pin-R_art2*Q01_mthrees
 
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale
@@ -1246,17 +1241,15 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
 
 !   SECOND HALF OF VENULE
 !...    Update radius - linear with pressure or constant at high pressure
-     if (Pout-P_extv.LE.cap_param%Pub_a_v)THEN
-       radupdate=rad_v(gen)+cap_param%alpha_v*(Pout-P_extv)*&
+     if (Pressure(4*gen)-P_extv.LE.cap_param%Pub_a_v)THEN
+       radupdate=rad_v(gen)+cap_param%alpha_v*(Pressure(4*gen)-P_extv)*&
          (gen-cap_param%num_symm_gen)/(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*&
-          (Pout-P_extv)/(2.d0-2.d0*cap_param%num_symm_gen)
+          (Pressure(4*gen)-P_extv)/(2.d0-2.d0*cap_param%num_symm_gen)
      else
       radupdate=rad_v(gen)+cap_param%alpha_v*cap_param%Pub_a_v*(gen-cap_param%num_symm_gen)&
         /(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*cap_param%Pub_a_v&
         /(2.d0-2.d0*cap_param%num_symm_gen)
      endif
-     R_ven2=(8.d0*mu_app(gen)*L_v(gen)/2.d0)/(pi*radupdate**4.d0)
-     Pout=Pout-R_ven2*Q01_mthrees
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale
        wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
