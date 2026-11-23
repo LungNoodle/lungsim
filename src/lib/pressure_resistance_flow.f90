@@ -20,6 +20,25 @@ module pressure_resistance_flow
   integer,allocatable :: occ_list(:),compl_list(:)
   integer,allocatable :: perfusion_flow_elements(:)
   real(dp),allocatable :: perfusion_flow_values(:)
+  ! Prescribed perfusion flows are imposed by adjusting vessel resistances.
+  ! ctrl_group(ne): -1 = not controlled, 0 = independently controlled element,
+  ! >0 = controlled child of junction node ctrl_group(ne) (a 'junction group').
+  integer,allocatable :: ctrl_group(:)
+  logical,allocatable :: ctrl_prescribed(:)
+  real(dp),allocatable :: ctrl_target(:),ctrl_logscale(:),ctrl_mult(:),resist_base(:)
+  integer :: num_ctrl = 0
+  ! Perfusion territory of each controlled element (all elements whose flow
+  ! passes entirely through it): ctrl_list(i) is the i-th controlled element and
+  ! its territory is terr_list(terr_ptr(i-1)+1:terr_ptr(i)).
+  integer,allocatable :: ctrl_list(:),ctrl_pos(:),terr_ptr(:),terr_list(:)
+  ! Step boost of an independently controlled element, adapted from the error
+  ! reduction it actually achieved, and its previous flow error.
+  real(dp),allocatable :: ctrl_boost(:),ctrl_prev_err(:)
+  real(dp),parameter :: ctrl_flow_tol = 1.0e-5_dp
+  ! Under-relaxation of the multiplier step when capillary (ladder) resistances
+  ! are recomputed from the solution in the same iteration.
+  real(dp),parameter :: ctrl_relax_ladder = 0.5_dp
+  integer,parameter :: ctrl_max_iterations = 500
 
   !Module parameters
 
@@ -59,7 +78,8 @@ contains
     real(dp), allocatable :: prq_solution(:,:),solver_solution(:)
     real(dp) :: viscosity,density,inlet_bc,outlet_bc,inletbc,outletbc,grav_vect(3),gamma,total_resistance,ERR
     logical, allocatable :: FIX(:)
-    logical :: ADD=.FALSE.,CONVERGED=.FALSE.
+    logical :: ADD=.FALSE.,CONVERGED=.FALSE.,flow_control,flow_ok
+    real(dp) :: flow_err
     character(len=60) :: sub_name,mesh_type,vessel_type,mechanics_type,bc_type
     integer :: grav_dirn,no,depvar,KOUNT,nz,ne,SOLVER_FLAG,ne0,ne1,nj
     real(dp) :: MIN_ERR,N_MIN_ERR,elasticity_parameters(3),mechanics_parameters(2),grav_factor,P1
@@ -75,6 +95,10 @@ contains
     if (remodeling_grade > 0.0_dp .and. mesh_type /= 'full_plus_ladder') &
          error stop 'microvascular remodeling requires full_plus_ladder'
     call enter_exit(sub_name,1)
+    ! ADD and CONVERGED are initialised in their declarations (implicit SAVE),
+    ! so reset them to allow repeated solves in the same process.
+    ADD=.FALSE.
+    CONVERGED=.FALSE.
 !!---------DESCRIPTION OF MODEL Types -----------
 !mesh_type: can be simple_tree, full_plus_ladder, full_sheet, full_tube The first can be airways, arteries, veins but no special features at the terminal level, the last one has arteries and veins connected by capillary units of some type (lung ladder acinus, lung sheet capillary bed, capillaries are just tubes represented by an element)
 
@@ -146,10 +170,6 @@ elseif(bc_type.eq.'flow')then
       print *,"unsupported bc_type",bc_type
       call exit(1)
     endif
-    if(allocated(perfusion_flow_elements).and.bc_type.ne.'flow')then
-      print *, 'ERROR: prescribed perfusion flows require bc_type="flow"'
-      call exit(1)
-    endif
 
 !!---------PHYSICAL PARAMETERS-----------
 !viscosity: fluid viscosity
@@ -195,11 +215,15 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
             depvar_at_node,depvar_at_elem,prq_solution,mesh_dof,mesh_type)
     endif
 
-    call apply_perfusion_flow_bcs(FIX,depvar_at_elem,prq_solution,mesh_dof)
+    ! Prescribed flows (if any) are matched by scaling vessel resistances.
+    call setup_flow_control(bc_type,inletbc,flow_control)
+    flow_ok=.TRUE.
+    flow_err=0.0_dp
 
     KOUNT=0
 !! Calculate resistance of each element
    call calculate_resistance(viscosity,KOUNT)
+   if(flow_control)call store_and_scale_resistance()
 
 !! Calculate sparsity structure for solution matrices
     !Determine size of and allocate solution vectors/matrices
@@ -259,7 +283,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
             SparseVal(nz)=-elem_field(ne_resist,ne) !Just updating resistance
           endif
         enddo
-        if(bc_type.eq.'flow'.or.allocated(perfusion_flow_elements))then
+        if(bc_type.eq.'flow')then
           do ne=1,num_elems
             if(update_fixed_flow_rhs_rows(ne).gt.0)then
               depvar = depvar_at_elem(1,1,ne)
@@ -307,6 +331,20 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
       if(vessel_type.eq.'rigid')then
         ERR=0.0_dp
         CONVERGED=.TRUE.
+        if(flow_control)then
+          ! Resistances only change through the flow-control multipliers.
+          call update_flow_control(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof,1.0_dp,flow_err)
+          flow_ok=(flow_err.le.ctrl_flow_tol)
+          print *,"Prescribed flow mismatch (max relative) =",flow_err
+          if(.not.flow_ok)then
+            call rescale_resistance()
+            CONVERGED=.FALSE.
+          endif
+          if((.not.flow_ok).and.(KOUNT.ge.ctrl_max_iterations))then
+            print *,'ERROR: prescribed flows not matched after',KOUNT,'iterations'
+            call exit(1)
+          endif
+        endif
       else
 !Update vessel radii based on predicted pressures and then update resistance through tree
         call calc_press_area(grav_vect,KOUNT,depvar_at_node,prq_solution,&
@@ -337,9 +375,28 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
               endif
            enddo
          endif
+         if(flow_control)then
+           ! In a ladder network the capillary resistances are recomputed from
+           ! the solution in the same iteration; under-relax the multiplier step
+           ! there to keep the coupled iteration stable.
+           if(mesh_type.eq.'full_plus_ladder')then
+             call update_flow_control(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof, &
+               ctrl_relax_ladder,flow_err)
+           else
+             call update_flow_control(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof, &
+               1.0_dp,flow_err)
+           endif
+           flow_ok=(flow_err.le.ctrl_flow_tol)
+           call store_and_scale_resistance()
+           print *,"Prescribed flow mismatch (max relative) =",flow_err
+           if((.not.flow_ok).and.(KOUNT.ge.ctrl_max_iterations))then
+             print *,'ERROR: prescribed flows not matched after',KOUNT,'iterations'
+             call exit(1)
+           endif
+         endif
 
          ERR=ERR/MatrixSize !sum of error divided by no of unknown depvar
-         if(ERR.LE.1.d-6.AND.(KOUNT.NE.1))then
+         if(ERR.LE.1.d-6.AND.(KOUNT.NE.1).AND.flow_ok)then
            CONVERGED=.TRUE.
             print *,"Convergence achieved after",KOUNT,"iterations",ERR
          else !if error not converged
@@ -355,6 +412,10 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 
 !need to write solution to element/nodal fields for export
     call map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof)
+    if(flow_control)then
+      ! call report_flow_control()
+      call free_flow_control()
+    endif
     !NEED TO UPDATE TERMINAL SOLUTION HERE. LOOP THO' UNITS AND TAKE FLOW AND PRESSURE AT TERMINALS
     call map_flow_to_terminals
     !EXPORT LADDER SOLUTION
@@ -566,49 +627,637 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     if(allocated(perfusion_flow_values))deallocate(perfusion_flow_values)
   end subroutine clear_perfusion_flows
 
+
 !###################################################################################
-  logical function is_perfusion_flow(ne)
+!*elem_root_node:* The node at which an element joins its parent (trunk) vessel:
+! the proximal node for arteries/capillaries, the distal node for veins.
+  integer function elem_root_node(ne)
     integer,intent(in) :: ne
-    integer :: no
 
-    is_perfusion_flow=.FALSE.
-    if(.not.allocated(perfusion_flow_elements))return
-    do no=1,size(perfusion_flow_elements)
-      if(perfusion_flow_elements(no).eq.ne)then
-        is_perfusion_flow=.TRUE.
-        return
-      endif
-    enddo
-  end function is_perfusion_flow
+    if(nint(elem_field(ne_group,ne)).eq.2)then
+      elem_root_node=elem_nodes(2,ne)
+    else
+      elem_root_node=elem_nodes(1,ne)
+    endif
+  end function elem_root_node
+
+
 
 !###################################################################################
-  subroutine apply_perfusion_flow_bcs(FIX,depvar_at_elem,prq_solution,mesh_dof)
-    integer,intent(in) :: mesh_dof
-    integer,intent(in) :: depvar_at_elem(0:2,2,num_elems)
-    logical,intent(inout) :: FIX(mesh_dof)
-    real(dp),intent(inout) :: prq_solution(mesh_dof,2)
-    integer :: no,ne,depvar
+!*setup_flow_control:* Prepares resistance control for prescribed flows.
+!
+! A prescribed flow is imposed by multiplying the resistance of every vessel in
+! the subtree fed by the prescribed element (down to the next controlled element)
+! by a factor that is found iteratively; Poiseuille's law is retained in every
+! element.  Multipliers are nested, so a controlled element inside a controlled
+! subtree redistributes flow within it.
+!
+! Flows that follow from conservation are found first, propagating from the inlet
+! (flow BCs) towards the periphery.  At a junction where the parent flow is known
+! and every child flow is known (prescribed or implied), all children become
+! controlled: this makes the result independent of which children were named
+! (e.g. prescribing RPA=70% or LPA=30% of a known MPA flow is the same problem).
+! Such a junction has one more multiplier than independent constraints; the
+! extra degree of freedom is fixed by giving the children's multipliers a
+! geometric mean of one (the smallest symmetric change in resistance).  Any other
+! prescribed element is controlled independently by its own multiplier.
+  subroutine setup_flow_control(bc_type,inletbc,flow_control)
+    character(len=60),intent(in) :: bc_type
+    real(dp),intent(in) :: inletbc
+    logical,intent(out) :: flow_control
 
+    integer :: no,ne,ne2,np,k,n_unknown,ne_unknown,num_inlets,num_outlets,allocate_status
+    integer :: n_trunk,n_child
+    logical :: changed,all_known,any_prescribed
+    logical,allocatable :: known(:)
+    real(dp),allocatable :: flow_value(:)
+    real(dp) :: trunk_sum,child_sum,scale
+
+    flow_control=.FALSE.
+    num_ctrl=0
     if(.not.allocated(perfusion_flow_elements))return
+    flow_control=.TRUE.
+
+    call free_flow_control()
+    allocate(ctrl_group(num_elems),ctrl_prescribed(num_elems),ctrl_target(num_elems), &
+      ctrl_logscale(num_elems),ctrl_mult(num_elems),resist_base(num_elems), &
+
+      known(num_elems),flow_value(num_elems),stat=allocate_status)
+    if(allocate_status.ne.0)stop '*** Not enough memory for prescribed perfusion flows ***'
+    ctrl_group=-1
+    ctrl_prescribed=.FALSE.
+    ctrl_target=0.0_dp
+    ctrl_logscale=0.0_dp
+    ctrl_mult=1.0_dp
+    resist_base=0.0_dp
+    known=.FALSE.
+    flow_value=0.0_dp
+
+    !--- validate the prescribed elements
     do no=1,size(perfusion_flow_elements)
       ne=perfusion_flow_elements(no)
       if(ne.lt.1.or.ne.gt.num_elems)then
         print *, 'ERROR: prescribed perfusion element is outside the mesh:',ne
         call exit(1)
       endif
-      if(count(perfusion_flow_elements.eq.ne).gt.1)then
+      if(ctrl_prescribed(ne))then
         print *, 'ERROR: prescribed perfusion element occurs more than once:',ne
         call exit(1)
       endif
-      depvar=depvar_at_elem(0,1,ne)
-      if(FIX(depvar))then
-        print *, 'ERROR: prescribed perfusion flow duplicates an existing flow BC:',ne
+      if(elem_cnct(-1,0,ne).eq.0)then
+        print *, 'ERROR: prescribed perfusion flow is on an inlet element:',ne
         call exit(1)
       endif
-      FIX(depvar)=.TRUE.
-      prq_solution(depvar,1)=perfusion_flow_values(no)
+      if(nint(elem_field(ne_group,ne)).eq.1)then
+        print *, 'ERROR: prescribed perfusion flow is on a capillary element:',ne
+        call exit(1)
+      endif
+      if(perfusion_flow_values(no).le.0.0_dp)then
+        print *, 'ERROR: prescribed perfusion flows must be positive (element',ne,')'
+        call exit(1)
+      endif
+      ctrl_prescribed(ne)=.TRUE.
+      known(ne)=.TRUE.
+      flow_value(ne)=perfusion_flow_values(no)
     enddo
-  end subroutine apply_perfusion_flow_bcs
+
+    !--- flows known from the boundary conditions
+    if(bc_type.eq.'flow')then
+      num_inlets=0
+      num_outlets=0
+      do ne=1,num_elems
+        if(elem_cnct(-1,0,ne).eq.0)then
+          num_inlets=num_inlets+1
+          known(ne)=.TRUE.
+          flow_value(ne)=inletbc
+        endif
+      enddo
+      do ne=1,num_elems
+        if(elem_cnct(1,0,ne).eq.0.and.nint(elem_field(ne_group,ne)).eq.2)num_outlets=num_outlets+1
+      enddo
+      if(num_outlets.eq.1)then
+        do ne=1,num_elems
+          if(elem_cnct(1,0,ne).eq.0.and.nint(elem_field(ne_group,ne)).eq.2)then
+            known(ne)=.TRUE.
+            flow_value(ne)=inletbc*num_inlets
+          endif
+        enddo
+      endif
+    endif
+
+    !--- check that the prescribed flows can all be satisfied together
+    call check_prescribed_flow_balance(known,flow_value)
+
+    !--- propagate known flows from trunk to children by conservation
+    changed=.TRUE.
+    do while(changed)
+      changed=.FALSE.
+      do np=1,num_nodes
+        if(elems_at_node(np,0).lt.2)cycle
+        all_known=.TRUE.
+        n_trunk=0
+        n_unknown=0
+        ne_unknown=0
+        trunk_sum=0.0_dp
+        child_sum=0.0_dp
+        do k=1,elems_at_node(np,0)
+          ne=elems_at_node(np,k)
+          if(elem_root_node(ne).eq.np)then
+            if(known(ne))then
+              child_sum=child_sum+flow_value(ne)
+            else
+              n_unknown=n_unknown+1
+              ne_unknown=ne
+            endif
+          else
+            n_trunk=n_trunk+1
+            if(known(ne))then
+              trunk_sum=trunk_sum+flow_value(ne)
+            else
+              all_known=.FALSE.
+            endif
+          endif
+        enddo
+        if(.not.all_known.or.n_trunk.eq.0)cycle
+        if(n_unknown.eq.1)then
+          known(ne_unknown)=.TRUE.
+          flow_value(ne_unknown)=trunk_sum-child_sum
+          changed=.TRUE.
+        endif
+      enddo
+    enddo
+
+    !--- identify junction groups and independently controlled elements
+    do np=1,num_nodes
+      if(elems_at_node(np,0).lt.2)cycle
+      all_known=.TRUE.
+      any_prescribed=.FALSE.
+      n_trunk=0
+      n_child=0
+      trunk_sum=0.0_dp
+      child_sum=0.0_dp
+      do k=1,elems_at_node(np,0)
+        ne=elems_at_node(np,k)
+        if(.not.known(ne))all_known=.FALSE.
+        if(elem_root_node(ne).eq.np)then
+          n_child=n_child+1
+          child_sum=child_sum+flow_value(ne)
+          if(ctrl_prescribed(ne))any_prescribed=.TRUE.
+        else
+          n_trunk=n_trunk+1
+          trunk_sum=trunk_sum+flow_value(ne)
+        endif
+      enddo
+      if(.not.all_known.or.n_trunk.eq.0.or.n_child.eq.0)cycle
+      scale=max(abs(trunk_sum),abs(child_sum),1.0e-30_dp)
+      if(abs(trunk_sum-child_sum).gt.1.0e-6_dp*scale)then
+        print *, 'ERROR: prescribed perfusion flows violate conservation at node',np
+        print *, '       flow in =',trunk_sum,' flow out =',child_sum
+        call exit(1)
+      endif
+      if(.not.any_prescribed)cycle
+      do k=1,elems_at_node(np,0)
+        ne=elems_at_node(np,k)
+        if(elem_root_node(ne).ne.np)cycle
+        if(nint(elem_field(ne_group,ne)).eq.1)then
+          print *, 'ERROR: prescribed perfusion flows imply a capillary flow at node',np
+          call exit(1)
+        endif
+        if(flow_value(ne).le.0.0_dp)then
+          print *, 'ERROR: prescribed perfusion flows imply a non-positive flow in element',ne
+          print *, '       implied flow =',flow_value(ne)
+          call exit(1)
+        endif
+        ctrl_group(ne)=np
+        ctrl_target(ne)=flow_value(ne)
+      enddo
+    enddo
+    do no=1,size(perfusion_flow_elements)
+      ne=perfusion_flow_elements(no)
+      if(ctrl_group(ne).lt.0)then
+        ctrl_group(ne)=0
+        ctrl_target(ne)=flow_value(ne)
+      endif
+    enddo
+    num_ctrl=count(ctrl_group.ge.0)
+    call build_ctrl_territories()
+    allocate(ctrl_boost(num_elems),ctrl_prev_err(num_elems))
+    ctrl_boost=1.0_dp
+    ctrl_prev_err=0.0_dp
+
+    deallocate(known,flow_value)
+  end subroutine setup_flow_control
+
+!###################################################################################
+!*check_prescribed_flow_balance:* Stops with an error if the prescribed flows
+! (together with the inlet/outlet flow BCs) cannot all hold at once.  Known
+! flows are propagated by conservation in both directions -- from a known parent
+! to the last unknown child, and from a complete set of children to their parent
+! -- and every junction whose flows are all known must balance.  Redundant but
+! consistent prescriptions (e.g. both children of a junction whose parent flow
+! is known) are accepted.  Works on copies; the caller's arrays are unchanged.
+  subroutine check_prescribed_flow_balance(known_in,flow_in)
+    logical,intent(in) :: known_in(num_elems)
+    real(dp),intent(in) :: flow_in(num_elems)
+
+    logical,allocatable :: known(:)
+    real(dp),allocatable :: flow(:)
+    integer :: np,k,ne,n_unknown,ne_unknown
+    logical :: changed,unknown_is_child
+    real(dp) :: trunk_sum,child_sum,scale,implied
+
+    allocate(known(num_elems),flow(num_elems))
+    known=known_in
+    flow=flow_in
+    changed=.TRUE.
+    do while(changed)
+      changed=.FALSE.
+      do np=1,num_nodes
+        if(elems_at_node(np,0).lt.2)cycle
+        n_unknown=0
+        ne_unknown=0
+        unknown_is_child=.FALSE.
+        trunk_sum=0.0_dp
+        child_sum=0.0_dp
+        do k=1,elems_at_node(np,0)
+          ne=elems_at_node(np,k)
+          if(known(ne))then
+            if(elem_root_node(ne).eq.np)then
+              child_sum=child_sum+flow(ne)
+            else
+              trunk_sum=trunk_sum+flow(ne)
+            endif
+          else
+            n_unknown=n_unknown+1
+            ne_unknown=ne
+            unknown_is_child=(elem_root_node(ne).eq.np)
+          endif
+        enddo
+        scale=max(abs(trunk_sum),abs(child_sum),1.0e-30_dp)
+        if(n_unknown.eq.0)then
+          if(abs(trunk_sum-child_sum).gt.1.0e-6_dp*scale)then
+            print *, 'ERROR: prescribed perfusion flows violate conservation at node',np
+            print *, '       flow in =',trunk_sum,' flow out =',child_sum
+            call exit(1)
+          endif
+        elseif(n_unknown.eq.1)then
+          if(unknown_is_child)then
+            implied=trunk_sum-child_sum
+          else
+            implied=child_sum-trunk_sum
+          endif
+          if(implied.le.1.0e-6_dp*scale)then
+            print *, 'ERROR: prescribed perfusion flows imply a non-positive flow in element', &
+              ne_unknown
+            print *, '       implied flow =',implied
+            call exit(1)
+          endif
+          known(ne_unknown)=.TRUE.
+          flow(ne_unknown)=implied
+          changed=.TRUE.
+        endif
+      enddo
+    enddo
+    deallocate(known,flow)
+  end subroutine check_prescribed_flow_balance
+
+!###################################################################################
+!*build_ctrl_territories:* For each controlled element, finds its perfusion
+! territory: every element whose flow passes entirely through it.  For an artery
+! this is its arterial subtree and, in a full_plus_ladder network, also the
+! capillaries it feeds and the veins that drain only those capillaries.  For a
+! vein it is the mirror image (veins upstream, their capillaries and the arteries
+! feeding only those).  In a simple tree it is just the subtree.  An element is
+! added once all elements on its upstream side (downstream side for a vein) are
+! already in the territory.
+  subroutine build_ctrl_territories()
+    integer :: i,nc,ne,ne2,k,dirn,nlist,head,tail,qsize,total
+    logical :: all_in
+    logical,allocatable :: in_terr(:)
+    integer,allocatable :: list(:),queue(:),tmp(:)
+
+    allocate(ctrl_list(num_ctrl),ctrl_pos(num_elems),terr_ptr(0:num_ctrl))
+    allocate(in_terr(num_elems),list(num_elems))
+    qsize=4*num_elems+4
+    allocate(queue(qsize))
+    allocate(terr_list(max(num_elems,1)))
+    ctrl_pos=0
+    i=0
+    do ne=1,num_elems
+      if(ctrl_group(ne).ge.0)then
+        i=i+1
+        ctrl_list(i)=ne
+        ctrl_pos(ne)=i
+      endif
+    enddo
+    terr_ptr(0)=0
+    total=0
+    in_terr=.FALSE.
+    do i=1,num_ctrl
+      nc=ctrl_list(i)
+      dirn=1
+      if(nint(elem_field(ne_group,nc)).eq.2)dirn=-1
+      in_terr(nc)=.TRUE.
+      nlist=1
+      list(1)=nc
+      head=1
+      tail=0
+      do k=1,elem_cnct(dirn,0,nc)
+        tail=tail+1
+        queue(tail)=elem_cnct(dirn,k,nc)
+      enddo
+      do while(head.le.tail)
+        ne=queue(head)
+        head=head+1
+        if(in_terr(ne))cycle
+        all_in=.TRUE.
+        do k=1,elem_cnct(-dirn,0,ne)
+          if(.not.in_terr(elem_cnct(-dirn,k,ne)))all_in=.FALSE.
+        enddo
+        if(.not.all_in)cycle !revisited when its last feeding element is added
+        in_terr(ne)=.TRUE.
+        nlist=nlist+1
+        list(nlist)=ne
+        do k=1,elem_cnct(dirn,0,ne)
+          ne2=elem_cnct(dirn,k,ne)
+          if(.not.in_terr(ne2).and.tail.lt.qsize)then
+            tail=tail+1
+            queue(tail)=ne2
+          endif
+        enddo
+      enddo
+      if(total+nlist.gt.size(terr_list))then
+        allocate(tmp(max(2*size(terr_list),total+nlist)))
+        tmp(1:total)=terr_list(1:total)
+        call move_alloc(tmp,terr_list)
+      endif
+      terr_list(total+1:total+nlist)=list(1:nlist)
+      total=total+nlist
+      terr_ptr(i)=total
+      in_terr(list(1:nlist))=.FALSE.
+    enddo
+    deallocate(in_terr,list,queue)
+  end subroutine build_ctrl_territories
+
+!###################################################################################
+!*compute_ctrl_multipliers:* Resistance multiplier of every element: product of
+! the scale factors of all controlled elements whose territory contains it.
+  subroutine compute_ctrl_multipliers()
+    integer :: i
+    real(dp),allocatable :: logsum(:)
+
+    allocate(logsum(num_elems))
+    logsum=0.0_dp
+    do i=1,num_ctrl
+      logsum(terr_list(terr_ptr(i-1)+1:terr_ptr(i)))= &
+        logsum(terr_list(terr_ptr(i-1)+1:terr_ptr(i)))+ctrl_logscale(ctrl_list(i))
+    enddo
+    ctrl_mult(1:num_elems)=exp(logsum)
+    deallocate(logsum)
+  end subroutine compute_ctrl_multipliers
+
+!###################################################################################
+!*store_and_scale_resistance:* Call after resistances have been freshly computed
+! from vessel radii: keeps them as the base and applies the control multipliers.
+  subroutine store_and_scale_resistance()
+    resist_base(1:num_elems)=elem_field(ne_resist,1:num_elems)
+    call rescale_resistance()
+  end subroutine store_and_scale_resistance
+
+!###################################################################################
+  subroutine rescale_resistance()
+    call compute_ctrl_multipliers()
+    elem_field(ne_resist,1:num_elems)=resist_base(1:num_elems)*ctrl_mult(1:num_elems)
+  end subroutine rescale_resistance
+
+!###################################################################################
+!*update_flow_control:* Compares solved flows with the targets and updates the
+! scale factors, then normalises each junction group to a geometric mean
+! multiplier of one.  The update is a Newton step in log space,
+!   ln(s) <- ln(s) + ln(Q/Q_target)/g,  g = -dln(Q)/dln(s).
+! Scaling a territory that carries a fraction f of the frictional (R*Q) pressure
+! drop along its flow paths gives g = f, so g is taken from the current solution
+! as that fraction (see ctrl_friction_fraction).  In a simple tree the territory
+! reaches the outlets and g = 1; in a full_plus_ladder network the vessels
+! downstream of an arterial territory (the shared venous trunk) are in series
+! with it and g < 1.
+! For the children of a junction group the steps d_i and the geometric-mean
+! normalisation are solved together: the linearised flow errors after the step
+! are e_i - g_i*d_i + c, where c is common to the group because the junction's
+! total flow is fixed, so d_i = (e_i + c)/g_i with c chosen such that the
+! children's log multipliers sum to zero.
+  subroutine update_flow_control(prq_solution,depvar_at_elem,depvar_at_node,mesh_dof,relax,flow_err)
+    integer,intent(in) :: mesh_dof
+    real(dp),intent(in) :: relax
+    real(dp),intent(in) :: prq_solution(mesh_dof,2)
+    integer,intent(in) :: depvar_at_elem(0:2,2,num_elems)
+    integer,intent(in) :: depvar_at_node(num_nodes,0:2,2)
+    real(dp),intent(out) :: flow_err
+
+    integer :: ne,ne2,np,k,n
+    real(dp) :: q,shift,csum,wsum,reduction
+    logical,allocatable :: in_terr(:)
+    real(dp),allocatable :: err(:),gain(:)
+    real(dp),parameter :: max_step=log(4.0_dp),max_log=log(1.0e8_dp)
+
+    allocate(in_terr(num_elems),err(num_elems),gain(num_elems))
+    in_terr=.FALSE.
+    err=0.0_dp
+    gain=1.0_dp
+    flow_err=0.0_dp
+    do ne=1,num_elems
+      if(ctrl_group(ne).lt.0)cycle
+      q=prq_solution(depvar_at_elem(0,1,ne),1)
+      flow_err=max(flow_err,abs(q-ctrl_target(ne))/ctrl_target(ne))
+      if(q.gt.0.0_dp)then
+        err(ne)=log(q/ctrl_target(ne))
+        gain(ne)=ctrl_friction_fraction(ne)
+      else
+        err(ne)=max_step !reversed flow: lower the resistance
+        gain(ne)=1.0_dp
+      endif
+    enddo
+
+    ! Independently controlled elements.  The estimated gain ignores that the
+    ! element competes for flow with the rest of the tree upstream of it, so it
+    ! can be too high (steps too small).  The step is therefore boosted by the
+    ! ratio of the intended to the achieved error reduction while the error keeps
+    ! its sign, and the boost is halved after an overshoot.
+    do ne=1,num_elems
+      if(ctrl_group(ne).ne.0)cycle
+      if(ctrl_prev_err(ne)*err(ne).gt.0.0_dp)then
+        reduction=1.0_dp-err(ne)/ctrl_prev_err(ne)
+        if(reduction.gt.0.0_dp.and.reduction.lt.relax)then
+          ctrl_boost(ne)=min(8.0_dp,ctrl_boost(ne)*relax/max(reduction,relax/8.0_dp))
+        endif
+      elseif(ctrl_prev_err(ne)*err(ne).lt.0.0_dp)then
+        ctrl_boost(ne)=max(1.0_dp,0.5_dp*ctrl_boost(ne))
+      endif
+      ctrl_prev_err(ne)=err(ne)
+      ctrl_logscale(ne)=ctrl_logscale(ne)+ &
+        max(-max_step,min(max_step,ctrl_boost(ne)*relax*err(ne)/gain(ne)))
+    enddo
+
+    ! Junction groups: step and normalisation solved together.
+    do ne=1,num_elems
+      np=ctrl_group(ne)
+      if(np.le.0)cycle
+      if(first_group_child(np).ne.ne)cycle
+      csum=0.0_dp
+      wsum=0.0_dp
+      do k=1,elems_at_node(np,0)
+        ne2=elems_at_node(np,k)
+        if(ctrl_group(ne2).ne.np)cycle
+        csum=csum+ctrl_logscale(ne2)+err(ne2)/gain(ne2)
+        wsum=wsum+1.0_dp/gain(ne2)
+      enddo
+      shift=-csum/wsum !this is c
+      do k=1,elems_at_node(np,0)
+        ne2=elems_at_node(np,k)
+        if(ctrl_group(ne2).ne.np)cycle
+        ctrl_logscale(ne2)=ctrl_logscale(ne2)+ &
+          max(-max_step,min(max_step,relax*(err(ne2)+shift)/gain(ne2)))
+      enddo
+    enddo
+    deallocate(in_terr,err,gain)
+
+    ! Junction groups: enforce the geometric-mean normalisation exactly (only
+    ! changes anything if a step above was limited by max_step).
+    do ne=1,num_elems
+      np=ctrl_group(ne)
+      if(np.le.0)cycle
+      if(elem_root_node(ne).ne.np)cycle
+      ! process each group once, from its first child at node np
+      if(first_group_child(np).ne.ne)cycle
+      n=0
+      shift=0.0_dp
+      do k=1,elems_at_node(np,0)
+        ne2=elems_at_node(np,k)
+        if(ctrl_group(ne2).ne.np)cycle
+        n=n+1
+        shift=shift+ctrl_logscale(ne2)
+      enddo
+      shift=shift/n
+      do k=1,elems_at_node(np,0)
+        ne2=elems_at_node(np,k)
+        if(ctrl_group(ne2).eq.np)ctrl_logscale(ne2)=ctrl_logscale(ne2)-shift
+      enddo
+    enddo
+
+    do ne=1,num_elems
+      if(ctrl_group(ne).lt.0)cycle
+      if(abs(ctrl_logscale(ne)).gt.max_log)then
+        print *,'WARNING: resistance multiplier for prescribed flow in element',ne, &
+          'reached its limit; the requested flow may not be achievable'
+        ctrl_logscale(ne)=sign(max_log,ctrl_logscale(ne))
+      endif
+    enddo
+  contains
+
+    ! Frictional pressure drop R*Q in element ne for the current solution.
+    real(dp) function fdrop(ne)
+      integer,intent(in) :: ne
+      fdrop=elem_field(ne_resist,ne)*prq_solution(depvar_at_elem(0,1,ne),1)
+    end function fdrop
+
+    ! Fraction of the frictional pressure drop along the flow path through
+    ! controlled element nc that is taken by its territory.  The flow-weighted
+    ! drop across the territory is its dissipation sum(Q*R*Q) divided by the
+    ! flow through nc; the drop beyond it is followed from each exit to the
+    ! outlet (arteries) or back to the inlet (veins).  Bounded to [0.05,1].
+    real(dp) function ctrl_friction_fraction(nc)
+      integer,intent(in) :: nc
+      integer :: i,j,ne1,ne3,kk,dirn,guard
+      real(dp) :: qc,d_in,d_out,w,qq,rest
+
+      i=ctrl_pos(nc)
+      dirn=1
+      if(nint(elem_field(ne_group,nc)).eq.2)dirn=-1
+      in_terr(terr_list(terr_ptr(i-1)+1:terr_ptr(i)))=.TRUE.
+      qc=abs(prq_solution(depvar_at_elem(0,1,nc),1))
+      d_in=0.0_dp
+      d_out=0.0_dp
+      w=0.0_dp
+      do j=terr_ptr(i-1)+1,terr_ptr(i)
+        ne1=terr_list(j)
+        qq=abs(prq_solution(depvar_at_elem(0,1,ne1),1))
+        d_in=d_in+qq*abs(fdrop(ne1))
+        do kk=1,elem_cnct(dirn,0,ne1)
+          ne3=elem_cnct(dirn,kk,ne1)
+          if(in_terr(ne3))cycle
+          ! exit from the territory: follow the path to the outlet / inlet
+          rest=abs(fdrop(ne3))
+          guard=0
+          do while(elem_cnct(dirn,0,ne3).gt.0.and.guard.lt.num_elems)
+            ne3=elem_cnct(dirn,1,ne3)
+            rest=rest+abs(fdrop(ne3))
+            guard=guard+1
+          enddo
+          d_out=d_out+qq*rest
+          w=w+qq
+        enddo
+      enddo
+      in_terr(terr_list(terr_ptr(i-1)+1:terr_ptr(i)))=.FALSE.
+      ctrl_friction_fraction=1.0_dp
+      if(qc.le.0.0_dp)return
+      d_in=d_in/qc
+      if(w.gt.0.0_dp)d_out=d_out/w
+      if(d_in+d_out.le.0.0_dp)return
+      ctrl_friction_fraction=d_in/(d_in+d_out)
+      if(.not.(ctrl_friction_fraction.ge.0.05_dp))ctrl_friction_fraction=0.05_dp
+      ctrl_friction_fraction=min(1.0_dp,ctrl_friction_fraction)
+    end function ctrl_friction_fraction
+
+  end subroutine update_flow_control
+
+!###################################################################################
+  integer function first_group_child(np)
+    integer,intent(in) :: np
+    integer :: k
+
+    first_group_child=0
+    do k=1,elems_at_node(np,0)
+      if(ctrl_group(elems_at_node(np,k)).eq.np)then
+        first_group_child=elems_at_node(np,k)
+        return
+      endif
+    enddo
+  end function first_group_child
+
+!###################################################################################
+  subroutine report_flow_control()
+    integer :: ne
+    character(len=10) :: kind
+
+    print *,'Prescribed perfusion flows (matched by scaling resistances):'
+    print '(a)','     element       kind   junction        target      achieved  R multiplier'
+    do ne=1,num_elems
+      if(ctrl_group(ne).lt.0)cycle
+      if(ctrl_prescribed(ne))then
+        kind='prescribed'
+      else
+        kind='   implied'
+      endif
+      print '(i12,1x,a10,i11,2es14.5,es14.5)',ne,kind,ctrl_group(ne),ctrl_target(ne), &
+        elem_field(ne_Qdot,ne),exp(ctrl_logscale(ne))
+    enddo
+  end subroutine report_flow_control
+
+!###################################################################################
+  subroutine free_flow_control()
+    if(allocated(ctrl_group))deallocate(ctrl_group)
+    if(allocated(ctrl_prescribed))deallocate(ctrl_prescribed)
+    if(allocated(ctrl_target))deallocate(ctrl_target)
+    if(allocated(ctrl_logscale))deallocate(ctrl_logscale)
+    if(allocated(ctrl_mult))deallocate(ctrl_mult)
+    if(allocated(resist_base))deallocate(resist_base)
+    if(allocated(ctrl_list))deallocate(ctrl_list)
+    if(allocated(ctrl_pos))deallocate(ctrl_pos)
+    if(allocated(terr_ptr))deallocate(terr_ptr)
+    if(allocated(terr_list))deallocate(terr_list)
+    if(allocated(ctrl_boost))deallocate(ctrl_boost)
+    if(allocated(ctrl_prev_err))deallocate(ctrl_prev_err)
+  end subroutine free_flow_control
 !
 !###################################################################################
 !
@@ -858,16 +1507,8 @@ subroutine calc_sparse_1dtree(bc_type,density,FIX,grav_vect,mesh_dof,depvar_at_e
     FlowBalancedNodes = .FALSE. !.TRUE. for nodes which have had a conservation of flow equation done
     NodePressureDone = .FALSE.  !.TRUE. for nodes which have been processed
     ElementPressureEquationDone = .FALSE.
-    if(allocated(perfusion_flow_elements))then
-      do ne2=1,size(perfusion_flow_elements)
-        ElementPressureEquationDone(perfusion_flow_elements(ne2))=.TRUE.
-      enddo
-    endif
     offset=0!variable position offset
 
-    ! Prescribing an internal element flow makes that element a flow boundary.
-    ! Its pressure-drop equation is replaced by the prescribed-flow condition;
-    ! conservation equations remain active on both sides of the boundary.
     ! Keep the coupling-style variable-driven equation ordering so the reduced
     ! matrix stays structurally aligned with the ILU diagonal.
     do ne=1,num_elems
@@ -878,8 +1519,7 @@ subroutine calc_sparse_1dtree(bc_type,density,FIX,grav_vect,mesh_dof,depvar_at_e
         if((.NOT.NodePressureDone(np)).AND.(.NOT.FIX(depvar)))then
             ne2=0
             if(nn.EQ.1)then
-                if((.not.allocated(perfusion_flow_elements)).or. &
-                  (.not.ElementPressureEquationDone(ne)))ne2=ne
+                ne2=ne
             elseif(nn.EQ.2)then
                 if((bc_type.EQ.'pressure').OR.(.NOT.ElementPressureEquationDone(ne)))then
                     ne2=ne
@@ -1019,20 +1659,6 @@ subroutine calc_sparse_1dtree(bc_type,density,FIX,grav_vect,mesh_dof,depvar_at_e
     enddo
 
     NonZeros=nzz-1
-    if(allocated(perfusion_flow_elements))then
-      do np=1,num_nodes
-        if((elems_at_node(np,0).gt.1).and.(.not.FlowBalancedNodes(np)))then
-          print *, 'ERROR: prescribed-flow assembly omitted conservation at node:',np
-          call exit(1)
-        endif
-      enddo
-      do ne=1,num_elems
-        if((.not.is_perfusion_flow(ne)).and.(.not.ElementPressureEquationDone(ne)))then
-          print *, 'ERROR: prescribed-flow assembly omitted pressure equation for element:',ne
-          call exit(1)
-        endif
-      enddo
-    endif
     if(nzz_row-1.ne.MatrixSize)then
       print *, 'ERROR: sparse PRQ assembly row mismatch:',nzz_row-1,MatrixSize
       call exit(1)

@@ -957,13 +957,14 @@ end subroutine cap_specific_parameters
 !
 !################################################
 !
-subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
+subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,&
   Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param,&
   cap_model,remodeling_grade,remodeling_side)
 
   integer,intent(in) :: ne
   integer,intent(in) :: no_freq
   complex(dp), intent(inout) :: admit(no_freq)
+  complex(dp), intent(out) :: cap_port(2,2,no_freq)
   complex(dp), intent(in) :: eff_admit_downstream(no_freq)
   real(dp), intent(inout) ::Lin,Lout,P1,P2,Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap
   real(dp), intent(in) :: harmonic_scale
@@ -977,13 +978,15 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   type(fluid_properties) :: fp
   integer :: ngen
   real(dp) :: alpha_c,area_scale,length_scale
-  real(dp) :: radupdate,P_exta,P_extv,R_art1,R_ven1,R_art2,R_ven2,Q01_mthrees,Pin,Pout
+  real(dp), allocatable :: sheet_width_factor(:)
+  real(dp) :: radupdate,P_exta,P_extv,Q01_mthrees,Pin,Pout
   real(dp) :: prune_scale
   integer :: gen
   real(dp) :: SHEET_RES,Q_c,Hart,Hven,RBC_TT,area,area_new,recruited,omega,nd_omega
   integer :: zone,nf
-  complex(dp) :: bessel0,bessel1,f10
-  real(dp) :: wolmer,wavespeed
+  complex(dp) :: f10
+  real(dp) :: wolmer
+  complex(dp) :: wavespeed ! c0*sqrt(1-F10): the imaginary part carries viscous attenuation
   integer :: i,iter,j,num_sheet
   integer, allocatable :: SparseCol(:)
   integer, allocatable ::SparseRow(:)
@@ -1019,6 +1022,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
 
   sub_name = 'cap_flow_admit'
   call enter_exit(sub_name,1)
+  cap_port=cmplx(0.0_dp,0.0_dp,dp)
 
   !     Number of non-zero entries in solution matrix.
   NonZeros=3
@@ -1185,19 +1189,21 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   prop_const_cap=cmplx(0.0_dp,0.0_dp,8) !initialise
 
 
+  ! Arteriole and venule radii are taken from the converged steady ladder
+  ! pressures (Pressure), exactly as in populate_matrix_ladder, rather than
+  ! re-marching the pressure down the ladder.
   radupdate=0.d0
   do gen=1,cap_param%num_symm_gen-1
-    Q01_mthrees=Qtot/2.0_dp
 !!...    FIRST HALF OF ARTERIOLE
     if(rad_a(gen).LT.100.d-6) then
       P_exta=cap_param%Palv ! From Yen Alveolar pressure dominates vessels <200um diam
     else
       P_exta=-Ppl
     endif
-    if ((Pin-P_exta).LE.cap_param%Pub_a_v)THEN
-      radupdate=rad_a(gen)+cap_param%alpha_a*(Pin-P_exta)*&
+    if ((Pressure(4*gen-3)-P_exta).LE.cap_param%Pub_a_v)THEN
+      radupdate=rad_a(gen)+cap_param%alpha_a*(Pressure(4*gen-3)-P_exta)*&
          (gen-cap_param%num_symm_gen)/(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*&
-         (Pin-P_exta)/(2.d0-2.d0*cap_param%num_symm_gen)
+         (Pressure(4*gen-3)-P_exta)/(2.d0-2.d0*cap_param%num_symm_gen)
     else
       radupdate=rad_a(gen)+cap_param%alpha_a*cap_param%Pub_a_v*(gen-cap_param%num_symm_gen)&
         /(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*cap_param%Pub_a_v&
@@ -1207,14 +1213,11 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
 !!...  half total generation length)
      call micro_remodel_radius(rad_a(gen),radupdate,remodeling_grade,remodeling_side, &
           'arterial',prune_scale)
-     R_art1=(8.d0*mu_app(gen)*L_a(gen)/2.d0)/(PI*radupdate**4.d0)*prune_scale
-     Pin=Pin-R_art1*Q01_mthrees
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
       !!!ARC TO FIX alpha_a is in m/Pa, need in 1/Pa (just read in from main model?)
        omega=nf*2*PI*harmonic_scale
        wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
-       call bessel_complex(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp),bessel0,bessel1)
-       f10=2*bessel1/(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp)*bessel0)
+       f10=womersley_f10(wolmer)
        wavespeed=sqrt(1.0_dp/(2*fp%blood_density*(elast_param%elasticity_parameters(1))))*sqrt(1-f10)!alpha in the sense of this model is 1/Pa so has to be dovided by radius
         tube_admit(gen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10) &
              /prune_scale
@@ -1227,10 +1230,10 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      else
        P_extv=-Ppl
      endif
-     if((Pout-P_extv).LE.cap_param%Pub_a_v)THEN
-       radupdate=rad_v(gen)+cap_param%alpha_v*(Pout-P_extv)*&
+     if((Pressure(4*gen-1)-P_extv).LE.cap_param%Pub_a_v)THEN
+       radupdate=rad_v(gen)+cap_param%alpha_v*(Pressure(4*gen-1)-P_extv)*&
          (gen-cap_param%num_symm_gen)/(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*&
-         (Pout-P_extv)/(2.d0-2.d0*cap_param%num_symm_gen)
+         (Pressure(4*gen-1)-P_extv)/(2.d0-2.d0*cap_param%num_symm_gen)
      else
        radupdate=rad_v(gen)+cap_param%alpha_v*cap_param%Pub_a_v*(gen-cap_param%num_symm_gen)&
          /(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*cap_param%Pub_a_v&
@@ -1239,13 +1242,10 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
 !!...   Calculate Poiseuille resistance in first half of venule
       call micro_remodel_radius(rad_v(gen),radupdate,remodeling_grade,remodeling_side, &
            'venous',prune_scale)
-      R_ven1=(8.0_dp*mu_app(gen)*L_v(gen)/2.0_dp)/(pi*radupdate**4.0_dp)*prune_scale
-     Pout=Pout+R_ven1*Q01_mthrees
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale
        wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
-       call bessel_complex(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp),bessel0,bessel1)
-       f10=2*bessel1/(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp)*bessel0)
+       f10=womersley_f10(wolmer)
        wavespeed=sqrt(1.0_dp/(2*fp%blood_density*elast_param%elasticity_parameters(1)))*sqrt(1-f10) !mm/s
         tube_admit(gen+2*ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))* &
              sqrt(1-f10)/prune_scale !mm3/Pa.s
@@ -1253,7 +1253,6 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      enddo
 
 !!...   CAPILLARY ELEMENT (arteriole + venule + capillary)
-     Q01_mthrees=Q01_mthrees-Q_sheet(gen)
      Hart=cap_param%H0+alpha_c*(Pressure(4*gen-3)-cap_param%Palv)
      Hven=cap_param%H0+alpha_c*(Pressure(4*gen-1)-cap_param%Palv)
     do nf = 1,no_freq
@@ -1270,10 +1269,10 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
     enddo
      !...   SECOND HALF OF ARTERIOLE
 !...    Update radius of arteriole based on inlet pressure
-     if(Pin-P_exta.LE.cap_param%Pub_a_v)THEN
-       radupdate=rad_a(gen)+cap_param%alpha_a*(Pin-P_exta)*&
+     if(Pressure(4*gen-2)-P_exta.LE.cap_param%Pub_a_v)THEN
+       radupdate=rad_a(gen)+cap_param%alpha_a*(Pressure(4*gen-2)-P_exta)*&
          (gen-cap_param%num_symm_gen)/(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*&
-         (Pin-P_exta)/(2.d0-2.d0*cap_param%num_symm_gen)
+         (Pressure(4*gen-2)-P_exta)/(2.d0-2.d0*cap_param%num_symm_gen)
      else
        radupdate=rad_a(gen)+cap_param%alpha_a*cap_param%Pub_a_v*(gen-cap_param%num_symm_gen)&
          /(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*cap_param%Pub_a_v&
@@ -1284,14 +1283,11 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
        !...   half total generation length)
        call micro_remodel_radius(rad_a(gen),radupdate,remodeling_grade,remodeling_side, &
             'arterial',prune_scale)
-       R_art2=(8*mu_app(gen)*L_a(gen)/2.d0)/(pi*radupdate**4.d0)*prune_scale
-      Pin=Pin-R_art2*Q01_mthrees
 
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale
        wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
-       call bessel_complex(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp),bessel0,bessel1)
-       f10=2*bessel1/(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp)*bessel0)
+       f10=womersley_f10(wolmer)
        wavespeed=sqrt(1.0_dp/(2*fp%blood_density*elast_param%elasticity_parameters(1)))*sqrt(1-f10)
         tube_admit(gen+ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))* &
              sqrt(1-f10)/prune_scale
@@ -1300,10 +1296,10 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
 
 !   SECOND HALF OF VENULE
 !...    Update radius - linear with pressure or constant at high pressure
-     if (Pout-P_extv.LE.cap_param%Pub_a_v)THEN
-       radupdate=rad_v(gen)+cap_param%alpha_v*(Pout-P_extv)*&
+     if (Pressure(4*gen)-P_extv.LE.cap_param%Pub_a_v)THEN
+       radupdate=rad_v(gen)+cap_param%alpha_v*(Pressure(4*gen)-P_extv)*&
          (gen-cap_param%num_symm_gen)/(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*&
-          (Pout-P_extv)/(2.d0-2.d0*cap_param%num_symm_gen)
+          (Pressure(4*gen)-P_extv)/(2.d0-2.d0*cap_param%num_symm_gen)
      else
       radupdate=rad_v(gen)+cap_param%alpha_v*cap_param%Pub_a_v*(gen-cap_param%num_symm_gen)&
         /(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*cap_param%Pub_a_v&
@@ -1311,13 +1307,10 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      endif
       call micro_remodel_radius(rad_v(gen),radupdate,remodeling_grade,remodeling_side, &
            'venous',prune_scale)
-      R_ven2=(8.d0*mu_app(gen)*L_v(gen)/2.d0)/(pi*radupdate**4.d0)*prune_scale
-     Pout=Pout-R_ven2*Q01_mthrees
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale
        wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
-       call bessel_complex(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp),bessel0,bessel1)
-       f10=2*bessel1/(wolmer*cmplx(0.0_dp,1.0_dp,8)**(3.0_dp/2.0_dp)*bessel0)
+       f10=womersley_f10(wolmer)
        wavespeed=sqrt(1.0_dp/(2*fp%blood_density*elast_param%elasticity_parameters(1)))*sqrt(1-f10) !mm/s
         tube_admit(gen+3*ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))* &
              sqrt(1-f10)/prune_scale
@@ -1447,7 +1440,7 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
        reflect_coeff=(2*cap_admit(cap_param%num_symm_gen,nf)-tube_admit(gen+3*ngen,nf))&
          /(tube_admit(gen+3*ngen,nf)+2*cap_admit(cap_param%num_symm_gen,nf))
        cap_eff_admit(cap_param%num_symm_gen,nf)=cap_admit(cap_param%num_symm_gen,nf)*(1&
-         -reflect_coeff*exp(-2.0_dp*prop_const_cap(cap_param%num_symm_gen,nf)**cap_param%L_c*1000.0_dp))/&
+         -reflect_coeff*exp(-2.0_dp*prop_const_cap(cap_param%num_symm_gen,nf)*cap_param%L_c*1000.0_dp))/&
          (1+reflect_coeff*exp(-2.0_dp*prop_const_cap(cap_param%num_symm_gen,nf)*cap_param%L_c*1000.0_dp))
      elseif(cap_model == 2)then
         !two identical sisters
@@ -1465,15 +1458,15 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
      if(gen.eq.(cap_param%num_symm_gen-1))then
        daughter_admit=2.0_dp*cap_eff_admit(cap_param%num_symm_gen,nf)
      else
-       daughter_admit=2.0_dp*tube_eff_admit((gen+1)+2*ngen,nf)
+       daughter_admit=2.0_dp*tube_eff_admit(gen+1,nf)
      endif
-     reflect_coeff=(tube_admit(gen+2*ngen,nf)-daughter_admit)/&
-              (tube_admit(gen+2*gen,nf)+daughter_admit)
-     tube_eff_admit(gen+2*ngen,nf)=tube_admit(gen+2*ngen,nf)*(1&
-              -reflect_coeff*exp(-2.0_dp*prop_const(gen+2*ngen,nf)*L_a(gen)*1000.0_dp/2.0_dp))/&
-              (1+reflect_coeff*exp(-2.0_dp*prop_const(gen+2*ngen,nf)*L_a(gen)*1000.0_dp/2.0_dp))
+     reflect_coeff=(tube_admit(gen+ngen,nf)-daughter_admit)/&
+              (tube_admit(gen+ngen,nf)+daughter_admit)
+     tube_eff_admit(gen+ngen,nf)=tube_admit(gen+ngen,nf)*(1&
+              -reflect_coeff*exp(-2.0_dp*prop_const(gen+ngen,nf)*L_a(gen)*1000.0_dp/2.0_dp))/&
+              (1+reflect_coeff*exp(-2.0_dp*prop_const(gen+ngen,nf)*L_a(gen)*1000.0_dp/2.0_dp))
       !first half of arteriole, daughter admittance is second half of arteriole plus cap
-      daughter_admit=tube_eff_admit(gen+2*ngen,nf)+cap_eff_admit(gen,nf)
+      daughter_admit=tube_eff_admit(gen+ngen,nf)+cap_eff_admit(gen,nf)
       reflect_coeff=(tube_admit(gen,nf)-daughter_admit)/&
               (tube_admit(gen,nf)+daughter_admit)
       tube_eff_admit(gen,nf)=tube_admit(gen,nf)*(1&
@@ -1486,6 +1479,25 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
    do nf=1,no_freq
      admit(nf)=tube_eff_admit(1,nf)!tube_eff_admit(1,nf) !!effective daughter admittance of first arteriole
    enddo
+
+   if(cap_model == 1)then
+     ! Sheet geometry as in the steady model (cap_flow_sheet): path length
+     ! L_c*length_scale and area area*area_scale, so the sheet width is
+     ! area/length. calc_cap_admit_consth assumes a width of L_c.
+     allocate(sheet_width_factor(ngen))
+     sheet_width_factor=(area*area_scale/(cap_param%L_c*length_scale))/cap_param%L_c
+     ! Recruitment and zone-2 (waterfall) area fractions of each sheet, from
+     ! the same steady pressures that set its height.
+     do gen=1,ngen-1
+       sheet_width_factor(gen)=sheet_width_factor(gen)*&
+         sheet_area_fraction(Pressure(4*gen-3),Pressure(4*gen-1))
+     enddo
+     sheet_width_factor(ngen)=sheet_width_factor(ngen)*&
+       sheet_area_fraction(Pressure(4*ngen-6),Pressure(4*ngen-4))
+     call build_model1_capillary_port(ngen,no_freq,tube_admit,cap_admit,prop_const,&
+       prop_const_cap,L_a,L_v,cap_param%L_c*length_scale,sheet_width_factor,cap_port)
+     deallocate(sheet_width_factor)
+   endif
 
   deallocate(cap_admit)
   deallocate(tube_admit)
@@ -1507,6 +1519,145 @@ subroutine cap_flow_admit(ne,admit,eff_admit_downstream,Lin,Lout,P1,P2,&
   call enter_exit(sub_name,2)
 
 end subroutine cap_flow_admit
+
+!
+!###################################################################################
+!
+! Build the exact two-sided frequency-domain representation of the constant-height
+! symmetric ladder.  Each generation contains a local capillary sheet in parallel
+! with two identical daughter ladders.  The two rail halves are then cascaded on
+! the arterial and venous sides.
+subroutine build_model1_capillary_port(ngen,no_freq,tube_admit,cap_admit,prop_const,&
+  prop_const_cap,L_a,L_v,L_c,sheet_width_factor,cap_port)
+
+  integer, intent(in) :: ngen,no_freq
+  complex(dp), intent(in) :: tube_admit(4*ngen,no_freq)
+  complex(dp), intent(in) :: cap_admit(ngen,no_freq)
+  complex(dp), intent(in) :: prop_const(4*ngen,no_freq)
+  complex(dp), intent(in) :: prop_const_cap(ngen,no_freq)
+  real(dp), intent(in) :: L_a(ngen),L_v(ngen),L_c
+  real(dp), intent(in) :: sheet_width_factor(ngen) ! sheet width / L_c
+  complex(dp), intent(out) :: cap_port(2,2,no_freq)
+
+  integer :: nf,gen
+  complex(dp) :: network(2,2),children(2,2),path(2,2),middle(2,2),temp(2,2)
+  complex(dp) :: art_first(2,2),art_second(2,2),ven_first(2,2),ven_second(2,2)
+  complex(dp) :: cap_sheet(2,2)
+
+  do nf=1,no_freq
+    call transmission_line_port(cap_admit(ngen,nf)*sheet_width_factor(ngen),&
+      prop_const_cap(ngen,nf),L_c*1000.0_dp,network)
+
+    do gen=ngen-1,1,-1
+      children=2.0_dp*network
+
+      call transmission_line_port(tube_admit(gen+ngen,nf),prop_const(gen+ngen,nf),&
+        L_a(gen)*1000.0_dp/2.0_dp,art_second)
+      call transmission_line_port(tube_admit(gen+3*ngen,nf),prop_const(gen+3*ngen,nf),&
+        L_v(gen)*1000.0_dp/2.0_dp,ven_second)
+      call cascade_two_ports(art_second,children,temp)
+      call cascade_two_ports(temp,ven_second,path)
+
+      call transmission_line_port(cap_admit(gen,nf)*sheet_width_factor(gen),&
+        prop_const_cap(gen,nf),L_c*1000.0_dp,cap_sheet)
+      middle=path+cap_sheet
+
+      call transmission_line_port(tube_admit(gen,nf),prop_const(gen,nf),&
+        L_a(gen)*1000.0_dp/2.0_dp,art_first)
+      call transmission_line_port(tube_admit(gen+2*ngen,nf),prop_const(gen+2*ngen,nf),&
+        L_v(gen)*1000.0_dp/2.0_dp,ven_first)
+      call cascade_two_ports(art_first,middle,temp)
+      call cascade_two_ports(temp,ven_first,network)
+    enddo
+
+    ! There are two identical first-generation paths in the steady ladder
+    ! (all first-generation rail resistances are divided by two).  The
+    ! frequency-domain terminal unit must therefore expose the same two paths
+    ! in parallel at its large-vessel ports.
+    cap_port(:,:,nf)=2.0_dp*network
+  enddo
+
+end subroutine build_model1_capillary_port
+
+!
+!###################################################################################
+!
+!*sheet_area_fraction:* Fraction of the sheet area perfused at the given
+! steady sheet inlet and outlet pressures: capillary recruitment, and zone-2
+! (waterfall) derecruitment, exactly as applied in cap_flow_sheet.
+function sheet_area_fraction(P_a,P_v) result(fraction)
+
+  real(dp), intent(in) :: P_a,P_v
+  real(dp) :: fraction
+
+  type(capillary_bf_parameters) :: cap_param
+  real(dp) :: P_ave
+
+  P_ave=(P_a+P_v)/2.0_dp
+  fraction=1.0_dp-cap_param%f_rec*exp(-(P_ave**2)/(cap_param%sigma_rec**2))
+  if((P_v-cap_param%Palv).le.cap_param%Plb_c)then
+    fraction=fraction*(1.0_dp-cap_param%F_sheet+cap_param%F_sheet*&
+      exp(-(P_v-cap_param%Palv)**2/(2.0_dp*cap_param%sigma_cap**2)))
+  endif
+
+end function sheet_area_fraction
+
+!
+!###################################################################################
+!
+subroutine transmission_line_port(characteristic_admit,gamma,length,port)
+
+  complex(dp), intent(in) :: characteristic_admit,gamma
+  real(dp), intent(in) :: length
+  complex(dp), intent(out) :: port(2,2)
+
+  complex(dp) :: z,sinh_z,exp_m2z
+
+  z=gamma*length
+  if(real(z,dp).gt.20.0_dp)then
+    ! Long or strongly attenuating line (e.g. a near-collapsed microvessel):
+    ! use exp(-2z) forms, since sinh(z) overflows for Re(z) > ~710.
+    exp_m2z=exp(-2.0_dp*z)
+    port(1,1)=characteristic_admit*(1.0_dp+exp_m2z)/(1.0_dp-exp_m2z)
+    port(1,2)=-characteristic_admit*2.0_dp*exp(-z)/(1.0_dp-exp_m2z)
+  else
+    sinh_z=sinh(z)
+    if(abs(sinh_z).le.tiny(1.0_dp))then
+      write(*,*) 'ERROR: Singular transmission-line two-port',characteristic_admit,gamma,length
+      error stop
+    endif
+    port(1,1)=characteristic_admit/tanh(z)
+    port(1,2)=-characteristic_admit/sinh_z
+  endif
+  port(2,1)=port(1,2)
+  port(2,2)=port(1,1)
+
+end subroutine transmission_line_port
+
+!
+!###################################################################################
+!
+subroutine cascade_two_ports(left_port,right_port,result_port)
+
+  complex(dp), intent(in) :: left_port(2,2),right_port(2,2)
+  complex(dp), intent(out) :: result_port(2,2)
+
+  complex(dp) :: denominator
+  real(dp) :: scale
+
+  denominator=left_port(2,2)+right_port(1,1)
+  scale=max(abs(left_port(2,2)),abs(right_port(1,1)),tiny(1.0_dp))
+  if(abs(denominator).le.1.0e-12_dp*scale)then
+    write(*,*) 'ERROR: Near-singular two-port cascade',denominator
+    error stop
+  endif
+
+  result_port(1,1)=left_port(1,1)-left_port(1,2)*left_port(2,1)/denominator
+  result_port(1,2)=-left_port(1,2)*right_port(1,2)/denominator
+  result_port(2,1)=-right_port(2,1)*left_port(2,1)/denominator
+  result_port(2,2)=right_port(2,2)-right_port(2,1)*right_port(1,2)/denominator
+
+end subroutine cascade_two_ports
 
 !
 !################################################################
