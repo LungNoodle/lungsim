@@ -17,6 +17,7 @@ module math_utilities
   private
 
   public ax_cr,diagonal_pointer_cr,ilu_cr,lus_cr,mult_givens,rearrange_cr,bessel_complex
+  public womersley_f10
   public sort_integer_list
   public sort_real_list
   public angle_btwn_vectors,check_vectors_same,cross_product,inlist
@@ -362,6 +363,73 @@ contains
     end if
 
   end subroutine bessel_complex
+
+!
+!###################################################################################
+!
+!*womersley_f10:* Womersley's viscous function F10(W) = 2*J1(z)/(z*J0(z)),
+! z = i^(3/2)*W, for the e^(+i*omega*t) convention used in wave transmission.
+! F10 -> 1 - i*W^2/8 for small W (Poiseuille limit) and -> 2/z for large W
+! (inviscid limit). For |z| <= 30, J1/J0 is evaluated with the backward
+! continued fraction J_n/J_(n-1) = 1/(2n/z - J_(n+1)/J_n); its length grows
+! with |z|, so for larger |z| the Hankel asymptotic expansion is used
+! (J ~ H^(2)/2 for Im(z) >> 0), which is accurate to rounding there.
+  function womersley_f10(wolmer) result(f10)
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+    real(dp), intent(in) :: wolmer
+    complex(dp) :: f10
+
+    complex(dp) :: z,ratio
+    integer :: n,nterms
+
+    if(.not.ieee_is_finite(wolmer))then
+      f10 = cmplx(0.0_dp,0.0_dp,kind=dp) ! inviscid limit
+      return
+    endif
+    ! F10 is even in W; |W| keeps z in the upper half-plane, where the
+    ! asymptotic branch below is valid.
+    z = abs(wolmer)*exp(cmplx(0.0_dp,0.75_dp*pi,kind=dp))
+    if(abs(z).lt.1.0e-8_dp)then
+      f10 = cmplx(1.0_dp,0.0_dp,kind=dp)-z*z/8.0_dp
+      return
+    endif
+    if(abs(z).le.30.0_dp)then
+      nterms = int(abs(z)) + 60
+      ratio = cmplx(0.0_dp,0.0_dp,kind=dp)
+      do n = nterms,1,-1
+        ratio = 1.0_dp/(2.0_dp*real(n,dp)/z - ratio)
+      enddo
+    else
+      ratio = cmplx(0.0_dp,1.0_dp,kind=dp)*hankel2_series(1,z)/hankel2_series(0,z)
+    endif
+    f10 = 2.0_dp*ratio/z
+
+  contains
+
+    ! Asymptotic series sum_k (-i)^k a_k(nu)/z^k of the Hankel function H^(2)_nu,
+    ! a_k(nu) = prod_{j=1..k} (4nu^2-(2j-1)^2)/(k! 8^k), truncated at its
+    ! smallest term.
+    function hankel2_series(nu,z) result(total)
+      integer, intent(in) :: nu
+      complex(dp), intent(in) :: z
+      complex(dp) :: total,term
+      real(dp) :: mu,last
+      integer :: k
+
+      mu = 4.0_dp*real(nu*nu,dp)
+      total = cmplx(1.0_dp,0.0_dp,kind=dp)
+      term = cmplx(1.0_dp,0.0_dp,kind=dp)
+      last = huge(1.0_dp)
+      do k = 1,30
+        term = term*(mu-real((2*k-1)**2,dp))/(real(8*k,dp)*z)*cmplx(0.0_dp,-1.0_dp,kind=dp)
+        if(abs(term).gt.last) exit
+        total = total + term
+        last = abs(term)
+        if(last.lt.1.0e-17_dp*abs(total)) exit
+      enddo
+    end function hankel2_series
+
+  end function womersley_f10
 
 
 !
