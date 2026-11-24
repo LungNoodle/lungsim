@@ -8,6 +8,7 @@ void evaluate_wave_transmission(int grav_dirn, double grav_factor,int n_time, do
 {
     int bc_type_len = strlen(bc_type);
     int lobe_imped_len = strlen(lobe_imped);
+    if (remodeling_side == NULL) remodeling_side = "none";
     int remodeling_side_len = strlen(remodeling_side);
     evaluate_wave_transmission_c(&grav_dirn, &grav_factor,&n_time, &heartrate, &a0, &no_freq, a, b, &n_bcparams, admittance_param, &n_model, model_definition, &cap_model, &remodeling_grade, bc_type, &bc_type_len, lobe_imped, &lobe_imped_len, remodeling_side, &remodeling_side_len);
 }

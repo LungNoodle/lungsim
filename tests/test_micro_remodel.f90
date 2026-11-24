@@ -1,7 +1,7 @@
 module test_micro_remodel
   use testdrive, only: new_unittest, unittest_type, error_type, check
   use precision, only: dp
-  use capillaryflow, only: micro_remodel_radius
+  use capillaryflow, only: micro_remodel_radius,select_remodeling_side
   implicit none
   private
   public :: collect_micro_remodel
@@ -13,7 +13,8 @@ subroutine collect_micro_remodel(testsuite)
   testsuite = [ &
     new_unittest('grade_zero', test_grade_zero), &
     new_unittest('side_selection', test_side_selection), &
-    new_unittest('diameter_bands', test_diameter_bands) &
+    new_unittest('diameter_bands', test_diameter_bands), &
+    new_unittest('side_optional', test_side_optional) &
   ]
 end subroutine collect_micro_remodel
 
@@ -63,5 +64,22 @@ subroutine test_diameter_bands(error)
   if (allocated(error)) return
   call check(error,abs(prune_scale-1.0_dp)<1.0e-12_dp)
 end subroutine test_diameter_bands
+
+subroutine test_side_optional(error)
+  type(error_type), allocatable, intent(out) :: error
+  character(len=8) :: side
+  ! Healthy runs need no side, and any side given is ignored.
+  call select_remodeling_side(0.0_dp,'simple_tree',selected_side=side)
+  call check(error,side=='none')
+  if (allocated(error)) return
+  call select_remodeling_side(0.0_dp,'full_plus_ladder','none',side)
+  call check(error,side=='none')
+  if (allocated(error)) return
+  call select_remodeling_side(0.0_dp,'full_plus_ladder','arterial',side)
+  call check(error,side=='none')
+  if (allocated(error)) return
+  call select_remodeling_side(40.0_dp,'full_plus_ladder','both',side)
+  call check(error,side=='both')
+end subroutine test_side_optional
 
 end module test_micro_remodel

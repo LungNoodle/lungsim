@@ -33,6 +33,7 @@ void evaluate_prq(const char *mesh_type, const char *vessel_type,int grav_dirn, 
     int mesh_type_len = strlen(mesh_type);
 	int bc_type_len = strlen(bc_type);
 	int vessel_type_len = strlen(vessel_type);
+    if (remodeling_side == NULL) remodeling_side = "none";
     int remodeling_side_len = strlen(remodeling_side);
     evaluate_prq_c(mesh_type, &mesh_type_len, vessel_type, &vessel_type_len, &grav_dirn, &grav_factor,
         bc_type, &bc_type_len, &inlet_bc, &outlet_bc, &remodeling_grade, remodeling_side, &remodeling_side_len);

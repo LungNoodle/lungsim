@@ -73,7 +73,7 @@ contains
     integer :: AllocateStatus
 
     real(dp), intent(in) :: remodeling_grade ! Remodeling if applicable, 0 stands for healthy and anything from 10 to 100 is hypertension
-    character(len=*), intent(in), optional :: remodeling_side
+    character(len=*), intent(in), optional :: remodeling_side ! none (default), arterial, venous or both
     character(len=8) :: selected_side
     real(dp), allocatable :: prq_solution(:,:),solver_solution(:)
     real(dp) :: viscosity,density,inlet_bc,outlet_bc,inletbc,outletbc,grav_vect(3),gamma,total_resistance,ERR
@@ -86,14 +86,7 @@ contains
     real(dp) :: P2,Q01,Rin,Rout,x_cap,y_cap,z_cap,Ppl,LPM_R,Lin,Lout
 
     sub_name = 'evaluate_prq'
-    selected_side='arterial'
-    if (present(remodeling_side)) selected_side=remodeling_side
-    if (remodeling_grade < 0.0_dp .or. remodeling_grade > 100.0_dp) &
-         error stop 'remodeling_grade must be between 0 and 100'
-    if (selected_side /= 'arterial' .and. selected_side /= 'venous' .and. selected_side /= 'both') &
-         error stop 'remodeling_side must be arterial, venous, or both'
-    if (remodeling_grade > 0.0_dp .and. mesh_type /= 'full_plus_ladder') &
-         error stop 'microvascular remodeling requires full_plus_ladder'
+    call select_remodeling_side(remodeling_grade,mesh_type,remodeling_side,selected_side)
     call enter_exit(sub_name,1)
     ! ADD and CONVERGED are initialised in their declarations (implicit SAVE),
     ! so reset them to allow repeated solves in the same process.

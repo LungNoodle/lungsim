@@ -29,7 +29,7 @@ module capillaryflow
 
   !Interfaces
   private
-  public cap_flow_ladder,cap_flow_admit,micro_remodel_radius
+  public cap_flow_ladder,cap_flow_admit,micro_remodel_radius,select_remodeling_side
 
 contains
 !
@@ -748,6 +748,36 @@ subroutine micro_remodel_radius(nominal_radius,radius,grade,selected_side,vessel
     prune_scale=1.0_dp/(1.0_dp-prune_fraction)
   endif
 end subroutine micro_remodel_radius
+!
+!###################################################################################
+!
+!*select_remodeling_side:* Checks the remodeling inputs and returns the side to remodel.
+! The side is optional and defaults to 'none'. Grade zero is healthy, so the side is
+! ignored and 'none' is returned. A grade above zero needs 'arterial', 'venous' or 'both'.
+subroutine select_remodeling_side(remodeling_grade,mesh_type,remodeling_side,selected_side)
+  real(dp), intent(in) :: remodeling_grade
+  character(len=*), intent(in) :: mesh_type
+  character(len=*), intent(in), optional :: remodeling_side
+  character(len=8), intent(out) :: selected_side
+
+  selected_side='none'
+  if (present(remodeling_side)) then
+    if (len_trim(remodeling_side) > 0) selected_side=adjustl(remodeling_side)
+  endif
+  if (remodeling_grade < 0.0_dp .or. remodeling_grade > 100.0_dp) &
+       error stop 'remodeling_grade must be between 0 and 100'
+  if (selected_side /= 'none' .and. selected_side /= 'arterial' .and. &
+       selected_side /= 'venous' .and. selected_side /= 'both') &
+       error stop 'remodeling_side must be none, arterial, venous, or both'
+  if (remodeling_grade == 0.0_dp) then
+    selected_side='none'
+    return
+  endif
+  if (selected_side == 'none') &
+       error stop 'remodeling_grade > 0 needs remodeling_side arterial, venous, or both'
+  if (mesh_type /= 'full_plus_ladder') &
+       error stop 'microvascular remodeling requires full_plus_ladder'
+end subroutine select_remodeling_side
 !
 !###################################################################################
 !

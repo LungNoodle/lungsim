@@ -56,7 +56,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
   integer, intent(in) :: grav_dirn
   integer, intent(in) :: cap_model
   real(dp), intent(in) :: remodeling_grade
-  character(len=*), intent(in), optional :: remodeling_side
+  character(len=*), intent(in), optional :: remodeling_side ! none (default), arterial, venous or both
   character(len=8) :: selected_side
   character(len=60) :: bc_type
   character(len=60) :: lobe_imped
@@ -270,14 +270,7 @@ subroutine evaluate_wave_transmission(grav_dirn,grav_factor,n_time,heartrate,a0,
     density,viscosity,admit_param,elast_param,mechanics_parameters,grav_vect)
 
   !Apply boundary conditions to terminal units
-  selected_side='arterial'
-  if (present(remodeling_side)) selected_side=remodeling_side
-  if (remodeling_grade < 0.0_dp .or. remodeling_grade > 100.0_dp) &
-       error stop 'remodeling_grade must be between 0 and 100'
-  if (selected_side /= 'arterial' .and. selected_side /= 'venous' .and. selected_side /= 'both') &
-       error stop 'remodeling_side must be arterial, venous, or both'
-  if (remodeling_grade > 0.0_dp .and. mesh_type /= 'full_plus_ladder') &
-       error stop 'microvascular remodeling requires full_plus_ladder'
+  call select_remodeling_side(remodeling_grade,mesh_type,remodeling_side,selected_side)
   call boundary_admittance(no_freq,eff_admit,char_admit,admit_param,harmonic_scale,&
     density,viscosity,elast_param,mesh_type)
 

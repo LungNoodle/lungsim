@@ -102,7 +102,7 @@ values use the same units as ``inlet_bc`` and the element flow field (normally
 
   set_perfusion_flows([12, 19], [125.0, 75.0])
   evaluate_prq(
-      "simple_tree", "rigid", 3, 1.0, "flow", 200.0, 0.0, 0.0, "arterial"
+      "simple_tree", "rigid", 3, 1.0, "flow", 200.0, 0.0, 0.0
   )
 
 Each selected flow is achieved by adjusting vessel resistances; Poiseuille's law

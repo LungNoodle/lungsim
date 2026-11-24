@@ -37,12 +37,14 @@ Microvascular remodeling
 For a full_plus_ladder perfusion mesh, use the Python binding
 ``evaluate_prq(mesh_type, vessel_type, grav_dirn, grav_factor,
 bc_type, inlet_bc, outlet_bc, remodeling_grade, remodeling_side)``
-from ``aether.pressure_resistance_flow``. ``remodeling_side`` is
-``"arterial"``, ``"venous"``, or ``"both"``. Grade zero leaves both sides
-healthy.
+from ``aether.pressure_resistance_flow``. ``remodeling_side`` is optional
+and defaults to ``"none"``. Grade zero is a healthy run: leave the side out
+(any side given is ignored). For a grade above zero, set
+``remodeling_side`` to ``"arterial"``, ``"venous"``, or ``"both"``; the run
+stops with an error if it is missing or ``"none"``.
 
-For wave simulations, ``evaluate_wave_transmission`` has the same final
-``remodeling_side`` argument.
+For wave simulations, ``evaluate_wave_transmission`` has the same optional
+final ``remodeling_side`` argument.
 Use the same grade and side in both calls.
 
 Selection uses the healthy nominal vessel diameter within each ladder unit.
