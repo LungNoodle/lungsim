@@ -49,9 +49,14 @@ Use the same grade and side in both calls.
 
 Selection uses the healthy nominal vessel diameter within each ladder unit.
 Hypertrophy affects 100-1000 micrometres; narrowing affects 30-300
-micrometres; fibrosis affects 30-500 micrometres; and effective pruning
-affects diameters below 300 micrometres (below 500 from grade 50). The symmetric ladder represents
-pruning as a fractional loss of parallel vessels, rather than individual
-occlusions. The ninth generation contains capillary sheets only, so tubular
-arteriole and venule remodeling applies to generations 1-8. The capillary
-sheets themselves are unchanged.
+micrometres; and fibrosis affects 30-500 micrometres. The ninth generation
+contains capillary sheets only, so these changes apply to the tubular
+arterioles and venules of generations 1-8.
+
+Pruning occludes a fraction ``p_f`` of the vessels at the most proximal ladder
+generation, on the remodelled side, whose diameter is below 300 micrometres
+(below 500 from grade 50). Everything those vessels feed or drain is cut off
+with them: the deeper arterioles, their capillary sheets and the venules
+draining those sheets. In the symmetric ladder this means that generation and
+every deeper one keep only ``1 - p_f`` of their vessels and sheets; shallower
+generations are unaffected. With ``"both"``, ``p_f`` is applied once.
