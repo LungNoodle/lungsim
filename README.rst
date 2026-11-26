@@ -60,3 +60,16 @@ with them: the deeper arterioles, their capillary sheets and the venules
 draining those sheets. In the symmetric ladder this means that generation and
 every deeper one keep only ``1 - p_f`` of their vessels and sheets; shallower
 generations are unaffected. With ``"both"``, ``p_f`` is applied once.
+
+Regional remodeling below occlusions
+------------------------------------
+
+``occlusion_list(elements)`` from ``aether.pressure_resistance_flow`` takes
+LungSim local element numbers (one-based positions in the element arrays, the
+same numbering as ``set_perfusion_flows``). The next ``evaluate_prq`` marks
+every arterial element at or downstream of a listed element, and each ladder
+unit fed by a marked element is solved without remodeling (grade zero), while
+every other unit uses the requested grade and side. This represents the healthy
+microvasculature distal to a removed occlusion, for example when predicting the
+state after pulmonary endarterectomy. Calling ``occlusion_list`` again replaces
+the previous list. The run prints how many ladder units were protected.

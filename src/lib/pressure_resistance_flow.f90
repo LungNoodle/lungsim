@@ -18,6 +18,9 @@ module pressure_resistance_flow
 
   implicit none
   integer,allocatable :: occ_list(:),compl_list(:)
+  ! remodel_protected(ne): arterial element at or downstream of an element in
+  ! occ_list. Ladder units fed by a protected element are not remodelled.
+  logical,allocatable :: remodel_protected(:)
   integer,allocatable :: perfusion_flow_elements(:)
   real(dp),allocatable :: perfusion_flow_values(:)
   ! Prescribed perfusion flows are imposed by adjusting vessel resistances.
@@ -210,6 +213,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 
     ! Prescribed flows (if any) are matched by scaling vessel resistances.
     call setup_flow_control(bc_type,inletbc,flow_control)
+    call build_remodel_protection()
     flow_ok=.TRUE.
     flow_err=0.0_dp
 
@@ -363,7 +367,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
                 Lout=elem_field(ne_length,ne1)
                  call cap_flow_ladder(ne,LPM_R,Lin,Lout,P1,P2,&
                         Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,&
-                         .FALSE.,remodeling_grade,selected_side)
+                         .FALSE.,unit_grade(ne0,remodeling_grade),unit_side(ne0,selected_side))
                  elem_field(ne_resist,ne)=LPM_R
               endif
            enddo
@@ -432,7 +436,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
           Lout=elem_field(ne_length,ne1)
           call cap_flow_ladder(ne,LPM_R,Lin,Lout,P1,P2,&
             Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,&
-             .TRUE.,remodeling_grade,selected_side)
+             .TRUE.,unit_grade(ne0,remodeling_grade),unit_side(ne0,selected_side))
         endif
       enddo
       close(10)
@@ -551,6 +555,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 
     if(count(elem_list.ne.0).gt.0)then ! a surface element list is given for converting to
        !                                 create a list of occluded elements
+       if(allocated(occ_list))deallocate(occ_list)
        allocate(occ_list(count(elem_list.ne.0)))
        !!! get the list of occlusion list from the given list
        do i = 1,count(elem_list.ne.0)
@@ -1833,6 +1838,83 @@ subroutine map_solution_to_mesh(prq_solution,depvar_at_elem,depvar_at_node,mesh_
 end subroutine map_solution_to_mesh
 
 !##############################################################################!##############################################################################
+!
+!*build_remodel_protection:* Marks every arterial element at or downstream of an
+! element in occ_list (LungSim local element numbers). The ladder unit fed by a
+! marked element is solved without microvascular remodelling (grade 0, side
+! 'none'), e.g. the healthy bed distal to a removed CTEPH occlusion when
+! predicting the post-PEA state. Every other unit uses the global grade.
+  subroutine build_remodel_protection()
+    integer :: k,ne,ne2,head,tail,num_units_protected
+    integer,allocatable :: queue(:)
+
+    if(allocated(remodel_protected))deallocate(remodel_protected)
+    if(.not.allocated(occ_list))return
+    if(count(occ_list.ne.0).eq.0)return
+    allocate(remodel_protected(num_elems),queue(num_elems))
+    remodel_protected=.FALSE.
+    head=1
+    tail=0
+    do k=1,size(occ_list)
+      ne=occ_list(k)
+      if(ne.lt.1.or.ne.gt.num_elems)then
+        print *,'ERROR: occlusion_list element is outside the mesh:',ne
+        call exit(1)
+      endif
+      if(nint(elem_field(ne_group,ne)).ne.0)then
+        print *,'ERROR: occlusion_list element is not an artery:',ne
+        call exit(1)
+      endif
+      if(.not.remodel_protected(ne))then
+        remodel_protected(ne)=.TRUE.
+        tail=tail+1
+        queue(tail)=ne
+      endif
+    enddo
+    do while(head.le.tail)
+      ne=queue(head)
+      head=head+1
+      do k=1,elem_cnct(1,0,ne)
+        ne2=elem_cnct(1,k,ne)
+        if(nint(elem_field(ne_group,ne2)).ne.0)cycle !stop at capillaries
+        if(remodel_protected(ne2))cycle
+        remodel_protected(ne2)=.TRUE.
+        tail=tail+1
+        queue(tail)=ne2
+      enddo
+    enddo
+    num_units_protected=0
+    do ne=1,num_elems
+      if(nint(elem_field(ne_group,ne)).ne.1)cycle
+      if(remodel_protected(elem_cnct(-1,1,ne)))num_units_protected=num_units_protected+1
+    enddo
+    print *,'Occlusion list: ',size(occ_list),' elements protect ',num_units_protected, &
+      ' ladder units from remodelling'
+    deallocate(queue)
+  end subroutine build_remodel_protection
+
+!*unit_grade:* Remodelling grade for the ladder unit fed by arterial element ne0.
+  real(dp) function unit_grade(ne0,grade)
+    integer,intent(in) :: ne0
+    real(dp),intent(in) :: grade
+    unit_grade=grade
+    if(allocated(remodel_protected))then
+      if(remodel_protected(ne0))unit_grade=0.0_dp
+    endif
+  end function unit_grade
+
+!*unit_side:* Remodelling side for the ladder unit fed by arterial element ne0.
+  function unit_side(ne0,side) result(res)
+    integer,intent(in) :: ne0
+    character(len=*),intent(in) :: side
+    character(len=len(side)) :: res
+    res=side
+    if(allocated(remodel_protected))then
+      if(remodel_protected(ne0))res='none'
+    endif
+  end function unit_side
+
+!##############################################################################
 !
 !*is_downstream* checks to see if a certain element is downstream of another element
 !!!!!!!
