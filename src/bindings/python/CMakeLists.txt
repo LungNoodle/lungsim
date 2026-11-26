@@ -141,6 +141,15 @@ set(CLASSIFIERS
   \"Operating System :: Unix\""
 )
 
+# The Intel Fortran runtime on PyPI is not backward compatible across releases
+# (for example 2026.2 dropped SVML entry points that code built with 2025.2
+# calls), so require the runtime matching the compiler that built the package.
+set(INTEL_FORTRAN_RT_REQUIREMENT "intel-fortran-rt")
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^Intel" AND CMAKE_Fortran_COMPILER_VERSION MATCHES "^([0-9]+)\\.([0-9]+)")
+  set(INTEL_FORTRAN_RT_REQUIREMENT "intel-fortran-rt==${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.*")
+endif()
+message(STATUS "Python package Windows runtime requirement: ${INTEL_FORTRAN_RT_REQUIREMENT}")
+
 set(PACKAGE_PYPROJECT_TOML_FILE ${PYTHON_PACKAGE_DIR}/pyproject.toml)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pyproject.in.toml ${PACKAGE_PYPROJECT_TOML_FILE} @ONLY)
 set(PACKAGE_INIT_FILE ${SWIG_OUT_DIR}/__init__.py)

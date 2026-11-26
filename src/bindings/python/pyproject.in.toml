@@ -14,7 +14,7 @@ classifiers = [
 @CLASSIFIERS@
 ]
 dependencies = [
-  'intel-fortran-rt; platform_system == "Windows"',
+  '@INTEL_FORTRAN_RT_REQUIREMENT@; platform_system == "Windows"',
 ]
 
 [tool.setuptools]
