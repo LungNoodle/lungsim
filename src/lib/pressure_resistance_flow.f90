@@ -540,31 +540,24 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
 !
 !###################################################################################
 !
-  !* occlusion_list gets an element list from user which includes the element that were
-  ! occluded for CTEPH and now the occlusions are removed and we want to make sure there
-  ! is no remodelling downstream of those elements
+  !* occlusion_list gets the elements that were occluded for CTEPH and whose
+  ! occlusions are now removed, so that there is no remodelling downstream of them.
+  ! Elements are given by their element numbers in the geometry (exelem) files;
+  ! they are converted to local array positions here. Zero entries are ignored.
   subroutine occlusion_list(elem_list)
 
-    integer,intent(in) :: elem_list(:) ! list of surface elements defining the host region
+    integer,intent(in) :: elem_list(:) ! element numbers of the removed occlusions
   !local variables
-    integer :: i
     character(len=60) :: sub_name
 
     sub_name = 'occlusion_list'
     call enter_exit(sub_name,1)
 
-    if(count(elem_list.ne.0).gt.0)then ! a surface element list is given for converting to
-       !                                 create a list of occluded elements
-       if(allocated(occ_list))deallocate(occ_list)
+    if(allocated(occ_list))deallocate(occ_list)
+    if(count(elem_list.ne.0).gt.0)then
        allocate(occ_list(count(elem_list.ne.0)))
-       !!! get the list of occlusion list from the given list
-       do i = 1,count(elem_list.ne.0)
-          occ_list(i) = elem_list(i)
-       enddo
+       call elements_to_local(pack(elem_list,elem_list.ne.0),occ_list,'occlusion_list')
     endif
-    !
-    ! write(*,*) 'occlusion_list:', occ_list
-    ! pause
 
 
     call enter_exit(sub_name,2)
@@ -598,8 +591,9 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
   end subroutine compliance_list
 
 !###################################################################################
-!*set_perfusion_flows:* Opt in to prescribed flows for selected elements.  A
-! zero-length list disables the option and restores the original PRQ behaviour.
+!*set_perfusion_flows:* Opt in to prescribed flows for selected elements, given by
+! their element numbers in the geometry (exelem) files.  A zero-length list
+! disables the option and restores the original PRQ behaviour.
   subroutine set_perfusion_flows(element_ids,flow_values)
     integer,intent(in) :: element_ids(:)
     real(dp),intent(in) :: flow_values(:)
@@ -615,7 +609,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     allocate(perfusion_flow_elements(size(element_ids)), &
       perfusion_flow_values(size(flow_values)),stat=allocate_status)
     if(allocate_status.ne.0)stop '*** Not enough memory for prescribed perfusion flows ***'
-    perfusion_flow_elements=element_ids
+    call elements_to_local(element_ids,perfusion_flow_elements,'set_perfusion_flows')
     perfusion_flow_values=flow_values
   end subroutine set_perfusion_flows
 
@@ -624,6 +618,41 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     if(allocated(perfusion_flow_elements))deallocate(perfusion_flow_elements)
     if(allocated(perfusion_flow_values))deallocate(perfusion_flow_values)
   end subroutine clear_perfusion_flows
+
+!###################################################################################
+!*elements_to_local:* Converts element numbers from the geometry files to local
+! array positions. Stops with an error naming the caller if a number is not in
+! the current mesh.
+  subroutine elements_to_local(element_numbers,local_elements,caller)
+    integer,intent(in) :: element_numbers(:)
+    integer,intent(out) :: local_elements(:)
+    character(len=*),intent(in) :: caller
+    integer :: k,ne,max_number
+    integer,allocatable :: local_of(:)
+
+    if(.not.allocated(elems).or.num_elems.lt.1)then
+      print *,'ERROR: ',caller,' was called before the mesh was defined'
+      call exit(1)
+    endif
+    max_number=maxval(elems(1:num_elems))
+    allocate(local_of(max(max_number,1)))
+    local_of=0
+    do ne=1,num_elems
+      if(elems(ne).ge.1)local_of(elems(ne))=ne
+    enddo
+    do k=1,size(element_numbers)
+      if(element_numbers(k).lt.1.or.element_numbers(k).gt.max_number)then
+        print *,'ERROR: ',caller,' element is not in the mesh:',element_numbers(k)
+        call exit(1)
+      endif
+      if(local_of(element_numbers(k)).eq.0)then
+        print *,'ERROR: ',caller,' element is not in the mesh:',element_numbers(k)
+        call exit(1)
+      endif
+      local_elements(k)=local_of(element_numbers(k))
+    enddo
+    deallocate(local_of)
+  end subroutine elements_to_local
 
 
 !###################################################################################
@@ -699,19 +728,19 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
         call exit(1)
       endif
       if(ctrl_prescribed(ne))then
-        print *, 'ERROR: prescribed perfusion element occurs more than once:',ne
+        print *, 'ERROR: prescribed perfusion element occurs more than once:',elems(ne)
         call exit(1)
       endif
       if(elem_cnct(-1,0,ne).eq.0)then
-        print *, 'ERROR: prescribed perfusion flow is on an inlet element:',ne
+        print *, 'ERROR: prescribed perfusion flow is on an inlet element:',elems(ne)
         call exit(1)
       endif
       if(nint(elem_field(ne_group,ne)).eq.1)then
-        print *, 'ERROR: prescribed perfusion flow is on a capillary element:',ne
+        print *, 'ERROR: prescribed perfusion flow is on a capillary element:',elems(ne)
         call exit(1)
       endif
       if(perfusion_flow_values(no).le.0.0_dp)then
-        print *, 'ERROR: prescribed perfusion flows must be positive (element',ne,')'
+        print *, 'ERROR: prescribed perfusion flows must be positive (element',elems(ne),')'
         call exit(1)
       endif
       ctrl_prescribed(ne)=.TRUE.
@@ -822,7 +851,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
           call exit(1)
         endif
         if(flow_value(ne).le.0.0_dp)then
-          print *, 'ERROR: prescribed perfusion flows imply a non-positive flow in element',ne
+          print *, 'ERROR: prescribed perfusion flows imply a non-positive flow in element',elems(ne)
           print *, '       implied flow =',flow_value(ne)
           call exit(1)
         endif
@@ -906,7 +935,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
           endif
           if(implied.le.1.0e-6_dp*scale)then
             print *, 'ERROR: prescribed perfusion flows imply a non-positive flow in element', &
-              ne_unknown
+              elems(ne_unknown)
             print *, '       implied flow =',implied
             call exit(1)
           endif
@@ -1145,7 +1174,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
     do ne=1,num_elems
       if(ctrl_group(ne).lt.0)cycle
       if(abs(ctrl_logscale(ne)).gt.max_log)then
-        print *,'WARNING: resistance multiplier for prescribed flow in element',ne, &
+        print *,'WARNING: resistance multiplier for prescribed flow in element',elems(ne), &
           'reached its limit; the requested flow may not be achievable'
         ctrl_logscale(ne)=sign(max_log,ctrl_logscale(ne))
       endif
@@ -1236,7 +1265,7 @@ gamma = 0.327_dp !=1.85/(4*sqrt(2))
       else
         kind='   implied'
       endif
-      print '(i12,1x,a10,i11,2es14.5,es14.5)',ne,kind,ctrl_group(ne),ctrl_target(ne), &
+      print '(i12,1x,a10,i11,2es14.5,es14.5)',elems(ne),kind,ctrl_group(ne),ctrl_target(ne), &
         elem_field(ne_Qdot,ne),exp(ctrl_logscale(ne))
     enddo
   end subroutine report_flow_control
@@ -1840,7 +1869,7 @@ end subroutine map_solution_to_mesh
 !##############################################################################!##############################################################################
 !
 !*build_remodel_protection:* Marks every arterial element at or downstream of an
-! element in occ_list (LungSim local element numbers). The ladder unit fed by a
+! element in occ_list (local array positions, converted by occlusion_list). The ladder unit fed by a
 ! marked element is solved without microvascular remodelling (grade 0, side
 ! 'none'), e.g. the healthy bed distal to a removed CTEPH occlusion when
 ! predicting the post-PEA state. Every other unit uses the global grade.
@@ -1862,7 +1891,7 @@ end subroutine map_solution_to_mesh
         call exit(1)
       endif
       if(nint(elem_field(ne_group,ne)).ne.0)then
-        print *,'ERROR: occlusion_list element is not an artery:',ne
+        print *,'ERROR: occlusion_list element is not an artery:',elems(ne)
         call exit(1)
       endif
       if(.not.remodel_protected(ne))then
@@ -1888,8 +1917,8 @@ end subroutine map_solution_to_mesh
       if(nint(elem_field(ne_group,ne)).ne.1)cycle
       if(remodel_protected(elem_cnct(-1,1,ne)))num_units_protected=num_units_protected+1
     enddo
-    print *,'Occlusion list: ',size(occ_list),' elements protect ',num_units_protected, &
-      ' ladder units from remodelling'
+    print *,'Occlusion list: ',size(occ_list),' elements (geometry numbering) protect ', &
+      num_units_protected,' ladder units from remodelling'
     deallocate(queue)
   end subroutine build_remodel_protection
 

@@ -65,8 +65,10 @@ Regional remodeling below occlusions
 ------------------------------------
 
 ``occlusion_list(elements)`` from ``aether.pressure_resistance_flow`` takes
-LungSim local element numbers (one-based positions in the element arrays, the
-same numbering as ``set_perfusion_flows``). The next ``evaluate_prq`` marks
+element numbers as written in the geometry (exelem) files, like
+``set_perfusion_flows``; LungSim converts them to its internal array positions
+and stops with an error if a number is not in the mesh. The next
+``evaluate_prq`` marks
 every arterial element at or downstream of a listed element, and each ladder
 unit fed by a marked element is solved without remodeling (grade zero), while
 every other unit uses the requested grade and side. This represents the healthy
