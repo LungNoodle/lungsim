@@ -29,14 +29,14 @@ module capillaryflow
 
   !Interfaces
   private
-  public cap_flow_ladder,cap_flow_admit
+  public cap_flow_ladder,cap_flow_admit,micro_remodel_radius,micro_prune_alive,select_remodeling_side
 
 contains
 !
 !###################################################################################
 !
   subroutine cap_flow_ladder(ne,LPM_FUNC,Lin,Lout,Pin,Pout,Ppl,&
-    Q01,R_in,R_out,x,y,z,OUTPUT_PERFUSION)
+    Q01,R_in,R_out,x,y,z,OUTPUT_PERFUSION,remodeling_grade,remodeling_side)
 !*cap_flow_ladder:* Uses the ladder model to solve for perfusion in the acinus.
 ! It uses a symmetric, bifuracting arteriole and venule tree with N generations
 ! and calls a function to calculate resistance across a capillary sheet at each
@@ -68,6 +68,8 @@ contains
     real(dp), intent(inout) :: LPM_FUNC
     real(dp):: Pin,Pout,Q01,R_in,R_out,x,y,z,Lin,Lout,Ppl
     logical, intent(in) :: OUTPUT_PERFUSION
+    real(dp), intent(in) :: remodeling_grade
+    character(len=*), intent(in) :: remodeling_side
 
     type(capillary_bf_parameters) :: cap_param
 
@@ -109,7 +111,7 @@ contains
 !!  ---CALL THE FUNCTIONS THAT CALCULATE THE FLOW ACROSS THE LADDER FOR A GIVEN PRESSURE DROP--
       call evaluate_ladder(ne,NonZeros,MatrixSize,submatrixsize,ngen,&
       area,Lin,Lout,Pin,Pout,Ppl,R_in,R_out,Q01_mthrees,x,y,z,&
-      OUTPUT_PERFUSION)
+      OUTPUT_PERFUSION,remodeling_grade,remodeling_side)
 
 !     ---FINAL FUNCTION OUTPUT (Resistance across ladder)---
 !...  This takes difference between the inlet and outlet pressures
@@ -126,13 +128,15 @@ contains
 !*evaluate_ladder:* Sets up and solves matrix equations for ladder model.
   subroutine evaluate_ladder(ne,NonZeros,MatrixSize,submatrixsize,ngen,&
       area,L_in,L_out,Pin,Pout,Ppl,R_in,R_out,Q01_mthrees,x,y,z, &
-      OUTPUT_PERFUSION)
+      OUTPUT_PERFUSION,remodeling_grade,remodeling_side)
 
     type(capillary_bf_parameters) :: cap_param
 
     integer :: ne,NonZeros,MatrixSize,submatrixsize,ngen
     real(dp) :: area,Pin,Pout,Ppl,Q01_mthrees,x,y,z,R_in,R_out,L_in,L_out
     logical :: OUTPUT_PERFUSION
+    real(dp), intent(in) :: remodeling_grade
+    character(len=*), intent(in) :: remodeling_side
     real(dp) :: area_scale,length_scale,alpha_c
 
     ! Local variables
@@ -151,6 +155,7 @@ contains
     real(dp) :: TOTAL_CAP_VOL,TOTAL_SHEET_H,TOTAL_SHEET_SA,&
          recruited,TT_TOTAL,R_upstream,R_downstream
     real(dp),allocatable :: l_a(:),rad_a(:),l_v(:),rad_v(:),mu_app(:)
+    real(dp),allocatable :: alive(:) ! fraction of each generation perfused after pruning
      integer SOLVER_FLAG
     character(len=60) :: sub_name
     integer :: AllocateStatus
@@ -221,6 +226,8 @@ contains
 
       CALL cap_specific_parameters(ne,Ppl,alpha_c,area_scale,length_scale,l_a,rad_a,l_v,rad_v,ngen,&
         mu_app,R_in,R_out,L_in,L_out)
+      allocate(alive(ngen))
+      call micro_prune_alive(rad_a,rad_v,ngen,remodeling_grade,remodeling_side,alive)
 !### ITERATIVE LOOP
       iter=0
       ErrorEstimate=1.d10
@@ -232,7 +239,7 @@ contains
 
         CALL POPULATE_MATRIX_LADDER(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
           area_scale,length_scale,mu_app,Ppl,Pin,Pout,Pressure,&
-         Q01_mthrees,Q_sheet,SparseVal,l_a,rad_a,l_v,rad_v)
+         Q01_mthrees,Q_sheet,SparseVal,l_a,rad_a,l_v,rad_v,remodeling_grade,remodeling_side)
 
 
       call pmgmres_ilu_cr(MatrixSize, NonZeros, SparseRow, SparseCol, SparseVal, &
@@ -261,7 +268,7 @@ contains
 
       Qtot=0
       Do i=1,cap_param%num_symm_gen
-        Qtot=Qtot+Q_sheet(i)*2.d0**i
+        Qtot=Qtot+Q_sheet(i)*2.d0**i*alive(i)
       ENDDO
       Rtot=(Pin-Pout)/Q01_mthrees
 !
@@ -282,7 +289,7 @@ contains
         zone,Pin_sheet,Pout_sheet,area,area_new,alpha_c,area_scale,&
         length_scale,recruited)
            num_sheet=num_sheet+2**gen
-           Qgen=Q_c*2.d0**i
+           Qgen=Q_c*2.d0**i*alive(i)
          WRITE(10,&
               '(I6,X,3(F9.2,X),I6,X,4(F8.2,X),4(F8.5,X),&
          2(F10.2,X),3(F8.4,X),I6,X,2(F10.5,X),2(F8.4,X),&
@@ -290,13 +297,13 @@ contains
          ne,x,y,z,gen,Pin,Pin_sheet,Pout_sheet,Pout,Qtot*1.d9,&
          Qgen*1.d9,Q_c*1.d9,(Hart-Hven)*1.d6,SHEET_RES/1000.d0**3.d0,&
          Rtot/1000.d0**3.d0,RBC_tt,Hart*1.d6,Hven*1.d6,zone,&
-         (Hart/2.d0+Hven/2.d0)*area_new*1.d9*(2.d0**gen),&
-         area_new*1.d6*(2.d0**gen),recruited
+         (Hart/2.d0+Hven/2.d0)*area_new*1.d9*(2.d0**gen)*alive(gen),&
+         area_new*1.d6*(2.d0**gen)*alive(gen),recruited
 
            TOTAL_CAP_VOL=TOTAL_CAP_VOL+(Hart/2.d0+Hven/2.d0)*&
-                area_new*1.d9*(2.d0**gen)
+                area_new*1.d9*(2.d0**gen)*alive(gen)
            TOTAL_SHEET_H=TOTAL_SHEET_H+(Hart/2.d0+Hven/2.d0)*(2.d0**gen)*1.d6
-          TOTAL_SHEET_SA=TOTAL_SHEET_SA+area_new*1.d6*(2.d0**gen)
+          TOTAL_SHEET_SA=TOTAL_SHEET_SA+area_new*1.d6*(2.d0**gen)*alive(gen)
           TT_TOTAL=TT_TOTAL+RBC_tt*(2.d0**gen)
         ENDDO
 
@@ -306,7 +313,7 @@ contains
         CALL CAP_FLOW_SHEET(ne,SHEET_RES,Q_c,Hart,Hven,RBC_TT, &
         zone,Pin_sheet,Pout_sheet,area,area_new,alpha_c,area_scale,&
         length_scale,recruited)
-           Qgen=Q_C*2.d0**cap_param%num_symm_gen
+           Qgen=Q_C*2.d0**cap_param%num_symm_gen*alive(cap_param%num_symm_gen)
          WRITE(10,&
         '(I6,X,3(F9.2,X),I6,X,4(F8.2,X),4(F8.5,X),&
         2(F10.2,X),3(F8.4,X),I6,X,2(F10.5,X),3(F8.4,X))')&
@@ -314,16 +321,16 @@ contains
          Qgen*1.d9,Q_c*1.d9,(Hart-Hven)*1.d6,SHEET_RES/1000.d0**3.d0,&
          Rtot/1000.d0**3.d0,RBC_tt,Hart*1.d6,Hven*1.d6,zone,&
          R_upstream,R_downstream,&
-         (Hart/2.d0+Hven/2.d0)*area_new*1.d9*(2.d0**gen),&
-         area_new*1.d6*(2.d0**gen),recruited
+         (Hart/2.d0+Hven/2.d0)*area_new*1.d9*(2.d0**gen)*alive(gen),&
+         area_new*1.d6*(2.d0**gen)*alive(gen),recruited
 
           TOTAL_CAP_VOL=TOTAL_CAP_VOL&
-            +(Hart/2.d0+Hven/2.d0)*area_new*1.d9*(2.d0**gen)
+            +(Hart/2.d0+Hven/2.d0)*area_new*1.d9*(2.d0**gen)*alive(gen)
            TOTAL_SHEET_H=TOTAL_SHEET_H&
             +(Hart/2.d0+Hven/2.d0)*(2.d0**gen)*1.d6
           TOTAL_SHEET_H=TOTAL_SHEET_H/num_sheet
           TOTAL_SHEET_SA=TOTAL_SHEET_SA&
-            +area_new*1.d6*(2.d0**gen)
+            +area_new*1.d6*(2.d0**gen)*alive(gen)
             TT_TOTAL=TT_TOTAL+RBC_tt*(2.d0**gen)
             TT_TOTAL=TT_TOTAL/num_sheet
 
@@ -499,7 +506,7 @@ end subroutine laddersol_matrix
 !
 subroutine populate_matrix_ladder(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
        area_scale,length_scale,mu_app,Ppl,Pin,Pout,Pressure,&
-      Q01_mthrees,Q_sheet,SparseVal,l_a,rad_a,l_v,rad_v)
+      Q01_mthrees,Q_sheet,SparseVal,l_a,rad_a,l_v,rad_v,remodeling_grade,remodeling_side)
 !*populate_matrix_ladder:*Sets up ladder matrix entries that are NOT independent of iteration.
 
     type(capillary_bf_parameters) :: cap_param
@@ -508,6 +515,8 @@ subroutine populate_matrix_ladder(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
     real(dp) :: area,mu_app(ngen),Pin,Pout,Ppl,Pressure(submatrixsize),Q01_mthrees,&
             Q_sheet(ngen),SparseVal(NonZeros),alpha_c,&
             area_scale,length_scale,l_a(ngen),rad_a(ngen),l_v(ngen),rad_v(ngen)
+    real(dp), intent(in) :: remodeling_grade
+    character(len=*), intent(in) :: remodeling_side
 
 
 
@@ -516,7 +525,7 @@ subroutine populate_matrix_ladder(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
     real(dp) :: Q,P_exta,P_extv,radupdate,R_art1,R_art2,&
         R_ven1,R_ven2,SHEET_RES,Q_c,R_sheet(ngen),Q_gen,Hart,&
         Hven,RBC_TT,Pin_sheet,Pout_sheet,area_new,test,&
-        recruited,volume_vessels
+         recruited,volume_vessels,alive(ngen)
 
     character(len=60) :: sub_name
 
@@ -527,6 +536,8 @@ subroutine populate_matrix_ladder(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
 !...  initialising vessel volumes
       volume_vessels=0.d0
 
+!...  Fraction of each generation still perfused after pruning (1 when healthy)
+      call micro_prune_alive(rad_a,rad_v,ngen,remodeling_grade,remodeling_side,alive)
 !...  Previous iterations estimate for total flow through the system
       !ALYS: at the moment we aren't iterating so use Q01
        Q=Q01_mthrees
@@ -555,13 +566,15 @@ subroutine populate_matrix_ladder(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
 !              radupdate=radupdate*k_factor
 !           ENDIF
 !         ENDIF
+         call micro_remodel_radius(rad_a(gen),radupdate,remodeling_grade,remodeling_side, &
+              'arterial')
          volume_vessels=volume_vessels+&
-          (2.d0**gen*(pi*radupdate**2.d0*L_a(gen)/2.d0)*1000.d0**3.d0) !mm3
+           (2.d0**gen*(pi*radupdate**2.d0*L_a(gen)/2.d0)*1000.d0**3.d0) !mm3
        test=(2.d0**gen*(pi*radupdate**2.d0*L_a(gen)/2.d0)*1000.d0**3.d0)
 
 !...  Calculate Poiseuille resistance in first half of arteriole - (only
 !...  half total generation length)
-           R_art1=(8.d0*mu_app(gen)*L_a(gen)/2.d0)/(pi*radupdate**4.d0)
+           R_art1=(8.d0*mu_app(gen)*L_a(gen)/2.d0)/(pi*radupdate**4.d0)/alive(gen)
 
 !...    FIRST HALF OF VENULE
 !...    Update radius of venule based on inlet pressure NB: May need to
@@ -587,12 +600,14 @@ subroutine populate_matrix_ladder(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
             /(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*cap_param%Pub_a_v&
             /(2.d0-2.d0*cap_param%num_symm_gen)
          ENDIF
-         volume_vessels=volume_vessels+&
-          (2.d0**gen*(pi*radupdate**2.d0*L_v(gen)/2.d0)*1000.d0**3.d0) !mm3
+          call micro_remodel_radius(rad_v(gen),radupdate,remodeling_grade,remodeling_side, &
+               'venous')
+          volume_vessels=volume_vessels+&
+           (2.d0**gen*(pi*radupdate**2.d0*L_v(gen)/2.d0)*1000.d0**3.d0) !mm3
        test=(2.d0**gen*(pi*radupdate**2.d0*L_v(gen)/2.d0)*1000.d0**3.d0)
 
 !...   Calculate Poiseuille resistance in first half of venule
-           R_ven1=(8.0_dp*mu_app(gen)*L_v(gen)/2.0_dp)/(pi*radupdate**4.0_dp)
+           R_ven1=(8.0_dp*mu_app(gen)*L_v(gen)/2.0_dp)/(pi*radupdate**4.0_dp)/alive(gen)
 
 !...   CAPILLARY ELEMENT (arteriole + venule + capillary)
 !...    pressure into the capillaries
@@ -608,7 +623,7 @@ subroutine populate_matrix_ladder(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
 
 !...    Update soln matrix (delta p=QR across a cap)
            SparseVal(NonZeros-cap_param%num_symm_gen-1-3*(cap_param%num_symm_gen-gen))=&
-            -SHEET_RES
+            -SHEET_RES/alive(gen)
 
      !...   SECOND HALF OF ARTERIOLE
 !...    Update radius of arteriole based on inlet pressure NB: May need to
@@ -629,13 +644,15 @@ subroutine populate_matrix_ladder(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
 !              radupdate=radupdate*k_factor
 !           ENDIF
 !         ENDIF
+         call micro_remodel_radius(rad_a(gen),radupdate,remodeling_grade,remodeling_side, &
+              'arterial')
          volume_vessels=volume_vessels+&
-          (2.d0**gen*(pi*radupdate**2.d0*L_a(gen)/2.d0)*1000.d0**3.d0) !mm3
+           (2.d0**gen*(pi*radupdate**2.d0*L_a(gen)/2.d0)*1000.d0**3.d0) !mm3
        test=(2.d0**gen*(pi*radupdate**2.d0*L_a(gen)/2.d0)*1000.d0**3.d0)
 
        !...  Calculate Poiseuille resistance in second half of arteriole - (only
        !...   half total generation length)
-      R_art2=(8*mu_app(gen)*L_a(gen)/2.d0)/(pi*radupdate**4.d0);
+      R_art2=(8*mu_app(gen)*L_a(gen)/2.d0)/(pi*radupdate**4.d0)/alive(gen)
 
 !   SECOND HALF OF VENULE
 !...    Update radius - linear with pressure or constant at high pressure
@@ -650,11 +667,13 @@ subroutine populate_matrix_ladder(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
             /(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*cap_param%Pub_a_v&
             /(2.d0-2.d0*cap_param%num_symm_gen)
          ENDIF
-         volume_vessels=volume_vessels+&
-          (2.d0**gen*(pi*radupdate**2.d0*L_v(gen)/2.d0)*1000.d0**3.d0) !mm3
+          call micro_remodel_radius(rad_v(gen),radupdate,remodeling_grade,remodeling_side, &
+               'venous')
+          volume_vessels=volume_vessels+&
+           (2.d0**gen*(pi*radupdate**2.d0*L_v(gen)/2.d0)*1000.d0**3.d0) !mm3
        test=(2.d0**gen*(pi*radupdate**2.d0*L_v(gen)/2.d0)*1000.d0**3.d0)
        !...  Poiseuille resistance in second half of venule
-      R_ven2=(8.d0*mu_app(gen)*L_v(gen)/2.d0)/(pi*radupdate**4.d0)
+       R_ven2=(8.d0*mu_app(gen)*L_v(gen)/2.d0)/(pi*radupdate**4.d0)/alive(gen)
 
       !...  First generation
        IF (gen.EQ.1) THEN
@@ -697,7 +716,7 @@ subroutine populate_matrix_ladder(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
         CALL CAP_FLOW_SHEET(ne,SHEET_RES,Q_c,Hart,Hven,RBC_TT, &
         zone,Pin_sheet,Pout_sheet,area,area_new,alpha_c,area_scale,&
         length_scale,recruited)
-        SparseVal(NonZeros-cap_param%num_symm_gen-1)=-SHEET_RES
+        SparseVal(NonZeros-cap_param%num_symm_gen-1)=-SHEET_RES/alive(cap_param%num_symm_gen)
             Q_sheet(cap_param%num_symm_gen)=(Pin_sheet-Pout_sheet)/SHEET_RES
             Q_gen=Q_sheet(cap_param%num_symm_gen)*2**gen
             R_sheet(cap_param%num_symm_gen)=SHEET_RES
@@ -705,6 +724,102 @@ subroutine populate_matrix_ladder(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
     call enter_exit(sub_name,2)
 
 end subroutine populate_matrix_ladder
+
+subroutine micro_remodel_radius(nominal_radius,radius,grade,selected_side,vessel_side)
+!*micro_remodel_radius:* Hypertrophy, fibrosis and narrowing of one ladder arteriole
+! or venule, selected by its healthy nominal radius. Pruning is handled separately
+! by micro_prune_alive.
+  real(dp), intent(in) :: nominal_radius,grade
+  real(dp), intent(inout) :: radius
+  character(len=*), intent(in) :: selected_side,vessel_side
+  real(dp) :: diameter_um,alpha_factor,narrow_factor,g
+
+  if (grade <= 0.0_dp) return
+  if (selected_side /= vessel_side .and. selected_side /= 'both') return
+  g=min(100.0_dp,max(0.0_dp,grade))
+  diameter_um=2.0e6_dp*nominal_radius
+  alpha_factor=1.0_dp
+  narrow_factor=1.0_dp
+  if (diameter_um >= 100.0_dp .and. diameter_um <= 1000.0_dp) &
+       alpha_factor=1.0_dp-(min(60.0_dp,max(10.0_dp,g))-10.0_dp)/60.0_dp
+  if (diameter_um >= 30.0_dp .and. diameter_um <= 500.0_dp .and. g > 50.0_dp) &
+       alpha_factor=alpha_factor*(1.0_dp-min(g-50.0_dp,50.0_dp)/50.0_dp*5.0_dp/6.0_dp)
+  if (diameter_um >= 30.0_dp .and. diameter_um <= 300.0_dp .and. g > 20.0_dp) &
+       narrow_factor=1.0_dp-min(g-20.0_dp,40.0_dp)/40.0_dp*0.45_dp
+  radius=max(1.0e-8_dp,narrow_factor*(nominal_radius+alpha_factor*(radius-nominal_radius)))
+end subroutine micro_remodel_radius
+!
+!###################################################################################
+!
+!*micro_prune_alive:* Fraction of the vessels and sheets still perfused in each ladder
+! generation after pruning. A fraction p_f of the vessels at the most proximal
+! generation inside the pruning diameter band (on the remodelled side) is occluded,
+! and everything they feed or drain is cut off with them: the deeper arterioles,
+! their capillary sheets and the venules draining those sheets. In the symmetric
+! ladder this means generations prune_gen..ngen keep (1-p_f) of their vessels and
+! sheets, while shallower generations are unaffected.
+subroutine micro_prune_alive(rad_a,rad_v,ngen,grade,selected_side,alive,prune_gen)
+  integer, intent(in) :: ngen
+  real(dp), intent(in) :: rad_a(ngen),rad_v(ngen),grade
+  character(len=*), intent(in) :: selected_side
+  real(dp), intent(out) :: alive(ngen)
+  integer, intent(out), optional :: prune_gen
+  real(dp) :: g,prune_fraction,prune_limit
+  logical :: art,ven
+  integer :: gen,k
+
+  alive=1.0_dp
+  k=0
+  if (present(prune_gen)) prune_gen=0
+  if (grade <= 20.0_dp) return
+  art=(selected_side=='arterial' .or. selected_side=='both')
+  ven=(selected_side=='venous' .or. selected_side=='both')
+  if (.not.(art .or. ven)) return
+  g=min(100.0_dp,grade)
+  prune_fraction=min(0.5_dp,(g-20.0_dp)/160.0_dp)
+  prune_limit=300.0_dp
+  if (g >= 50.0_dp) prune_limit=500.0_dp
+  do gen=1,ngen-1 ! generation ngen has capillary sheets only
+    if ((art .and. 2.0e6_dp*rad_a(gen) < prune_limit) .or. &
+        (ven .and. 2.0e6_dp*rad_v(gen) < prune_limit)) then
+      k=gen
+      exit
+    endif
+  enddo
+  if (k == 0) return
+  alive(k:ngen)=1.0_dp-prune_fraction
+  if (present(prune_gen)) prune_gen=k
+end subroutine micro_prune_alive
+!
+!###################################################################################
+!
+!*select_remodeling_side:* Checks the remodeling inputs and returns the side to remodel.
+! The side is optional and defaults to 'none'. Grade zero is healthy, so the side is
+! ignored and 'none' is returned. A grade above zero needs 'arterial', 'venous' or 'both'.
+subroutine select_remodeling_side(remodeling_grade,mesh_type,remodeling_side,selected_side)
+  real(dp), intent(in) :: remodeling_grade
+  character(len=*), intent(in) :: mesh_type
+  character(len=*), intent(in), optional :: remodeling_side
+  character(len=8), intent(out) :: selected_side
+
+  selected_side='none'
+  if (present(remodeling_side)) then
+    if (len_trim(remodeling_side) > 0) selected_side=adjustl(remodeling_side)
+  endif
+  if (remodeling_grade < 0.0_dp .or. remodeling_grade > 100.0_dp) &
+       error stop 'remodeling_grade must be between 0 and 100'
+  if (selected_side /= 'none' .and. selected_side /= 'arterial' .and. &
+       selected_side /= 'venous' .and. selected_side /= 'both') &
+       error stop 'remodeling_side must be none, arterial, venous, or both'
+  if (remodeling_grade == 0.0_dp) then
+    selected_side='none'
+    return
+  endif
+  if (selected_side == 'none') &
+       error stop 'remodeling_grade > 0 needs remodeling_side arterial, venous, or both'
+  if (mesh_type /= 'full_plus_ladder') &
+       error stop 'microvascular remodeling requires full_plus_ladder'
+end subroutine select_remodeling_side
 !
 !###################################################################################
 !
@@ -916,7 +1031,7 @@ end subroutine cap_specific_parameters
 !
 subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,&
   Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap,no_freq,harmonic_scale,elast_param,&
-  cap_model)
+  cap_model,remodeling_grade,remodeling_side)
 
   integer,intent(in) :: ne
   integer,intent(in) :: no_freq
@@ -926,6 +1041,8 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
   real(dp), intent(inout) ::Lin,Lout,P1,P2,Ppl,Q01,Rin,Rout,x_cap,y_cap,z_cap
   real(dp), intent(in) :: harmonic_scale
   integer, intent(in) :: cap_model
+  real(dp), intent(in) :: remodeling_grade
+  character(len=*), intent(in) :: remodeling_side
 
   type(elasticity_param) :: elast_param
 
@@ -935,6 +1052,7 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
   real(dp) :: alpha_c,area_scale,length_scale
   real(dp), allocatable :: sheet_width_factor(:)
   real(dp) :: radupdate,P_exta,P_extv,Q01_mthrees,Pin,Pout
+  real(dp), allocatable :: alive(:)
   integer :: gen
   real(dp) :: SHEET_RES,Q_c,Hart,Hven,RBC_TT,area,area_new,recruited,omega,nd_omega
   integer :: zone,nf
@@ -1082,7 +1200,7 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
 
       CALL POPULATE_MATRIX_LADDER(ne,NonZeros,submatrixsize,ngen,area,alpha_c,&
           area_scale,length_scale,mu_app,Ppl,Pin,Pout,Pressure,&
-          Q01_mthrees,Q_sheet,SparseVal,l_a,rad_a,l_v,rad_v)
+          Q01_mthrees,Q_sheet,SparseVal,l_a,rad_a,l_v,rad_v,remodeling_grade,remodeling_side)
 
 
       call pmgmres_ilu_cr(MatrixSize, NonZeros, SparseRow, SparseCol, SparseVal, &
@@ -1165,13 +1283,15 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
     endif
 !!...  Calculate Poiseuille resistance in first half of arteriole - (only
 !!...  half total generation length)
+     call micro_remodel_radius(rad_a(gen),radupdate,remodeling_grade,remodeling_side, &
+          'arterial')
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
       !!!ARC TO FIX alpha_a is in m/Pa, need in 1/Pa (just read in from main model?)
        omega=nf*2*PI*harmonic_scale
        wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
        f10=womersley_f10(wolmer)
        wavespeed=sqrt(1.0_dp/(2*fp%blood_density*(elast_param%elasticity_parameters(1))))*sqrt(1-f10)!alpha in the sense of this model is 1/Pa so has to be dovided by radius
-       tube_admit(gen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10)
+        tube_admit(gen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10)
        prop_const(gen,nf)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed)
      enddo
 !!...    FIRST HALF OF VENULE
@@ -1191,12 +1311,15 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
          /(2.d0-2.d0*cap_param%num_symm_gen)
      endif
 !!...   Calculate Poiseuille resistance in first half of venule
+      call micro_remodel_radius(rad_v(gen),radupdate,remodeling_grade,remodeling_side, &
+           'venous')
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale
        wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
        f10=womersley_f10(wolmer)
        wavespeed=sqrt(1.0_dp/(2*fp%blood_density*elast_param%elasticity_parameters(1)))*sqrt(1-f10) !mm/s
-       tube_admit(gen+2*ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10)!mm3/Pa.s
+        tube_admit(gen+2*ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))* &
+             sqrt(1-f10) !mm3/Pa.s
        prop_const(gen+2*ngen,nf)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed)!1/mm
      enddo
 
@@ -1229,13 +1352,16 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
 
        !...  Calculate Poiseuille resistance in second half of arteriole - (only
        !...   half total generation length)
+       call micro_remodel_radius(rad_a(gen),radupdate,remodeling_grade,remodeling_side, &
+            'arterial')
 
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale
        wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
        f10=womersley_f10(wolmer)
        wavespeed=sqrt(1.0_dp/(2*fp%blood_density*elast_param%elasticity_parameters(1)))*sqrt(1-f10)
-       tube_admit(gen+ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10)
+        tube_admit(gen+ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))* &
+             sqrt(1-f10)
        prop_const(gen+ngen,nf)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed)
      enddo
 
@@ -1250,12 +1376,15 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
         /(1.d0-cap_param%num_symm_gen)+alpha_c*(1-gen)*cap_param%Pub_a_v&
         /(2.d0-2.d0*cap_param%num_symm_gen)
      endif
+      call micro_remodel_radius(rad_v(gen),radupdate,remodeling_grade,remodeling_side, &
+           'venous')
      do nf=1,no_freq !radius needs to  be multipled by 1000 to go to mm (units of rest of model)
        omega=nf*2*PI*harmonic_scale
        wolmer=(radupdate*1000.0_dp)*sqrt(omega*fp%blood_density/mu_app(gen))
        f10=womersley_f10(wolmer)
        wavespeed=sqrt(1.0_dp/(2*fp%blood_density*elast_param%elasticity_parameters(1)))*sqrt(1-f10) !mm/s
-       tube_admit(gen+3*ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))*sqrt(1-f10)
+        tube_admit(gen+3*ngen,nf)=PI*(radupdate*1000.0_dp)**2/(fp%blood_density*wavespeed/sqrt(1-f10))* &
+             sqrt(1-f10)
        prop_const(gen+3*ngen,nf)=cmplx(0.0_dp,1.0_dp,8)*omega/(wavespeed) !1/mm
      enddo
   enddo
@@ -1277,6 +1406,27 @@ subroutine cap_flow_admit(ne,admit,cap_port,eff_admit_downstream,Lin,Lout,P1,P2,
           prop_const_cap(gen,nf)) ! Non-constant capillary sheet
       endif
     enddo
+
+  ! Pruning: generations prune_gen..ngen keep only a fraction alive(gen) of their
+  ! vessels and sheets. A bundle of identical parallel lines has the admittance of
+  ! one line times their number, with the same propagation constant, so scale the
+  ! characteristic admittances of the tubes and sheets in those generations.
+  allocate(alive(ngen))
+  call micro_prune_alive(rad_a,rad_v,ngen,remodeling_grade,remodeling_side,alive)
+  do gen=1,ngen
+    if (gen < ngen) then
+      tube_admit(gen,:)=tube_admit(gen,:)*alive(gen)
+      tube_admit(gen+ngen,:)=tube_admit(gen+ngen,:)*alive(gen)
+      tube_admit(gen+2*ngen,:)=tube_admit(gen+2*ngen,:)*alive(gen)
+      tube_admit(gen+3*ngen,:)=tube_admit(gen+3*ngen,:)*alive(gen)
+    endif
+    if (cap_model == 1) then
+      cap_admit(gen,:)=cap_admit(gen,:)*alive(gen)
+    elseif (cap_model == 2) then
+      sheet_admit_matrix(gen,:,:)=sheet_admit_matrix(gen,:,:)*alive(gen)
+    endif
+  enddo
+  deallocate(alive)
 
   !FIRST GENERATION - need to relate to vein outlet admittance
   !first vein in generation

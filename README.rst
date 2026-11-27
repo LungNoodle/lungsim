@@ -31,3 +31,47 @@ Citation
 
 If you use LungSim in research, please cite it using the metadata in
 `CITATION.cff <CITATION.cff>`_.
+Microvascular remodeling
+------------------------
+
+For a full_plus_ladder perfusion mesh, use the Python binding
+``evaluate_prq(mesh_type, vessel_type, grav_dirn, grav_factor,
+bc_type, inlet_bc, outlet_bc, remodeling_grade, remodeling_side)``
+from ``aether.pressure_resistance_flow``. ``remodeling_side`` is optional
+and defaults to ``"none"``. Grade zero is a healthy run: leave the side out
+(any side given is ignored). For a grade above zero, set
+``remodeling_side`` to ``"arterial"``, ``"venous"``, or ``"both"``; the run
+stops with an error if it is missing or ``"none"``.
+
+For wave simulations, ``evaluate_wave_transmission`` has the same optional
+final ``remodeling_side`` argument.
+Use the same grade and side in both calls.
+
+Selection uses the healthy nominal vessel diameter within each ladder unit.
+Hypertrophy affects 100-1000 micrometres; narrowing affects 30-300
+micrometres; and fibrosis affects 30-500 micrometres. The ninth generation
+contains capillary sheets only, so these changes apply to the tubular
+arterioles and venules of generations 1-8.
+
+Pruning occludes a fraction ``p_f`` of the vessels at the most proximal ladder
+generation, on the remodelled side, whose diameter is below 300 micrometres
+(below 500 from grade 50). Everything those vessels feed or drain is cut off
+with them: the deeper arterioles, their capillary sheets and the venules
+draining those sheets. In the symmetric ladder this means that generation and
+every deeper one keep only ``1 - p_f`` of their vessels and sheets; shallower
+generations are unaffected. With ``"both"``, ``p_f`` is applied once.
+
+Regional remodeling below occlusions
+------------------------------------
+
+``occlusion_list(elements)`` from ``aether.pressure_resistance_flow`` takes
+element numbers as written in the geometry (exelem) files, like
+``set_perfusion_flows``; LungSim converts them to its internal array positions
+and stops with an error if a number is not in the mesh. The next
+``evaluate_prq`` marks
+every arterial element at or downstream of a listed element, and each ladder
+unit fed by a marked element is solved without remodeling (grade zero), while
+every other unit uses the requested grade and side. This represents the healthy
+microvasculature distal to a removed occlusion, for example when predicting the
+state after pulmonary endarterectomy. Calling ``occlusion_list`` again replaces
+the previous list. The run prints how many ladder units were protected.

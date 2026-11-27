@@ -6,7 +6,7 @@ void occlusion_list_c(int *elemlist_len, int elemlist[]);
 void set_perfusion_flows_c(int *element_ids_len, int element_ids[], int *flow_values_len, double flow_values[]);
 void clear_perfusion_flows_c(void);
 
-void evaluate_prq_c(const char *mesh_type, int *mesh_type_len, const char *vessel_type, int *vessel_type_len,int *grav_dirn, double *grav_factor, const char *bc_type, int *bc_type_len,  double *inlet_bc, double *outlet_bc,  double *remodeling_grade);
+void evaluate_prq_c(const char *mesh_type, int *mesh_type_len, const char *vessel_type, int *vessel_type_len,int *grav_dirn, double *grav_factor, const char *bc_type, int *bc_type_len, double *inlet_bc, double *outlet_bc, double *remodeling_grade, const char *remodeling_side, int *remodeling_side_len);
 
 void compliance_list(int elemlist2_len, int elemlist2[])
 {
@@ -28,10 +28,13 @@ void clear_perfusion_flows(void)
   clear_perfusion_flows_c();
 }
 
-void evaluate_prq(const char *mesh_type, const char *vessel_type,int grav_dirn, double grav_factor, const char *bc_type, double inlet_bc, double outlet_bc, double remodeling_grade)
+void evaluate_prq(const char *mesh_type, const char *vessel_type,int grav_dirn, double grav_factor, const char *bc_type, double inlet_bc, double outlet_bc, double remodeling_grade, const char *remodeling_side)
 {
     int mesh_type_len = strlen(mesh_type);
 	int bc_type_len = strlen(bc_type);
 	int vessel_type_len = strlen(vessel_type);
-    evaluate_prq_c(mesh_type, &mesh_type_len,vessel_type, &vessel_type_len, &grav_dirn, &grav_factor, bc_type, &bc_type_len, &inlet_bc, &outlet_bc, &remodeling_grade);
+    if (remodeling_side == NULL) remodeling_side = "none";
+    int remodeling_side_len = strlen(remodeling_side);
+    evaluate_prq_c(mesh_type, &mesh_type_len, vessel_type, &vessel_type_len, &grav_dirn, &grav_factor,
+        bc_type, &bc_type_len, &inlet_bc, &outlet_bc, &remodeling_grade, remodeling_side, &remodeling_side_len);
 }

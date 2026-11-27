@@ -102,6 +102,14 @@ if ($2) free($2);
 
 %{
 #include "pressure_resistance_flow.h"
+#define evaluate_prq_py evaluate_prq
 %}
 
+/* Wrap evaluate_prq with remodeling_side optional (default "none") in Python. */
+%ignore evaluate_prq;
 %include pressure_resistance_flow.h
+
+%rename (evaluate_prq) evaluate_prq_py;
+void evaluate_prq_py(const char *mesh_type, const char *vessel_type, int grav_dirn, double grav_factor,
+    const char *bc_type, double inlet_bc, double outlet_bc, double remodeling_grade,
+    const char *remodeling_side = "none");

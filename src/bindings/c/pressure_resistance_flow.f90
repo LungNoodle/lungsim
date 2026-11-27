@@ -71,7 +71,7 @@ contains
 !!!###################################################################################
 
 subroutine evaluate_prq_c(mesh_type,mesh_type_len,vessel_type,vessel_type_len,grav_dirn,grav_factor,bc_type,bc_type_len,inlet_bc, &
-               outlet_bc,remodeling_grade) bind(C, name="evaluate_prq_c")
+               outlet_bc,remodeling_grade,remodeling_side,remodeling_side_len) bind(C, name="evaluate_prq_c")
 
   use iso_c_binding, only: c_ptr
   use utils_c, only: strncpy
@@ -80,16 +80,18 @@ subroutine evaluate_prq_c(mesh_type,mesh_type_len,vessel_type,vessel_type_len,gr
   use pressure_resistance_flow, only: evaluate_prq
   implicit none
 
-  type(c_ptr), value, intent(in) :: mesh_type,bc_type,vessel_type
-  integer,intent(in) :: mesh_type_len,bc_type_len, vessel_type_len,grav_dirn
-  character(len=MAX_STRING_LEN) :: mesh_type_f,bc_type_f,vessel_type_f
+  type(c_ptr), value, intent(in) :: mesh_type,bc_type,vessel_type,remodeling_side
+  integer,intent(in) :: mesh_type_len,bc_type_len,vessel_type_len,grav_dirn,remodeling_side_len
+  character(len=MAX_STRING_LEN) :: mesh_type_f,bc_type_f,vessel_type_f,remodeling_side_f
   real(dp),intent(in) :: grav_factor,inlet_bc,outlet_bc,remodeling_grade
 
   call strncpy(mesh_type_f, mesh_type, mesh_type_len)
   call strncpy(bc_type_f, bc_type, bc_type_len)
   call strncpy(vessel_type_f, vessel_type, vessel_type_len)
+  call strncpy(remodeling_side_f, remodeling_side, remodeling_side_len)
 
-  call evaluate_prq(mesh_type_f,vessel_type_f,grav_dirn,grav_factor,bc_type_f,inlet_bc,outlet_bc,remodeling_grade)
+  call evaluate_prq(mesh_type_f,vessel_type_f,grav_dirn,grav_factor,bc_type_f,inlet_bc,outlet_bc, &
+       remodeling_grade,remodeling_side_f)
 
 end subroutine evaluate_prq_c
 

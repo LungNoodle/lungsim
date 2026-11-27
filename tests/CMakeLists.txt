@@ -4,6 +4,7 @@ set(
   TESTS
   "diagnostics"
   "lymphatic_parameters"
+  "micro_remodel"
 )
 set(
   TEST_SRCS
